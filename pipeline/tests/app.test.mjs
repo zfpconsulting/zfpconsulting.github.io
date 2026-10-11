@@ -1125,4 +1125,24 @@ export default {
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
+  "finanční plán: z karty klienta, předvyplní IOLDP a uloží ke klientovi": async (env) => {
+    const store = { "clients/c1": { name: "Petr Test", birth: "1990-01-01", _u: 1 },
+      "duchod/c1": { clientId: "c1", name: "Petr Test", res: { i1: 7000, i2: 8000, i3: 14000, wid: 8000, orp: 6000 }, in: { ret: "2057-01-01" }, updatedAt: 1, _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store, width: 1280 });
+    await page.evaluate(() => { const e = clientEntries().find(x => x.rec && x.rec.id === "c1"); openFP(e, e.rec); });
+    const fr = await (await page.waitForSelector("#fpOverlay iframe")).contentFrame();
+    await fr.waitForFunction(() => typeof R !== "undefined" && R && R.persons, null, { timeout: 10000 });
+    eq(await fr.evaluate(() => [R.persons[0].jmeno, R.persons[0].inv1, R.persons[0].inv3, R.persons[0].sirotci, inp().klient.narozen]), ["Petr Test", 7000, 14000, 6000, "1990-01-01"], "předvyplnění z klienta a IOLDP");
+    await fr.fill('input[data-p="klient.zam"]', "50000");
+    await fr.click("text=✕ Zavřít");
+    await page.waitForFunction(() => !document.getElementById("fpOverlay"), null, { timeout: 5000 });
+    eq(await page.evaluate(() => { const d = fplans.find(x => x.id === "c1"); return d && [d.plan.klient.zam, d.plan.klient.inv2]; }), [50000, 8000], "plán uložen ke klientovi");
+    // druhé otevření načte uložený plán
+    await page.evaluate(() => { const e = clientEntries().find(x => x.rec && x.rec.id === "c1"); openFP(e, e.rec); });
+    const fr2 = await (await page.waitForSelector("#fpOverlay iframe")).contentFrame();
+    await fr2.waitForFunction(() => typeof R !== "undefined" && R && R.persons, null, { timeout: 10000 });
+    eq(await fr2.evaluate(() => R.persons[0].zam), 50000, "uložený plán se znovu načte");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
 };

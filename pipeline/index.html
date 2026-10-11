@@ -1417,7 +1417,7 @@ const LStore=(()=>{
   const apply=(g,dir)=>{replaying=true;try{(dir==="undo"?[...g.ops].reverse():g.ops).forEach(o=>{const tgt=dir==="undo"?o.before:o.after;
       put(o.path,!tgt||tgt._del?{_del:true,_u:Date.now()}:{...clean(tgt),_u:Date.now()})})}finally{replaying=false}};
   const label=g=>{const o=g.ops[0],d=(o.after&&!o.after._del?o.after:o.before)||{},col=o.path.split("/")[0],
-      what={leads:"lead",clients:"klient",team:"člen týmu",recruits:"kandidát",pfinv:"investice",funds:"fond",pfmodels:"model portfolia",fincalc:"kalkulace",duchod:"důchodová kalkulace",settings:"nastavení"}[col]||"záznam";
+      what={leads:"lead",clients:"klient",team:"člen týmu",recruits:"kandidát",pfinv:"investice",funds:"fond",pfmodels:"model portfolia",fincalc:"kalkulace",duchod:"důchodová kalkulace",fplan:"finanční plán",settings:"nastavení"}[col]||"záznam";
     const act=!o.before||o.before._del?"přidání":!o.after||o.after._del?"smazání":"úprava";
     return act+" – "+what+(d.name&&col!=="settings"?" „"+d.name+"“":"")+(g.ops.length>1?" (+"+(g.ops.length-1)+")":"")};
   const inCol=(name)=>Object.entries(s.docs).filter(([k,v])=>k.startsWith(name+"/")&&k.indexOf("/",name.length+1)<0&&!v._del);
@@ -3117,6 +3117,7 @@ function openClient(e0){
     log.length?el("div",{class:"group"},log.slice(0,15).map(x=>el("div",{class:"row"},el("span",{class:"main"},x.t),el("span",{class:"end"},fmtDT(x.d))))):null,
     e.lead?el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(e.lead)}},"Otevřít lead v pipeline")):null,
     ...duchClientSection(e,rec),
+    ...fpClientSection(e,rec),
     ...pfClientSection(e,rec),
     el("div",{class:"group"},el("button",{type:"button",class:"danger-row",onclick:()=>hideClient(e)},"Není to klient – skrýt ze seznamu"))
   ]);
@@ -5357,7 +5358,7 @@ $("form").addEventListener("submit",async e=>{
 /* Data stahuje backend (Apps Script, op „fund“), protože prohlížeč na cizí weby kvůli CORS nedosáhne:
    conseq.cz = denní cena fondu, zfpwi.cz = denní vývoj portfolia (CZK), zfpinvest.com = měsíční hodnota podílu.
    Appka si výsledek drží v localStorage a obnovuje ho po 6 hodinách, kdykoli se Portfolia otevřou. */
-let funds=[], pfModels=[], pfInv=[], duchod=[];
+let funds=[], pfModels=[], pfInv=[], duchod=[], fplans=[];
 /* replaceChildren bez prázdných položek (null/false by se jinak vypsalo jako text „null“) */
 function rc(node,...kids){node.replaceChildren(...kids.flat(3).filter(k=>k!=null&&k!==false))}
 const PF_TTL=6*3600e3, pfBusy=new Set(), pfErr={}, pfPer={}, pfSel={}, pfQ=[];let pfRun=0, pfShowHidden=false;
@@ -6438,6 +6439,33 @@ function duchClientSection(e,rec){
     el("p",{class:"hint"},"Z IOLDP"+(d.ioldp?" ze dne "+fmtDate(d.ioldp)+" "+d.ioldp.slice(0,4):"")+" · parametry "+(d.year||"")+". Orientační výpočet."),
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:open},"Otevřít v kalkulačce"))];
 }
+/* živý finanční plán (fp.html) – v kartě klienta; plán se ukládá ke klientovi do kolekce „fplan“ (synchronizuje se s ostatními daty).
+   Jméno, datum narození a důchody z IOLDP (Důchodová kalkulačka) se do plánu předvyplní. */
+function fpClientSection(e,rec){
+  const f=rec&&fplans.find(x=>x.id===rec.id);
+  return [el("h3",{class:"sechead"},"Finanční plán"),
+    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>openFP(e,rec)},f?"Otevřít finanční plán":"+ Vytvořit finanční plán")),
+    f?el("p",{class:"hint"},"Naposledy upraveno "+fmtDT(new Date(f.updatedAt||Date.now()).toISOString())+". Úpravy vstupů okamžitě přepočítají prezentaci."):el("p",{class:"hint"},"Živá prezentace: upravíš vstupy a slidy se přepočítají. Předvyplní se jméno, narození a důchody z IOLDP.")];
+}
+async function openFP(e,rec){
+  try{if(!rec)rec=await ensureClient(e)}catch(err){toast("Nepodařilo se založit klienta");return}
+  if(!rec){toast("Klient chybí");return}
+  try{$("edDlg").close()}catch(err){}
+  const id=rec.id,dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
+  const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
+  const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
+  const fr=el("iframe",{src:"fp.html?v=1#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
+  let last=null;
+  const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
+  const store=async plan=>{const js=JSON.stringify(plan);if(js===last)return;last=js;
+    try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now()})}catch(err){toast("Plán se nepodařilo uložit")}};
+  const onMsg=ev=>{if(ev.origin!==location.origin||ev.source!==fr.contentWindow||!ev.data)return;const d=ev.data;
+    if(d.type==="fp:ready"){let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
+      fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz},location.origin)}
+    else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()})}};
+  addEventListener("message",onMsg);
+}
 /* portfolio v kartě klienta (úplně dole) – stejný náhled jako v Portfoliích */
 function pfClientSection(e,rec){
   const has=rec&&pfInv.some(x=>x.client===rec.id);
@@ -6746,6 +6774,7 @@ async function updateEurRate(){
   db.collection("leads").onSnapshot(snap=>{leads=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();render();scheduleSync();scheduleTasks();if(typeof Deals!=="undefined")Deals.tick()});
   db.collection("clients").onSnapshot(snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();stafleOv.clear();if(view==="cli"||view==="duch")render();pfSyncClientsSoon()});
   db.collection("duchod").onSnapshot(snap=>{duchod=snap.docs.map(d=>({id:d.id,...d.data()}))});
+  db.collection("fplan").onSnapshot(snap=>{fplans=snap.docs.map(d=>({id:d.id,...d.data()}))});
   db.collection("team").onSnapshot(snap=>{team=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));clLoaded.team=true;clMigrate();if(view==="money"||view==="net")render()});
   db.collection("funds").onSnapshot(snap=>{funds=snap.docs.map(d=>({id:d.id,...d.data()}));pfSyncClientsSoon();if(view==="pf"){renderPf();pfRefreshAll()}else if(DEMO&&!pfRefreshAll._d){pfRefreshAll._d=1;pfRefreshAll()}});
   db.collection("pfmodels").onSnapshot(snap=>{pfModels=snap.docs.map(d=>({id:d.id,...d.data()}));pfSyncClientsSoon();if(view==="pf")renderPf()});

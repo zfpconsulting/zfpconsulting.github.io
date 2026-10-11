@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finanční plán – živá prezentace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f4f5;--panel:#ffffff;--line:#e2e2e6;--txt:#1c1c1f;--mut:#6b6b74;--acc:#E8722A;--inp:#fff;--chip:#f0f0f2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f0f10;--panel:#18181a;--line:#2b2b2f;--txt:#ececee;--mut:#9a9aa3;--inp:#121214;--chip:#222226}}
+:root[data-theme="dark"]{--bg:#0f0f10;--panel:#18181a;--line:#2b2b2f;--txt:#ececee;--mut:#9a9aa3;--inp:#121214;--chip:#222226}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--txt);font:14px/1.4 Lato,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{display:flex;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+.top h1{font-size:16px;margin:0 8px 0 0;font-weight:900;white-space:nowrap}
+.top h1 b{color:var(--acc)}
+.top select{max-width:220px}
+.btn{border:1px solid var(--line);background:var(--chip);border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--acc)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.sp{flex:1}
+.wrap{display:grid;grid-template-columns:minmax(320px,400px) 1fr;gap:0;height:calc(100vh - 57px)}
+.ed{overflow:auto;border-right:1px solid var(--line);background:var(--panel);padding:8px 12px 40px}
+.view{overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+details{border-bottom:1px solid var(--line);padding:6px 0}
+summary{cursor:pointer;font-weight:700;padding:6px 0;list-style:none;display:flex;justify-content:space-between}
+summary::after{content:"▾";color:var(--mut)}
+details:not([open]) summary::after{content:"▸"}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin:6px 0}
+.g.one{grid-template-columns:1fr}
+label.f{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--mut);min-width:0}
+label.f input,label.f select,label.f textarea{background:var(--inp);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--txt);width:100%;min-width:0}
+label.f input:focus,label.f select:focus,label.f textarea:focus{outline:2px solid var(--acc);outline-offset:-1px}
+.rows{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.row{display:grid;gap:6px;align-items:end;background:var(--chip);border-radius:8px;padding:6px}
+.row .x{border:0;background:none;color:var(--mut);cursor:pointer;font-size:16px;padding:4px}
+.add{font-size:12px;color:var(--acc);background:none;border:1px dashed var(--line);border-radius:7px;padding:6px;cursor:pointer;width:100%}
+.hint{font-size:12px;color:var(--mut);margin:4px 0}
+.flags{font-size:12px;margin:0;padding-left:16px;color:var(--mut)}
+.flags li{margin:3px 0}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+/* náhled */
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.nav .cnt{color:var(--mut);font-size:13px}
+.stageBox{position:relative;width:100%;aspect-ratio:16/9;background:#111;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.thumbs{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.thumbs button{flex:none;border:2px solid transparent;border-radius:6px;padding:0;background:#111;cursor:pointer;width:128px;height:72px;overflow:hidden;position:relative}
+.thumbs button.on{border-color:var(--acc)}
+.thumbs .tl{position:absolute;inset:auto 0 0 0;font-size:10px;background:rgba(0,0,0,.6);color:#ddd;padding:2px 4px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumbs .mini{position:absolute;left:0;top:0;width:1600px;height:900px;transform:scale(.08);transform-origin:0 0;pointer-events:none}
+/* prezentační režim */
+.present{position:fixed;inset:0;background:#000;z-index:100;display:none;align-items:center;justify-content:center;cursor:pointer}
+.present.on{display:flex}
+.present .pbox{position:relative;width:min(100vw,177.78vh);aspect-ratio:16/9;overflow:hidden}
+.present .pc{position:absolute;right:14px;bottom:10px;color:#666;font-size:12px;z-index:5;cursor:default}
+.present .px{position:absolute;right:12px;top:10px;z-index:5;background:rgba(255,255,255,.08);color:#aaa;border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
+
+/* ================= SLIDY (design 1600×900) ================= */
+.stage{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:0 0}
+.sl{position:absolute;inset:0;background:#161616;color:#efefef;font-family:Lato,system-ui,sans-serif;overflow:hidden;transition:opacity .55s ease, transform .7s cubic-bezier(.2,.8,.2,1)}
+.sl.enter{opacity:0;transform:translateX(60px)}
+.sl.leave{opacity:0;transform:translateX(-60px)}
+.sl .bar{position:absolute;left:0;top:0;width:100%;height:13px;background:#E8722A}
+.sl .logo{position:absolute;right:72px;top:62px;width:110px}
+.sl h2{position:absolute;left:80px;top:40px;margin:0;font-size:46px;font-weight:900;letter-spacing:-.5px}
+.sl .sub{position:absolute;left:80px;top:122px;font-size:20px;color:#b4b4b4}
+.o{color:#E8722A}.mut{color:#b4b4b4}.grn{color:#4FB389}.red{color:#DF6A6A}
+.card{position:absolute;background:#202020;border:1px solid #2e2e2e;border-radius:10px}
+.k{transition:all .9s cubic-bezier(.2,.8,.2,1)}
+@property --p1{syntax:'<percentage>';inherits:false;initial-value:0%}
+@property --p2{syntax:'<percentage>';inherits:false;initial-value:0%}
+.dn{border-radius:50%;background:conic-gradient(#E8722A 0 var(--p1),#5b8dd6 0 var(--p2),#8a8a8a 0);-webkit-mask:radial-gradient(circle,transparent 57%,#000 57.5%);mask:radial-gradient(circle,transparent 57%,#000 57.5%);transition:--p1 1.3s cubic-bezier(.2,.8,.2,1),--p2 1.3s cubic-bezier(.2,.8,.2,1)}
+table.t{position:absolute;border-collapse:collapse;font-size:17px}
+table.t th{background:#2a2a2a;color:#cfcfcf;font-weight:700;text-align:right;padding:10px 12px;font-size:14px;text-transform:uppercase;letter-spacing:.3px}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t td{padding:10px 12px;border-bottom:1px solid #2c2c2c;text-align:right;white-space:nowrap}
+table.t tr.sum td{font-weight:900;border-top:1px solid #444}
+.pill{display:inline-block;padding:5px 14px;border-radius:4px;color:#fff;font-weight:900;font-size:14px;letter-spacing:.4px}
+.node{position:absolute;border-radius:50%;transition:all .9s cubic-bezier(.2,.8,.2,1)}
+.nl{position:absolute;text-align:center;transition:all .9s cubic-bezier(.2,.8,.2,1);white-space:nowrap}
+.foot{position:absolute;left:80px;right:80px;bottom:22px;font-size:12.5px;color:#8a8a8a;line-height:1.35}
+.shot{position:absolute;border:2px dashed #555;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#888;font-size:16px;overflow:hidden;background:#1d1d1d}
+.shot img{width:100%;height:100%;object-fit:contain}
+@media (max-width:900px){.wrap{grid-template-columns:1fr;height:auto}.ed{max-height:none;border-right:0;border-bottom:1px solid var(--line)}.view{padding:16px}}
+@media print{
+  body{background:#fff}.top,.wrap{display:none!important}
+  .print{display:block!important}
+  .pp{width:297mm;height:167.06mm;position:relative;overflow:hidden;page-break-after:always;break-after:page}
+  .pp .stage{transform:scale(.70157)}
+  @page{size:297mm 167.06mm;margin:0}
+}
+.print{display:none}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Finanční plán <b>živě</b></h1>
+  <select id="cli" aria-label="Klient"></select>
+  <button class="btn" id="bNew">+ Nový klient</button>
+  <button class="btn" id="bDup">Duplikovat</button>
+  <button class="btn" id="bDel">Smazat</button>
+  <span class="sp"></span>
+  <button class="btn" id="bImp">Import</button>
+  <button class="btn" id="bExp">Export</button>
+  <button class="btn" id="bPdf">PDF</button>
+  <button class="btn pri" id="bPres">▶ Prezentovat</button>
+  <input type="file" id="fImp" accept=".json,application/json" hidden>
+</div>
+<div class="wrap">
+  <aside class="ed" id="ed"></aside>
+  <main class="view">
+    <div class="nav">
+      <button class="btn" id="prev">◀</button><button class="btn" id="next">▶</button>
+      <span class="cnt" id="cnt"></span><span class="sp"></span>
+      <span class="cnt">Změna vstupu vlevo = okamžitý přepočet. Prezentace: ←/→, mezerník, klik; Esc konec.</span>
+    </div>
+    <div class="stageBox" id="box"><div class="stage" id="stage"></div></div>
+    <div class="thumbs" id="thumbs"></div>
+  </main>
+</div>
+<div class="present" id="pres"><div class="pbox" id="pbox"><div class="stage" id="pstage"></div></div><button class="px" id="px">✕ Esc</button><div class="pc" id="pc"></div></div>
+<div class="print" id="print"></div>
+
+<script>/* FP engine — výpočet finančního plánu (metodika ZFP / VK). Čistá funkce compute(inp, today). */
+(function (root, f) { const E = f(); if (typeof module === "object" && module.exports) module.exports = E; else root.FPE = E; })(this, function () {
+"use strict";
+const ALOK = { 0: [0, 0, 100], 5: [29, 62, 9], 10: [54, 43, 3], 15: [74, 24, 2], 20: [85, 13, 2], 25: [90, 8, 2], 30: [93, 7, 0] };
+const MES = ["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
+const MES2 = ["ledna","února","března","dubna","května","června","července","srpna","září","října","listopadu","prosince"];
+const n0 = v => (v !== "" && v != null && isFinite(+v) ? +v : 0);
+const ceil = (v, s) => Math.ceil(v / s - 1e-9) * s;
+const floorTo = (v, s) => Math.floor(v / s + 1e-9) * s;
+function alok(y) {
+  y = Math.max(0, Math.min(30, y)); const k = Object.keys(ALOK).map(Number);
+  for (let i = 0; i < k.length - 1; i++) { const a = k[i], b = k[i + 1]; if (y >= a && y <= b) { const t = (y - a) / (b - a), A = Math.round(ALOK[a][0] + t * (ALOK[b][0] - ALOK[a][0])), D = Math.round(ALOK[a][1] + t * (ALOK[b][1] - ALOK[a][1])); return [A, D, 100 - A - D]; } }
+  return ALOK[30];
+}
+const mr = r => Math.pow(1 + r, 1 / 12) - 1;
+function parseDate(s) { if (!s) return null; if (s instanceof Date) return s; const m = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/.exec(String(s)); if (!m) return null; return new Date(+m[1], +m[2] - 1, +(m[3] || 1)); }
+const monthsBetween = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+const yearsBetween = (a, b) => (b - a) / (365.25 * 864e5);
+function pvAnn(m, years, r) { const n = Math.round(years * 12); if (n <= 0 || m <= 0) return 0; const q = mr(r); return m * (1 - Math.pow(1 + q, -n)) / q; }
+function duchVek(rocnik) { if (rocnik <= 1965) return 65; if (rocnik >= 1971) return 67; return 65 + (rocnik - 1965) / 3; }
+/* nemocenská 2026 (zák. 187/2006, redukční hranice 2026), čistá → hrubá odhadem */
+const RH = [1633, 2449, 4897];
+function netFromGross(g) { const soc = g * 0.071, zdr = g * 0.045, tax = Math.max(0, g * 0.15 - 2570); return g - soc - zdr - tax; }
+function grossFromNet(n) { let lo = 0, hi = 1e6; for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (netFromGross(m) < n) lo = m; else hi = m; } return lo; }
+function nemocenska(hruba) {
+  const d = hruba * 12 / 365, r = Math.min(d, RH[0]) * 0.9 + Math.max(0, Math.min(d, RH[1]) - RH[0]) * 0.6 + Math.max(0, Math.min(d, RH[2]) - RH[1]) * 0.3;
+  return { d15: Math.round(r * 0.6 * 30), d31: Math.round(r * 0.66 * 30), d61: Math.round(r * 0.72 * 30) };
+}
+function pct100(vals) { const t = vals.reduce((a, b) => a + Math.max(0, b), 0); if (t <= 0) return vals.map(() => 0); const raw = vals.map(v => Math.max(0, v) / t * 100), fl = raw.map(Math.floor); let rest = 100 - fl.reduce((a, b) => a + b, 0); raw.map((r, i) => [r - fl[i], i]).sort((a, b) => b[0] - a[0]).slice(0, rest).forEach(([, i]) => fl[i]++); return fl; }
+
+/* ---------------- produkty: třída s=[akcie, dluhopisy, hotovost] %, výnos nominálně p.a., vstupní poplatek, správa p.a. ---------------- */
+const WI_EQ = [["sp500","S&P 500"],["svetove","Světové"],["evropa","Evropa"],["rozvojove","Rozvíjející se trhy"],["dividendove","Dividendové"],["technologicke","Technologické"],["zdravotnictvi","Zdravotnictví a farmacie"],["ziva","Živá planeta"],["px","Pražská burza (PX)"],["blockchain","Blockchain"]];
+const PRODUKTY = [
+  { k: "cq_akc", n: "Conseq akciové portfolio", g: "Conseq", s: [100, 0, 0], vynos: 0.10, vstup: 0.03, sprava: 0 },
+  { k: "cq_dip", n: "Conseq akciové portfolio – DIP", g: "Conseq", s: [100, 0, 0], vynos: 0.10, vstup: 0.03, sprava: 0, dip: 1 },
+  { k: "cq_dluh", n: "Conseq dluhopisové portfolio", g: "Conseq", s: [0, 100, 0], vynos: 0.048, vstup: 0.03, sprava: 0 },
+  { k: "zfpi", n: "ZFPI Realitní fond", g: "ZFP Investments", s: [0, 100, 0], vynos: 0.0515, vstup: 0.03, sprava: 0, prir: 1 },
+  { k: "wi_rez", n: "ZFP WI – Investiční rezerva", g: "ZFP WI", s: [0, 0, 100], vynos: 0.035, vstup: 0, sprava: 0.005 },
+  { k: "wi_konz", n: "ZFP WI – Konzervativní", g: "ZFP WI", s: [20, 80, 0], vynos: 0.06, vstup: 0.03, sprava: 0.0199 },
+  { k: "wi_dluh", n: "ZFP WI – Dluhopisové", g: "ZFP WI", s: [0, 100, 0], vynos: 0.05, vstup: 0.03, sprava: 0.0099 },
+  { k: "wi_vyv", n: "ZFP WI – Vyvážené", g: "ZFP WI", s: [50, 50, 0], vynos: 0.075, vstup: 0.03, sprava: 0.0199 },
+  { k: "wi_dyn", n: "ZFP WI – Dynamické", g: "ZFP WI", s: [80, 20, 0], vynos: 0.09, vstup: 0.03, sprava: 0.0199 },
+  ...WI_EQ.map(([k, n]) => ({ k: "wi_" + k, n: "ZFP WI – " + n, g: "ZFP WI", s: [100, 0, 0], vynos: 0.10, vstup: 0.03, sprava: 0.0199 })),
+  { k: "premium", n: "ZFP Premium Avant (FKI)", g: "AVANT", s: [0, 100, 0], vynos: 0.07, vstup: 0.02, sprava: 0 },
+  { k: "zfpf", n: "ZFP Finance", g: "ZFP Finance", s: [0, 100, 0], vynos: 0.08, vstup: 0, sprava: 0, nofee: 1 },
+  { k: "auv", n: "Auvesta – drahé kovy", g: "Auvesta", s: [100, 0, 0], vynos: 0.05, vstup: 0, sprava: 0, auv: 1 },
+];
+const AUV_TARIF = { S: 0, M: 600, L: 1200, XL: 2400 }; // poplatek (ážio) depozitu v EUR — Provizní příloha ZFP
+const PROD_IDX = Object.fromEntries(PRODUKTY.map(p => [p.k, p]));
+
+const DEFAULT_SET = { inflace: 0.03, hotovost_real: -0.03, renta_let: 20, renta_r: 0.045, dip_strop: 4000, dps_nom: 0.02, dan: 0.15, smrt_nasobek: 3,
+  prac_inv1: 0.5, prac_inv2: 0.3, dluh_mix: 0.5, auv_tarif: "M", eur_kurz: 24.5 };
+const CASH = ["Běžný účet", "Spořicí účet", "Termínovaný vklad"];
+const MOVE = ["Podílový fond (OPF)", "ETF", "Akcie / dluhopisy (přímé)", "Stavební spoření"];
+const DETI_POJ = { tnu: 1000000, progrese: 10, zo: 500000, dou: 400 };
+
+/* ---------------- motivace: z citátu (a cílů) automaticky 3 hodnoty s ikonou ---------------- */
+const TEMATA = [
+  ["rodina", /rodin|deti|dit[eéi]|syn[a ]|dcer|manzel|partner|blizk|vnou/, "Rodina na prvním místě", "Zajištění pro ty, na kterých nejvíc záleží"],
+  ["jistota", /jistot|bezpec|klid|strach|rezerv|necekan|zajist|stabil/, "Jistota a klid", "Rezerva a ochrana pro nečekané situace"],
+  ["svoboda", /svobod|nezavisl|volnost|nemuset|nemusel|rozhodovat|vlastni cas|cas pro/, "Svoboda", "Možnost rozhodovat se bez finančního tlaku"],
+  ["bydleni", /bydlen|\bbyt|\bdum|\bdomu|domov|hypot|nemovit|stavb|chalup|chat[auy]/, "Vlastní bydlení", "Domov, který je opravdu náš"],
+  ["auto", /\baut[oau]|akontac|\bvuz|vozidl|tesl/, "Nové auto", "Pořídit auto bez zbytečného úvěru"],
+  ["cestovani", /cestov|\bsvet|dovolen|vylet|zazit|poznav/, "Zážitky a cestování", "Peníze na to, co si budeme pamatovat"],
+  ["duchod", /duchod|\brent|stari|penz|odpocin|nepracovat|pasivni prijem/, "Finanční nezávislost", "Pasivní příjem místo závislosti na státu"],
+  ["vzdelani", /vzdel|studi|skol|univerz/, "Vzdělání", "Investice do znalostí a budoucnosti"],
+  ["podnikani", /podnik|firm|byzn|karier|projekt/, "Podnikání a růst", "Kapitál na rozvoj vlastních projektů"],
+  ["zdravi", /zdrav|nemoc|uraz|kondic/, "Zdraví", "Finanční klid i při nemoci a úrazu"],
+  ["rust", /bohat|majet|zhodnot|\brust|investic|milion|penize pracuj/, "Růst majetku", "Peníze, které pracují za mě"],
+];
+const fold = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+function motivace(text, cile, renta) {
+  const q = fold(text), g = fold((cile || []).map(c => c.nazev).join(" "));
+  const sc = TEMATA.map(([k, re, t, d], i) => { const rg = new RegExp(re.source, "g"); const s = (q.match(rg) || []).length * 3 + (g.match(rg) || []).length + (k === "duchod" && renta ? 1 : 0); return { k, i, s, t, d }; });
+  const top = sc.filter(x => x.s > 0).sort((a, b) => b.s - a.s || a.i - b.i).slice(0, 3);
+  ["jistota", "svoboda", "duchod"].forEach(k => { if (top.length < 3 && !top.some(x => x.k === k)) top.push(sc.find(x => x.k === k)); });
+  return top.map(x => ({ ic: x.k, t: x.t, d: x.d }));
+}
+const bezPartnera = inp => !!(inp.klient && inp.klient.bez_partnera) && !(inp.partner && inp.partner.zapnuto);
+
+function compute(inp, today) {
+  today = today || new Date();
+  const T0 = new Date(today.getFullYear(), today.getMonth(), 1);
+  const S = Object.assign({}, DEFAULT_SET, inp.nastaveni || {});
+  Object.keys(DEFAULT_SET).forEach(k => { if (S[k] === "" || S[k] == null) S[k] = DEFAULT_SET[k]; else if (typeof DEFAULT_SET[k] === "number") S[k] = +S[k]; });
+  const flags = [];
+  // ---------- produkty s nastavením uživatele
+  const PO = S.prod || {};
+  const prod = k => { const b = PROD_IDX[k]; if (!b) return null; const o = Object.assign({}, b); const u = PO[k] || {};
+    ["vynos", "vstup", "sprava"].forEach(x => { if (u[x] !== "" && u[x] != null && isFinite(+u[x])) o[x] = +u[x]; }); if (b.nofee) { o.vstup = 0; o.sprava = 0; } return o; };
+  const auvFee = (AUV_TARIF[S.auv_tarif] != null ? AUV_TARIF[S.auv_tarif] : 600) * (n0(S.eur_kurz) || 24.5);
+  const feeOfProd = (p, lump) => p.nofee ? 0 : p.auv ? (lump > 0 ? Math.min(1, auvFee / lump) : 0) : p.prir ? p.vstup / (1 + p.vstup) : p.vstup;
+  const netR = p => p.vynos - p.sprava;
+  // ---------- ruční realokace (pokud je zapnutá) určuje mix produktů v každé třídě
+  const RE = inp.realokace || {};
+  const rows = (RE.polozky || []).filter(r => prod(r.produkt) && (n0(r.jednor) > 0 || n0(r.mesicne) > 0));
+  const manual = !!RE.rucne && rows.length > 0;
+  const lumpOf = k => rows.filter(r => r.produkt === k).reduce((s, r) => s + n0(r.jednor), 0);
+  const mixFrom = cls => {
+    if (manual) {
+      const w = {}; rows.forEach(r => { const p = prod(r.produkt); const v = (n0(r.jednor) + n0(r.mesicne) * 12) * p.s[cls] / 100; if (v > 0) w[r.produkt] = (w[r.produkt] || 0) + v; });
+      const t = Object.values(w).reduce((a, b) => a + b, 0); if (t > 0) return Object.fromEntries(Object.entries(w).map(([k, v]) => [k, v / t]));
+    }
+    if (cls === 0) return { cq_akc: 1 };
+    if (cls === 1) { const m = Math.max(0, Math.min(1, n0(S.dluh_mix))); const o = {}; if (m > 0) o.zfpi = m; if (m < 1) o.cq_dluh = 1 - m; return o; }
+    return {};
+  };
+  const classPar = cls => { const m = mixFrom(cls); let r = 0, f = 0, t = 0; Object.entries(m).forEach(([k, w]) => { const p = prod(k); r += w * netR(p); f += w * feeOfProd(p, manual ? lumpOf(k) : 1e9); t += w; }); return t ? { rNom: r / t, fee: f / t, mix: m } : null; };
+  const CA = classPar(0) || { rNom: 0.10, fee: 0.03, mix: {} }, CD = classPar(1) || { rNom: 0.05, fee: 0.03, mix: {} };
+  const rA = CA.rNom - S.inflace, rD = CD.rNom - S.inflace, rH = S.hotovost_real;
+  const rr = a => (a[0] * rA + a[1] * rD + a[2] * rH) / 100;
+  const feeA = a => (a[0] * CA.fee + a[1] * CD.fee) / 100;
+  const fvOf = (lump, pmt, r, months, fee) => { const m = mr(r), g = Math.pow(1 + m, months); return lump * (1 - fee) * g + pmt * (1 - fee) * (Math.abs(m) < 1e-12 ? months : (g - 1) / m); };
+  const pmtFor = (target, lump, r, months, fee) => { if (months <= 0) return 0; const m = mr(r), g = Math.pow(1 + m, months), rest = target - lump * (1 - fee) * g; if (rest <= 0) return 0; return ceil(rest * (Math.abs(m) < 1e-12 ? 1 / months : m / (g - 1)) / (1 - fee), 100); };
+  const lumpFor = (target, r, months, fee) => months <= 0 ? target : target / ((1 - fee) * Math.pow(1 + mr(r), months));
+
+  // ---------- osoby
+  const persons = [inp.klient || {}].concat(inp.partner && inp.partner.zapnuto ? [inp.partner] : []).map((p, i) => {
+    const nar = parseDate(p.narozen) || new Date(1990, 0, 1);
+    const duch = parseDate(p.duchod) || new Date(nar.getFullYear() + Math.floor(duchVek(nar.getFullYear())), nar.getMonth(), nar.getDate());
+    return { i, role: i ? "partner" : "klient", jmeno: p.jmeno || (i ? "Partner" : "Klient"), titul: p.titul || "", nar, duch, vek: yearsBetween(nar, today),
+      zam: n0(p.zam), podnik: n0(p.podnik), pasiv: n0(p.pasiv), pronajem: n0(p.pronajem), bonus: n0(p.bonus),
+      vydaje: n0(p.vydaje_osobni), inv1: n0(p.inv1), inv2: n0(p.inv2), inv3: n0(p.inv3), vdovsky: n0(p.vdovsky), sirotci: n0(p.sirotci),
+      hruba: n0(p.hruba), osvc: n0(p.zam) <= 0 && n0(p.podnik) > 0 };
+  });
+  const K = persons[0];
+  const deti = (inp.deti || []).map(d => ({ jmeno: d.jmeno || "Dítě", nar: parseDate(d.narozen) })).filter(d => d.nar).map(d => Object.assign(d, { vek: yearsBetween(d.nar, today) }));
+  const detiZav = deti.filter(d => d.vek < 26);
+  // ---------- CF
+  const prijmy = persons.reduce((s, p) => s + p.zam + p.podnik + p.pasiv + p.pronajem + p.bonus / 12, 0);
+  const V = inp.vydaje || {}, vydCelkem = n0(V.celkem);
+  const docasne = (inp.docasne || []).filter(d => n0(d.castka) > 0).map(d => ({ nazev: d.nazev, castka: n0(d.castka), do: parseDate(d.do) }));
+  const cf = floorTo(prijmy - (vydCelkem - n0(V.pojistne) - n0(V.sporeni)), 1000);
+  docasne.forEach(d => flags.push(`Dočasný příjem „${d.nazev}“ ${d.castka} Kč/měs (do ${d.do ? MES[d.do.getMonth()] + " " + d.do.getFullYear() : "?"}) není v cash flow ani ve scénářích katastrof.`));
+  if (cf <= 0) flags.push("Volné cash flow je nulové nebo záporné — plán jen z majetku.");
+  // ---------- rezerva
+  const allZam = persons.every(p => p.zam > 0);
+  const rezCil = allZam ? ceil(4.8 * persons.reduce((s, p) => s + p.zam, 0), 10000) : ceil(12 * vydCelkem, 10000);
+  const rezPravidlo = allZam ? "4,8 × čistý plat" : "12 × měsíční výdaje (OSVČ)";
+  // ---------- majetek
+  const maj = (inp.majetek || []).filter(a => n0(a.hodnota) > 0 || n0(a.vklad) > 0).map((a, i) => Object.assign({ id: i }, a, { hodnota: n0(a.hodnota), vklad: n0(a.vklad) }));
+  const majCelkem = maj.reduce((s, a) => s + a.hodnota, 0);
+  const cashAccts = maj.filter(a => CASH.includes(a.typ));
+  const cash = cashAccts.reduce((s, a) => s + a.hodnota, 0);
+  const moved = maj.filter(a => MOVE.includes(a.typ));
+  const movedTot = moved.reduce((s, a) => s + a.hodnota, 0);
+  const dps = maj.filter(a => a.typ === "Penzijní připojištění (DPS)");
+  const other = maj.filter(a => !CASH.includes(a.typ) && !MOVE.includes(a.typ) && a.typ !== "Penzijní připojištění (DPS)");
+  const otherTot = other.reduce((s, a) => s + a.hodnota, 0);
+  const dpsVal = dps.reduce((s, a) => s + a.hodnota, 0), dpsMes = dps.reduce((s, a) => s + a.vklad, 0), dpsOdpocet = dps.reduce((s, a) => s + n0(a.odpocet), 0);
+  const rezVklad = Math.min(cash, rezCil), rezChybi = rezCil - rezVklad;
+  let volne = cash - rezVklad + movedTot;
+  if (rezChybi > 0) flags.push(`Rezerva: chybí ${rezChybi} Kč — doplnit z cash flow přednostně.`);
+  if (moved.some(a => a.typ === "Stavební spoření")) flags.push("Stavební spoření vypovídáme a peníze jdou do plánu.");
+  // nefinanční majetek a úvěry
+  const nefin = (inp.nefin || []).filter(a => n0(a.hodnota) > 0).map(a => ({ nazev: a.nazev || a.typ || "Majetek", typ: a.typ || "Jiné", hodnota: n0(a.hodnota) }));
+  const nefinCelkem = nefin.reduce((s, a) => s + a.hodnota, 0);
+  const uvery = (inp.uvery || []).filter(u => n0(u.zustatek) > 0 || n0(u.splatka) > 0).map(u => ({ nazev: u.nazev || "Úvěr", zustatek: n0(u.zustatek), splatka: n0(u.splatka), fixace: parseDate(u.fixace_do), splatnost: parseDate(u.splatnost) }));
+  const zavazky = uvery.reduce((s, u) => s + u.zustatek, 0);
+  uvery.forEach(u => { if (!u.splatnost) flags.push(`Úvěr „${u.nazev}“: doplň splatnost.`); });
+  // ---------- cíle (od nejkratšího), pak renta
+  const cile = (inp.cile || []).filter(c => n0(c.castka) > 0 && parseDate(c.datum)).map(c => {
+    const d = parseDate(c.datum), months = Math.max(1, monthsBetween(T0, d)), a = alok(months / 12), r = rr(a);
+    return { nazev: c.nazev || "Cíl", castka: n0(c.castka), datum: d, months, alok: a, r, rNom: r + S.inflace, fee: feeA(a) };
+  }).sort((x, y) => x.months - y.months);
+  cile.forEach(c => {
+    const need = ceil(lumpFor(c.castka, c.r, c.months, c.fee), 10000);
+    c.vklad = Math.min(volne, need); volne -= c.vklad;
+    c.pmt = pmtFor(c.castka, c.vklad, c.r, c.months, c.fee);
+    c.vysledek = fvOf(c.vklad, c.pmt, c.r, c.months, c.fee); c.splneni = c.vysledek / c.castka;
+    if (c.months < 60 && c.alok[0] > 0) flags.push(`Cíl „${c.nazev}“ za méně než 5 let má akciovou složku ${c.alok[0]} % — před výběrem rebalancovat.`);
+  });
+  const RT = inp.renta || {};
+  const rentaMes = n0(RT.mesicne);
+  let renta = null;
+  if (rentaMes > 0) {
+    const odVeku = n0(RT.od_veku);
+    const start = odVeku > 0 ? new Date(K.nar.getFullYear() + odVeku, K.nar.getMonth(), 1) : new Date(Math.min(...persons.map(p => p.duch.getTime())));
+    const months = Math.max(1, monthsBetween(T0, start)), a = alok(months / 12), r = rr(a), fee = feeA(a);
+    const kap = pvAnn(rentaMes, S.renta_let, S.renta_r);
+    const vklad = volne; volne = 0;
+    const dr = S.dps_nom - S.inflace, dm = mr(dr);
+    const dpsFv = dpsVal * Math.pow(1 + dr, months / 12) + dpsMes * (Math.abs(dm) < 1e-12 ? months : (Math.pow(1 + dm, months) - 1) / dm);
+    const pmt = pmtFor(Math.max(0, kap - dpsFv), vklad, r, months, fee);
+    const vysledek = fvOf(vklad, pmt, r, months, fee) + dpsFv;
+    const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
+    const dip = Math.min(prostor, pmt);
+    if (prostor < S.dip_strop) flags.push(`DIP: daňový strop částečně čerpá DPS/ŽP — do DIP jen ${prostor} Kč/měs.`);
+    renta = { mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal, dpsFv, pmt, vysledek, splneni: vysledek / kap, dip, prostor, danRok: dip * 12 * S.dan, let: S.renta_let, vekStart: yearsBetween(K.nar, start) };
+    flags.push(`Renta: čerpání ${S.renta_let} let s reálným výnosem ${(S.renta_r * 100).toFixed(1).replace(".", ",")} % — kapitál se vyčerpá, není doživotní.`);
+  } else if (volne > 0) flags.push(`Nepřiřazený majetek ${Math.round(volne)} Kč — bez cíle renty.`);
+  const pojNove = n0((inp.pojisteni || {}).navrh) || n0((inp.pojisteni || {}).stavajici);
+  const pmtCelkem = cile.reduce((s, c) => s + c.pmt, 0) + (renta ? renta.pmt : 0);
+  const cfZbyva = cf - pmtCelkem - pojNove;
+  if (cfZbyva < 0) flags.push(`Cash flow nestačí: chybí ${-cfZbyva} Kč/měs.`);
+  // ---------- cílová struktura (třídy)
+  const split = (v, a) => [v * a[0] / 100, v * a[1] / 100, v * a[2] / 100];
+  let needA = 0, needD = 0, cashPlan = 0;
+  cile.forEach(c => { const s = split(c.vklad, c.alok); needA += s[0]; needD += s[1]; cashPlan += s[2]; });
+  if (renta) { const s = split(renta.vklad, renta.alok); needA += s[0]; needD += s[1]; cashPlan += s[2]; }
+  const ted = [0, 0, 0];
+  maj.forEach(a => { const t = a.typ === "Penzijní připojištění (DPS)" ? "dluhopisy" : CASH.includes(a.typ) || a.typ === "Stavební spoření" ? "hotovost" : (a.trida || "akcie"); ted[t === "akcie" ? 0 : t === "dluhopisy" ? 1 : 2] += a.hodnota; });
+  const dip = renta ? renta.dip : 0;
+  // ---------- nové pozice (auto nebo ručně)
+  let pozice;
+  if (manual) pozice = rows.map(r => { const p = prod(r.produkt); return { k: r.produkt, nazev: p.n, jednor: n0(r.jednor), mesicne: n0(r.mesicne), s: p.s }; });
+  else {
+    pozice = [];
+    const add = (k, j, m) => { if (j > 0.5 || m > 0.5) { const p = prod(k); pozice.push({ k, nazev: p.n, jednor: Math.round(j), mesicne: Math.round(m), s: p.s }); } };
+    Object.entries(mixFrom(1)).forEach(([k, w]) => add(k, needD * w, 0));
+    add("cq_akc", needA, pmtCelkem - dip);
+    add("cq_dip", 0, dip);
+  }
+  // ---------- kontrola realokace (našeptávač)
+  const inv = [0, 0, 0]; let mesRozd = 0, dipRozd = 0;
+  pozice.forEach(p => { for (let i = 0; i < 3; i++) inv[i] += p.jednor * p.s[i] / 100; mesRozd += p.mesicne; if (prod(p.k).dip) dipRozd += p.mesicne; });
+  const zdroje = Math.max(0, cash - rezVklad) + movedTot;
+  const jednorRozd = inv[0] + inv[1] + inv[2];
+  const kontrola = [];
+  const kc = v => Math.round(v).toLocaleString("cs-CZ").replace(/\s/g, " ") + " Kč";
+  const diff = (lbl, have, need) => { const d = need - have; kontrola.push(Math.abs(d) >= 1000 ? { ok: false, t: d > 0 ? `${lbl}: přidej ${kc(d)} (máš ${kc(have)} z ${kc(need)})` : `${lbl}: uber ${kc(-d)} (máš ${kc(have)}, plán chce ${kc(need)})` } : { ok: true, t: `${lbl}: ${kc(have)} ✓` }); };
+  diff("Akciová složka", inv[0], needA);
+  diff("Dluhopisová složka", inv[1], needD);
+  if (inv[2] > 0) kontrola.push({ ok: true, t: `Hotovostní produkty: ${kc(inv[2])} (počítají se do hotovosti)` });
+  if (jednorRozd > zdroje + 1000) kontrola.push({ ok: false, t: `Jednorázově rozděluješ ${kc(jednorRozd)}, ale nad rezervu je k dispozici jen ${kc(zdroje)}` });
+  { const d = pmtCelkem - mesRozd; kontrola.push(Math.abs(d) >= 100 ? { ok: false, t: d > 0 ? `Měsíčně: přidej ${kc(d)}/měs (máš ${kc(mesRozd)} z ${kc(pmtCelkem)})` : `Měsíčně: uber ${kc(-d)}/měs (plán potřebuje ${kc(pmtCelkem)})` } : { ok: true, t: `Měsíčně: ${kc(mesRozd)}/měs ✓` }); }
+  if (renta && dipRozd > renta.prostor + 1) kontrola.push({ ok: false, t: `DIP: max ${kc(renta.prostor)}/měs pro daňový odpočet (máš ${kc(dipRozd)})` });
+  else if (renta && dipRozd < Math.min(renta.prostor, pmtCelkem) - 1) kontrola.push({ ok: false, t: `DIP: využij daňový odpočet — dej do DIP ${kc(Math.min(renta.prostor, pmtCelkem))}/měs (teď ${kc(dipRozd)})` });
+  if (manual) kontrola.filter(x => !x.ok).forEach(x => flags.push("Realokace: " + x.t));
+  // ---------- transakce: zdroje → nové pozice (nejdřív fondy/SS, pak účty; běžný účet až nakonec)
+  const srcs = moved.map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota, uvol: a.hodnota }))
+    .concat(cashAccts.slice().sort((x, y) => (x.typ === "Běžný účet") - (y.typ === "Běžný účet") || y.hodnota - x.hodnota).map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota, uvol: 0, cash: true })));
+  let zUctu = Math.min(Math.max(0, cash - rezVklad), Math.max(0, jednorRozd - movedTot));
+  srcs.filter(s => s.cash).forEach(s => { const u = Math.min(s.puv, zUctu); s.uvol = u; zUctu -= u; });
+  const transakce = [];
+  pozice.filter(p => p.jednor > 0.5).forEach(p => {
+    let need = p.jednor;
+    srcs.forEach(s => { if (need <= 0.5 || s.uvol <= 0.5) return; const x = Math.min(need, s.uvol); s.uvol -= x; s.zbyva -= x; need -= x; transakce.push({ z: s.nazev, ztyp: s.typ, do: p.nazev, k: p.k, castka: Math.round(x) }); });
+    if (need > 0.5) transakce.push({ z: "chybí zdroj", ztyp: "", do: p.nazev, k: p.k, castka: Math.round(need), chybi: true });
+  });
+  const cilUcet = cashAccts.find(a => a.typ === "Spořicí účet") || cashAccts[0];
+  srcs.filter(s => !s.cash && s.zbyva > 0.5).forEach(s => { transakce.push({ z: s.nazev, ztyp: s.typ, do: cilUcet ? (cilUcet.nazev || cilUcet.typ) : "Spořicí účet", k: "cash", castka: Math.round(s.zbyva), naUcet: true }); s.zbyva = 0; });
+  // ---------- produkty (tabulka)
+  const produkty = [];
+  srcs.filter(s => s.cash).forEach(s => {
+    const keep = s.zbyva + transakce.filter(t => t.naUcet && t.do === s.nazev).reduce((a, t) => a + t.castka, 0);
+    produkty.push({ nazev: s.nazev, zust: keep, mes: 0, korZ: keep - s.puv, korV: 0, pozn: s.typ === "Běžný účet" ? "Provozní účet / rezerva" : "Rezerva" + (keep > rezVklad + 1 ? " + hotovost cílů" : "") });
+  });
+  const naNovyUcet = transakce.filter(t => t.naUcet && !cilUcet).reduce((a, t) => a + t.castka, 0);
+  if (!cashAccts.length && naNovyUcet > 0) produkty.push({ nazev: "Spořicí účet", zust: naNovyUcet, mes: 0, korZ: naNovyUcet, korV: 0, pozn: "Rezerva" });
+  moved.forEach(a => produkty.push({ nazev: a.nazev || a.typ, zust: 0, mes: 0, korZ: -a.hodnota, korV: -a.vklad, pozn: a.typ === "Stavební spoření" ? "Vypovědět → do plánu" : "Převést do plánu" }));
+  dps.forEach(a => produkty.push({ nazev: a.nazev || "DPS", zust: a.hodnota, mes: a.vklad, korZ: 0, korV: 0, pozn: "Ponechat (počítá se do renty)" }));
+  other.forEach(a => produkty.push({ nazev: a.nazev || a.typ, zust: a.hodnota, mes: a.vklad, korZ: 0, korV: 0, pozn: "Ponechat" }));
+  pozice.forEach(p => { const pr = prod(p.k); produkty.push({ nazev: p.nazev, zust: p.jednor, mes: p.mesicne, korZ: p.jednor, korV: p.mesicne, novy: true, k: p.k,
+    pozn: pr.dip ? `Renta: daňový odpočet (max ${S.dip_strop} Kč/měs)` : pr.s[0] === 100 ? (p.mesicne ? "Akciová složka + pravidelné vklady" : "Akciová složka") : pr.s[1] === 100 ? "Dluhopisová složka" : pr.s[2] === 100 ? "Hotovostní složka" : "Smíšené portfolio" }); });
+  const pp = pct100(produkty.map(p => Math.max(0, p.zust))); produkty.forEach((p, i) => p.podil = pp[i]);
+  const poplatky = pozice.map(p => { const pr = prod(p.k), f1 = feeOfProd(pr, p.jednor); return { nazev: p.nazev, k: p.k, vstupJ: Math.round(p.jednor * f1), vstupM: Math.round(p.mesicne * (pr.auv ? 0 : f1)), fee: f1, sprava: pr.sprava, vynos: pr.vynos, auv: !!pr.auv }; });
+  // struktura po realokaci = skutečné zůstatky po transakcích
+  const keptCash = produkty.filter(p => !p.novy && (CASH.includes(p.nazev) || srcs.some(s => s.cash && s.nazev === p.nazev) || p.nazev === "Spořicí účet")).reduce((s, p) => s + Math.max(0, p.zust), 0);
+  const nove = [inv[0], inv[1] + dpsVal, inv[2] + keptCash];
+  other.forEach(o => { const t = o.trida || "hotovost"; nove[t === "akcie" ? 0 : t === "dluhopisy" ? 1 : 2] += o.hodnota; });
+  const struktura = { ted, tedPct: pct100(ted), nove, novePct: pct100(nove), cilPct: renta ? renta.alok : (cile[0] ? cile[cile.length - 1].alok : [0, 0, 100]) };
+  const invest = pozice.filter(p => p.jednor > 0).map(p => ({ nazev: p.nazev, castka: p.jednor, k: p.k }));
+  const invW = pct100(invest.map(p => p.castka));
+  // ---------- katastrofy (po jednotlivci)
+  const maPartnera = persons.length > 1 || !bezPartnera(inp);
+  const zavisli = maPartnera || detiZav.length > 0;
+  const incTot = Math.max(1, persons.reduce((s, q) => s + q.zam + q.podnik + q.pasiv + q.pronajem, 0));
+  const katastrofy = persons.map(p => {
+    const earned = p.zam + p.podnik, pas = p.pasiv + p.pronajem, normal = earned + pas;
+    const vyd = p.vydaje || (persons.length > 1 ? Math.round(vydCelkem * normal / incTot / 100) * 100 : vydCelkem);
+    const podil = persons.length > 1 ? normal / incTot : 1;
+    const invPlan = Math.round(pmtCelkem * podil);
+    if (!p.inv3) flags.push(`${p.jmeno}: chybí invalidní důchod III. st. z IOLDP — počítám 0 Kč.`);
+    if (!p.inv1 || !p.inv2) flags.push(`${p.jmeno}: doplň invalidní důchod I. a II. st. z IOLDP.`);
+    let pn, pnFaze = null;
+    if (p.zam > 0) { const g = p.hruba || grossFromNet(p.zam); pnFaze = nemocenska(g); pn = pnFaze.d61; if (!p.hruba) flags.push(`${p.jmeno}: hrubá mzda odhadnuta z čisté (${Math.round(g)} Kč) — nemocenská je odhad.`); }
+    else pn = 0;
+    const scen = {
+      normal: { prace: earned, pasivni: pas, inv: 0, nemocenska: 0 },
+      inv: { prace: 0, pasivni: pas, inv: p.inv3, nemocenska: 0 },
+      smrt: { prace: 0, pasivni: 0, inv: 0, nemocenska: 0 },
+      pn: { prace: 0, pasivni: pas, inv: 0, nemocenska: pn },
+    };
+    Object.values(scen).forEach(s => { s.celkem = s.prace + s.pasivni + s.inv + s.nemocenska; s.rozdil = s.celkem - vyd; });
+    // invalidita: renta do starobního důchodu, nebo do začátku čerpání renty z plánu (co nastane dřív)
+    const doRenty = !!(renta && renta.start < p.duch);
+    const konec = doRenty ? renta.start : p.duch;
+    const roky = Math.max(0, yearsBetween(today, konec));
+    const invSt = st => { const prac = st === 1 ? S.prac_inv1 : st === 2 ? S.prac_inv2 : 0, duch = st === 1 ? p.inv1 : st === 2 ? p.inv2 : p.inv3;
+      const prijem = duch + pas + earned * prac, dop = Math.max(0, normal - prijem), min = Math.min(dop, Math.max(0, vyd - prijem));
+      return { st, prac, duch, prijem, min, dop, pcMin: ceil(pvAnn(min, roky, S.renta_r), 100000), pcDop: ceil(pvAnn(dop, roky, S.renta_r), 100000) }; };
+    const invAll = [invSt(1), invSt(2), invSt(3)];
+    // pracovní neschopnost: výdaje včetně investic z plánu; pojistit, jen když rezerva nepokryje 12 měsíců deficitu
+    const vydPN = vyd + invPlan;
+    const davka = m => p.zam > 0 ? (m === 0 ? pnFaze.d15 : m === 1 ? pnFaze.d31 : pnFaze.d61) : 0;
+    let need12 = 0; for (let m = 0; m < 12; m++) need12 += Math.max(0, vydPN - davka(m) - pas);
+    const uspory = rezVklad, pnTreba = uspory < need12 - 1;
+    const pnDef = Math.max(0, vydPN - pn - pas), pnDop = Math.max(pnDef, normal - scen.pn.celkem);
+    const smrt3 = zavisli ? S.smrt_nasobek * 12 * earned : 0;
+    const pozustali = { vdovsky: maPartnera ? p.vdovsky : 0, sirotci: p.sirotci * detiZav.length, deti: detiZav.length };
+    return { osoba: p, vyd, vydPN, invPlan, normal, scen, pnFaze, roky, konec, doRenty,
+      inv: invAll[2], invAll,
+      pn: { min: pnTreba ? pnDef : 0, dop: pnTreba ? pnDop : 0, def: pnDef, denniMin: pnTreba ? ceil(pnDef / 30, 10) : 0, denniDop: pnTreba ? ceil(pnDop / 30, 10) : 0, need12, uspory, treba: pnTreba },
+      smrt: { prijem3: smrt3, zavazky, pc: smrt3 + zavazky, zavisli, treba: smrt3 + zavazky > 0, pozustali } };
+  });
+  if (!zavisli) flags.push(zavazky > 0 ? "Úmrtí: bez partnera a dětí — krytí jen na splacení úvěrů." : "Úmrtí: bez partnera, dětí a závazků — pojištění pro případ smrti není potřeba.");
+  katastrofy.forEach(k => { if (!k.pn.treba) flags.push(`${k.osoba.jmeno}: rezerva ${kc(k.pn.uspory)} pokryje 12 měsíců nemoci (potřeba ${kc(k.pn.need12)}) — PN není nutné pojistit.`); });
+  const detiPoj = deti.map(d => Object.assign({ jmeno: d.jmeno, vek: d.vek }, DETI_POJ));
+  // ---------- časová osa
+  const hodnota = m => rezVklad + cile.reduce((s, c) => s + (m < c.months ? fvOf(c.vklad, c.pmt, c.r, m, c.fee) : 0), 0) + (renta ? fvOf(renta.vklad, renta.pmt, renta.r, Math.min(m, renta.months), renta.fee) : 0);
+  const udalosti = [{ typ: "start", datum: T0, titul: "Start plánu", m: 0 }];
+  uvery.forEach(u => {
+    if (u.fixace && u.fixace > today && (!u.splatnost || u.fixace < u.splatnost)) udalosti.push({ typ: "refix", datum: u.fixace, titul: "Refixace: " + u.nazev, m: monthsBetween(T0, u.fixace), uver: u });
+    if (u.splatnost && u.splatnost > today) udalosti.push({ typ: "splaceno", datum: u.splatnost, titul: "Splaceno: " + u.nazev, m: monthsBetween(T0, u.splatnost), uver: u });
+  });
+  cile.forEach(c => udalosti.push({ typ: "cil", datum: c.datum, titul: c.nazev, cil: c, m: c.months }));
+  if (renta) udalosti.push({ typ: "renta", datum: renta.start, titul: "Renta", m: renta.months });
+  udalosti.sort((a, b) => a.m - b.m);
+  const fee0 = (needA * CA.fee + needD * CD.fee) / Math.max(1, needA + needD + cashPlan);
+  udalosti.forEach(u => u.hodnota = u.typ === "start" ? rezVklad + (majCelkem - rezVklad - dpsVal) * (1 - fee0) + dpsVal : hodnota(u.m));
+  return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { cil: rezCil, vklad: rezVklad, chybi: rezChybi, pravidlo: rezPravidlo },
+    maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
+    cile, renta, pojNove, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
+    poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
+    portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
+}
+return { compute, alok, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
+});
+</script>
+<script>
+"use strict";
+const LOGO="data:image/png;base64,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FMaGWBuhCTFCUUjQsizZFWiUABv3mIrgEPPcMZXz0b/7Hj79D++0P3Dr2uT2oZGAn/vLB+xXPvoh+73f8m7MmZN08hSynCCIyKRPKkNSpciH1fuSsnI/MBpfSdAGhCWMIuYSTRyO8/3/6bHdcQGFxBrQ2pDrglzvfSH3CpWOY8eOiS9+8YvW931GR0fp9XpVUNspIKRpymAwYGxsrAou/87v/I79zu/8zksmuLwPIK6++mr74osv0m63V5TS1FuoXMP73NwcExMTPPbYY/b222/f1HkWQogDBw7Y+fl5wjCsRiBqrZmcnCTLMpIkqVR4syzj+eefRwhhr7322l25tv1+3z755JOVCkq/36fValWucj2e5pSEDx48iNii5tRPPZKJ+7//6+07DnRQgwWUzlF5jh+WZRMaj0IUaCSWDIEeKpsVGARRu4vuLWIHAw5NHGQxjeke7HDn936Ir37sL9tzvZTzizGLi4uYPGFqpMWhyVE6geU3P/pNZP056L3C4cMHOH+uRzQ6ydL8gCK3FL5PIRmSWVnwCuXwFYAs0URRRDJYQLbHCQ9ey+/f+xjf98+3di3WC1fyonwP/BAviHbng98Ar2nhv+uuu/A8jziOqypuV7XtsnROK8xZFDfccAMPP/ywGwHRYB249tprxeTkZOV21t1P53paa4miiNHR0eo6fPazn930eb7xxhurMgjnejoCc7HUOI6rWNWBAwe4cOECn//853f82j766KP2scceo9VqVUXKroEdqMQBYGWD/k033bQthPsH9x/nXC7JUUidMxlIwjxGotECchGg8ZHGwzfg2RSEppcblgqFlh4j7Q42XqJtBkyrGPvq15gqznJDK+a9Vwf8xVun+Uu3TvINV0tuD2e5JnuJ9oXnGS+WGJMZp58/QXusw9zSEv7YBKlskYkWmhBrA7Dl8RtRWotaWjAFQvnEssN52+H5RcP3/d7xXTMwXGhASR+NvSQstdeQWhiGoigK4jiupKnd136/T5ZljI6OrhhH5mSsjx8/zp/8yZ9Ycyk41vsAN99884qK/3oxrIthLi4uVgmafr/PNddcwz333LNZuSJx+HDZr+huxrrQZV123PWqFkXB+Pg49957L88///y2X9eTJ0/ahx56yDpX09WduV5O18bl9PP6/T55njM6Osq11167bev42H1z4itLBfM2INMe0g+x/T6CDCuzaiK4b8DXgCgwwmD9kLA7Tj8tKGypP2iLHB0vMR5KorxHlM0TJucJB+eI4vO00gU6ukfHxAQ6wyty2oFicrycZ9Fql1ZqEHjlZHJbTlByg2LKan2FEWX8e2GQYcavZiE8wH/83Je37ZysBy5c4hroS+GzvcVFV3D33XdXPXau5CDLsmps24ULF8oWh9pUd7ejTk9P86d/+qc89thj27q7u7KHuhTQZQBx1113AVRBcGttJRGe53mVtAGqZvipqSlOnz7NfffdZ+fm5jZ0nicnJ0VdxcIVXgdBUHWPFEVRFbM6whsZGWFubo57773XHj9+fCvX1lIO0rH333+/nZ+fr+rknEdQP1Yn3eS00qIooigKrrvuOrbbLf7gT/+5SCaOMlBT2IWMoNXGmD5SxXgiIaRgRPi0hEJbQyHLsoY8z5FBRCF8BjngtzEqRBuQCHxAag3GggwoRMiAiDwYJ5dtChGSFII810SewmYDOrLATxcZFQlhtkigBwQmLyUtlU9mFQMjWBrktKdmOCcmONFv8fF7z+1qGOhi/cR7jddTvhXvfOc7+dznPmenp6crORdXXe9afUZGRla4qUmSMDIywlVXXUUcxzz55JP0ej17+PBh3vSmN8Emg7nz8/OV++EkkepxqH0OcfjwYfvCCy9UChS+73PhwgXGx8cronOverC82+3ywgsv8JWvfIXrrrvOjo+Pr6tW69ZbbxVf/vKXbT0Y7ywjRyy9Xs+p8lbuahAEjIyMkCQJDz74IL7v2yAImJqaekNhxjiOmZ2d5bnnnqsswomJCVqt1goBTbdBOoJz+nWwLH3uiqE3U5O2Hnz8N/+IH/zr30xbSrK5U3QOdegXKQIwmWWxFxNFIUG3S6LzYYxr2YJafTdKClbYDrac8q4JsbCczRwOUvGMQdmitMqExuaGUELQ6rDQH2CVj9aKqDVCVhiEkJxeMpwi5EM/9h+buDZryHnfdNNNnDx5ksOHD1fTnFzcxVlOTnPf7ajOenNFnSMjI5w/f54zZ84gpbQumzcxMcHY2Nhr+irn5+dZXFxkMBjQ7/fxfZ+5ubmqlacuj7RTEt67jZmZGSGltM8//zzdbreyzpwrVnfB6sq6sPywnzlzhhdeeIFOp2Pf+ta3whobyDve8Q7xla98xbqJV61Wq7K2HYE5V9QF6t35dqKYZqgp3+/3eeGFF6r/W3eh67Llrn/TkbIrMHbv5wQ0JyYmAKp74MCBA8zPzyOE4Oabb95yYuCN8EtPxOL//MCb7UfePsPbrr6JwdILyCIFkdOKOnidafpJQi8uiFptbJ5RDg1Wy9OerBxmR8tiWYFTeZFoFNJ6aCe1LfIym2mGzeHGDJMAFqTBKM1g0McGgrHJLufOzoPV+HikqUWOHeJ8HvDBj+0NoQks0pYlynsxI+FieENSm5mZEXEc27NnzzIyUorNnT9/nsOHD1eTlNyD5+ZwuiJOKSUTExP0ej2ASjveGMPCwgILCwtVMNy5k+737gFWSpGmKVEUVVlYZ1G4soRLyezdCg4fPiz6/b7t9XosLCysSBY4AoFlJWKtdTVWzwX/nYXFOi3im266STzyyCN2MBgwMTGxolEceM3oP0duLqHhkkdZllX/py4JX5dAHwwG1fpcN4OL4TnrLYoi8jyv5Jlc5tPdQzfeeOOOEprDx+55Tvyzd4zZ//GvvIdpMcpEO0RkMb0kRQWKwkKhBX5m8Zyqh2C50l8YGI6vkxRIdDm5SoBAYdCAwgDS5kgKlHVjVGT1HhZJrg3jR67lldNn8DLw22OMdCdZmB8QTBzgK+dS7vrpP9tbC01YuIQ8pjWjekePHhXvec97xIULF5BSMjMzw9mzZ+n3+xV5uZva9ehB+UAsLS1V1eBu567v4lCSXX24yeoRZ51Oh7GxMaIoWiFa6cblXU44evSocMmBTqdTxZSiKKpcM9eYXt8EkiSh1+uR53ll5awXd9xxh7jllls4ffo0YRgSx3GVbXVxNtcmV++BzbKMxcVF5ufnq5qydrtdWXd1UnJ6fJ1OZ4Wy8urxdk7BdmRkhDAMSZKkKq696667xHbMQ10v/s2XF8RP/efPE0/fwgtxh0EwRTR5FYuFAd/n4PQhhHYbqrOuNMoOX2gkGcrmKJuhSPBsgm9jfPqEdkBoBrR0TKhzFHqoSQaZ8shkQCpbGK/LhfMJMhwnGLmKgWnx4qImjiY5Mae566c/v8cupxnOH2V3pzu/AdY3Ix54//vfz9e+9jXOnTvHkSNHmJubW9Fl4OJq9ervumpCfYN1v189iKQOd5PPzc1Vuz2UAWSXCbtc3M867rjjDgHYBx98kCAIKkWP+mT31VlSRyQuprlRHDx4UBw8eJBPfvKT9uqrr2Z+fp6RkZHKLa0PZ3aWYqvVqop13e+dqwzL2l/O2vY8j7m5OcIwrEQSnCtdt0Kdm+vqIsfGxrjtttv25MH91Uf7AuD3vu/r7PuvvZaXTz9DW4RILTj36hk6YQBWYmU5RG+o8TGEKZVhkVi8KnMJLsNihnVnpWWmhcDI0j11EICwHlhod8aYXcjwJ6+hnwu++tJZ/tIvXVyjf7fglILLOS92OOFq77FuUgPEjTfeyIEDB+xzzz1XPUyufsrVPbkd3t3wzl2B5XmZ9WEvjhhdHA6WJ247F9ZlBF1Q2T047XZ7U3Iz+wDine98J6dPn7ZQZtdclb8LlLsHP03T6vyFYchWVD2+7du+TZw8edJeuHChKtBNkgTf9ysLy63FWYt1q8u1Lbk1uyb0unpyGIYr+k7DMGRxcZEoihgfH2dubo6zZ89y/fXXc+zYMbgEnpOP/NK94vu/btT+/Q++k6u8lI6OYdJjbmme0Few7IRW0GL4MyFeM9hFuFGKFjyjsAJSKSmUa4MyBMbiGTBJwuToQS70QPoHeLkX8OO/8QfiE89fOsISEud9GnjNmdh9bITUAJiYmBB33nknzz77rL1w4UJZzTx0Q12G0pGQSxrUM1h1C6Me8K8HlWE54Oyyq66h3rlhl6OVthozMzNiZmbGnjhxgldffRVrbeXSOevWZRDzPN8WiaTrr79eXH/99XYwGHDixIkVBOSuQ/2rK9R1rnC/368IzpVfCCEYDAZEUbSiS8XVyTkduVdeeYWrrrqKO+64Ay4BMqvj395bjmL7mVsD+23vu5XxI2OI0Q5pPsCzBcpQc78M0hZDDf9yjoCyEmENggIQGFE+EwEGjMR6kgKfXJb/v4y6eYh2xEIc8uiJ0zw7d4b/+XPPi098dGePNZc+Ay8C08IbTkIoA4IWaUwV77NCDqfcCwohSIflKXuNDZOaw9GjR8XRo0e5//77bbfbrYK5LvZVn5Zdt64uNtilTnrOzaxLTxtjqniPa+9xpJckSZVUGJaNbAjOdXo97EJcei2IG264gRtuuME++OCDzM7OMjExge/7Tm6nii9ef/312/aZ7Xabt73tbQD25Zdf5pVXXlnR/O6uTz32VU8g1K+dy5C7SVBuutaBAwfo9XoUReG6Hfb8ZK+FHxjKC/3dOw7ZD777Nu46Ms7hNpBqeovztLptst4FuiYjDASx0Ag0bVsOFfFszGKS4E8dwRY5gV3CFoZWeIhEewgZIMM2eAELOuALj53kzx96hP/7a/GunZsl2aY7MkOedfDzFN/mQ4WSYZjAMhwALQmiDkv9HNkeYVFEpJdAClRsoz6afe6555ibm6uKOZ17uJrU6kRRL9GA5WI+51Y63THn5kgpK7FKYww33HADnU5nKxd8vVfhUnngbL/f56WXXiJJkmqqUhiG3HTTTURRtJPrtK7mrNfrVUou/X6/stDdZlaPtdYtcGstExMTtNttZmZm4NI5r5vGP745sO+8+SjXXX2Eq649jMp6TJp5hOmTKgnWMpJKusKg2oZ4qcdSa5rcWMbNIn7Q5uW8RU92mV1KeebUCzzy6El+9qt7o0v2D77hLbZl+gR6wIhn8UwxLN0wuNyiGXa/5nlObiy5iqA1zoVM8StffG5vY307KPpoFxYWOHny5JZILU3TaljJ0aNH64Hwff8wbBPqpLxX52Q9G8MVdb3+xW2BPTQZslRkKAOtgeVQy+fqw11eODvH6UyQSJ9WW7FUwI99YeGKOj87if8fXBJbO/fgm/MAAAAASUVORK5CYII=";
+const DEFAULT={"klient": {"titul": "", "jmeno": "Ukázkový Klient", "narozen": "1990-05-01", "duchod": "", "zam": 45000, "podnik": 0, "pasiv": 0, "pronajem": 0, "bonus": 0, "vydaje_osobni": 32000, "inv1": 7500, "inv2": 9000, "inv3": 15000, "vdovsky": 9000, "sirotci": 8000, "hruba": "", "bez_partnera": false}, "partner": {"zapnuto": false}, "deti": [{"jmeno": "Ema", "narozen": "2020-03-01"}], "motivace": "Chci, aby rodina měla jistotu, a jednou vlastní byt bez velké hypotéky.", "vydaje": {"celkem": 32000, "splatky": 0, "pojistne": 1200, "sporeni": 0}, "docasne": [], "majetek": [{"nazev": "Běžný účet", "typ": "Běžný účet", "hodnota": 80000, "vklad": 0}, {"nazev": "Spořicí účet", "typ": "Spořicí účet", "hodnota": 400000, "vklad": 0}, {"nazev": "Stavební spoření", "typ": "Stavební spoření", "hodnota": 120000, "vklad": 1700}], "nefin": [{"nazev": "Auto", "typ": "Auto", "hodnota": 250000}], "uvery": [], "cile": [{"nazev": "Byt – vlastní zdroje", "castka": 1200000, "datum": "2033-06"}], "renta": {"mesicne": 40000, "od_veku": ""}, "pojisteni": {"stavajici": 1200, "navrh": 1600}, "realokace": {"rucne": false, "polozky": []}};
+const TYPY=["Běžný účet","Spořicí účet","Termínovaný vklad","Stavební spoření","Penzijní připojištění (DPS)","Podílový fond (OPF)","ETF","Akcie / dluhopisy (přímé)","Životní pojištění (ŽP)","Jiné"];
+const $=s=>document.querySelector(s);
+const NB=" ";
+const fmt=v=>Math.round(+v||0).toLocaleString("cs-CZ").replace(/\s/g,NB);
+const kc=v=>fmt(v)+NB+"Kč";
+const kcm=v=>kc(v)+"/měs";
+const pct=(v,d=1)=>(v*100).toFixed(d).replace(".",",")+NB+"%";
+const sgn=v=>v>0?"+"+fmt(v)+NB+"Kč":v<0?"−"+fmt(-v)+NB+"Kč":"0"+NB+"Kč";
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mil=v=>(v/1e6).toFixed(1).replace(".",",")+" mil."+NB+"Kč";
+const mesRok=d=>FPE.MES[d.getMonth()]+" "+d.getFullYear();
+
+/* ---------------- úložiště klientů (jen v tomto prohlížeči) ---------------- */
+const LS="fpweb_pipeline_v1";
+/* HOST = otevřeno uvnitř Pipeline: plán patří jednomu klientovi a ukládá se do Pipeline (synchronizace), ne do prohlížeče */
+const HOST=location.hash==="#host"&&window.parent!==window;
+let DB={cur:"vojta",clients:{vojta:JSON.parse(JSON.stringify(DEFAULT))}};
+if(!HOST)try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s&&s.clients&&Object.keys(s.clients).length)DB=s}catch(e){}
+let saveT=null;
+const save=()=>{if(HOST){clearTimeout(saveT);saveT=setTimeout(()=>parent.postMessage({type:"fp:save",plan:inp()},location.origin),600);return}
+  try{localStorage.setItem(LS,JSON.stringify(DB))}catch(e){}};
+const inp=()=>DB.clients[DB.cur];
+let SHOT={}; // screenshoty modelace ŽP (jen v paměti)
+
+/* ---------------- editor ---------------- */
+function get(o,p){return p.split(".").reduce((a,k)=>a==null?a:a[k],o)}
+function set(o,p,v){const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null)a[k]={};a=a[k]});a[ks.at(-1)]=v}
+function fld(lbl,p,type="number",extra=""){const v=get(inp(),p);return `<label class="f">${lbl}<input data-p="${p}" type="${type}" value="${esc(v==null?"":v)}" ${extra}></label>`}
+/* procenta: zadávají se celá čísla (4 = 4 %), ukládají se desetinně */
+const p100=v=>v===""||v==null?"":Math.round(+v*10000)/100;
+function pfld(lbl,p,def,extra=""){const v=get(inp(),p);return `<label class="f">${lbl}<input data-p="${p}" data-pct="1" type="number" step="0.01" inputmode="decimal" value="${esc(p100(v))}" placeholder="${esc(p100(def))}" ${extra}></label>`}
+function sel(lbl,p,opts){const v=get(inp(),p);return `<label class="f">${lbl}<select data-p="${p}">${opts.map(o=>{const[val,t]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${val==v?"selected":""}>${esc(t)}</option>`}).join("")}</select></label>`}
+function person(p,t){return `<div class="g">${fld("Titul",p+".titul","text")}${fld("Jméno a příjmení",p+".jmeno","text")}${fld("Datum narození",p+".narozen","date")}${fld("Důchod (datum z IOLDP)",p+".duchod","date")}
+ ${fld("Čistý příjem ze zaměstnání",p+".zam")}${fld("Příjem z podnikání (čistý)",p+".podnik")}${fld("Pasivní příjmy",p+".pasiv")}${fld("Pronájem",p+".pronajem")}
+ ${fld("Roční bonus",p+".bonus")}${fld("Osobní výdaje / měs",p+".vydaje_osobni")}${fld("Hrubá mzda (pro nemocenskou)",p+".hruba","number",'placeholder="odhad z čisté"')}</div>
+ <div class="hint" style="margin-top:8px"><b>Důchody z IOLDP</b> (Kč/měs)</div>
+ <div class="g">${fld("Invalidní I. stupně",p+".inv1")}${fld("Invalidní II. stupně",p+".inv2")}${fld("Invalidní III. stupně",p+".inv3")}${fld("Vdovský / vdovecký",p+".vdovsky")}${fld("Sirotčí (na 1 dítě)",p+".sirotci")}</div>
+ ${t?"":`<label class="chk"><input type="checkbox" data-p="${p}.bez_partnera" ${get(inp(),p+".bez_partnera")?"checked":""}> Nemá manželku / partnera</label><p class="hint">Bez partnera, dětí a úvěrů = pojištění pro případ smrti není potřeba. S úvěrem jen na jeho zůstatek.</p>`}`}
+function rows(path,cols,blank){const L=get(inp(),path)||[];return `<div class="rows">${L.map((r,i)=>`<div class="row" style="grid-template-columns:1fr 1fr">${cols.map(([lbl,k,type,w,opts])=>opts?`<label class="f"${w==="full"?' style="grid-column:1/-1"':""}>${lbl}<select data-p="${path}.${i}.${k}">${opts.map(o=>{const[val,t]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${val==r[k]?"selected":""}>${esc(t)}</option>`}).join("")}</select></label>`:`<label class="f">${lbl}<input data-p="${path}.${i}.${k}" type="${type}" value="${esc(r[k]==null?"":r[k])}"></label>`).join("")}<button class="x" data-del="${path}.${i}" title="Odebrat" style="grid-column:1/-1;justify-self:end;font-size:12px">✕ odebrat</button></div>`).join("")}<button class="add" data-add="${path}" data-blank='${esc(JSON.stringify(blank))}'>+ přidat</button></div>`}
+const NEFIN=["Nemovitost k bydlení","Investiční nemovitost","Pozemek","Rekreační objekt","Podíl ve firmě","Auto","Umění / sbírky","Jiné"];
+const PRODOPT=FPE.PRODUKTY.map(p=>[p.k,p.n]);
+function prodSettings(){const P=(inp().nastaveni||{}).prod||{};
+  return `<div class="rows">${FPE.PRODUKTY.map(p=>`<div class="row" style="grid-template-columns:1fr 1fr 1fr"><div style="grid-column:1/-1;font-weight:700;font-size:13px">${esc(p.n)}${p.nofee?' <span class="hint">· vždy bez poplatků</span>':""}${p.prir?' <span class="hint">· přirážka z čisté investice</span>':""}</div>
+   ${pfld("Výnos p.a. %",`nastaveni.prod.${p.k}.vynos`,p.vynos)}${p.auv?`<label class="f">Vstupní<input disabled value="tarif níže"></label>`:pfld("Vstupní %",`nastaveni.prod.${p.k}.vstup`,p.vstup,p.nofee?"disabled":"")}${pfld("Správa p.a. %",`nastaveni.prod.${p.k}.sprava`,p.sprava,p.nofee?"disabled":"")}</div>`).join("")}</div>
+   <div class="g">${sel("Auvesta – tarif (poplatek/ážio)","nastaveni.auv_tarif",Object.entries(FPE.AUV_TARIF).map(([k,v])=>[k,k+" · "+v+" EUR"]))}${fld("Kurz EUR/Kč","nastaveni.eur_kurz","number",'step="0.01" placeholder="24.5"')}</div>
+   <p class="hint">Výnos je nominální před správou; plán počítá s výnosem − správa − inflace. Prázdné pole = výchozí hodnota (šedě).</p>`}
+function realokEditor(){const I=inp(),RE=I.realokace||{};
+  return `<label class="chk"><input type="checkbox" data-p="realokace.rucne" ${RE.rucne?"checked":""}> Upravit ručně (jinak automaticky podle plánu)</label><ul class="flags" id="kontrola" style="position:sticky;top:0;background:var(--panel);z-index:2;padding:6px 0 6px 16px;margin:0"></ul>
+   ${RE.rucne?`${rows("realokace.polozky",[["Produkt","produkt","text","full",PRODOPT],["Jednorázově Kč","jednor","number"],["Měsíčně Kč","mesicne","number"]],{produkt:"cq_akc",jednor:0,mesicne:0})}
+   <button class="add" id="reAuto" style="margin-bottom:6px">↺ Načíst automatický návrh</button>`:""}`}
+function renderEditor(){
+  const I=inp();
+  $("#ed").innerHTML=`
+  <details open><summary>Klient</summary>${person("klient")}</details>
+  <details><summary>Partner / partnerka</summary><label class="chk"><input type="checkbox" data-p="partner.zapnuto" ${I.partner&&I.partner.zapnuto?"checked":""}> Plán pro pár</label>${I.partner&&I.partner.zapnuto?person("partner"):""}</details>
+  <details><summary>Děti</summary>${rows("deti",[["Jméno","jmeno","text"],["Narození","narozen","date"]],{jmeno:"",narozen:""})}</details>
+  <details><summary>Motivace a hodnoty (slide 2)</summary><div class="g one"><label class="f">Citát / co je pro klienta nejdůležitější<textarea data-p="motivace" rows="3">${esc(I.motivace||"")}</textarea></label></div>
+   <p class="hint">Ikony a popisky se vyberou automaticky podle citátu (a cílů): <span id="motPrev"></span></p>
+   <label class="chk"><input type="checkbox" data-p="hodnoty_vlastni" ${I.hodnoty_vlastni?"checked":""}> Vlastní popisky místo automatických</label>
+   ${I.hodnoty_vlastni?[0,1,2].map(i=>`<div class="g">${fld("Hodnota "+(i+1),`hodnoty.${i}.t`,"text")}${fld("Popis",`hodnoty.${i}.d`,"text")}</div>`).join(""):""}</details>
+  <details open><summary>Výdaje domácnosti</summary><div class="g">${fld("Výdaje celkem / měs","vydaje.celkem")}${fld("z toho splátky","vydaje.splatky")}${fld("z toho pojistné","vydaje.pojistne")}${fld("z toho spoření","vydaje.sporeni")}</div>
+   <p class="hint">Volné cash flow = příjmy − (výdaje − pojistné − spoření), zaokrouhleno dolů na tisíce.</p></details>
+  <details><summary>Dočasné příjmy (nejdou do plánu)</summary>${rows("docasne",[["Název","nazev","text","2fr"],["Kč/měs","castka","number"],["Do (rok-měsíc)","do","month"]],{nazev:"",castka:0,do:""})}</details>
+  <details open><summary>Finanční majetek</summary>${rows("majetek",[["Název","nazev","text","1.3fr"],["Typ","typ","text","1.3fr",TYPY],["Hodnota","hodnota","number"],["Měs. vklad","vklad","number"],["Daňový odpočet/měs (DPS, ŽP)","odpocet","number"]],{nazev:"",typ:"Spořicí účet",hodnota:0,vklad:0,odpocet:0})}
+   <p class="hint">Účty → rezerva, zbytek do cílů. Fondy, ETF a stavební spoření se převádějí do plánu. DPS zůstává a počítá se do renty.</p></details>
+  <details><summary>Nefinanční majetek</summary>${rows("nefin",[["Název","nazev","text"],["Typ","typ","text","",NEFIN],["Hodnota","hodnota","number"]],{nazev:"",typ:"Nemovitost k bydlení",hodnota:0})}
+   <p class="hint">Nemovitosti, podíly, auta… Nejde do realokace, ukazuje se v čistém jmění.</p></details>
+  <details><summary>Úvěry</summary>${rows("uvery",[["Název","nazev","text","1.3fr"],["Zůstatek","zustatek","number"],["Splátka","splatka","number"],["Konec fixace","fixace_do","month"],["Splatnost","splatnost","month"]],{nazev:"Hypotéka",zustatek:0,splatka:0,fixace_do:"",splatnost:""})}</details>
+  <details open><summary>Cíle</summary>${rows("cile",[["Cíl","nazev","text","1.4fr"],["Částka (dnešní ceny)","castka","number"],["Kdy (rok-měsíc)","datum","month"]],{nazev:"",castka:0,datum:""})}
+   <div class="g">${fld("Renta Kč/měs (dnešní ceny)","renta.mesicne")}${fld("Renta od věku (prázdné = důchod)","renta.od_veku")}</div></details>
+  <details><summary>Pojištění</summary><div class="g">${fld("Stávající pojistné / měs","pojisteni.stavajici")}${fld("Navržené pojistné / měs","pojisteni.navrh")}</div>
+   <label class="f">Screenshot modelace ŽP (zůstane jen do zavření stránky)<input type="file" id="shotIn" accept="image/*"></label>
+   <p class="hint">Děti se pojišťují vždy stejně: trvalé následky úrazu 1 000 000 Kč s 10× progresí, závažná onemocnění dětí 500 000 Kč, denní odškodné léčení úrazu 400 Kč/den.</p></details>
+  <details><summary>Návrh realokace</summary>${realokEditor()}</details>
+  <details><summary>Nastavení výnosů a pravidel</summary><div class="g">
+   ${[["Inflace %","inflace"],["Hotovost reálně %","hotovost_real"],["Renta – výnos při čerpání %","renta_r"],["DPS nominálně %","dps_nom"],["Daňová úleva DIP %","dan"],["ZFPI v dluhopisové složce %","dluh_mix"],["Invalidita I – zbylá prac. schopnost %","prac_inv1"],["Invalidita II – zbylá prac. schopnost %","prac_inv2"]].map(([l,k])=>pfld(l,"nastaveni."+k,FPE.DEFAULT_SET[k])).join("")}
+   ${fld("Renta – počet let čerpání","nastaveni.renta_let","number",'placeholder="20"')}${fld("Úmrtí – násobek ročního příjmu","nastaveni.smrt_nasobek","number",'placeholder="3"')}${fld("DIP – strop Kč/měs","nastaveni.dip_strop","number",'placeholder="4000"')}</div>
+   <p class="hint">Procenta zadávej celými čísly: 4 = 4 %.</p></details>
+  <details><summary>Výnosy a poplatky produktů</summary>${prodSettings()}</details>
+  <details open><summary>Upozornění k plánu</summary><ul class="flags" id="flags"></ul></details>`;
+}
+$("#ed").addEventListener("input",e=>{
+  const t=e.target,p=t.dataset.p;if(!p)return;
+  let v=t.type==="checkbox"?t.checked:t.type==="number"?(t.value===""?"":+String(t.value).replace(",",".")):t.value;
+  if(t.dataset.pct&&v!=="")v=Math.round(v*100)/10000;
+  set(inp(),p,v);save();
+  if(["partner.zapnuto","realokace.rucne","hodnoty_vlastni"].includes(p)){if(p==="realokace.rucne"&&v&&!((inp().realokace||{}).polozky||[]).length)loadAuto();keepOpen(renderEditor)}
+  if(p.endsWith(".jmeno")&&p.startsWith("klient"))renderClients();
+  update();
+});
+$("#ed").addEventListener("change",e=>{if(e.target.id==="shotIn"&&e.target.files[0]){SHOT[DB.cur]=URL.createObjectURL(e.target.files[0]);update()}});
+$("#ed").addEventListener("click",e=>{
+  if(e.target.id==="reAuto"){loadAuto();save();keepOpen(renderEditor);update();return}
+  const a=e.target.closest("[data-add]"),d=e.target.closest("[data-del]");
+  if(a){const p=a.dataset.add;const L=get(inp(),p)||[];L.push(JSON.parse(a.dataset.blank));set(inp(),p,L);save();keepOpen(renderEditor);update()}
+  if(d){const ps=d.dataset.del.split(".");const i=+ps.pop();const L=get(inp(),ps.join("."));L.splice(i,1);save();keepOpen(renderEditor);update()}
+});
+/* převezme automatický návrh realokace do ručně upravitelných řádků */
+function loadAuto(){const I=inp();const rc=I.realokace?I.realokace.rucne:false;I.realokace=I.realokace||{};I.realokace.rucne=false;
+  const RA=FPE.compute(I,new Date());I.realokace={rucne:true,polozky:RA.pozice.map(p=>({produkt:p.k,jednor:p.jednor,mesicne:p.mesicne}))};if(!rc&&!I.realokace.rucne)I.realokace.rucne=false}
+function keepOpen(fn){const op=[...document.querySelectorAll("#ed details")].map(x=>x.open);const st=$("#ed").scrollTop;fn();document.querySelectorAll("#ed details").forEach((x,i)=>{if(op[i]!=null)x.open=op[i]});$("#ed").scrollTop=st}
+
+/* ---------------- slidy ---------------- */
+const C={inv:"#E8722A",smrt:"#C2508D",pn:"#3D7FD1",ok:"#3E9B7A",bar:"#9AA7B5"};
+const H=(h)=>h;
+function chrome(title,sub){return `<div class="bar"></div><img class="logo" src="${LOGO}" alt=""><h2>${title}</h2>${sub?`<div class="sub">${sub}</div>`:""}`}
+function donut(vals,cols,size,hole){let a=-Math.PI/2,out="";const t=vals.reduce((x,y)=>x+y,0)||1,R=size/2,r=R*hole;
+  vals.forEach((v,i)=>{if(v<=0)return;const b=a+2*Math.PI*v/t,lg=b-a>Math.PI?1:0;const p=(ang,rad)=>[R+rad*Math.cos(ang),R+rad*Math.sin(ang)];
+   if(v>=t-1e-9){out+=`<circle cx="${R}" cy="${R}" r="${(R+r)/2}" fill="none" stroke="${cols[i]}" stroke-width="${R-r}"/>`;}
+   else{const[x1,y1]=p(a,R),[x2,y2]=p(b,R),[x3,y3]=p(b,r),[x4,y4]=p(a,r);out+=`<path d="M${x1},${y1}A${R},${R} 0 ${lg} 1 ${x2},${y2}L${x3},${y3}A${r},${r} 0 ${lg} 0 ${x4},${y4}Z" fill="${cols[i]}" stroke="#161616" stroke-width="2"/>`}
+   const m=(a+b)/2,[lx,ly]=p(m,(R+r)/2);if(v/t>0.06)out+=`<text x="${lx}" y="${ly}" fill="#fff" font-size="${size/13}" font-weight="700" text-anchor="middle" dominant-baseline="middle">${Math.round(v/t*100)} %</text>`;a=b});
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${out}</svg>`}
+const svg=(d,sz=44)=>`<svg viewBox="0 0 24 24" width="${sz}" height="${sz}"><path fill="#fff" fill-rule="evenodd" d="${d}"/></svg>`;
+const ICON={shield:svg("M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm0 2.2v15.6c-3.4-1.2-6-5-6-8.8V6.4l6-2.2z"),
+ jistota:svg("M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm-1.2 14.2-3.5-3.5 1.4-1.4 2.1 2.1 4.9-4.9 1.4 1.4-6.3 6.3z"),
+ auto:svg("M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11a2 2 0 0 1 2 2v4h-2v2h-3v-2H8v2H5v-2H3v-4a2 2 0 0 1 2-2zm2.1 0h9.8l-1-3H8.1l-1 3zM6.5 15a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm11 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"),
+ duchod:svg("M12 3a9 9 0 0 1 9 8H3a9 9 0 0 1 9-8zm-1 9h2v7h3v2H8v-2h3v-7z"),
+ rodina:svg("M8 4a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm8 0a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM4 20v-6a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3v6H4zm9 0v-6a3 3 0 0 1 3-3h1a3 3 0 0 1 3 3v6h-7zM12 12.5a1.8 1.8 0 1 1 0-3.6 1.8 1.8 0 0 1 0 3.6z"),
+ svoboda:svg("M7 6a6 6 0 0 1 5.7 4H22v4h-2v3h-3v-3h-4.3A6 6 0 1 1 7 6zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"),
+ bydleni:svg("M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3L12 3z"),
+ cestovani:svg("M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"),
+ vzdelani:svg("M12 3 1 9l11 6 9-4.9V17h2V9L12 3zM5 13.2v4L12 21l7-3.8v-4L12 17l-7-3.8z"),
+ podnikani:svg("M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 4h6V5H9v2z"),
+ zdravi:svg("M12 21s-8-4.9-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.1-8 11-8 11z"),
+ rust:svg("M3 20h18v2H3v-2zm2-2v-6h3v6H5zm5 0V8h3v10h-3zm5 0V4h3v14h-3z"),
+ check:'<svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="11" fill="#E8722A"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'};
+ICON.car=ICON.auto;ICON.sun=ICON.duchod;
+
+function buildFrames(I,R){
+  const F=[];const K=R.persons[0];const doPlanu=R.pozice.reduce((x,p)=>x+p.jednor,0);const ttl=(K.titul?K.titul+" ":"");
+  const names=R.persons.length>1?R.persons.map(p=>p.jmeno.split(" ")[0]).join(" a "):K.jmeno;
+  const nm=K.jmeno.split(" ");
+  // 1 titul
+  F.push({g:"t",h:`<div style="position:absolute;left:0;top:0;width:880px;height:900px;background:#232323"></div><div class="bar"></div>
+   <div style="position:absolute;left:96px;top:64px;color:#E8722A;font-weight:900;font-size:20px;letter-spacing:1px">FINANČNÍ PLÁN</div>
+   <div style="position:absolute;left:96px;top:150px;font-size:76px;font-weight:900;line-height:1.15">${esc(ttl+nm.slice(0,-1).join(" "))}<br>${esc(nm.at(-1)||"")}</div>
+   <div style="position:absolute;left:96px;top:420px;font-size:24px;font-style:italic;color:#b4b4b4">Komplexní strategie pro Vaše finanční cíle</div>
+   <div style="position:absolute;left:96px;top:810px;font-size:16px;color:#9a9a9a">ZFP Group  |  ${new Date().getFullYear()}</div>
+   <img src="${LOGO}" style="position:absolute;left:1095px;top:150px;width:260px" alt="">
+   <svg style="position:absolute;left:1120px;top:420px" width="210" height="210" viewBox="0 0 100 100" fill="none" stroke="#E8722A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8v82h82"/><path d="M26 68l20-20 14 12 28-30"/><path d="M70 28h20v20"/></svg>`,lbl:"Úvod"});
+  // 2 hodnoty
+  const hv=I.hodnoty_vlastni?(I.hodnoty||[]).concat([{},{},{}]).slice(0,3).map((v,i)=>({t:v.t||R.motivace[i].t,d:v.d||R.motivace[i].d,ic:R.motivace[i].ic})):R.motivace,ic=hv.map(v=>ICON[v.ic]||ICON.shield);
+  F.push({g:"h",h:chrome("Co jsou pro vás peníze?","Vaše odpovědi z první schůzky")+`<div class="card" style="left:80px;top:190px;width:1440px;height:220px"></div>
+   <div style="position:absolute;left:112px;top:196px;font-size:70px;color:#E8722A;font-weight:900">„</div>
+   <div style="position:absolute;left:160px;top:240px;width:1300px;font-size:26px;font-style:italic;line-height:1.45">${esc(I.motivace||"")}</div>
+   ${hv.map((v,i)=>`<div class="card" style="left:${80+i*496}px;top:470px;width:448px;height:340px"></div><div style="position:absolute;left:${80+i*496+164}px;top:505px;width:120px;height:120px;border-radius:50%;background:#E8722A;display:flex;align-items:center;justify-content:center">${ic[i]}</div>
+   <div style="position:absolute;left:${80+i*496}px;top:660px;width:448px;text-align:center;font-size:24px;font-weight:900">${esc(v.t||"")}</div><div style="position:absolute;left:${80+i*496+30}px;top:705px;width:388px;text-align:center;font-size:17px;color:#b4b4b4">${esc(v.d||"")}</div>`).join("")}`,lbl:"Hodnoty"});
+  // 3 alokace
+  const yrs=[0,1,3,5,7,10,15,20,25,30],tr=[[47,40,13],[49,40,12],[51,39,10],[54,38,8],[58,35,7],[63,32,5],[74,23,3],[84,14,2],[90,9,1],[92,7,1]];
+  const tab=(rows,top)=>`<table class="t" style="left:80px;top:${top}px;width:1440px;font-size:15px"><tr><th></th>${yrs.map(y=>`<th style="text-align:center">${y}</th>`).join("")}</tr>${["Akcie","Dluhopisy","Hotovost"].map((n,j)=>`<tr><td style="color:${["#E8722A","#5b8dd6","#cfcfcf"][j]};font-weight:700">${n}</td>${rows.map(r=>`<td style="text-align:center">${r[j]} %</td>`).join("")}</tr>`).join("")}</table>`;
+  F.push({g:"a",h:chrome("Doporučená alokace portfolia","Jak vybíráme správné rozložení aktiv pro každý cíl")+`<div style="position:absolute;left:80px;top:180px;color:#E8722A;font-weight:900;font-size:20px">Pro dosažení cíle</div>${tab(yrs.map(y=>FPE.alok(y)),215)}
+   <div style="position:absolute;left:80px;top:440px;color:#E8722A;font-weight:900;font-size:20px">Pro čerpání renty</div>${tab(tr,475)}
+   <div class="foot">Mezi body tabulky lineární interpolace podle horizontu cíle. Zdroj: Morningstar, metodika ZFP.</div>`,lbl:"Alokace"});
+  // 4 finanční plán
+  const gl=[{n:"Rezerva",kdy:"Ihned",cil:kc(R.rez.cil),v:kc(R.rez.vklad),p:kc(R.rez.chybi>0?0:0),r:"0 %",vys:kc(R.rez.vklad),s:Math.round(R.rez.vklad/R.rez.cil*100)+" %"}]
+   .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),v:kc(c.vklad),p:kc(c.pmt),r:pct(c.rNom),vys:kc(c.vysledek),s:Math.round(c.splneni*100)+" %"})))
+   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(R.renta.kap)+`<br><span class="mut" style="font-size:14px">(${kcm(R.renta.mesicne)}, ${R.renta.let} let)</span>`,v:kc(R.renta.vklad)+(R.renta.dpsVal?`<br><span class="mut" style="font-size:14px">(+ DPS ${kc(R.renta.dpsVal)})</span>`:""),p:kc(R.renta.pmt),r:pct(R.renta.rNom),vys:kc(R.renta.vysledek),s:Math.round(R.renta.splneni*100)+" %"}]:[])
+   .concat([{n:"Životní pojištění",kdy:"Ihned",cil:"–",v:"0 Kč",p:kc(R.pojNove),r:"–",vys:"–",s:"✓"}]);
+  const box=(x,l,v,s)=>`<div class="card" style="left:${x}px;top:170px;width:340px;height:150px"></div><div style="position:absolute;left:${x+20}px;top:185px;font-size:15px;color:#b4b4b4">${l}</div><div style="position:absolute;left:${x+20}px;top:215px;font-size:34px;font-weight:900;color:#E8722A">${v}</div><div style="position:absolute;left:${x+20}px;top:270px;font-size:14px;color:#8a8a8a">${s}</div>`;
+  F.push({g:"p",h:chrome("Finanční plán")+box(80,"Finanční majetek",kc(R.majCelkem),"zbývá: "+kc(R.zbyva))+box(445,"Cash flow",kcm(R.cf),"zbývá: "+kcm(R.cfZbyva))+box(810,"Celkem alokováno",kc(R.alokovano),"")+box(1175,"Již rozděleno",kcm(R.pmtCelkem+R.pojNove),"")+
+   `<div style="position:absolute;left:80px;top:345px;font-size:16px;font-style:italic;color:#E8722A">Priorita: nejprve vyčerpáme veškerý finanční majetek, teprve potom bereme z cash flow.</div>
+   ${R.nefinCelkem||R.zavazky?`<div style="position:absolute;right:80px;top:345px;font-size:15px;color:#b4b4b4">Čisté jmění <b style="color:#efefef">${kc(R.jmeni)}</b> = finanční ${kc(R.majCelkem)} + nefinanční ${kc(R.nefinCelkem)} − úvěry ${kc(R.zavazky)}</div>`:""}
+   <table class="t" style="left:80px;top:390px;width:1440px"><tr><th>Co</th><th style="text-align:center">Kdy</th><th>Cíl</th><th>Jedn. vklad</th><th>Prav. platba</th><th>Výnos p.a.</th><th>Výsledek</th><th>Splnění</th></tr>
+   ${gl.map(g=>`<tr><td style="font-weight:700">${g.n}</td><td style="text-align:center">${g.kdy}</td><td>${g.cil}</td><td class="o">${g.v}</td><td class="o">${g.p}</td><td>${g.r}</td><td>${g.vys}</td><td class="grn" style="font-weight:900">${g.s}</td></tr>`).join("")}</table>
+   <div class="foot">Výnosy reálné (po inflaci ${pct(R.S.inflace,0)}), v tabulce nominálně. Výnosy jsou po poplatku za správu a vstupní poplatky produktů jsou započteny v každém vkladu (akciová složka ${pct(R.trida.A.fee,1)}, dluhopisová ${pct(R.trida.D.fee,1)}). Renta = kapitál na ${R.S.renta_let} let čerpání s reálným výnosem ${pct(R.S.renta_r)}. Cíle v dnešních cenách.</div>`,lbl:"Plán"});
+  // katastrofy (skupina pro každou osobu)
+  R.katastrofy.forEach((k,pi)=>{
+    const p=k.osoba,jm=p.jmeno.split(" ")[0];
+    const sc=k.scen,vyd=k.vyd,kinds=[["normal","Dnes","DNES",C.ok],["inv","Invalidita III. st.","INVALIDITA III. STUPNĚ",C.inv],["smrt","Úmrtí","ÚMRTÍ",C.smrt],["pn","Dlouhodobá nemoc","DLOUHODOBÁ NEMOC",C.pn]];
+    const scale=Math.max(...kinds.map(x=>sc[x[0]].celkem),vyd,k.vydPN)*1.06||1,bx=130,bw=1340,X=v=>bx+bw*v/scale;
+    kinds.forEach(([kind,short,pill,col],step)=>{
+      const death=kind==="smrt",s=sc[kind],tot=s.celkem,vyd=kind==="pn"?k.vydPN:k.vyd,roz=tot-vyd;
+      let amount=death?(k.smrt.treba?kc(k.smrt.pc):"Není potřeba"):kc(tot),hint=death?(k.smrt.treba?"doporučená pojistná částka":"pojištění pro případ smrti"):"měsíční příjem",gap;
+      if(death)gap=k.smrt.zavisli?`<span class="mut">${R.S.smrt_nasobek} × roční příjem ${kc(k.smrt.prijem3)}  +  závazky ${kc(k.smrt.zavazky)}</span>`:k.smrt.treba?`<span class="mut">Nikdo nezávisí na příjmu — krytí jen na úvěry ${kc(k.smrt.zavazky)}</span>`:`<span class="mut">Bez partnera, dětí a závazků</span>`;
+      else gap=(kind!=="normal"?`<span class="mut">−${kc(k.normal-tot)} proti dnešku&nbsp;&nbsp; </span>`:"")+(roz<0?`<b class="red">výdaje ${kc(vyd)} → chybí ${kcm(-roz)}</b>`:`<b class="grn">výdaje ${kc(vyd)} → zbývá ${kcm(roz)}</b>`);
+      let det;
+      if(kind==="normal")det=[`Čistý příjem: ${kcm(k.normal)}`,`Osobní výdaje: ${kcm(vyd)}`,"Co když tento příjem vypadne? →"];
+      else if(kind==="inv")det=[`Invalidní důchod III. st. (IOLDP): ${kcm(s.inv)}`,`Dorovnat min. ${kc(k.inv.min)}, doporučeno ${kcm(k.inv.dop)}`,`na ${Math.round(k.roky)} let (${k.doRenty?"do začátku renty":"do starobního důchodu"}) → ${kc(k.inv.pcMin)} / ${kc(k.inv.pcDop)}`];
+      else if(death){const pz=k.smrt.pozustali;det=k.smrt.zavisli?["Rodina dostane jednorázovou částku, která pokryje",`${R.S.smrt_nasobek} roky příjmu a splatí všechny závazky`].concat(pz.vdovsky||pz.sirotci?[`Stát: vdovský ${kc(pz.vdovsky)}${pz.deti?` + sirotčí ${kc(pz.sirotci)} (${pz.deti}× dítě)`:""}/měs`]:[])
+        :k.smrt.treba?["Na příjmu nikdo nezávisí","Pojistit jen zůstatek úvěrů, aby nepřešly na dědice"]:["Na příjmu nikdo nezávisí a nejsou žádné úvěry","→ pojištění pro případ smrti není potřeba"]}
+      else{const pr=k.pn.treba?`Rezerva ${kc(k.pn.uspory)} nepokryje rok nemoci (potřeba ${kc(k.pn.need12)})`:`Rezerva ${kc(k.pn.uspory)} pokryje rok nemoci (potřeba ${kc(k.pn.need12)}) → není nutné pojistit`;
+        const vy=`Výdaje vč. investic z plánu: ${kcm(k.vydPN)}`;
+        det=p.zam>0?[`Nemocenská ${fmt(k.pnFaze.d15)} → ${fmt(k.pnFaze.d31)} → ${fmt(k.pnFaze.d61)} Kč/měs`,vy,pr].concat(k.pn.treba?[`→ PN ${fmt(k.pn.denniMin)} Kč/den (doporučeno ${fmt(k.pn.denniDop)})`]:[])
+        :["OSVČ bez nemocenského pojištění: dávka i příjem 0 Kč",vy,pr].concat(k.pn.treba?[`→ PN ${fmt(k.pn.denniMin)} Kč/den (doporučeno ${fmt(k.pn.denniDop)})`]:[])}
+      // pruh
+      let x=bx,seg="";const SEG=[["prace",C.bar,`výdělek (${esc(jm)})`],["pasivni","#3E9B7A","pasivní příjmy"],["inv",C.inv,"invalidní důchod"],["nemocenska",C.pn,"nemocenská"]];
+      SEG.forEach(([key,c,name])=>{const v=death?0:s[key],w=bw*v/scale;seg+=`<div class="k" data-k="sg_${key}" style="position:absolute;left:${x}px;top:545px;width:${Math.max(0,w-3)}px;height:76px;background:${c};border-radius:4px"></div>
+        <div class="k" data-k="sl_${key}" style="position:absolute;left:${x+4}px;top:630px;width:${Math.max(w,1)}px;font-size:14px;color:#b4b4b4;overflow:hidden;white-space:nowrap;opacity:${v>0&&w>110?1:0}">${name}<br><b style="color:#efefef;font-size:17px">${fmt(v)}</b></div>`;x+=w});
+      const pcW=death&&k.smrt.treba?bw:0;
+      seg+=`<div class="k" data-k="pc" style="position:absolute;left:${bx}px;top:545px;width:${pcW}px;height:76px;background:${C.smrt};border-radius:4px"></div><div class="k" data-k="pcl" style="position:absolute;left:${bx+4}px;top:630px;font-size:14px;color:#b4b4b4;opacity:${death&&k.smrt.treba?1:0}">${k.smrt.zavisli?R.S.smrt_nasobek+" × roční příjem + závazky":"zůstatek úvěrů"}<br><b style="color:#efefef;font-size:17px">${kc(k.smrt.pc)}</b></div>`;
+      const xt=X(tot),xv=X(vyd),gw=!death&&roz<0?xv-xt:0;
+      seg+=`<div class="k" data-k="gap" style="position:absolute;left:${death?xv:xt}px;top:545px;width:${gw}px;height:76px;border:${gw?"2px dashed #DF6A6A":"0"};background:rgba(223,106,106,.12);border-radius:4px;color:#DF6A6A;font-weight:900;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap">${gw>130?"chybí "+fmt(-roz):""}</div>
+       <div class="k" data-k="vyd" style="position:absolute;left:${xv-2}px;top:528px;width:4px;height:110px;background:#f3f3f3;opacity:${death?0:1}"></div><div class="k" data-k="vydt" style="position:absolute;left:${xv-260}px;top:500px;width:255px;text-align:right;font-size:14px;font-weight:700;opacity:${death?0:1}">${kind==="pn"?"výdaje vč. investic":"výdaje"} ${kc(vyd)}</div>`;
+      // osa
+      const nx=i=>110+1380*(i+.5)/4;
+      let axis=`<div style="position:absolute;left:110px;top:755px;width:1380px;height:4px;background:#3a3a3a"></div>
+       <div class="k" data-k="ptr" style="position:absolute;left:${nx(step)-14}px;top:700px;width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:18px solid ${col}"></div>`;
+      kinds.forEach(([kd,sh,,c2],i)=>{const act=i===step,sz=act?40:24,past=i<=step;const r2=sc[kd].celkem-(kd==="pn"?k.vydPN:k.vyd);
+        const val=kd==="smrt"?(k.smrt.treba?"krytí "+mil(k.smrt.pc):"není potřeba"):kd==="normal"?kc(sc[kd].celkem):(r2<0?"chybí "+kc(-r2):kc(sc[kd].celkem));
+        axis+=`<div class="node k" data-k="n${i}" style="left:${nx(i)-sz/2}px;top:${757-sz/2}px;width:${sz}px;height:${sz}px;background:${past?c2:"#161616"};border:3px solid ${act?"#fff":c2}"></div>
+        <div class="nl k" data-k="nl${i}" style="left:${nx(i)-150}px;top:788px;width:300px;font-size:${act?19:16}px;font-weight:${act?900:400};color:${act?"#efefef":"#9a9a9a"}">${sh}</div>
+        <div class="nl k" data-k="nv${i}" style="left:${nx(i)-150}px;top:818px;width:300px;font-size:15px;font-weight:${act?900:400};color:${past?(kd==="smrt"?"#E8722A":r2<0&&kd!=="normal"?"#DF6A6A":"#9a9a9a"):"#555"}">${past?val:"?"}</div>`});
+      F.push({g:"kat"+pi,h:chrome("Příjmy po katastrofě – "+esc(jm),"Příjem a výdaje: "+esc(p.jmeno)+(p.osvc?" (OSVČ)":"")+" — co když příjem vypadne")+
+        `<div class="card k" data-k="card" style="left:80px;top:170px;width:1440px;height:500px;border-top:5px solid ${col}"></div>
+        <div class="k" data-k="pill" style="position:absolute;left:112px;top:200px"><span class="pill" style="background:${col}">${pill}</span><span class="mut" style="margin-left:18px;font-size:16px">${hint}</span></div>
+        <div class="k" data-k="amt" style="position:absolute;left:112px;top:248px;font-size:60px;font-weight:900;color:${death?C.smrt:"#efefef"}">${amount}</div>
+        <div class="k" data-k="gapt" style="position:absolute;left:112px;top:332px;font-size:19px">${gap}</div>
+        <ul class="k" data-k="det" style="position:absolute;left:870px;top:198px;width:620px;margin:0;padding-left:22px;font-size:18px;line-height:1.6">${det.map(d=>`<li>${d}</li>`).join("")}</ul>`+seg+axis+
+        `<div class="foot">Po jednotlivci: čistý příjem osoby proti jejím výdajům. Invalidní důchod z IOLDP; nemocenská zaměstnance dle zák. 187/2006 Sb. (redukční hranice 2026, od 61. dne 72 %); OSVČ bez dobrovolného nemocenského pojištění nemá v nemoci dávku ani příjem. Úmrtí: ${R.S.smrt_nasobek} × roční čistý příjem + závazky.${R.docasne.length?" Dočasné příjmy (např. sirotčí důchod) nepočítáme.":""}</div>`,lbl:jm+": "+short});
+    });
+    F.push({g:"zp"+pi,h:chrome("Návrh životního pojištění","Doporučené krytí pro zajištění příjmu – "+esc(p.jmeno))+
+      `<div class="shot" style="left:80px;top:180px;width:860px;height:560px">${SHOT[DB.cur]&&pi===0?`<img src="${SHOT[DB.cur]}" alt="Modelace">`:"sem patří screenshot modelace (nahraj ho v editoru → Pojištění)"}</div>
+      <div class="card" style="left:990px;top:180px;width:530px;height:560px"></div>
+      <div style="position:absolute;left:1020px;top:205px;font-size:22px;font-weight:900">Doporučené krytí</div>
+      <ul style="position:absolute;left:1020px;top:248px;width:480px;margin:0;padding-left:20px;font-size:16.5px;line-height:1.55">
+       ${k.invAll.map(x=>`<li>Invalidita ${["I.","II.","III."][x.st-1]} st.: <b class="o">${kc(x.pcDop)}</b> <span class="mut">(min. ${kc(x.pcMin)})</span></li>`).join("")}
+       <li class="mut" style="list-style:none;font-size:13.5px;margin:-2px 0 4px">klesající renta na ${Math.round(k.roky)} let – ${k.doRenty?"do začátku renty":"do důchodu"}</li>
+       <li>Pracovní neschopnost: ${k.pn.treba?`<b class="o">${fmt(k.pn.denniDop)} Kč/den</b> <span class="mut">(min. ${fmt(k.pn.denniMin)})</span>`:`<b class="grn">kryje rezerva</b>`}</li>
+       <li>Úmrtí: ${k.smrt.treba?`<b class="o">${kc(k.smrt.pc)}</b>${k.smrt.zavisli?"":' <span class="mut">(úvěry)</span>'}`:`<b class="grn">není potřeba</b>`}</li>
+       <li>Závažná onemocnění: dle modelace</li></ul>
+      <div style="position:absolute;left:1020px;top:640px;font-size:15px;color:#b4b4b4">Měsíční pojistné</div>
+      <div style="position:absolute;left:1020px;top:665px;font-size:40px;font-weight:900">${fmt(R.pojNove)},–${NB}Kč</div>
+      <div style="position:absolute;left:80px;top:775px;font-size:20px;font-weight:900">Proč pojištění?</div>
+      ${["Výpadek příjmu neohrozí plán","Rezerva zůstane nedotčená",p.osvc?"OSVČ nemá nemocenskou":k.smrt.treba?"Závazky jsou kryté":"Platíte jen za to, co potřebujete","Invalida neznamená chudobu","Vážná nemoc bez finančního stresu"].map((t,i)=>`<div style="position:absolute;left:${80+i*292}px;top:815px;display:flex;gap:8px;align-items:center;font-size:15px">${ICON.check}${t}</div>`).join("")}`,lbl:"ŽP "+jm});
+  });
+  // pojištění dětí
+  if(R.detiPoj.length){const n=R.detiPoj.length,w=Math.min(440,(1440-(n-1)*30)/n);
+    F.push({g:"deti",h:chrome("Pojištění dětí","U dětí pojišťujeme vždy stejně – úraz a vážná nemoc, ne výpadek příjmu")+
+     R.detiPoj.map((d,i)=>{const x=80+i*(w+30);return `<div class="card" style="left:${x}px;top:200px;width:${w}px;height:520px;border-top:5px solid #E8722A"></div>
+      <div style="position:absolute;left:${x}px;top:225px;width:${w}px;text-align:center"><div style="display:inline-flex;width:96px;height:96px;border-radius:50%;background:#E8722A;align-items:center;justify-content:center">${ICON.rodina}</div>
+      <div style="font-size:26px;font-weight:900;margin-top:16px">${esc(d.jmeno.split(" ")[0])}</div><div class="mut" style="font-size:16px">${Math.floor(d.vek)} let</div></div>
+      <div style="position:absolute;left:${x+30}px;top:430px;width:${w-60}px;font-size:17px;line-height:1.5">
+       <div class="mut" style="font-size:14px">Trvalé následky úrazu</div><div style="font-size:24px;font-weight:900" class="o">${kc(d.tnu)}</div><div class="mut" style="font-size:13px;margin-bottom:12px">s ${d.progrese}× progresí – až ${mil(d.tnu*d.progrese)}</div>
+       <div class="mut" style="font-size:14px">Závažná onemocnění dětí</div><div style="font-size:22px;font-weight:900">${kc(d.zo)}</div>
+       <div class="mut" style="font-size:14px;margin-top:10px">Léčení úrazu</div><div style="font-size:22px;font-weight:900">${fmt(d.dou)} Kč/den</div></div>`}).join("")+
+     `<div class="foot">Progrese 10×: při těžkém trvalém poškození se pojistné plnění násobí až desetkrát. Závažná onemocnění: rakovina, cukrovka 1. typu, meningitida a další dle podmínek pojišťovny.</div>`,lbl:"Pojištění dětí"})}
+  // realokace – struktura aktiv: nyní → nově (2 snímky, animovaný přechod)
+  const st=R.struktura,cols3=["#E8722A","#5b8dd6","#8a8a8a"],nm3=["Akcie","Dluhopisy","Peníze"];
+  const smax=Math.max(...st.ted,...st.nove,1),tot0=st.ted.reduce((a,b)=>a+b,0),tot1=st.nove.reduce((a,b)=>a+b,0);
+  [0,1].forEach(ph=>{
+    const v=ph?st.nove:st.ted,ps=ph?st.novePct:st.tedPct,tot=ph?tot1:tot0;
+    const p1=ps[0],p2=ps[0]+ps[1];
+    F.push({g:"st",h:chrome("Návrh realokace",ph?"Struktura aktiv po realokaci":"Struktura aktiv dnes")+
+     `<div class="k" data-k="stl" style="position:absolute;left:80px;top:178px"><span class="pill" style="background:${ph?"#3E9B7A":"#5a5a5a"};font-size:18px">${ph?"PO REALOKACI":"NYNÍ"}</span></div>
+      <div class="dn" data-k="dn" style="position:absolute;left:120px;top:250px;width:440px;height:440px;--p1:${p1}%;--p2:${p2}%"></div>
+      <div class="k" data-k="dnc" style="position:absolute;left:120px;top:430px;width:440px;text-align:center"><div class="mut" style="font-size:16px">celkem</div><div style="font-size:34px;font-weight:900">${kc(tot)}</div></div>
+      ${v.map((x,i)=>`<div style="position:absolute;left:680px;top:${255+i*150}px;font-size:24px;font-weight:900;color:${cols3[i]}">${nm3[i]}</div>
+       <div style="position:absolute;left:680px;top:${297+i*150}px;width:840px;height:46px;background:#232323;border-radius:6px"></div>
+       <div class="k" data-k="sb${i}" style="position:absolute;left:680px;top:${297+i*150}px;width:${Math.max(0,840*x/smax)}px;height:46px;background:${cols3[i]};border-radius:6px"></div>
+       <div class="k" data-k="sv${i}" style="position:absolute;left:900px;top:${255+i*150}px;width:620px;text-align:right;font-size:24px;font-weight:900">${kc(x)} <span class="mut" style="font-size:20px;font-weight:700">· ${ps[i]} %</span></div>
+       <div class="k" data-k="sc${i}" style="position:absolute;left:680px;top:${350+i*150}px;font-size:15px;color:#9a9a9a;opacity:${ph?1:0}">cílová alokace renty ${st.cilPct[i]} %</div>`).join("")}
+      <div class="k" data-k="snote" style="position:absolute;left:80px;top:760px;width:1440px;font-size:17px;color:#b4b4b4;opacity:${ph?1:0}">Peníze po realokaci = rezerva ${kc(R.rez.vklad)}${R.need.H>1000?" + hotovostní část cílů "+kc(R.need.H):""}. Investice se v čase rebalancují k cílové alokaci.</div>`,
+     lbl:ph?"Struktura nově":"Struktura nyní"});
+  });
+  // realokace – jednotlivé převody (jeden snímek = jedna transakce, peníze se přesunou)
+  const TX=R.transakce;
+  if(TX.length){
+    const srcN=[...new Set(TX.map(t=>t.z))],dstN=[...new Set(TX.map(t=>t.do))];
+    const bal0={},dst0={};srcN.forEach(n=>{const m=R.maj.find(a=>(a.nazev||a.typ)===n);bal0[n]=m?m.hodnota:TX.filter(t=>t.z===n).reduce((a,t)=>a+t.castka,0)});
+    dstN.forEach(n=>{const m=R.maj.find(a=>(a.nazev||a.typ)===n);dst0[n]=m?m.hodnota:0});
+    const vmax=Math.max(...Object.values(bal0),...dstN.map(n=>dst0[n]+TX.filter(t=>t.do===n).reduce((a,t)=>a+t.castka,0)),1);
+    const rowY=(i,n)=>{const h=Math.min(110,560/Math.max(1,n));return 250+i*h+(560-n*h)/2};
+    const rowH=n=>Math.min(110,560/Math.max(1,n))-16;
+    const why=t=>{const p=FPE.PRODUKTY.find(x=>x.k===t.k);if(t.naUcet)return "Zbytek zůstává jako hotovost na spořicím účtu.";if(t.chybi)return "Na tuto částku chybí zdroj – uprav návrh realokace.";
+      if(!p)return "";return p.dip?"Daňově zvýhodněná část renty.":p.s[0]===100?"Akciová složka – růst na dlouhý horizont (renta).":p.s[1]===100?"Dluhopisová složka – stabilita a nižší kolísání.":p.s[2]===100?"Hotovostní složka – likvidita.":"Smíšené portfolio."};
+    for(let step=0;step<=TX.length;step++){
+      const bal={...bal0},dbal={...dst0};TX.slice(0,step).forEach(t=>{bal[t.z]-=t.castka;dbal[t.do]+=t.castka});
+      const t=TX[step-1];
+      const box=(x,y,h,name,val,col,act,key)=>`<div class="k" data-k="${key}c" style="position:absolute;left:${x}px;top:${y}px;width:520px;height:${h}px;background:#202020;border:2px solid ${act?col:"#2e2e2e"};border-radius:10px"></div>
+        <div style="position:absolute;left:${x+18}px;top:${y+10}px;width:300px;font-size:${h>70?18:15}px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(name)}</div>
+        <div class="k" data-k="${key}v" style="position:absolute;left:${x+260}px;top:${y+10}px;width:242px;text-align:right;font-size:${h>70?20:16}px;font-weight:900">${kc(val)}</div>
+        <div class="k" data-k="${key}b" style="position:absolute;left:${x+18}px;top:${y+h-24}px;width:${Math.max(2,484*val/vmax)}px;height:10px;border-radius:5px;background:${col}"></div>`;
+      let h=chrome("Návrh realokace",step?`Převod ${step} z ${TX.length}`:"Výchozí stav – odkud peníze půjdou")+
+        `<div style="position:absolute;left:80px;top:205px;font-size:15px;color:#9a9a9a;letter-spacing:.5px">ZDROJ</div><div style="position:absolute;left:1000px;top:205px;font-size:15px;color:#9a9a9a;letter-spacing:.5px">KAM</div>`;
+      srcN.forEach((n,i)=>h+=box(80,rowY(i,srcN.length),rowH(srcN.length),n,Math.max(0,bal[n]),"#8a8a8a",t&&t.z===n,"s"+i));
+      dstN.forEach((n,i)=>{const p=FPE.PRODUKTY.find(x=>x.do===n||x.n===n);const col=p?(p.s[0]>=50?"#E8722A":p.s[1]>=50?"#5b8dd6":"#8a8a8a"):"#8a8a8a";h+=box(1000,rowY(i,dstN.length),rowH(dstN.length),n,dbal[n],col,t&&t.do===n,"d"+i)});
+      TX.forEach((x,j)=>{const si=srcN.indexOf(x.z),di=dstN.indexOf(x.do),done=j<step-1,cur=j===step-1;
+        const y=(cur||done?rowY(di,dstN.length)+rowH(dstN.length)/2:rowY(si,srcN.length)+rowH(srcN.length)/2)-22,xx=cur||done?1000-190:600;
+        h+=`<div class="k" data-k="coin${j}" style="position:absolute;left:${xx}px;top:${y}px;width:180px;height:44px;border-radius:22px;background:#E8722A;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;opacity:${cur?1:0};transition:all 1.1s cubic-bezier(.5,0,.2,1)">${fmt(x.castka)} Kč</div>`});
+      h+=`<div class="k" data-k="txt" style="position:absolute;left:80px;top:830px;width:1440px;font-size:20px">${t?`<b class="o">${fmt(t.castka)} Kč</b> z <b>${esc(t.z)}</b> → <b>${esc(t.do)}</b> <span class="mut">· ${why(t)}</span>`:`<span class="mut">Celkem ${TX.length} ${TX.length===1?"převod":TX.length<5?"převody":"převodů"}, ${kc(TX.reduce((a,x)=>a+x.castka,0))}. Rezerva ${kc(R.rez.vklad)} zůstává na účtech.</span>`}</div>`;
+      F.push({g:"tx",h,lbl:step?"Převod "+step:"Převody"});
+    }
+  }
+  // produkty
+  const fee=x=>{const f=R.poplatky.find(q=>q.k===x.k);return f?(f.vstupJ||f.vstupM?kc(f.vstupJ)+(f.vstupM?` + ${fmt(f.vstupM)}/měs`:""):"0 Kč"):"–"};
+  F.push({g:"r2",h:chrome("Návrh realokace","Detailní přehled produktů a změn"+(R.manual?" (upraveno ručně)":""))+`<table class="t" style="left:50px;top:170px;width:1500px;font-size:15.5px"><tr><th>Produkt</th><th>Nový zůstatek</th><th>Měs. vklady</th><th>Podíl</th><th>Korekce zůst.</th><th>Korekce vkl.</th><th>Vstupní poplatek</th><th>Poznámka</th></tr>
+   ${R.produkty.map(p=>`<tr><td style="font-weight:700">${esc(p.nazev)}</td><td>${kc(p.zust)}</td><td>${kc(p.mes)}</td><td>${p.podil} %</td><td class="${p.korZ>0?"grn":p.korZ<0?"red":"mut"}">${sgn(p.korZ)}</td><td class="${p.korV>0?"grn":p.korV<0?"red":"mut"}">${sgn(p.korV)}</td><td class="mut">${p.novy?fee(p):"–"}</td><td class="mut" style="text-align:left;font-style:italic;white-space:normal">${esc(p.pozn)}</td></tr>`).join("")}
+   <tr class="sum"><td>Celkem</td><td>${kc(R.produkty.reduce((s,p)=>s+p.zust,0))}</td><td>${kc(R.produkty.reduce((s,p)=>s+p.mes,0))}</td><td>100 %</td><td></td><td class="grn">${sgn(R.produkty.reduce((s,p)=>s+p.korV,0))}</td><td>${kc(R.poplatky.reduce((s,f)=>s+f.vstupJ,0))}</td><td></td></tr></table>
+   <div class="foot">Vstupní poplatky jsou už započtené ve výpočtu plánu (každý vklad je o poplatek nižší). Procentní podíl se týká zůstatků; pravidelné vklady se v čase rebalancují.</div>`,lbl:"Produkty"});
+  // portfolio
+  const PI=R.portfolio.invest,W=R.portfolio.w,pc=["#E8722A","#2E9C8F","#5b8dd6","#C2508D","#6BAA45","#D9A441","#8a8a8a"];
+  const pop=k=>R.poplatky.find(q=>q.k===k)||{};
+  const wR=PI.reduce((s,p,i)=>s+W[i]*((pop(p.k).vynos||0)-(pop(p.k).sprava||0)),0)/100;
+  const hasCq=R.pozice.some(p=>p.k==="cq_akc"||p.k==="cq_dip");
+  F.push({g:"pf",h:chrome("Detailní pohled: Naše portfolio","Složení investic po realokaci, výnosy a poplatky podle nastavení")+(PI.length?`<div style="position:absolute;left:90px;top:190px">${donut(PI.map(p=>p.castka),pc,330,0)}</div>
+   <div style="position:absolute;left:80px;top:540px;font-size:15px;line-height:1.7">${PI.map((p,i)=>`<div><span style="display:inline-block;width:13px;height:13px;background:${pc[i%pc.length]};margin-right:8px"></span>${esc(p.nazev)} (${W[i]} %)</div>`).join("")}</div>`:`<div class="mut" style="position:absolute;left:80px;top:220px;font-size:20px">Bez jednorázových investic.</div>`)+
+   `<table class="t" style="left:640px;top:170px;width:880px;font-size:15px"><tr><th>Produkt</th><th>Jednorázově</th><th>Měsíčně</th><th>Výnos p.a.*</th><th>Správa</th><th>Vstupní</th></tr>
+    ${R.pozice.map(p=>{const f=pop(p.k);return `<tr><td>${esc(p.nazev)}</td><td>${kc(p.jednor)}</td><td>${kc(p.mesicne)}</td><td class="grn">${pct(f.vynos||0)}</td><td>${pct(f.sprava||0,2)}</td><td>${f.auv?"tarif "+esc(R.S.auv_tarif):pct(f.fee||0,2)}</td></tr>`}).join("")}
+    <tr class="sum"><td class="o">Vážený čistý výnos</td><td></td><td></td><td class="o">${PI.length?pct(wR,2):"–"}</td><td></td><td></td></tr></table>
+   ${hasCq?`<div style="position:absolute;left:640px;top:${200+48*(R.pozice.length+2)}px;font-size:16px;font-weight:900">Conseq akciové portfolio — 8 fondů</div>
+   <table class="t" style="left:640px;top:${230+48*(R.pozice.length+2)}px;width:880px;font-size:13.5px"><tr><th>Fond</th><th>Podíl</th><th>Výnos p.a.</th><th>SRI</th></tr>
+   ${[["Fidelity II S&P 500 Index",50,"10,77",4],["BNP Paribas Disruptive Technology",10,"15,45",5],["Franklin Gold and Precious Metals",10,"14,73",7],["UBS Lux Security",10,"8,35",5],["Fidelity Japan Value Fund",5,"8,62",4],["Amundi Index MSCI Europe",5,"4,80",4],["Franklin UK Equity Income Fund",5,"7,89",4],["Conseq Akcie Nové Evropy A",5,"5,00",4.5]].slice(0,R.pozice.length>3?5:8).map(f=>`<tr><td>${f[0]}</td><td>${f[1]} %</td><td class="grn">${f[2]} %</td><td>${f[3]}</td></tr>`).join("")}</table>`:""}
+   <div class="foot" style="bottom:12px">* Výnos = předpoklad plánu (nominálně, před správou); plán počítá s výnosem po správě a po inflaci ${pct(R.S.inflace,0)}. Historické výnosy nejsou zárukou budoucích. Vstupní poplatek ZFPI je přirážka z čisté investice.</div>`,lbl:"Portfolio"});
+  // časová osa
+  const U=R.udalosti,N=U.length,t0=U[0].datum.getTime(),t1=U[N-1].datum.getTime()||t0+1;
+  U.forEach((u,step)=>{
+    let card={date:(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase(),za:step===0?"ihned":"za "+Math.round(u.m/12)+" let",title:u.titul,amount:"",sub:"",det:[]};
+    if(u.typ==="start"){card.amount=kc(doPlanu)+" do plánu";card.sub="Podpis smluv a první kroky";card.det=[`Realokace majetku ${kc(doPlanu)}`,`Životní pojištění ${kcm(R.pojNove)}`,`Pravidelné investice ${kcm(R.pmtCelkem)}`]}
+    else if(u.typ==="cil"){card.amount=kc(u.cil.castka);card.sub="Výběr z investic";card.det=[`Splnění cíle ${Math.round(u.cil.splneni*100)} %`,u.cil.vklad?`Jednorázově vloženo ${kc(u.cil.vklad)}`:"",u.cil.pmt?`Pravidelně ${kcm(u.cil.pmt)}`:""].filter(Boolean)}
+    else if(u.typ==="splaceno"){card.amount="−"+kcm(u.uver.splatka);card.sub="Úvěr splacen — uvolní se cash flow";card.det=[`Splátka ${kcm(u.uver.splatka)} skončí`,"Uvolněné peníze můžeme přidat do investic"]}
+    else if(u.typ==="refix"){card.amount="beze změny splátky";card.sub="Konec fixace — nová sazba podle trhu";card.det=["Plán počítá se stejnou splátkou","Před refixací porovnáme nabídky bank"]}
+    else{card.amount=kcm(R.renta.mesicne);card.sub=esc(K.jmeno)+` — ${Math.round(R.renta.vekStart)} let, finanční nezávislost`;card.det=[`Kapitál ${kc(R.renta.vysledek)}`,`Čerpání ${R.renta.let} let`,`Splnění cíle ${Math.round(R.renta.splneni*100)} %`]}
+    let h=chrome("Časová osa plánu","Plán krok za krokem — další bod po kliknutí")+`<div class="card k" data-k="tcard" style="left:220px;top:175px;width:1160px;height:370px;border-top:5px solid #E8722A"></div>
+     <div class="k" data-k="tc" style="position:absolute;left:255px;top:200px;width:1090px">
+      <div style="display:flex;align-items:center;gap:22px"><span class="pill" style="background:#E8722A">${card.date}</span><span class="mut">${card.za}</span><span class="sp" style="flex:1"></span><span class="mut" style="font-size:15px">Hodnota plánu: ${kc(Math.round(u.hodnota/1000)*1000)}</span></div>
+      <div style="font-size:30px;font-weight:900;margin-top:22px">${esc(card.title)}</div><div style="font-size:44px;font-weight:900;color:#E8722A;margin-top:6px">${card.amount}</div>
+      <div class="mut" style="font-size:17px;margin-top:6px">${card.sub}</div><ul style="margin:10px 0 0;padding-left:22px;font-size:17px;line-height:1.55">${card.det.map(d=>`<li>${d}</li>`).join("")}</ul></div>
+     <div style="position:absolute;left:0;top:628px;width:1600px;height:5px;background:#3a3a3a"></div>
+     <div style="position:absolute;left:786px;top:562px;border-left:14px solid transparent;border-right:14px solid transparent;border-top:18px solid #E8722A"></div>`;
+    U.forEach((v,i)=>{const act=i===step,sz=act?46:28,cx=800+(i-step)*360;
+      h+=`<div class="node k" data-k="tn${i}" style="left:${cx-sz/2}px;top:${630-sz/2}px;width:${sz}px;height:${sz}px;background:${i<=step?"#E8722A":"#161616"};border:4px solid #E8722A"></div>
+       <div class="nl k" data-k="td${i}" style="left:${cx-150}px;top:668px;width:300px;font-size:${act?20:16}px;font-weight:${act?900:400};color:${act?"#efefef":"#9a9a9a"}">${v.datum.getFullYear()}</div>
+       <div class="nl k" data-k="tl${i}" style="left:${cx-150}px;top:698px;width:300px;font-size:${act?17:14}px;font-weight:${act?700:400};color:${act?"#efefef":"#9a9a9a"}">${esc(v.titul)}</div>`});
+    const mx=d=>145+1310*((d.getTime()-t0)/(t1-t0||1));
+    h+=`<div style="position:absolute;left:145px;top:818px;width:1310px;height:3px;background:#3a3a3a"></div>`+U.map((v,i)=>`<div class="k" data-k="m${i}" style="position:absolute;left:${mx(v.datum)-6}px;top:813px;width:12px;height:12px;border-radius:50%;background:#666"></div>`).join("")+
+      `<div class="k" data-k="mpin" style="position:absolute;left:${mx(u.datum)-14}px;top:805px;width:28px;height:28px;border-radius:50%;background:#E8722A"></div>
+       <div class="k" data-k="myear" style="position:absolute;left:${mx(u.datum)-60}px;top:840px;width:120px;text-align:center;font-weight:900;color:#E8722A">${u.datum.getFullYear()}</div>`;
+    F.push({g:"tl",h,lbl:"Osa: "+u.titul});
+  });
+  // strategie
+  F.push({g:"s",h:chrome("Investiční strategie")+`<div style="position:absolute;left:80px;top:120px;font-size:24px;font-style:italic;color:#E8722A">Vytrvalost je všechno.</div>`+
+   [["2 %","Správný odhad okamžiku pro nákup nebo prodej","#6BAA45"],["4 %","Výběr konkrétních titulů cenných papírů","#5b8dd6"],["94 %","Správné rozmístění peněz do investičních tříd: akcií, dluhopisů, peněz","#E8722A"]].map(([v,t,c],i)=>`<div class="card" style="left:${80+i*496}px;top:200px;width:448px;height:560px;border-top:8px solid ${c};background:#2a2a2a"></div><div style="position:absolute;left:${80+i*496}px;top:300px;width:448px;text-align:center;font-size:110px;font-weight:900;color:${c}">${v}</div><div style="position:absolute;left:${80+i*496+60}px;top:480px;width:328px;text-align:center;font-size:20px;color:#cfcfcf;line-height:1.45">${t}</div>`).join("")+
+   `<div class="foot">Zdroj: Gary Brinson, L. Randolph Hood a Gilbert Beebower, 1986</div>`,lbl:"Strategie"});
+  // realizace
+  const k0=R.katastrofy[0];
+  const steps=[["Upravit životní pojištění",`invalidita III. ${mil(k0.invAll[2].pcDop)} · II. ${mil(k0.invAll[1].pcDop)} · I. ${mil(k0.invAll[0].pcDop)}${k0.pn.treba?` · PN ${fmt(k0.pn.denniDop)} Kč/den`:""} · ${kcm(R.pojNove)}`],
+   [`Realokovat ${kc(doPlanu)} do plánu`,"→ "+R.pozice.filter(p=>p.jednor>0).map(p=>esc(p.nazev)).join(", ")],
+   [`Nastavit trvalé příkazy ${kcm(R.pmtCelkem)}`,R.pozice.filter(p=>p.mesicne>0).map(p=>`${esc(p.nazev.replace("Conseq akciové portfolio","Conseq akcie"))} ${fmt(p.mesicne)}`).join(" · ")],
+   [`Rezerva ${kc(R.rez.cil)}`,R.rez.chybi?`chybí ${kc(R.rez.chybi)} – doplnit z cash flow`:`hotová ihned (${R.rez.pravidlo})`]]
+   .concat(R.docasne.map(d=>[`${esc(d.nazev)} skončí ${d.do?FPE.MES[d.do.getMonth()]+" "+d.do.getFullYear():""}`,`pak o ${kcm(d.castka)} méně – plán s ním nepočítá`]))
+   .concat(R.detiPoj.length?[[`Pojistit děti (${R.detiPoj.length})`,"úraz 1 mil. s 10× progresí · vážná onemocnění 500 tis. · 400 Kč/den"]]:[])
+   .concat(R.uvery.filter(u=>u.fixace).map(u=>[`Refixace: ${esc(u.nazev)} — ${mesRok(u.fixace)}`,"Před koncem fixace porovnáme nabídky bank"])).slice(0,6);
+  const gains=(R.dip?[[`Daňová úleva ${kc(R.renta.danRok)} ročně`,`DIP ${kcm(R.dip)} · za ${Math.round(R.renta.months/12)} let ${kc(R.renta.danRok*Math.round(R.renta.months/12))}`]]:[])
+   .concat(R.cile.map(c=>[`${esc(c.nazev)} ${c.datum.getFullYear()}`,`${kc(c.castka)} · splnění ${Math.round(c.splneni*100)} %`]))
+   .concat(R.renta?[[`Renta od ${R.renta.start.getFullYear()} (${Math.round(R.renta.vekStart)} let)`,`${kcm(R.renta.mesicne)} · ${R.renta.let} let · splnění ${Math.round(R.renta.splneni*100)} %`]]:[])
+   .concat([[`Rezerva ${kc(R.rez.cil)}`,R.rez.pravidlo]]).slice(0,5);
+  F.push({g:"z",h:`<div class="bar"></div><img class="logo" src="${LOGO}" alt=""><div style="position:absolute;left:80px;top:50px;color:#E8722A;font-weight:900;font-size:17px">POSTUP</div><div style="position:absolute;left:80px;top:90px;font-size:44px;font-weight:900;line-height:1.15">Realizace<br>doporučeného řešení</div>
+   ${steps.map((s,i)=>`<div style="position:absolute;left:80px;top:${250+i*92}px;width:52px;height:52px;border-radius:50%;background:#E8722A;color:#fff;font-weight:900;font-size:22px;display:flex;align-items:center;justify-content:center">${i+1}</div><div style="position:absolute;left:160px;top:${250+i*92}px;width:650px"><div style="font-size:21px;font-weight:900">${s[0]}</div><div class="mut" style="font-size:15px;margin-top:3px">${s[1]}</div></div>`).join("")}
+   <div class="card" style="left:900px;top:220px;width:620px;height:600px;background:#232323"></div><div style="position:absolute;left:935px;top:245px;font-size:24px;font-weight:900">Co tím získáte</div>
+   ${gains.map((g,i)=>`<div style="position:absolute;left:935px;top:${305+i*84}px;display:flex;gap:16px">${ICON.check}<div><div style="font-size:19px;font-weight:900">${g[0]}</div><div class="mut" style="font-size:15px">${g[1]}</div></div></div>`).join("")}
+   <div style="position:absolute;left:935px;top:735px;font-size:22px;font-weight:900;color:#E8722A">Jste připraveni?</div><div style="position:absolute;left:935px;top:770px;font-size:15px;color:#9a9a9a">První krok: podpis smluv na schůzce.</div>`,lbl:"Realizace"});
+  F.push({g:"e",h:`<img src="${LOGO}" style="position:absolute;left:650px;top:90px;width:300px" alt=""><div style="position:absolute;left:0;top:420px;width:1600px;text-align:center;font-size:60px;font-style:italic">Těším se na naši dlouhodobou spolupráci</div><div style="position:absolute;left:0;top:780px;width:1600px;text-align:center;color:#9a9a9a;font-size:18px">ZFP Group  |  Váš finanční partner  |  ${new Date().getFullYear()}</div>`,lbl:"Závěr"});
+  return F;
+}
+
+/* ---------------- render + animace ---------------- */
+let FR=[],cur=0,R=null;
+function compute(){try{R=FPE.compute(inp(),new Date());FR=buildFrames(inp(),R)}catch(e){console.error(e);FR=[{g:"err",h:`<div style="padding:60px;font-size:28px;color:#DF6A6A">Chyba ve vstupech: ${esc(e.message)}</div>`,lbl:"Chyba"}]}}
+function scaleStage(boxEl,stageEl){const w=boxEl.clientWidth;stageEl.style.transform=`scale(${w/1600})`}
+function show(stageEl,i,animate){
+  const f=FR[i];if(!f)return;
+  const old=stageEl.querySelector(".sl:not(.leave)");
+  if(old&&old.dataset.g===f.g&&animate!==false){ // stejná skupina → plynulý přechod (Morph)
+    const tmp=document.createElement("div");tmp.innerHTML=f.h;
+    const mapNew={};tmp.querySelectorAll("[data-k]").forEach(e=>mapNew[e.dataset.k]=e);
+    old.querySelectorAll("[data-k]").forEach(e=>{const n=mapNew[e.dataset.k];if(!n)return;e.setAttribute("style",n.getAttribute("style")||"");if(e.innerHTML!==n.innerHTML)e.innerHTML=n.innerHTML});
+    // nekeyované prvky (titulek ap.) přepsat
+    const keepK=new Set(Object.keys(mapNew));
+    [...old.children].forEach((c,ix)=>{if(!c.dataset.k&&tmp.children[ix]&&!tmp.children[ix].dataset.k&&c.outerHTML!==tmp.children[ix].outerHTML)c.outerHTML=tmp.children[ix].outerHTML});
+    return}
+  const el=document.createElement("div");el.className="sl";el.dataset.g=f.g;el.innerHTML=f.h;
+  if(old&&animate!==false){el.classList.add("enter");stageEl.appendChild(el);requestAnimationFrame(()=>requestAnimationFrame(()=>{el.classList.remove("enter");old.classList.add("leave");setTimeout(()=>old.remove(),700)}))}
+  else{stageEl.innerHTML="";stageEl.appendChild(el)}
+}
+function update(){
+  compute();if(cur>=FR.length)cur=FR.length-1;
+  const st=$("#stage");st.innerHTML="";show(st,cur,false);scaleStage($("#box"),st);
+  $("#cnt").textContent=`${cur+1} / ${FR.length} · ${FR[cur].lbl}`;
+  $("#thumbs").innerHTML=FR.map((f,i)=>`<button data-i="${i}" class="${i===cur?"on":""}" title="${esc(f.lbl)}"><div class="mini"><div class="sl">${f.h}</div></div><span class="tl">${i+1}. ${esc(f.lbl)}</span></button>`).join("");
+  const fl=$("#flags");if(fl)fl.innerHTML=(R?R.flags:[]).map(x=>`<li>${esc(x)}</li>`).join("")||"<li>Bez upozornění.</li>";
+  const ko=$("#kontrola");if(ko&&R&&R.kontrola)ko.innerHTML=(R.manual?"":`<li style="color:var(--mut)">Automatický návrh – zaškrtni „Upravit ručně“ pro vlastní rozdělení.</li>`)+R.kontrola.map(x=>`<li style="color:${x.ok?"#3E9B7A":"#DF6A6A"};font-weight:${x.ok?400:700}">${esc(x.t)}</li>`).join("");
+  const mp=$("#motPrev");if(mp&&R)mp.textContent=R.motivace.map(m=>m.t).join(" · ");
+  if($("#pres").classList.contains("on")){const ps=$("#pstage");ps.innerHTML="";show(ps,cur,false)}
+}
+function go(d){const n=Math.max(0,Math.min(FR.length-1,cur+d));if(n===cur)return;cur=n;
+  show($("#stage"),cur);$("#cnt").textContent=`${cur+1} / ${FR.length} · ${FR[cur].lbl}`;document.querySelectorAll("#thumbs button").forEach((b,i)=>b.classList.toggle("on",i===cur));
+  const tb=document.querySelector("#thumbs button.on");tb&&tb.scrollIntoView({block:"nearest",inline:"nearest"});
+  if($("#pres").classList.contains("on")){show($("#pstage"),cur);$("#pc").textContent=`${cur+1} / ${FR.length}`}}
+$("#prev").onclick=()=>go(-1);$("#next").onclick=()=>go(1);
+$("#thumbs").onclick=e=>{const b=e.target.closest("button");if(!b)return;cur=+b.dataset.i;update()};
+$("#box").onclick=()=>go(1);
+addEventListener("resize",()=>{scaleStage($("#box"),$("#stage"));scaleStage($("#pbox"),$("#pstage"))});
+addEventListener("keydown",e=>{const pres=$("#pres").classList.contains("on");const tag=(document.activeElement||{}).tagName;if(!pres&&/INPUT|SELECT|TEXTAREA/.test(tag))return;
+  if(["ArrowRight","PageDown"," ","Enter"].includes(e.key)){e.preventDefault();go(1)}else if(["ArrowLeft","PageUp","Backspace"].includes(e.key)){e.preventDefault();go(-1)}else if(e.key==="Escape"&&pres)stopPres();else if(e.key==="Home"){cur=0;update()}});
+function startPres(){$("#pres").classList.add("on");const ps=$("#pstage");ps.innerHTML="";show(ps,cur,false);scaleStage($("#pbox"),ps);$("#pc").textContent=`${cur+1} / ${FR.length}`;try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}setTimeout(()=>scaleStage($("#pbox"),ps),200)}
+function stopPres(){$("#pres").classList.remove("on");try{document.fullscreenElement&&document.exitFullscreen()}catch(e){}update()}
+$("#bPres").onclick=startPres;$("#px").onclick=e=>{e.stopPropagation();stopPres()};
+$("#pres").onclick=e=>{const r=e.currentTarget.getBoundingClientRect();go(e.clientX<r.width*0.25?-1:1)};
+document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&$("#pres").classList.contains("on"))stopPres()});
+let tx0=null;$("#pres").addEventListener("touchstart",e=>tx0=e.touches[0].clientX,{passive:true});$("#pres").addEventListener("touchend",e=>{if(tx0==null)return;const dx=e.changedTouches[0].clientX-tx0;if(Math.abs(dx)>40){e.preventDefault();go(dx<0?1:-1)}tx0=null});
+/* PDF: každý snímek jako stránka */
+$("#bPdf").onclick=()=>{const p=$("#print");p.innerHTML=FR.map(f=>`<div class="pp"><div class="stage"><div class="sl">${f.h}</div></div></div>`).join("");setTimeout(()=>window.print(),300)};
+/* klienti */
+function renderClients(){$("#cli").innerHTML=Object.entries(DB.clients).map(([id,c])=>`<option value="${id}" ${id===DB.cur?"selected":""}>${esc((c.klient&&c.klient.jmeno)||"Bez jména")}</option>`).join("")}
+$("#cli").onchange=e=>{DB.cur=e.target.value;save();cur=0;renderEditor();update()};
+const blank=()=>({klient:{titul:"",jmeno:"Nový klient",narozen:"",duchod:"",zam:0,podnik:0,pasiv:0,pronajem:0,bonus:0,vydaje_osobni:0,inv1:0,inv2:0,inv3:0,vdovsky:0,sirotci:0,hruba:"",bez_partnera:false},partner:{zapnuto:false},deti:[],motivace:"",vydaje:{celkem:0,splatky:0,pojistne:0,sporeni:0},docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},pojisteni:{stavajici:0,navrh:0},realokace:{rucne:false,polozky:[]}});
+$("#bNew").onclick=()=>{const id="c"+Date.now();DB.clients[id]=blank();DB.cur=id;save();cur=0;renderClients();renderEditor();update()};
+$("#bDup").onclick=()=>{const id="c"+Date.now();DB.clients[id]=JSON.parse(JSON.stringify(inp()));DB.clients[id].klient.jmeno+=" (kopie)";DB.cur=id;save();renderClients();renderEditor();update()};
+$("#bDel").onclick=()=>{if(Object.keys(DB.clients).length<2)return;if(!confirm("Smazat klienta "+(inp().klient.jmeno||"")+"?"))return;delete DB.clients[DB.cur];DB.cur=Object.keys(DB.clients)[0];save();renderClients();renderEditor();update()};
+$("#bExp").onclick=()=>{const b=new Blob([JSON.stringify(inp(),null,1)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="FP_"+((inp().klient.jmeno||"klient").split(" ").pop())+".json";a.click()};
+$("#bImp").onclick=()=>$("#fImp").click();
+$("#fImp").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!d.klient)throw new Error("není to soubor plánu");const id="c"+Date.now();DB.clients[id]=d;DB.cur=id;save();renderClients();renderEditor();update()}catch(err){alert("Import se nepovedl: "+err.message)}e.target.value=""};
+function boot(){renderClients();renderEditor();update()}
+if(HOST){
+  ["#cli","#bNew","#bDup","#bDel"].forEach(q=>$(q).style.display="none");
+  const cb=document.createElement("button");cb.className="btn";cb.textContent="✕ Zavřít";cb.onclick=()=>{clearTimeout(saveT);parent.postMessage({type:"fp:save",plan:inp(),close:true},location.origin)};$(".top").prepend(cb);
+  addEventListener("message",e=>{if(e.origin!==location.origin||e.source!==parent||!e.data||e.data.type!=="fp:init")return;
+    const d=e.data,pl=d.plan&&d.plan.klient?d.plan:blank(),pf=d.prefill||{};if(!(d.plan&&d.plan.klient))pl.klient.jmeno="";
+    /* údaje z Pipeline (jméno, narození, IOLDP) doplní prázdná pole; IOLDP z kalkulačky má přednost, když je novější */
+    Object.entries(pf).forEach(([k,v])=>{if(v==null||v==="")return;if(pl.klient[k]==null||pl.klient[k]===""||pl.klient[k]===0||(d.ioldpNew&&/^(inv[123]|vdovsky|sirotci|duchod)$/.test(k)))pl.klient[k]=v});
+    if(d.kurz){pl.nastaveni=pl.nastaveni||{};if(pl.nastaveni.eur_kurz==null||pl.nastaveni.eur_kurz==="")pl.nastaveni.eur_kurz=d.kurz}
+    DB={cur:"h",clients:{h:pl}};boot()});
+  parent.postMessage({type:"fp:ready"},location.origin);
+}else boot();
+new ResizeObserver(()=>scaleStage($("#box"),$("#stage"))).observe($("#box"));
+</script>
+</body>
+</html>
