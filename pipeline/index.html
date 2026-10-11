@@ -6447,14 +6447,25 @@ function fpClientSection(e,rec){
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>openFP(e,rec)},f?"Otevřít finanční plán":"+ Vytvořit finanční plán")),
     f?el("p",{class:"hint"},"Naposledy upraveno "+fmtDT(new Date(f.updatedAt||Date.now()).toISOString())+". Úpravy vstupů okamžitě přepočítají prezentaci."):el("p",{class:"hint"},"Živá prezentace: upravíš vstupy a slidy se přepočítají. Předvyplní se jméno, narození a důchody z IOLDP.")];
 }
+/* data pro portfolio v plánu: modelová portfolia (denně aktualizovaná historie) a fondy ZFPI / ZFP WI – zmenšené na týdenní body */
+function fpMarket(){
+  const thin=pts=>{if(!pts||pts.length<2)return null;const o=[];let last=-1e9;pts.forEach(p=>{if(p[0]-last>=7){o.push(p);last=p[0]}});const L=pts[pts.length-1];if(o[o.length-1]!==L)o.push(L);return o};
+  const cagr=pts=>{if(!pts||pts.length<2)return null;const F=pts[0],L=pts[pts.length-1],y=(L[0]-F[0])/365.25;return y>0.5?Math.pow(L[1]/F[1],1/y)-1:null};
+  const models=[];try{pfModels.forEach(m=>{const r=pfModelSeries(m);const pts=thin(r.pts);
+    models.push({id:"m:"+m.id,name:m.name||"Modelové portfolio",pts,cagr:cagr(r.pts),comps:(m.items||[]).filter(x=>+x.w>0).map(x=>{const f=funds.find(f=>f.slug===x.key);return cz(+x.w)+" % "+(f?pfFName(f):x.key)})})})}catch(err){}
+  const hist={};try{const z=pfData("zfpi-czk");if(z&&z.pts)hist.zfpi=thin(z.pts);
+    const WI={wi_rez:"investicni-rezerva",wi_konz:"konzervativni",wi_dluh:"dluhopisove",wi_vyv:"vyvazene",wi_dyn:"dynamicke",wi_sp500:"sp500",wi_svetove:"svetove",wi_evropa:"evropa",wi_rozvojove:"rozvojove-trhy",wi_dividendove:"dividendove",wi_technologicke:"technologicke",wi_zdravotnictvi:"zdravotnictvi",wi_ziva:"ziva-planeta",wi_px:"px",wi_blockchain:"blockchain"};
+    Object.entries(WI).forEach(([k,sl])=>{const d=pfData("wi-"+sl);if(d&&d.pts)hist[k]=thin(d.pts)})}catch(err){}
+  return {models,hist};
+}
 async function openFP(e,rec){
   try{if(!rec)rec=await ensureClient(e)}catch(err){toast("Nepodařilo se založit klienta");return}
   if(!rec){toast("Klient chybí");return}
   try{$("edDlg").close()}catch(err){}
   const id=rec.id,dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
-  const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
+  const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=2#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=3#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -6462,7 +6473,7 @@ async function openFP(e,rec){
     try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now()})}catch(err){toast("Plán se nepodařilo uložit")}};
   const onMsg=ev=>{if(ev.origin!==location.origin||ev.source!==fr.contentWindow||!ev.data)return;const d=ev.data;
     if(d.type==="fp:ready"){let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
-      fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz},location.origin)}
+      fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz},location.origin)}
     else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()})}};
   addEventListener("message",onMsg);
 }
