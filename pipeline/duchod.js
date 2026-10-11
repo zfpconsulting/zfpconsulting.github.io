@@ -120,6 +120,12 @@ const CSS=`
 .dk h3{margin:0 0 10px;font-size:17px;font-weight:700}
 .dk .dk-top{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
 .dk .dk-top .dk-f{flex:1 1 240px}
+.dk .dk-cs{position:relative}
+.dk .dk-cl{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:320px;overflow:auto;background:var(--bg2,#fff);border:1px solid var(--sep);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
+.dk .dk-cl button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:0;background:none;color:var(--label);font:inherit;font-size:15px;padding:9px 10px;border-radius:7px;cursor:pointer}
+.dk .dk-cl button.on,.dk .dk-cl button:hover{background:var(--fill,rgba(120,120,128,.14))}
+.dk .dk-cl .dk-none{color:var(--label2)}.dk .dk-cl .dk-ok{color:var(--green,#34c759);font-weight:700}
+.dk .dk-cl .dk-empty{padding:10px;color:var(--label2);font-size:14px}
 .dk .dk-acts{display:flex;gap:8px;flex-wrap:wrap}
 .dk .dk-btn{height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--sep);background:var(--bg2,#fff);color:var(--label);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;white-space:nowrap}
 .dk .dk-btn.pri{background:var(--orange);border-color:var(--orange);color:#fff}
@@ -171,16 +177,29 @@ function mount(root,opts={}){
   const fld=(k,label,{type="text",ph="",hint="",step}={})=>`<div class="dk-f"><label for="dk_${k}">${esc(label)}</label><input id="dk_${k}" data-k="${k}" type="${type}" ${type==="text"?'inputmode="numeric" autocomplete="off"':""} ${step?`step="${step}"`:""} placeholder="${esc(ph)}" value="${esc(val(k))}">${hint?`<p class="dk-hint">${hint}</p>`:""}</div>`;
   const pair=(k1,k2,label,ph1,ph2)=>`<div class="dk-f"><label>${esc(label)}</label><div class="dk-pair"><input data-k="${k1}" type="text" inputmode="numeric" autocomplete="off" aria-label="${esc(label)} – roky" placeholder="${ph1}" value="${esc(val(k1))}"><input data-k="${k2}" type="text" inputmode="numeric" autocomplete="off" aria-label="${esc(label)} – dny" placeholder="${ph2}" value="${esc(val(k2))}"></div></div>`;
 
-  function clientOpts(){
-    const es=entries();
-    let h=`<option value="">— bez klienta (jen výpočet) —</option>`;
-    es.forEach(e=>{const k=keyOf(e),has=saved.some(s=>s.id===k);h+=`<option value="${esc(k)}"${st.cid===k?" selected":""}>${esc(e.name||"Bez jména")}${has?" ✓":""}</option>`});
-    return h;
+  /* výběr klienta: vyhledávání (bez diakritiky, po slovech) místo dlouhého rozbalovacího seznamu */
+  const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  let csHi=0;
+  function csItems(q){
+    const words=fold(q).split(/\s+/).filter(Boolean);
+    const es=entries().filter(e=>{const n=fold(e.name);return words.every(w=>n.includes(w))});
+    return es.slice(0,40);
   }
+  function csList(){
+    const inp=root.querySelector("#dk_cq"),box=root.querySelector("#dk_cl");if(!inp||!box)return;
+    const q=inp.value,cur=st.cid?nameOf(st.cid):"",its=csItems(q===cur?"":q);
+    csHi=Math.min(csHi,its.length);
+    box.innerHTML=`<button type="button" data-a="pick" data-id="" class="dk-none${csHi===0?" on":""}">— bez klienta (jen výpočet) —</button>`+
+      (its.length?its.map((e,i)=>{const k=keyOf(e),has=saved.some(x=>x.id===k);return `<button type="button" data-a="pick" data-id="${esc(k)}"${csHi===i+1?' class="on"':""}><span>${esc(e.name||"Bez jména")}</span>${has?'<span class="dk-ok">✓ uloženo</span>':""}</button>`}).join("")
+        :`<div class="dk-empty">Žádný klient neodpovídá „${esc(q)}“</div>`);
+    box.hidden=false;
+  }
+  function csClose(){const box=root.querySelector("#dk_cl");if(box)box.hidden=true;const inp=root.querySelector("#dk_cq");if(inp&&document.activeElement!==inp)inp.value=st.cid?nameOf(st.cid):""}
+  function pick(id){csClose();if(!id){st.cid="";persist();draw();return}load(id)}
   function draw(){
     root.innerHTML=`<div class="dk">
       <div class="dk-top">
-        <div class="dk-f"><label for="dk_cid">Klient</label><select id="dk_cid" data-a="cid">${clientOpts()}</select></div>
+        <div class="dk-f dk-cs"><label for="dk_cq">Klient</label><input id="dk_cq" type="search" role="combobox" aria-autocomplete="list" aria-controls="dk_cl" autocomplete="off" spellcheck="false" placeholder="Hledat klienta…" value="${esc(st.cid?nameOf(st.cid):"")}"><div id="dk_cl" class="dk-cl" role="listbox" hidden></div></div>
         <div class="dk-acts"><button type="button" class="dk-btn pri" data-a="save">Uložit ke klientovi</button><button type="button" class="dk-btn" data-a="import">Import IOLDP</button><input type="file" id="dkFile" accept=".pdf,application/pdf,.txt,text/plain" hidden><button type="button" class="dk-btn" data-a="pdf">Tisk / PDF</button><button type="button" class="dk-btn" data-a="new">Nová kalkulace</button></div>
       </div>
       <div class="dk-sec">Údaje z IOLDP</div>
@@ -252,7 +271,7 @@ function mount(root,opts={}){
   function drawSaved(){
     const el=root.querySelector("#dkSaved");if(!el)return;
     el.innerHTML=saved.length?`<div class="dk-sec">Uložené u klientů · ${saved.length}</div><div class="dk-saved">${saved.map(savedRow).join("")}</div>`:"";
-    const sel=root.querySelector("#dk_cid");if(sel&&document.activeElement!==sel)sel.innerHTML=clientOpts();
+    csClose();
   }
 
   function snapshotInputs(){const o={};["ioldp","ovz","vz","staIoldp","tY","tD","nY","nD","ret","evt","dopPct","kids","pvDead"].forEach(k=>o[k]=st[k]);return o}
@@ -275,7 +294,7 @@ function mount(root,opts={}){
       await store.doc("duchod/"+id).set({clientId:id,name:e.name||"",ioldp:st.ioldp||"",year:R.pr.use,in:snapshotInputs(),
         res:{sta:R.sta.total,i1:R.i1.total,i2:R.i2.total,i3:R.i3.total,wid:R.wid.total,orp:R.orp.total},updatedAt:Date.now()});
       st.cid=id;persist();toast("Uloženo ke klientovi "+(e.name||""));
-      const sel=root.querySelector("#dk_cid");if(sel)sel.innerHTML=clientOpts();
+      csClose();
     }catch(err){toast("Nepodařilo se uložit")}
   }
   function pdf(){
@@ -309,6 +328,7 @@ function mount(root,opts={}){
     }catch(err){impMsg=`<div class="dk-warn">Soubor se nepodařilo přečíst. Zadej údaje ručně.</div>`;draw()}
   }
   root.addEventListener("input",e=>{
+    if(e.target.id==="dk_cq"){csHi=e.target.value.trim()?1:0;csList();return}
     const t=e.target;if(!t.dataset||!t.dataset.k)return;
     const k=t.dataset.k;
     st[k]=(k==="ret"||k==="evt"||k==="ioldp")?t.value:t.value.trim()===""?"":(isFinite(parseNum(t.value))?parseNum(t.value):st[k]);
@@ -317,11 +337,22 @@ function mount(root,opts={}){
   root.addEventListener("change",e=>{
     const t=e.target;
     if(t.id==="dkFile"){const f=t.files&&t.files[0];t.value="";importFile(f);return}
-    if(t.matches&&t.matches("select[data-a=cid]")){const id=t.value;if(!id){st.cid="";persist();return}load(id)}
+
   });
+  root.addEventListener("focusin",e=>{if(e.target.id==="dk_cq"){e.target.select();csHi=0;csList()}});
+  root.addEventListener("keydown",e=>{
+    if(e.target.id!=="dk_cq")return;
+    const btns=[...root.querySelectorAll("#dk_cl button[data-a=pick]")];
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(root.querySelector("#dk_cl").hidden)csList();csHi=Math.max(0,Math.min(btns.length-1,csHi+(e.key==="ArrowDown"?1:-1)));csList();const on=root.querySelector("#dk_cl button.on");on&&on.scrollIntoView({block:"nearest"})}
+    else if(e.key==="Enter"){e.preventDefault();const b=btns[csHi];if(b)pick(b.dataset.id)}
+    else if(e.key==="Escape"){e.target.blur();csClose()}
+  });
+  document.addEventListener("mousedown",e=>{if(!root.isConnected)return;const cs=root.querySelector(".dk-cs");if(cs&&!cs.contains(e.target))csClose()});
+  root.addEventListener("focusout",e=>{if(e.target.id==="dk_cq")setTimeout(()=>{const cs=root.querySelector(".dk-cs");if(cs&&!cs.contains(document.activeElement))csClose()},150)});
   root.addEventListener("click",async e=>{
     const b=e.target.closest&&e.target.closest("button[data-a]");if(!b)return;
     const a=b.dataset.a;
+    if(a==="pick"){pick(b.dataset.id);return}
     if(a==="import"){root.querySelector("#dkFile").click();return}
     if(a==="save")save();
     else if(a==="pdf")pdf();
@@ -333,7 +364,7 @@ function mount(root,opts={}){
     }
   });
   draw();
-  return{redraw:draw,refreshClients(){const sel=root.querySelector("#dk_cid");if(sel&&document.activeElement!==sel)sel.innerHTML=clientOpts()},select(id){load(id)},state:()=>st};
+  return{redraw:draw,refreshClients(){const box=root.querySelector("#dk_cl");if(box&&!box.hidden)csList();else csClose()},select(id){load(id)},state:()=>st};
 }
 
 window.DuchodCalc={mount,math:{PAR,reduce,doba,dopocet,calc,paramsFor,parseIoldp}};

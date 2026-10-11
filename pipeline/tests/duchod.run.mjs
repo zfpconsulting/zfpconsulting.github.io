@@ -94,7 +94,12 @@ const tests = {
     /* bez klienta nejde uložit */
     await page.click('[data-a="save"]'); assert((await page.evaluate(() => toasts)).some(m => /vyber klienta/i.test(m)), "výzva k výběru klienta");
     /* virtuální klient se při uložení založí přes ensure() a data se uloží pod jeho id */
-    await page.selectOption("#dk_cid", "l:b");
+    /* výběr klienta vyhledáváním (bez diakritiky) */
+    await page.fill("#dk_cq", "dvorak");
+    assert(await page.isVisible('#dk_cl button[data-id="l:b"]'), "vyhledání klienta bez diakritiky");
+    assert(!(await page.isVisible('#dk_cl button[data-id="a"]')) || (await page.$$eval("#dk_cl button[data-a=pick]", b => b.length)) >= 2, "filtr");
+    await page.keyboard.press("Enter");
+    eq(await page.inputValue("#dk_cq"), "Dvořáková Jana", "vybraný klient v poli");
     await page.fill('[data-k="ioldp"]', "2026-10-09");
     await page.click('[data-a="save"]'); await page.waitForFunction(() => Object.keys(docs).length);
     const d = await page.evaluate(() => ({ keys: Object.keys(docs), ens: ensured, doc: docs[Object.keys(docs)[0]] }));
@@ -102,9 +107,9 @@ const tests = {
     eq(d.keys, ["duchod/newb"], "klíč dokumentu");
     eq([d.doc.name, d.doc.ioldp, d.doc.res.i3, d.doc.res.wid, d.doc.in.ovz], ["Dvořáková Jana", "2026-10-09", 22709, 13805, 30000], "uložený dokument");
     /* druhý klient s existující kartou, pak návrat k prvnímu */
-    await page.selectOption("#dk_cid", "a"); await fill(page, "ovz", 45000);
+    await page.click("#dk_cq"); await page.click('#dk_cl button[data-id="a"]'); await fill(page, "ovz", 45000);
     await page.click('[data-a="save"]'); await page.waitForFunction(() => Object.keys(docs).length === 2);
-    await page.selectOption("#dk_cid", "newb");
+    await page.fill("#dk_cq", "jana"); await page.click('#dk_cl button[data-id="newb"]');
     eq(await page.inputValue('[data-k="ovz"]'), "30000", "načtená data prvního klienta");
     assert((await page.$$(".dk-row")).length === 2, "dva uložené záznamy");
     /* smazání vyžaduje potvrzení */
