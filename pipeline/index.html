@@ -707,6 +707,8 @@ html.locked body{overflow:hidden}
 .fpnew .fpnew-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:700}
 .fpnew .fpnew-x{border:none;background:none;color:var(--label2);font-size:15px;cursor:pointer}
 .fpnew .group{margin-top:10px;max-height:320px;overflow:auto}
+.fpdel{border:none;background:none;color:var(--label2);font:inherit;font-size:14px;cursor:pointer;padding:4px 6px;border-radius:7px}
+.fpdel:hover{color:var(--red)}.fpdel.sure{color:#fff;background:var(--red);font-weight:600}
 .fplist .row{cursor:pointer}.fplist .row .main small{display:block;color:var(--label2);font-size:13px;margin-top:2px}
 .pfclient{border:1.5px solid var(--tint-soft)}
 .pftabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:-2px 0}.pftabs::-webkit-scrollbar{display:none}
@@ -6481,7 +6483,12 @@ function renderFpTab(){
   const target=f=>{if(f.id.startsWith("lead_")){const l=leads.find(x=>x.id===f.id.slice(5));if(l)return fpLeadTarget(l);return {e:{id:"x",name:f.name,virtual:true},rec:{id:f.id,name:f.name,pseudo:true}}}
     const c=clients.find(x=>x.id===f.id);const e=c&&clientEntries().find(x=>x.rec&&x.rec.id===c.id)||{id:"c:"+f.id,rec:c||{id:f.id,name:f.name},name:(c&&c.name)||f.name};return {e,rec:c||{id:f.id,name:f.name}}};
   const plans=fplans.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).filter(f=>hit(f.name||""));
-  const prow=f=>{const go=()=>{const t=target(f);openFP(t.e,t.rec)};return el("div",{class:"row",onclick:go},el("span",{class:"main"},f.name||"Bez jména",el("small",{},"upraveno "+fmtDT(new Date(f.updatedAt||Date.now()).toISOString())+(f.id.startsWith("lead_")?" · lead z pipeline":""))),el("span",{class:"end",style:"color:var(--tint)"},"Otevřít ›"))};
+  /* smazání: první klik „Smazat“ → „Opravdu smazat?“, teprve druhý klik plán smaže */
+  const delBtn=f=>{const b=el("button",{type:"button",class:"fpdel",onclick:async ev=>{ev.stopPropagation();
+      if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Opravdu smazat?";b.classList.add("sure");clearTimeout(b._t);b._t=setTimeout(()=>{b.dataset.sure="";b.textContent="Smazat";b.classList.remove("sure")},4000);return}
+      try{await db.doc("fplan/"+f.id).delete();toast("Finanční plán smazán")}catch(err){toast("Nepodařilo se smazat")}}},"Smazat");return b};
+  const prow=f=>{const go=()=>{const t=target(f);openFP(t.e,t.rec)};return el("div",{class:"row",onclick:go},el("span",{class:"main"},f.name||"Bez jména",el("small",{},"upraveno "+fmtDT(new Date(f.updatedAt||Date.now()).toISOString())+(f.id.startsWith("lead_")?" · lead z pipeline":""))),
+    el("span",{class:"end",style:"display:flex;gap:12px;align-items:center"},delBtn(f),el("span",{style:"color:var(--tint)"},"Otevřít ›")))};
   const out=[el("h3",{class:"sechead"},"Finanční plány · "+plans.length),plans.length?el("div",{class:"group fplist"},plans.slice(0,60).map(prow)):el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},fplans.length?"Žádný plán neodpovídá hledání.":"Zatím žádný plán. Napiš nahoře jméno klienta a vytvoř první.")))];
   if(words.length){
     const has=new Set(fplans.map(f=>f.id));
