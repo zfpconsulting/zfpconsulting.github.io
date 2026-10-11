@@ -196,7 +196,7 @@ const AUV_TARIF = { S: 0, M: 600, L: 1200, XL: 2400 }; // poplatek (ážio) depo
 const PROD_IDX = Object.fromEntries(PRODUKTY.map(p => [p.k, p]));
 
 const DEFAULT_SET = { inflace: 0.03, hotovost_real: -0.03, renta_let: 20, doziti: 85, renta_r: 0.045, dip_strop: 4000, dps_nom: 0.07, dan: 0.15, smrt_nasobek: 3,
-  prac_inv1: 0.5, prac_inv2: 0.3, dluh_mix: 0.5, auv_tarif: "M", eur_kurz: 24.5,
+  prac_inv1: 0.5, prac_inv2: 0.3, dluh_mix: 0.5, cq_mgmt: 0.01, cq_success: 0.05, auv_tarif: "M", eur_kurz: 24.5,
   akc_prod: "cq_akc", dluh_p1: "zfpi", dluh_p2: "cq_dluh", dip_prod: "cq_dip" };
 const PP = "Penzijní připojištění (PP)", DPS = "Doplňkové penzijní spoření (DPS)", DPS_OLD = "Penzijní připojištění (DPS)";
 const POJ_TYPY = [["zivotni", "Životní pojištění"], ["nemovitost", "Pojištění nemovitosti"], ["domacnost", "Pojištění domácnosti"], ["auto", "Pojištění auta / motorky"]];
@@ -488,7 +488,7 @@ function compute(inp, today, ext) {
   pozice.forEach(p => { const pr = prod(p.k); produkty.push({ nazev: p.nazev, zust: p.jednor, mes: p.mesicne, korZ: p.jednor, korV: p.mesicne, novy: true, k: p.k,
     pozn: pr.dip ? `Renta: daňový odpočet (max ${S.dip_strop} Kč/měs)` : pr.s[0] === 100 ? (p.mesicne ? "Akciová složka + pravidelné vklady" : "Akciová složka") : pr.s[1] === 100 ? "Dluhopisová složka" : pr.s[2] === 100 ? "Hotovostní složka" : "Smíšené portfolio" }); });
   const pp = pct100(produkty.map(p => Math.max(0, p.zust))); produkty.forEach((p, i) => p.podil = pp[i]);
-  const poplatky = pozice.map(p => { const pr = prod(p.k), f1 = feeOfProd(pr, p.jednor); return { nazev: p.nazev, k: p.k, vstupJ: Math.round(p.jednor * f1), vstupM: Math.round(p.mesicne * (pr.auv ? 0 : f1)), fee: f1, sprava: pr.sprava, vynos: pr.vynos, auv: !!pr.auv }; });
+  const poplatky = pozice.map(p => { const pr = prod(p.k), f1 = feeOfProd(pr, p.jednor); return { nazev: p.nazev, k: p.k, vstupJ: Math.round(p.jednor * f1), vstupM: Math.round(p.mesicne * (pr.auv ? 0 : f1)), fee: f1, vstup: pr.vstup, sprava: pr.sprava, vynos: pr.vynos, auv: !!pr.auv, nofee: !!pr.nofee, prir: !!pr.prir, conseq: pr.g === "Conseq" || !!pr.model }; });
   // struktura po realokaci = skutečné zůstatky po transakcích
   const keptCash = produkty.filter(p => !p.novy && (CASH.includes(p.nazev) || srcs.some(s => s.cash && s.nazev === p.nazev) || p.nazev === "Spořicí účet")).reduce((s, p) => s + Math.max(0, p.zust), 0);
   const nove = [inv[0] + dpsVal, inv[1], inv[2] + keptCash];
@@ -1178,8 +1178,14 @@ function buildFrames(I,R){
     zfpf:{t:"Financování konkrétních projektů s předem daným úrokem a splatností.",b:["Bez poplatků","Pevný úrok, daná splatnost"]},
     auv:{t:"Fyzické drahé kovy (zlato, stříbro) uložené v depozitu Auvesta – ochrana proti inflaci a krizím.",b:["Fyzický kov ve vlastnictví klienta","Poplatek podle tarifu depozitu"]},
     wi_rez:{t:"Investiční rezerva ZFP World Index – krátkodobé peníze s vyšším úrokem než na účtu.",b:["Bez vstupního poplatku","Správa 0,5 % ročně"]}};
-  const info=p=>INFO[p.k]||(String(p.k).startsWith("wi_")?{t:"ETF portfolio ZFP World Index – široce rozložené, nízkonákladové indexové fondy.",b:["Správa "+pct(pop(p.k).sprava||0,2)+" ročně","Likvidita do týdne"]}:
+  /* poplatky v detailu produktu: Conseq = vstupní + management + success fee; ostatní jen vstupní poplatek dle nastavení
+     (správa je už odečtená v čistém výnosu, proto se zvlášť neuvádí) */
+  const feeB=p=>{const f=pop(p.k);if(f.auv)return ["Poplatek (ážio) podle tarifu depozitu"];if(f.nofee)return ["Bez vstupního poplatku"];
+    const v=`${f.prir?"Vstupní přirážka":"Vstupní poplatek"} ${pct(f.vstup||0,Math.round((f.vstup||0)*1000)%10?1:0)}`;
+    return f.conseq?[v,`Management fee ${pct(R.S.cq_mgmt,0)} ročně`,`Success fee ${pct(R.S.cq_success,0)} ze zisku`]:[v]};
+  const info0=p=>INFO[p.k]||(String(p.k).startsWith("wi_")?{t:"ETF portfolio ZFP World Index – široce rozložené, nízkonákladové indexové fondy.",b:["Správa "+pct(pop(p.k).sprava||0,2)+" ročně","Likvidita do týdne"]}:
     String(p.k).startsWith("m:")?{t:"Modelové portfolio Conseq sestavené pro klienta – historie se každý den aktualizuje.",b:(MARKET.models.find(m=>m.id===p.k)||{}).comps||[]}:{t:"",b:[]});
+  const info=p=>{const o=info0(p);return {t:o.t,f8:o.f8,b:(o.b||[]).filter(x=>!/správa|poplat|přirážk|ážio/i.test(x)).concat(feeB(p))}};
   const histOf=k=>{const m=MARKET.models.find(x=>x.id===k);if(m&&m.pts)return m.pts;return MARKET.hist[k]||null};
   const stats=pts=>{const y=d=>d/365.25,L=pts[pts.length-1],F=pts[0],T=y(L[0]-F[0]),at=yy=>{const d=L[0]-yy*365.25;let p=pts[0];for(const q of pts){if(q[0]>=d){p=q;break}}return L[0]-p[0]>=yy*365.25-20?Math.pow(L[1]/p[1],1/yy)-1:null};
     return {cagr:T>0.5?Math.pow(L[1]/F[1],1/T)-1:null,y1:at(1),y3:at(3),y5:at(5),od:new Date(F[0]*864e5).getFullYear()}};
