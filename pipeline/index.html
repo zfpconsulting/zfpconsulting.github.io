@@ -695,6 +695,13 @@ html.locked body{overflow:hidden}
 .pfrm{flex:none;color:var(--red);font-size:20px;padding:0 2px}
 .pfinv{border:1.5px solid var(--green-soft)}
 .pfsearch{margin:0 0 12px}
+/* výrazné tlačítko finančního plánu v kartě klienta / leadu */
+.fphero{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:none;border-radius:14px;background:var(--orange);color:#fff;font:inherit;text-align:left;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 14px rgba(255,149,0,.28);transition:transform .15s ease,box-shadow .15s ease}
+.fphero:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(255,149,0,.36)}.fphero:active{transform:scale(.99)}
+.fphero .fph-ic{flex:none;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center}
+.fphero .fph-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.fphero .fph-t b{font-size:17px}.fphero .fph-t small{font-size:13px;opacity:.9}
+.fphero .fph-go{flex:none;font-size:26px;line-height:1;opacity:.9}
+.fplist .row{cursor:pointer}.fplist .row .main small{display:block;color:var(--label2);font-size:13px;margin-top:2px}
 .pfclient{border:1.5px solid var(--tint-soft)}
 .pftabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:-2px 0}.pftabs::-webkit-scrollbar{display:none}
 .pftabs button{flex:none;font-size:13px;padding:6px 12px;border-radius:999px;background:var(--fill2);color:var(--label2);font-weight:500}
@@ -1000,33 +1007,6 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
   </section>
 
   <!-- KALENDÁŘ -->
-  <section id="view_cal" hidden>
-    <div class="tiles" id="ctTiles"></div>
-    <div class="calhead">
-      <h3 class="sechead" id="ctMonthLabel"></h3>
-      <div class="calnav">
-        <div class="seg mini" id="ctModeSeg" role="tablist" aria-label="Zobrazení"></div>
-        <div class="calnav-arrows">
-          <button type="button" class="chipbtn" id="ctPrevBtn" aria-label="Předchozí období">‹</button>
-          <button type="button" class="chipbtn" id="ctTodayBtn">Dnes</button>
-          <button type="button" class="chipbtn" id="ctNextBtn" aria-label="Další období">›</button>
-        </div>
-        <button type="button" class="chipbtn" id="ctPickBtn">Vybrat kalendáře</button>
-        <button type="button" class="chipbtn" id="ctNewBtn" hidden>+ Nová událost</button>
-      </div>
-    </div>
-    <div class="calweek" id="ctWeekWrap">
-      <div class="cwhead"><div class="cwgutter"></div><div class="cwdays" id="cwDays"></div></div>
-      <div class="cwallday" id="cwAllDayWrap" hidden><div class="cwad-gutter">celý den</div><div class="cwad-days" id="cwAllDay"></div></div>
-      <div class="cwbody"><div class="cwhours" id="cwHours"></div><div class="cwgrid" id="cwGrid"></div></div>
-    </div>
-    <div class="group calgrid" id="ctMonthWrap" hidden>
-      <div class="calwd" id="ctWd"></div>
-      <div class="calcells" id="ctCells"></div>
-    </div>
-    <div id="ctList"></div>
-    <p class="secfoot" id="ctFoot"></p>
-  </section>
 
   <!-- SAZEBNÍK -->
   <section id="view_tax" hidden>
@@ -1089,6 +1069,38 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
     <div id="calcBox"></div>
     <p class="secfoot">Vlajkou u parametru zvolíš, kterou hodnotu kalkulačka dopočítá. Vklady, splátky a výplaty se počítají na konci každého měsíce; výpočet je orientační.</p>
   </section>
+  <section id="view_cal" hidden><!-- záložka Kalendář zrušena; prvky zůstávají kvůli navázanému kódu -->
+    <div class="tiles" id="ctTiles"></div>
+    <div class="calhead">
+      <h3 class="sechead" id="ctMonthLabel"></h3>
+      <div class="calnav">
+        <div class="seg mini" id="ctModeSeg" role="tablist" aria-label="Zobrazení"></div>
+        <div class="calnav-arrows">
+          <button type="button" class="chipbtn" id="ctPrevBtn" aria-label="Předchozí období">‹</button>
+          <button type="button" class="chipbtn" id="ctTodayBtn">Dnes</button>
+          <button type="button" class="chipbtn" id="ctNextBtn" aria-label="Další období">›</button>
+        </div>
+        <button type="button" class="chipbtn" id="ctPickBtn">Vybrat kalendáře</button>
+        <button type="button" class="chipbtn" id="ctNewBtn" hidden>+ Nová událost</button>
+      </div>
+    </div>
+    <div class="calweek" id="ctWeekWrap">
+      <div class="cwhead"><div class="cwgutter"></div><div class="cwdays" id="cwDays"></div></div>
+      <div class="cwallday" id="cwAllDayWrap" hidden><div class="cwad-gutter">celý den</div><div class="cwad-days" id="cwAllDay"></div></div>
+      <div class="cwbody"><div class="cwhours" id="cwHours"></div><div class="cwgrid" id="cwGrid"></div></div>
+    </div>
+    <div class="group calgrid" id="ctMonthWrap" hidden>
+      <div class="calwd" id="ctWd"></div>
+      <div class="calcells" id="ctCells"></div>
+    </div>
+    <div id="ctList"></div>
+    <p class="secfoot" id="ctFoot"></p>
+  </section>
+  <section id="view_fp" hidden>
+    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán nebo klienta pro nový plán…" autocomplete="off" aria-label="Hledat finanční plán"></div>
+    <div id="fpBox"></div>
+    <p class="secfoot">Živý finanční plán: upravíš vstupy a prezentace se okamžitě přepočítá. Plán se ukládá ke klientovi (nebo k leadu z pipeline).</p>
+  </section>
   <section id="view_duch" hidden>
     <div id="duchBox"></div>
     <p class="secfoot">Po schůzce vlož údaje z klientova IOLDP, vyber klienta a ulož. Výpočet je orientační (zákon č. 155/1995 Sb., parametry roku nároku); skutečnou výši stanoví ČSSZ.</p>
@@ -1114,6 +1126,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
       <button type="submit" class="r" id="saveBtn">Uložit</button>
     </div>
     <div class="sbody">
+      <div class="fg" id="fpLeadBox" hidden></div>
       <div class="fg">
         <div class="group">
           <div class="frow"><label for="f_name">Jméno</label><input id="f_name" required placeholder="Jméno a příjmení" autocomplete="off"></div>
@@ -1817,7 +1830,7 @@ function render(){
   if(view==="pipe"){queueMicrotask(runFlip);$("bigTitle").textContent=appName();$("sub").textContent=pper&&!q?pmLabel(pper)+" · archiv":leads.length?`${act} ${plural(act,"rozjednaný lead","rozjednané leady","rozjednaných leadů")} · ${pmLabel(null)}`:"Zatím prázdno. Přidej první lead tlačítkem +.";renderCareer(cur);renderPipe(cur)}
   else if(view==="money"){$("bigTitle").textContent="Obrat";$("sub").textContent="Body, provize, pasivní příjem a tým";renderMoney(cq,cur)}
   else if(view==="cli"){$("bigTitle").textContent="Klienti";renderClients()}
-  else if(view==="cal"){$("bigTitle").textContent="Kalendář";$("sub").textContent="Přehled z vybraných sdílených kalendářů";renderCalTab()}
+  else if(view==="fp"){$("bigTitle").textContent="Finanční plán";$("sub").textContent="Živé finanční plány klientů";renderFpTab()}
   else if(view==="net"){$("bigTitle").textContent="Rozvoj sítě";renderNet()}
   else if(view==="tax"){$("bigTitle").textContent="Daně";renderTax()}
   else if(view==="goals"){$("bigTitle").textContent="Moje cíle";$("sub").textContent="Rozpočet a investiční cíle podle finančního plánu";renderGoals()}
@@ -3106,6 +3119,7 @@ function openClient(e0){
   sheetEnter=true;
   openSheet(e.name||"Klient",[
     el("div",{class:"mhero"},el("span",{class:"avatar big",style:"background:"+BAND[e.band][0]},initials(e.name)),el("div",{},el("div",{class:"mh-v",style:"font-size:20px;color:"+BAND[e.band][0]},daysTxt(e)),el("div",{class:"mh-s"},(e.active.length?e.active.length+" "+plural(e.active.length,"aktivní smlouva","aktivní smlouvy","aktivních smluv"):"bez smluv")+(e.lead?" · z pipeline":e.calOnly?" · z kalendáře":"")))),
+    fpHero(e,rec),
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),nm),el("div",{class:"frow"},el("label",{},"Telefon"),ph),el("div",{class:"frow"},el("label",{},"E-mail"),em),el("div",{class:"frow"},el("label",{},"Datum narození"),bd),el("div",{class:"frow"},el("label",{},"Poslední schůzka"),lm)),
     el("div",{class:"group"},el("div",{class:"frow col"},nt)),
     el("h3",{class:"sechead"},"Produkty"),pwrap,add,
@@ -3117,7 +3131,6 @@ function openClient(e0){
     log.length?el("div",{class:"group"},log.slice(0,15).map(x=>el("div",{class:"row"},el("span",{class:"main"},x.t),el("span",{class:"end"},fmtDT(x.d))))):null,
     e.lead?el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(e.lead)}},"Otevřít lead v pipeline")):null,
     ...duchClientSection(e,rec),
-    ...fpClientSection(e,rec),
     ...pfClientSection(e,rec),
     el("div",{class:"group"},el("button",{type:"button",class:"danger-row",onclick:()=>hideClient(e)},"Není to klient – skrýt ze seznamu"))
   ]);
@@ -5288,6 +5301,7 @@ function openEdit(l){
   $("f_points").value=l?.pointsManual??(l&&!l.items?.length&&l.points!=null?l.points:"");
   $("taskHint").textContent=taskHintText();
   $("f_logAt").value=localDT();$("delBox").hidden=!l;$("delBtn").hidden=false;$("delConfirm").hidden=true;$("fErr").hidden=true;$("logBox").hidden=!l;
+  try{fpLeadBox(l)}catch(err){console.warn("finanční plán",err)}
   {const b=$("docsBox");b.hidden=!l;try{if(l&&window.Docs)Docs.mount(b,docOwnerLead(l));else b.replaceChildren()}catch(err){console.warn("soubory",err);b.hidden=true}}
   syncSigned();renderItems();renderLog(l);
   if(typeof Deals!=="undefined")Deals.lockForm(l);
@@ -6441,12 +6455,37 @@ function duchClientSection(e,rec){
 }
 /* živý finanční plán (fp.html) – v kartě klienta; plán se ukládá ke klientovi do kolekce „fplan“ (synchronizuje se s ostatními daty).
    Jméno, datum narození a důchody z IOLDP (Důchodová kalkulačka) se do plánu předvyplní. */
-function fpClientSection(e,rec){
-  const f=rec&&fplans.find(x=>x.id===rec.id);
-  return [el("h3",{class:"sechead"},"Finanční plán"),
-    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>openFP(e,rec)},f?"Otevřít finanční plán":"+ Vytvořit finanční plán")),
-    f?el("p",{class:"hint"},"Naposledy upraveno "+fmtDT(new Date(f.updatedAt||Date.now()).toISOString())+". Úpravy vstupů okamžitě přepočítají prezentaci."):el("p",{class:"hint"},"Živá prezentace: upravíš vstupy a slidy se přepočítají. Předvyplní se jméno, narození a důchody z IOLDP.")];
+/* klíč plánu: plán klienta (fplan/<id klienta>), nebo plán vytvořený u leadu (fplan/lead_<id leadu>) */
+function fpKeyOf(rec){if(!rec)return null;if(fplans.some(x=>x.id===rec.id))return rec.id;const lp=rec.leadId&&fplans.find(x=>x.id==="lead_"+rec.leadId);return lp?lp.id:rec.id}
+function fpPlanOf(rec){const k=fpKeyOf(rec);return k?fplans.find(x=>x.id===k)||null:null}
+const FP_IC='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>';
+function fpHeroBtn(f,onclick){const ic=el("span",{class:"fph-ic"});ic.innerHTML=FP_IC;
+  return el("button",{type:"button",class:"fphero",onclick},ic,el("span",{class:"fph-t"},el("b",{},f?"Finanční plán":"Vytvořit finanční plán"),
+    el("small",{},f?"Otevřít prezentaci · upraveno "+fmtDT(new Date(f.updatedAt||Date.now()).toISOString()):"Živá prezentace – předvyplní jméno, narození a důchody z IOLDP")),el("span",{class:"fph-go"},"›"))}
+function fpHero(e,rec){return fpHeroBtn(fpPlanOf(rec),()=>openFP(e,rec))}
+/* lead v pipeline: plán se ukládá k leadu (klient se kvůli plánu nezakládá); když už klient existuje, použije se jeho plán */
+function fpLeadTarget(l){const c=clientOfLead(l);if(c){const e=clientEntries().find(x=>x.rec&&x.rec.id===c.id)||{id:"c:"+c.id,rec:c,name:c.name};return {e,rec:c}}
+  return {e:{id:"l:"+l.id,lead:l,name:l.name,key:surnameOf(l.name),phone:l.phone||"",products:[],virtual:true},rec:{id:"lead_"+l.id,name:l.name,birth:"",leadId:l.id,pseudo:true}}}
+function fpLeadBox(l){const b=$("fpLeadBox");if(!b)return;if(!l){b.hidden=true;b.replaceChildren();return}
+  const t=fpLeadTarget(l);b.hidden=false;b.replaceChildren(fpHeroBtn(fpPlanOf(t.rec),()=>openFP(t.e,t.rec)))}
+let fpSearch="";
+function renderFpTab(){
+  const box=$("fpBox");if(!box)return;
+  const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""),words=fold(fpSearch).split(/\s+/).filter(Boolean),hit=n=>words.every(w=>fold(n).includes(w));
+  const target=f=>{if(f.id.startsWith("lead_")){const l=leads.find(x=>x.id===f.id.slice(5));if(l)return fpLeadTarget(l);return {e:{id:"x",name:f.name,virtual:true},rec:{id:f.id,name:f.name,pseudo:true}}}
+    const c=clients.find(x=>x.id===f.id);const e=c&&clientEntries().find(x=>x.rec&&x.rec.id===c.id)||{id:"c:"+f.id,rec:c||{id:f.id,name:f.name},name:(c&&c.name)||f.name};return {e,rec:c||{id:f.id,name:f.name}}};
+  const plans=fplans.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).filter(f=>hit(f.name||""));
+  const prow=f=>{const go=()=>{const t=target(f);openFP(t.e,t.rec)};return el("div",{class:"row",onclick:go},el("span",{class:"main"},f.name||"Bez jména",el("small",{},"upraveno "+fmtDT(new Date(f.updatedAt||Date.now()).toISOString())+(f.id.startsWith("lead_")?" · lead z pipeline":""))),el("span",{class:"end",style:"color:var(--tint)"},"Otevřít ›"))};
+  const out=[el("h3",{class:"sechead"},"Finanční plány · "+plans.length),plans.length?el("div",{class:"group fplist"},plans.slice(0,60).map(prow)):el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},fplans.length?"Žádný plán neodpovídá hledání.":"Zatím žádný plán. Napiš nahoře jméno klienta a vytvoř první.")))];
+  if(words.length){
+    const has=new Set(fplans.map(f=>f.id));
+    const cands=clientEntries().filter(e=>hit(e.name)&&!(e.rec&&(has.has(e.rec.id)||(e.rec.leadId&&has.has("lead_"+e.rec.leadId))))&&!(e.lead&&has.has("lead_"+e.lead.id))).map(e=>({e,rec:e.rec||null,t:"klient"}))
+      .concat(leads.filter(l=>ACTIVE(l.stage)&&hit(l.name)&&!clientOfLead(l)&&!has.has("lead_"+l.id)).map(l=>({...fpLeadTarget(l),t:"lead · "+ST(l.stage).t})));
+    out.push(el("h3",{class:"sechead"},"Nový plán pro"),cands.length?el("div",{class:"group fplist"},cands.slice(0,30).map(c=>el("div",{class:"row",onclick:()=>openFP(c.e,c.rec)},el("span",{class:"main"},c.e.name||"Bez jména",el("small",{},c.t)),el("span",{class:"end",style:"color:var(--orange);font-weight:600"},"+ Vytvořit")))):el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},"Žádný klient ani lead neodpovídá."))));
+  }
+  box.replaceChildren(...out);
 }
+$("fpSearchI")?.addEventListener("input",e=>{fpSearch=e.target.value.trim();renderFpTab()});
 /* data pro portfolio v plánu: modelová portfolia (denně aktualizovaná historie) a fondy ZFPI / ZFP WI – zmenšené na týdenní body */
 function fpMarket(){
   const thin=pts=>{if(!pts||pts.length<2)return null;const o=[];let last=-1e9;pts.forEach(p=>{if(p[0]-last>=7){o.push(p);last=p[0]}});const L=pts[pts.length-1];if(o[o.length-1]!==L)o.push(L);return o};
@@ -6461,8 +6500,8 @@ function fpMarket(){
 async function openFP(e,rec){
   try{if(!rec)rec=await ensureClient(e)}catch(err){toast("Nepodařilo se založit klienta");return}
   if(!rec){toast("Klient chybí");return}
-  try{$("edDlg").close()}catch(err){}
-  const id=rec.id,dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
+  try{$("edDlg").close()}catch(err){}try{$("dlg").open&&$("dlg").close()}catch(err){}
+  const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
   const fr=el("iframe",{src:"fp.html?v=9#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
@@ -6484,7 +6523,7 @@ function pfClientSection(e,rec){
   return [el("h3",{class:"sechead"},"Portfolio"),has?pfClientCard(rec.id,{back}):el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>pfInvEdit(null,rec?{client:rec.id}:{cid:e.id},back)},"+ Sledovat investici v Portfoliích"))];
 }
 
-const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačka"],["duch","Důchodová kalkulačka"],["cal","Kalendář"],["net","Rozvoj sítě"],["tax","Daně"],["goals","Moje cíle"],["pf","Portfolia"],["pp","Sazebník"]];
+const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačka"],["duch","Důchodová kalkulačka"],["fp","Finanční plán"],["net","Rozvoj sítě"],["tax","Daně"],["goals","Moje cíle"],["pf","Portfolia"],["pp","Sazebník"]];
 /* „Uživatelé“ je speciální záložka jen pro admina – vždy úplně na konci, nejde skrýt ani přeřadit
    (proto stojí mimo TABS/nastavení pořadí), zjišťuje se přímo z uloženého přihlášeného e-mailu. */
 /* ===== prezentační režim: fiktivní poradce (jen admin) ===== */
@@ -6693,7 +6732,6 @@ function setView(v){
     const tb=$("tab_"+k);if(tb)tb.setAttribute("aria-selected",String(k===v))});
   $("searchBox").hidden=v!=="pipe";
   if(v==="cli")fetchCalHistory();
-  if(v==="cal")fetchCalTab();
   if(v==="pf")pfRefreshAll();
   if(v==="users"&&typeof fetchUsersTab==="function")fetchUsersTab();
   try{localStorage.setItem("pipe_view",v)}catch(e){}
@@ -6785,7 +6823,7 @@ async function updateEurRate(){
   db.collection("leads").onSnapshot(snap=>{leads=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();render();scheduleSync();scheduleTasks();if(typeof Deals!=="undefined")Deals.tick()});
   db.collection("clients").onSnapshot(snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();stafleOv.clear();if(view==="cli"||view==="duch")render();pfSyncClientsSoon()});
   db.collection("duchod").onSnapshot(snap=>{duchod=snap.docs.map(d=>({id:d.id,...d.data()}))});
-  db.collection("fplan").onSnapshot(snap=>{fplans=snap.docs.map(d=>({id:d.id,...d.data()}))});
+  db.collection("fplan").onSnapshot(snap=>{fplans=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="fp")renderFpTab()});
   db.collection("team").onSnapshot(snap=>{team=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));clLoaded.team=true;clMigrate();if(view==="money"||view==="net")render()});
   db.collection("funds").onSnapshot(snap=>{funds=snap.docs.map(d=>({id:d.id,...d.data()}));pfSyncClientsSoon();if(view==="pf"){renderPf();pfRefreshAll()}else if(DEMO&&!pfRefreshAll._d){pfRefreshAll._d=1;pfRefreshAll()}});
   db.collection("pfmodels").onSnapshot(snap=>{pfModels=snap.docs.map(d=>({id:d.id,...d.data()}));pfSyncClientsSoon();if(view==="pf")renderPf()});
