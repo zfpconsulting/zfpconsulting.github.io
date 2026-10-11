@@ -701,6 +701,12 @@ html.locked body{overflow:hidden}
 .fphero .fph-ic{flex:none;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center}
 .fphero .fph-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.fphero .fph-t b{font-size:17px}.fphero .fph-t small{font-size:13px;opacity:.9}
 .fphero .fph-go{flex:none;font-size:26px;line-height:1;opacity:.9}
+.fpnewbtn{flex:none;border:none;border-radius:12px;background:var(--orange);color:#fff;font:inherit;font-size:15px;font-weight:600;padding:0 16px;cursor:pointer;box-shadow:0 3px 10px rgba(255,149,0,.25)}
+.fpnew{background:var(--bg2);border-radius:14px;box-shadow:var(--card-shadow);padding:14px;margin:0 0 16px}
+.fpnew input{width:100%;box-sizing:border-box;border:1px solid var(--sep);border-radius:10px;background:var(--fill2,transparent);padding:11px 12px;font:inherit;font-size:16px;color:var(--label);outline:none}
+.fpnew .fpnew-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:700}
+.fpnew .fpnew-x{border:none;background:none;color:var(--label2);font-size:15px;cursor:pointer}
+.fpnew .group{margin-top:10px;max-height:320px;overflow:auto}
 .fplist .row{cursor:pointer}.fplist .row .main small{display:block;color:var(--label2);font-size:13px;margin-top:2px}
 .pfclient{border:1.5px solid var(--tint-soft)}
 .pftabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:-2px 0}.pftabs::-webkit-scrollbar{display:none}
@@ -1097,7 +1103,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
     <p class="secfoot" id="ctFoot"></p>
   </section>
   <section id="view_fp" hidden>
-    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán nebo klienta pro nový plán…" autocomplete="off" aria-label="Hledat finanční plán"></div>
+    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán…" autocomplete="off" aria-label="Hledat finanční plán"><button type="button" id="fpNewBtn" class="fpnewbtn">+ Vytvořit nový</button></div>
     <div id="fpBox"></div>
     <p class="secfoot">Živý finanční plán: upravíš vstupy a prezentace se okamžitě přepočítá. Plán se ukládá ke klientovi (nebo k leadu z pipeline).</p>
   </section>
@@ -6468,7 +6474,7 @@ function fpLeadTarget(l){const c=clientOfLead(l);if(c){const e=clientEntries().f
   return {e:{id:"l:"+l.id,lead:l,name:l.name,key:surnameOf(l.name),phone:l.phone||"",products:[],virtual:true},rec:{id:"lead_"+l.id,name:l.name,birth:"",leadId:l.id,pseudo:true}}}
 function fpLeadBox(l){const b=$("fpLeadBox");if(!b)return;if(!l){b.hidden=true;b.replaceChildren();return}
   const t=fpLeadTarget(l);b.hidden=false;b.replaceChildren(fpHeroBtn(fpPlanOf(t.rec),()=>openFP(t.e,t.rec)))}
-let fpSearch="";
+let fpSearch="",fpNew=false,fpNewQ="";
 function renderFpTab(){
   const box=$("fpBox");if(!box)return;
   const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""),words=fold(fpSearch).split(/\s+/).filter(Boolean),hit=n=>words.every(w=>fold(n).includes(w));
@@ -6483,8 +6489,26 @@ function renderFpTab(){
       .concat(leads.filter(l=>ACTIVE(l.stage)&&hit(l.name)&&!clientOfLead(l)&&!has.has("lead_"+l.id)).map(l=>({...fpLeadTarget(l),t:"lead · "+ST(l.stage).t})));
     out.push(el("h3",{class:"sechead"},"Nový plán pro"),cands.length?el("div",{class:"group fplist"},cands.slice(0,30).map(c=>el("div",{class:"row",onclick:()=>openFP(c.e,c.rec)},el("span",{class:"main"},c.e.name||"Bez jména",el("small",{},c.t)),el("span",{class:"end",style:"color:var(--orange);font-weight:600"},"+ Vytvořit")))):el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},"Žádný klient ani lead neodpovídá."))));
   }
+  if(fpNew){ /* panel „Vytvořit nový“: vybrat klienta / lead bez plánu, nebo založit nového klienta jen se jménem */
+    const nf=fold(fpNewQ),nw=nf.split(/\s+/).filter(Boolean),nh=n=>nw.every(w=>fold(n).includes(w));
+    const has=new Set(fplans.map(f=>f.id));
+    const cands=clientEntries().filter(e=>nh(e.name)&&!(e.rec&&(has.has(e.rec.id)||(e.rec.leadId&&has.has("lead_"+e.rec.leadId))))&&!(e.lead&&has.has("lead_"+e.lead.id))).map(e=>({e,rec:e.rec||null,t:"klient"}))
+      .concat(leads.filter(l=>ACTIVE(l.stage)&&nh(l.name)&&!clientOfLead(l)&&!has.has("lead_"+l.id)).map(l=>({...fpLeadTarget(l),t:"lead · "+ST(l.stage).t})))
+      .sort((a,b)=>(a.e.name||"").localeCompare(b.e.name||"","cs"));
+    const inp=el("input",{id:"fpNewName",type:"search",placeholder:"Jméno klienta…",autocomplete:"off"});inp.value=fpNewQ;
+    inp.addEventListener("input",()=>{fpNewQ=inp.value;renderFpTab();const i2=$("fpNewName");if(i2){i2.focus();i2.setSelectionRange(i2.value.length,i2.value.length)}});
+    const nm=fpNewQ.trim();
+    const exact=cands.some(c=>fold(c.e.name)===fold(nm));
+    const rows=cands.slice(0,40).map(c=>el("div",{class:"row",onclick:()=>{fpNew=false;openFP(c.e,c.rec)}},el("span",{class:"main"},c.e.name||"Bez jména",el("small",{},c.t)),el("span",{class:"end",style:"color:var(--orange);font-weight:600"},"Vytvořit ›")));
+    if(nm&&!exact)rows.unshift(el("div",{class:"row",onclick:async()=>{fpNew=false;const e={id:"n:"+Date.now(),name:nm,key:surnameOf(nm),phone:"",products:[]};try{const rec=await ensureClient(e);openFP(e,rec)}catch(err){toast("Nepodařilo se založit klienta")}}},
+      el("span",{class:"main"},"Nový klient „"+nm+"“",el("small",{},"založí se v Klientech a otevře se prázdný plán")),el("span",{class:"end",style:"color:var(--orange);font-weight:700"},"+ Založit")));
+    out.unshift(el("div",{class:"fpnew"},el("div",{class:"fpnew-h"},el("span",{},"Nový finanční plán"),el("button",{type:"button",class:"fpnew-x",onclick:()=>{fpNew=false;fpNewQ="";renderFpTab()}},"Zavřít")),inp,
+      rows.length?el("div",{class:"group fplist"},rows):el("p",{class:"hint"},"Všichni klienti už plán mají – napiš jméno nového klienta.")));
+    setTimeout(()=>{const i2=$("fpNewName");if(i2&&document.activeElement!==i2&&!fpNewQ)i2.focus()},0);
+  }
   box.replaceChildren(...out);
 }
+$("fpNewBtn")?.addEventListener("click",()=>{fpNew=!fpNew;fpNewQ="";renderFpTab()});
 $("fpSearchI")?.addEventListener("input",e=>{fpSearch=e.target.value.trim();renderFpTab()});
 /* data pro portfolio v plánu: modelová portfolia (denně aktualizovaná historie) a fondy ZFPI / ZFP WI – zmenšené na týdenní body */
 function fpMarket(){
