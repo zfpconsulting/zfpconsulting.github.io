@@ -558,11 +558,17 @@ function compute(inp, today, ext) {
   udalosti.sort((a, b) => a.m - b.m);
   const fee0 = (needA * CA.fee + needD * CD.fee) / Math.max(1, needA + needD + cashPlan);
   udalosti.forEach(u => u.hodnota = u.typ === "start" ? rezVklad + (majCelkem - rezVklad - dpsVal) * (1 - fee0) + dpsVal : hodnota(u.m));
+  /* měsíční vývoj finančního majetku v plánu (dnešní ceny): rezerva + cíle + renta + DPS; při výběru na cíl hodnota spadne */
+  const drD = S.dps_nom - S.inflace, dmD = mr(drD);
+  const dpsAt = m => dpsVal * Math.pow(1 + drD, m / 12) + dpsMes * (Math.abs(dmD) < 1e-12 ? m : (Math.pow(1 + dmD, m) - 1) / dmD);
+  const mEnd = Math.max(12, renta ? renta.months : 0, ...cile.map(c => c.months));
+  const vyvoj = []; for (let m = 0; m <= mEnd; m++) vyvoj.push(Math.max(0, hodnota(m) + (renta ? dpsAt(Math.min(m, renta.months)) : dpsAt(m))));
+  udalosti.forEach(u => { u.v = vyvoj[Math.min(mEnd, Math.max(0, u.m))]; u.vPred = u.m > 0 ? vyvoj[Math.min(mEnd, u.m - 1)] : u.v; });
   return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { cil: rezCil, vklad: rezVklad, chybi: rezChybi, pravidlo: rezPravidlo },
     maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
     cile, renta, pojNove, poj, pojOst, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
-    portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, toky, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
+    portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, toky, vyvoj, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
 }
 return { POJ_TYPY, PP, DPS, compute, alok, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
 });
@@ -1257,6 +1263,39 @@ function buildFrames(I,R){
        <div class="k" data-k="myear" style="position:absolute;left:${mx(u.datum)-60}px;top:840px;width:120px;text-align:center;font-weight:900;color:#E8722A">${u.datum.getFullYear()}</div>`;
     F.push({g:"tl",h,lbl:"Osa: "+u.titul});
   });
+  // vývoj majetku – křivka v čase; „kamera“ odkrývá graf bod po bodu, u cíle majetek viditelně spadne o vybranou částku
+  if(R.vyvoj&&R.vyvoj.length>12){
+    const V=R.vyvoj,MX=V.length-1,vmax=Math.max(...V)*1.12||1,X0=150,X1=1470,Y0=250,Y1=760,W=X1-X0,H=Y1-Y0;
+    const gx=m=>X0+W*m/MX,gy=v=>Y1-H*v/vmax;
+    const step=Math.max(1,Math.floor(MX/400)),pts=[];for(let m=0;m<=MX;m+=step)pts.push([m,V[m]]);if(pts[pts.length-1][0]!==MX)pts.push([MX,V[MX]]);
+    /* u výběru na cíl svislý pád: bod těsně před výběrem a hned po něm */
+    const P=[];pts.forEach(([m,v],i)=>{if(i&&U.some(u=>u.typ==="cil"&&u.m>pts[i-1][0]&&u.m<=m)){const u=U.find(u=>u.typ==="cil"&&u.m>pts[i-1][0]&&u.m<=m);P.push([u.m-0.01,u.vPred],[u.m,u.v])}P.push([m,v])});
+    const line=P.map(([m,v])=>gx(m).toFixed(1)+","+gy(v).toFixed(1)).join(" ");
+    const nice=x=>{const p=Math.pow(10,Math.floor(Math.log10(x))),f=x/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p},stepY=nice(vmax/5);
+    const fmtM=v=>v>=1e6?(v/1e6).toFixed(v%1e6?1:0).replace(".",",")+" mil.":Math.round(v/1e3)+" tis.";
+    const y0=R.udalosti[0].datum.getFullYear(),yrs=[];for(let y=Math.ceil((y0+1)/5)*5;y<=y0+MX/12;y+=5)yrs.push(y);
+    const svg=(op,dash)=>`<svg width="1600" height="900" viewBox="0 0 1600 900" style="position:absolute;left:0;top:0"><defs><linearGradient id="vg${dash?"d":"f"}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8722A" stop-opacity="${dash?0.08:0.45}"/><stop offset="1" stop-color="#E8722A" stop-opacity="0"/></linearGradient></defs>
+      <polygon points="${gx(0)},${Y1} ${line} ${gx(MX)},${Y1}" fill="url(#vg${dash?"d":"f"})"/><polyline points="${line}" fill="none" stroke="#E8722A" stroke-width="${dash?2:4}" ${dash?'stroke-dasharray="6 8"':""} stroke-linejoin="round" opacity="${op}"/></svg>`;
+    const grid=[];for(let v=stepY;v<vmax;v+=stepY)grid.push(`<div style="position:absolute;left:${X0}px;top:${gy(v)}px;width:${W}px;height:1px;background:#262626"></div><div style="position:absolute;left:${X0-110}px;top:${gy(v)-10}px;width:100px;text-align:right;font-size:14px;color:#8a8a8a">${fmtM(v)}</div>`);
+    const ax=`<div style="position:absolute;left:${X0}px;top:${Y1}px;width:${W}px;height:2px;background:#3a3a3a"></div>`+yrs.map(y=>`<div style="position:absolute;left:${gx((y-y0)*12)-30}px;top:${Y1+12}px;width:60px;text-align:center;font-size:14px;color:#8a8a8a">${y}</div>`).join("");
+    U.forEach((u,stepI)=>{
+      const cx=gx(Math.min(MX,u.m)),cy=gy(u.v),isCil=u.typ==="cil";
+      let h=chrome("Vývoj vašeho majetku","Hodnota plánu v čase — v dnešních cenách")+grid.join("")+ax+
+        `<div style="position:absolute;left:0;top:0;width:1600px;height:900px">${svg(0.35,true)}</div>
+         <div class="k" data-k="gclip" style="position:absolute;left:0;top:0;width:${Math.max(X0+2,cx+2)}px;height:900px;overflow:hidden;transition:width 1.4s cubic-bezier(.45,0,.2,1)">${svg(1,false)}</div>`;
+      U.forEach((v,i)=>{const px=gx(Math.min(MX,v.m)),py=gy(v.v),past=i<stepI,act=i===stepI;
+        h+=`<div class="k" data-k="gm${i}" style="position:absolute;left:${px-(act?11:7)}px;top:${py-(act?11:7)}px;width:${act?22:14}px;height:${act?22:14}px;border-radius:50%;background:${past||act?"#E8722A":"#161616"};border:3px solid ${act?"#fff":"#E8722A"};opacity:${past||act?1:0.35};z-index:3"></div>`;
+        if(v.typ==="cil")h+=`<div class="k" data-k="gb${i}" style="position:absolute;right:${1600-px+16}px;top:${(py+gy(v.vPred))/2-18}px;padding:6px 12px;border-radius:18px;background:rgba(223,106,106,.16);border:1.5px solid #DF6A6A;color:#DF6A6A;font-weight:900;font-size:15px;white-space:nowrap;opacity:${act?1:past?0.55:0};transform:translateY(${act||past?0:-30}px);transition:all 1s cubic-bezier(.2,.8,.2,1) ${act?".9s":"0s"};z-index:4">−${kc(v.cil.castka)} · ${esc(v.titul)}</div>`});
+      h+=`<div class="k" data-k="gv" style="position:absolute;left:${Math.min(1250,Math.max(X0,cx-130))}px;top:${Math.max(200,cy-92)}px;width:260px;text-align:center;z-index:5;transition:all 1.4s cubic-bezier(.45,0,.2,1)"><div style="font-size:34px;font-weight:900;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.6)">${kc(Math.round(u.v/1000)*1000)}</div><div style="font-size:14px;color:#cfcfcf">${u.datum.getFullYear()} · ${esc(u.titul)}</div></div>
+       <div class="k" data-k="gvl" style="position:absolute;left:${cx-1}px;top:${cy}px;width:2px;height:${Math.max(0,Y1-cy)}px;background:linear-gradient(#ffffff88,#ffffff00);z-index:2;transition:all 1.4s cubic-bezier(.45,0,.2,1)"></div>
+       <div class="card k" data-k="gcard" style="left:${X0+20}px;top:180px;width:470px;height:120px;border-top:4px solid #E8722A;z-index:6"></div>
+       <div class="k" data-k="gct" style="position:absolute;left:${X0+44}px;top:198px;width:430px;z-index:7"><span class="pill" style="background:#E8722A">${(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase()}</span>
+         <div style="font-size:22px;font-weight:900;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.titul)}${isCil?` <span style="color:#DF6A6A;font-size:18px">−${kc(u.cil.castka)}</span>`:""}</div>
+         <div class="mut" style="font-size:15px;margin-top:2px">${u.typ==="start"?"Začínáme – majetek po realokaci":isCil?`Výběr z investic na cíl · zbývá ${kc(Math.round(u.v/1000)*1000)}`:u.typ==="renta"?"Kapitál na rentu je připravený":u.typ==="refix"?"Splátka beze změny":u.typ==="splaceno"?"Úvěr splacen":""}</div></div>
+       <div class="foot">Reálné hodnoty (po inflaci). Hodnota zahrnuje rezervu, investice na cíle, rentu a DPS; po výběru na cíl hodnota klesne o vybranou částku.</div>`;
+      F.push({g:"gr",h,lbl:"Majetek: "+u.titul});
+    });
+  }
   // strategie
   F.push({g:"s",h:chrome("Investiční strategie")+`<div style="position:absolute;left:80px;top:120px;font-size:24px;font-style:italic;color:#E8722A">Vytrvalost je všechno.</div>`+
    [["2 %","Správný odhad okamžiku pro nákup nebo prodej","#6BAA45"],["4 %","Výběr konkrétních titulů cenných papírů","#5b8dd6"],["94 %","Správné rozmístění peněz do investičních tříd: akcií, dluhopisů, peněz","#E8722A"]].map(([v,t,c],i)=>`<div class="card" style="left:${80+i*496}px;top:200px;width:448px;height:560px;border-top:8px solid ${c};background:#2a2a2a"></div><div style="position:absolute;left:${80+i*496}px;top:300px;width:448px;text-align:center;font-size:110px;font-weight:900;color:${c}">${v}</div><div style="position:absolute;left:${80+i*496+60}px;top:480px;width:328px;text-align:center;font-size:20px;color:#cfcfcf;line-height:1.45">${t}</div>`).join("")+
