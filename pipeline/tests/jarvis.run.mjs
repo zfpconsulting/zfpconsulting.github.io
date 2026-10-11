@@ -95,7 +95,7 @@ const tests = {
   },
   async "nástroje: seznam, find_client neprozradí kontakty"() {
     const t = J.makeTools(A, toolHost());
-    assert.deepEqual(t.declarations.map(d => d.name), ["get_overview", "find_client", "list_clients", "schedule_meeting", "set_stage", "add_note", "add_lead", "update_client", "set_next_step", "log_call", "add_task", "complete_task", "open_screen", "prepare_message", "calc_loan", "calc_saving", "cancel_pending_plan"]);
+    assert.deepEqual(t.declarations.map(d => d.name), ["get_overview", "find_client", "list_clients", "schedule_meeting", "set_stage", "add_note", "add_lead", "update_client", "set_next_step", "log_call", "add_task", "complete_task", "open_screen", "prepare_message", "calc_loan", "calc_saving", "reschedule_meeting", "cancel_meeting", "delete_client", "add_product", "cancel_pending_plan"]);
     const st = t.declarations.find(d => d.name === "set_stage").parameters.properties.stage;
     assert.ok(st.enum.includes("podpis") && st.enum.includes("lost"));
     const [r] = await t.runBatch([{ id: "a", name: "find_client", args: { name: "Šikulová" } }]);
@@ -207,8 +207,8 @@ const tests = {
       assert.equal(log[0].headers["x-goog-api-key"], "AIzaTESTKEYTESTKEYTESTKEY");
       const b0 = log[0].body;
       assert.equal((b0.systemInstruction || b0.system_instruction).parts[0].text, "SYS PROMPT");
-      assert.equal(b0.tools[0].functionDeclarations.length, 17);
-      assert.equal(b0.generationConfig.thinkingConfig.thinkingLevel, "LOW");
+      assert.equal(b0.tools[0].functionDeclarations.length, 21);
+      assert.equal(b0.generationConfig.thinkingConfig.thinkingLevel, "MINIMAL");
       assert.equal(b0.contents.at(-1).parts[0].text, "Co víš o Šikulové?");
       const c1 = log[1].body.contents;
       assert.equal(c1.at(-2).role, "model"); assert.equal(c1.at(-2).parts[0].thoughtSignature, "SIG123", "podpis myšlení musí zpátky");
@@ -278,7 +278,7 @@ const tests = {
       assert.deepEqual(cfg.responseModalities, ["AUDIO"]);
       assert.equal(cfg.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Aoede");
       assert.match(s.systemInstruction.parts[0].text, /hlasová asistentka/);
-      assert.equal(s.tools[0].functionDeclarations.length, 17);
+      assert.equal(s.tools[0].functionDeclarations.length, 21);
       assert.ok("inputAudioTranscription" in s && "outputAudioTranscription" in s && "sessionResumption" in s);
       /* mikrofon → realtimeInput.audio */
       call.onChunk(new Int16Array(512).buffer);
@@ -596,6 +596,65 @@ const tests = {
       assert.equal(log.length, 0, "žádný požadavek nešel ven");
       assert.match(J.friendlyError(Object.assign(new Error("x"), { name: "ShieldError" })), /soukrom|zastav|štít/i);
     } finally { globalThis.fetch = realFetch; }
+  },
+
+  /* ---------- rychlost: méně kol u Googlu ---------- */
+  async "rychlost: jasný zápis = jedno kolo; odpověď složí appka; odpovědi nástrojů jdou s další větou"() {
+    const sh = new J.Shield(A, { known: () => leads.map(l => l.name) });
+    const h = toolHost({ shield: sh, propose: async acts => { h.proposed.push(acts); return { ok: true, runs_automatically: true, local: { text: "Schůzka: Eva Šikulová, ve středu v 17.", speak: "Schůzka Eva Šikulová ve středu." } }; } }), t = J.makeTools(A, h);
+    const log = fakeFetch((rec, all) => {
+      const last = rec.body.contents.at(-1);
+      if (all.length === 1) return { body: gen([{ functionCall: { name: "schedule_meeting", args: { client_name: "[K1]", start: "2026-10-14T17:00" }, id: "s1" } }]) };
+      return { body: gen([{ text: "Jasně." }]) };
+    });
+    try {
+      const b = new J.Brain({ key: "AIzaTESTKEYTESTKEYTESTKEY", sdk: async () => sdk, shield: sh, system: () => "SYS", declarations: t.declarations, onTools: t.runBatch });
+      const r = await b.ask("Domluv schůzku s Evou Šikulovou ve středu v 17");
+      assert.equal(log.length, 1, "jen jeden požadavek");
+      assert.equal(r.text, "Schůzka: Eva Šikulová, ve středu v 17."); assert.equal(r.speak, "Schůzka Eva Šikulová ve středu."); assert.equal(r.local, true);
+      const r2 = await b.ask("Díky");
+      assert.equal(log.length, 2); assert.equal(r2.text, "Jasně.");
+      const parts = log[1].body.contents.at(-1).parts;
+      assert.equal(parts[0].functionResponse.name, "schedule_meeting", "odpověď nástroje jde s další větou");
+      assert.equal(parts.at(-1).text, "Díky");
+      assert.ok(!/ikulov/.test(JSON.stringify(log.map(x => x.body))), "ani zpožděná odpověď nástroje neprozradí jméno");
+      assert.equal(log[1].body.contents.at(-2).role, "model", "historie: volání nástroje modelu");
+    } finally { globalThis.fetch = realFetch; }
+  },
+  async "rychlost: dotaz na přehled = jedno kolo, odpověď z dat appky"() {
+    const t = J.makeTools(A, toolHost());
+    const log = fakeFetch(() => ({ body: gen([{ functionCall: { name: "get_overview", args: { kind: "tasks", day: "today" }, id: "g1" } }]) }));
+    try {
+      const b = new J.Brain({ key: "AIzaTESTKEYTESTKEYTESTKEY", sdk: async () => sdk, system: () => "SYS", declarations: t.declarations, onTools: t.runBatch });
+      const r = await b.ask("Co mám dneska v úkolech?");
+      assert.equal(log.length, 1); assert.match(r.text, /Zavolat bance/); assert.ok(r.speak);
+    } finally { globalThis.fetch = realFetch; }
+  },
+  async "rychlost: nejasný plán nebo chyba → model odpoví sám (další kolo)"() {
+    const h = toolHost({ propose: async acts => ({ ok: true, needs_tap: true }) }), t = J.makeTools(A, h);
+    const log = fakeFetch((rec, all) => all.length === 1 ? { body: gen([{ functionCall: { name: "set_stage", args: { client_name: "Novák", stage: "podpis" }, id: "x" } }]) } : { body: gen([{ text: "Kterého Nováka?" }]) });
+    try {
+      const b = new J.Brain({ key: "AIzaTESTKEYTESTKEYTESTKEY", sdk: async () => sdk, system: () => "SYS", declarations: t.declarations, onTools: t.runBatch });
+      const r = await b.ask("Novák podepsal");
+      assert.equal(log.length, 2); assert.equal(r.text, "Kterého Nováka?");
+    } finally { globalThis.fetch = realFetch; }
+  },
+  async "nástroje: přesun a zrušení schůzky, smazání klienta, produkt – validace"() {
+    const h = toolHost({ products: () => [{ p: "Investice", vars: [{ v: "zfpi", t: "ZFPI Realitní fond" }] }, { p: "ŽP", vars: [] }] }), t = J.makeTools(A, h);
+    const ap = t.declarations.find(d => d.name === "add_product");
+    assert.deepEqual(ap.parameters.properties.product.enum, ["Investice", "ŽP"]); assert.match(ap.description, /ZFPI Realitní fond/);
+    const out = await t.runBatch([
+      { id: "1", name: "reschedule_meeting", args: { client_name: "Jan Novák", new_start: "2026-10-15T10:00:00" } },
+      { id: "2", name: "cancel_meeting", args: { client_name: "Eva Šikulová" } },
+      { id: "3", name: "delete_client", args: { client_name: "Petr Novák" } },
+      { id: "4", name: "add_product", args: { client_name: "Jan Novák", product: "Investice", variant: "ZFPI", amount: "400 000", mode: "jednorazove" } },
+    ]);
+    assert.ok(out.every(o => o.response.output.ok === true));
+    assert.deepEqual(h.proposed[0].map(a => a.name), ["reschedule_meeting", "cancel_meeting", "delete_client", "add_product"]);
+    assert.equal(h.proposed[0][0].input.new_start, "2026-10-15T10:00");
+    assert.equal(h.proposed[0][3].input.amount, 400000);
+    const bad = await t.runBatch([{ id: "1", name: "reschedule_meeting", args: { client_name: "X", new_start: "zítra" } }, { id: "2", name: "add_product", args: { client_name: "X", product: "Investice", amount: 0 } }, { id: "3", name: "delete_client", args: {} }]);
+    assert.ok(bad.every(o => o.response.output.ok === false));
   },
 };
 

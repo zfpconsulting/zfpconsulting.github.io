@@ -135,7 +135,7 @@ const dupMeeting = (lead, d) => lead && (lead.meetings || []).find(m => m && m.s
 const dupText = (lead, m) => "U „" + lead.name + "“ už schůzka v tu dobu je (" + fmtWhen(new Date(m.start)) + ") – nezdvojuju ji? Klient by dostal další potvrzení.";
 
 /* ---- plán akcí z odpovědi AI ---- */
-const ORDER = { add_lead: 0, update: 1, meeting: 2, call: 3, note: 4, next: 5, stage: 6, task: 7, task_done: 8 };
+const ORDER = { add_lead: 0, update: 1, move: 2, cancel_meeting: 2, meeting: 2, call: 3, note: 4, next: 5, product: 5.5, stage: 6, task: 7, task_done: 8, delete: 9 };
 const SOURCES = ["Cold call", "Placený lead", "Doporučení", "Vlastní kontakt"];
 const matchSource = v => { const n = norm(v); if (!n) return ""; return SOURCES.find(x => norm(x) === n) || (/cold|studen/.test(n) ? "Cold call" : /placen|reklam|facebook|ads/.test(n) ? "Placený lead" : /doporuc/.test(n) ? "Doporučení" : /vlastni|znam|kamarad/.test(n) ? "Vlastní kontakt" : ""); };
 const normDay = v => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || "").trim()); if (!m) return ""; const d = new Date(+m[1], +m[2] - 1, +m[3]); return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] ? m[0] : ""; };
@@ -144,7 +144,20 @@ const lastWorkday = now => { const d = new Date(now.getFullYear(), now.getMonth(
 const STAGE_TITLES = { novy: "Nový lead", kontaktovan: "Kontaktován", schuzka: "Schůzka domluvena", probehla: "Schůzka proběhla", nabidka: "Nabídka odeslána", podpis: "Podpis", vyplaceno: "Provize vyplacena", zamrzly: "Zamrzlý", lost: "Lost" };
 const SIGNED = s => s === "podpis" || s === "vyplaceno";
 
-/* res = {reply, actions:[{name,input}]}; env = {leads, now, calEvents, meetMinutes} */
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+/* budoucí schůzky klienta: z karty klienta + z kalendáře (události „VK: Příjmení“, které patří jen jemu) */
+function upcomingMeetings(lead, calEvents, leads, now) {
+  const out = [], seen = new Set(), t0 = now.getTime() - 30 * MIN;
+  (lead.meetings || []).forEach(m => { if (m && m.start && new Date(m.start).getTime() > t0 && !seen.has(m.id)) { seen.add(m.id); out.push({ id: m.id, start: m.start, online: !!m.online || /online/i.test(m.title || "") }); } });
+  (calEvents || []).forEach(e => {
+    if (!e || !e.start || !e.name || seen.has(e.id) || new Date(e.start).getTime() <= t0) return;
+    const r = resolveClient(e.name, leads || []);
+    if (r.kind === "exact" && r.lead && r.lead.id === lead.id) { seen.add(e.id); out.push({ id: e.id, start: e.start, online: !!e.online }); }
+  });
+  return out.sort((a, b) => String(a.start).localeCompare(String(b.start)));
+}
+
+/* res = {reply, actions:[{name,input}]}; env = {leads, now, calEvents, meetMinutes, tasks, productPreview} */
 function buildPlan(res, env) {
   const now = env.now || new Date();
   const plan = { reply: String((res && res.reply) || "").trim(), steps: [], problems: [], warnings: Array.isArray(res && res.warnings) ? res.warnings.map(String) : [], notes: Array.isArray(res && res.notes) ? res.notes.map(String) : [] };
@@ -195,7 +208,7 @@ function buildPlan(res, env) {
       if (!b) continue;
       if (b.lead && b.lead.stage === i.stage && b.kind !== "ambiguous") { plan.notes.push(b.lead.name + " už ve fázi „" + STAGE_TITLES[i.stage] + "“ je."); continue; }
       if (b.lead && SIGNED(b.lead.stage) && i.stage === "lost") { plan.problems.push("Podepsaný obchod (" + b.lead.name + ") nejde dát do Lost."); continue; }
-      if (i.stage === "podpis") plan.notes.push("Podpis zapíšu bez produktů a bodů – doplň je v kartě klienta.");
+      if (i.stage === "podpis" && !acts.some(x => x && x.name === "add_product" && x.input && resolveClient(String(x.input.client_name || ""), env.leads).lead === b.lead)) plan.notes.push("Podpis zapíšu bez produktů a bodů – doplň je v kartě klienta (nebo řekni produkt a částku).");
       plan.steps.push({ type: "stage", client_name: i.client_name, ...b, stage: i.stage });
     } else if (a.name === "add_note") {
       const b = bind(i.client_name, false);
@@ -245,6 +258,41 @@ function buildPlan(res, env) {
       if (client) { const r = resolveClient(client, env.leads); if (r.kind === "exact" || r.kind === "fuzzy") client = r.lead.name; else if (r.kind === "ambiguous") { plan.warnings.push("Víc klientů pasuje na „" + client + "“ – úkol uložím jen s tímhle jménem."); } }
       if ((env.tasks || []).some(t => norm(t.text) === norm(text) && (t.client || "") === client)) { plan.notes.push("Úkol „" + text + "“ už v seznamu je."); continue; }
       plan.steps.push({ type: "task", text, client, due });
+    } else if (a.name === "delete_client") {
+      const b = bind(i.client_name, false);
+      if (!b) continue;
+      if (b.lead && SIGNED(b.lead.stage)) { plan.problems.push("„" + b.lead.name + "“ má podepsaný obchod – mazáním by zmizely body a provize z historie. Smaž ho ručně v kartě, pokud opravdu chceš."); continue; }
+      if (plan.steps.some(x => x.type === "delete" && x.lead && b.lead && x.lead.id === b.lead.id)) continue;
+      plan.steps.push({ type: "delete", client_name: i.client_name, ...b, tap: true });
+      if (b.lead) plan.warnings.push("Smažu celou kartu „" + b.lead.name + "“ včetně historie a schůzek v pipeline (události v Google Kalendáři zůstanou).");
+    } else if (a.name === "reschedule_meeting" || a.name === "cancel_meeting") {
+      const b = bind(i.client_name, false);
+      if (!b) continue;
+      const move = a.name === "reschedule_meeting";
+      const nd = move ? parseLocal(i.new_start) : null;
+      if (move && !nd) { plan.problems.push("Nerozumím novému času schůzky („" + (i.new_start || "") + "“)."); continue; }
+      if (!b.lead) { plan.steps.push({ type: move ? "move" : "cancel_meeting", client_name: i.client_name, ...b, start: nd, meeting: null, tap: true }); continue; }
+      const ms = upcomingMeetings(b.lead, env.calEvents, env.leads, now);
+      if (!ms.length) { plan.problems.push("„" + b.lead.name + "“ nemá žádnou budoucí schůzku."); continue; }
+      let m = null;
+      const old = i.old_start ? parseLocal(i.old_start) : null;
+      if (old) { const hit = ms.filter(x => sameDay(new Date(x.start), old)).sort((x, y) => Math.abs(new Date(x.start) - old) - Math.abs(new Date(y.start) - old)); m = hit[0] || null; if (!m) { plan.problems.push("Schůzku „" + b.lead.name + "“ " + fmtWhen(old) + " nenacházím. Má: " + ms.map(x => fmtWhen(new Date(x.start))).join(", ") + "."); continue; } }
+      else if (ms.length === 1) m = ms[0];
+      else { plan.problems.push("„" + b.lead.name + "“ má víc schůzek (" + ms.map(x => fmtWhen(new Date(x.start))).join(", ") + ") – řekni, kterou myslíš."); continue; }
+      if (move) {
+        const chk = checkMeeting(nd, now, (env.calEvents || []).filter(e => e && e.id !== m.id), env.meetMinutes);
+        plan.problems.push(...chk.problems); plan.warnings.push(...chk.warnings);
+        if (Math.abs(nd - new Date(m.start)) < MIN) { plan.notes.push("Schůzka už v tu dobu je."); continue; }
+        plan.steps.push({ type: "move", client_name: i.client_name, ...b, meeting: m, start: nd, tap: true });
+      } else plan.steps.push({ type: "cancel_meeting", client_name: i.client_name, ...b, meeting: m, tap: true });
+    } else if (a.name === "add_product") {
+      const b = bind(i.client_name, false);
+      if (!b) continue;
+      if (typeof env.productPreview !== "function") { plan.problems.push("Zápis produktů tu není dostupný."); continue; }
+      const pv = env.productPreview({ product: i.product, variant: i.variant, amount: i.amount, mode: i.mode, fee_percent: i.fee_percent, years: i.years, age: i.age });
+      if (!pv || !pv.ok) { plan.problems.push("Produkt: " + ((pv && pv.error) || "nejde spočítat") + "."); continue; }
+      if (pv.assumed && pv.assumed.length) plan.notes.push("U produktu " + pv.label + " počítám s: " + pv.assumed.join(", ") + ". Jestli ne, oprav to v kartě klienta.");
+      plan.steps.push({ type: "product", client_name: i.client_name, ...b, item: pv.item, pts: pv.pts, kc: pv.kc, label: pv.label, tap: true });
     } else if (a.name === "complete_task") {
       const q = String(i.task_text || "").trim(); if (!q) continue;
       const open = (env.tasks || []).filter(t => t && t.text), nq = norm(q), qw = words(q).filter(w => w.length > 2);
@@ -265,14 +313,20 @@ const unresolved = plan => plan.steps.filter(s => s.kind === "ambiguous" && !s.l
 /* jde plán provést? (bez problémů, bez nevyřešených výběrů, aspoň jeden krok) */
 const runnable = plan => !plan.problems.length && !unresolved(plan).length && plan.steps.length > 0;
 /* automaticky po odpočtu smí běžet jen jednoznačný plán bez varování */
-const autoOk = plan => runnable(plan) && !plan.warnings.length && !plan.steps.some(s => s.kind === "fuzzy" || s.kind === "ambiguous" || s.kind === "chosen" || s.implicit || s.similar);
+const autoOk = plan => runnable(plan) && !plan.warnings.length && !plan.steps.some(s => s.tap || s.kind === "fuzzy" || s.kind === "ambiguous" || s.kind === "chosen" || s.implicit || s.similar);   /* tap = mazání, přesun/zrušení schůzky, produkty: vždy až po klepnutí */
 function pickLead(plan, step, lead) {
   step.lead = lead; step.kind = "chosen";
   if (step.type === "meeting") { const dup = dupMeeting(lead, step.start); if (dup && !plan.warnings.includes(dupText(lead, dup))) plan.warnings.push(dupText(lead, dup)); }
   return plan;
 }
+const fmtPts = v => String(Math.round((+v || 0) * 10) / 10).replace(".", ",");
+const fmtKc = v => Math.round(+v || 0).toLocaleString("cs-CZ").replace(/\s/g, "\u00a0");
 const leadLabel = s => (s.lead && s.lead.name) || (s.newRef && s.newRef.name) || s.client_name || s.name || "";
 function describeStep(s) {
+  if (s.type === "delete") return "Smazat klienta: " + leadLabel(s);
+  if (s.type === "move") return "Přesunout schůzku: " + leadLabel(s) + (s.meeting ? " · " + fmtWhen(new Date(s.meeting.start)) : "") + " → " + fmtWhen(s.start);
+  if (s.type === "cancel_meeting") return "Zrušit schůzku: " + leadLabel(s) + (s.meeting ? " · " + fmtWhen(new Date(s.meeting.start)) : "");
+  if (s.type === "product") return "Produkt u " + leadLabel(s) + ": " + s.label + " → " + fmtPts(s.pts) + " b" + (s.kc ? " ≈ " + fmtKc(s.kc) + " Kč" : "");
   if (s.type === "add_lead") return "Nový kontakt: " + s.name + (s.source ? " · " + s.source : "") + (s.phone ? " · " + s.phone : "") + (s.email ? " · " + s.email : "");
   if (s.type === "meeting") return "Schůzka: " + leadLabel(s) + " · " + fmtWhen(s.start) + (s.online ? " · online" : "") + (s.place ? " · " + s.place : "");
   if (s.type === "stage") return leadLabel(s) + " → fáze „" + STAGE_TITLES[s.stage] + "“";
@@ -681,6 +735,10 @@ function spokenPlan(plan, now, countdown, auto) {
     else if (st.type === "call") s.push("Zapíšu telefonát: " + who + (st.result === "reached" ? ", hovor proběhl." : ", nezvedl."));
     else if (st.type === "task") s.push("Přidám úkol: " + st.text + ".");
     else if (st.type === "task_done") s.push("Úkol odškrtnu: " + st.task.text + ".");
+    else if (st.type === "delete") s.push("Smažu klienta " + who + ".");
+    else if (st.type === "move") s.push("Schůzku s klientem " + who + " přesunu na " + spokenDay(st.start, now) + " " + spokenClock(st.start) + ".");
+    else if (st.type === "cancel_meeting") s.push("Zruším schůzku s klientem " + who + (st.meeting ? ", " + spokenDay(new Date(st.meeting.start), now) + " " + spokenClock(new Date(st.meeting.start)) : "") + ".");
+    else if (st.type === "product") s.push("Produkt " + st.item.p + " za " + Math.round(st.pts) + " " + plural(Math.round(st.pts), "bod", "body", "bodů") + ".");
   }
   if (plan.problems.length) s.push(plan.problems[0]);
   if (plan.warnings.length) s.push("Pozor: " + first(plan.warnings[0]));
@@ -691,7 +749,7 @@ function spokenPlan(plan, now, countdown, auto) {
 function spokenDone(out) {
   const bad = out.lines.some(l => /^✗/.test(l)), s = [bad ? "Něco se nepovedlo, koukni na výpis." : "Hotovo."];
   if (out.smsJobs && out.smsJobs.length) s.push(out.smsJobs.length === 1 ? "SMS je připravená, klepni na Odeslat." : "SMS jsou připravené, klepni na Odeslat.");
-  if (out.manuals && out.manuals.length) s.push("Potvrzení musíš poslat ručně.");
+  if (out.manuals && out.manuals.length) s.push(out.manuals.every(m => m.open) ? "Klientovi můžeš poslat nový termín tlačítkem." : "Potvrzení musíš poslat ručně.");
   return s.join(" ");
 }
 
@@ -726,7 +784,7 @@ function listen({ onText, onEnd, onError, lang }) {
 }
 const VOICE_ERR = { "not-allowed": "Mikrofon není povolený – povol ho v nastavení prohlížeče.", "service-not-allowed": "Rozpoznávání řeči je v tomhle prohlížeči zakázané. Použij mikrofon na klávesnici.", "no-speech": "Nic jsem neslyšel.", "network": "Rozpoznávání řeči potřebuje internet.", "unsupported": "Tenhle prohlížeč neumí rozpoznávat řeč. Použij mikrofon na klávesnici." };
 
-const api = { understand, parseWhen, nominative, sameSurname, GMAIL_SCOPE, norm, words, sim, matchLeads, resolveClient, parseLocal, fmtWhen, checkMeeting, normPhone, validEmail, hasPlaceholders, pickTemplate, mimeEmail, encodeWord, buildPlan, runnable, autoOk, unresolved, pickLead, describeStep, leadLabel, STAGE_TITLES, SOURCES, matchSource, nextWorkday: lastWorkday, voiceSupported, listen, VOICE_ERR, detectQuery, answerQuery, spokenPlan, spokenDone, spokenClock, spokenDay, pickVoice, speechClean };
+const api = { upcomingMeetings, understand, parseWhen, nominative, sameSurname, GMAIL_SCOPE, norm, words, sim, matchLeads, resolveClient, parseLocal, fmtWhen, checkMeeting, normPhone, validEmail, hasPlaceholders, pickTemplate, mimeEmail, encodeWord, buildPlan, runnable, autoOk, unresolved, pickLead, describeStep, leadLabel, STAGE_TITLES, SOURCES, matchSource, nextWorkday: lastWorkday, voiceSupported, listen, VOICE_ERR, detectQuery, answerQuery, spokenPlan, spokenDone, spokenClock, spokenDay, pickVoice, speechClean };
 
 /* ================= část s prohlížečem (jen když existuje document) ================= */
 if (typeof document === "undefined") return api;
@@ -872,6 +930,35 @@ async function execute(plan) {
       } else if (s.type === "task") {
         if (!H.addTask) throw new Error("úkoly tu nejsou dostupné");
         await H.addTask({ text: s.text, client: s.client, due: s.due }); lines.push("✓ " + describeStep(s));
+      } else if (s.type === "delete") {
+        const lead = fresh(s.lead);
+        if (!lead) throw new Error("klient nenalezen");
+        if (!H.deleteLead) throw new Error("mazání tu není dostupné");
+        await H.deleteLead(lead); lines.push("✓ Smazáno: " + lead.name);
+      } else if (s.type === "move" || s.type === "cancel_meeting") {
+        const lead = fresh(s.lead);
+        if (!lead) throw new Error("klient nenalezen");
+        let m = s.meeting;
+        if (!m) { const ms = upcomingMeetings(lead, H.calEvents(), H.leads(), new Date()); if (ms.length !== 1) throw new Error(ms.length ? "víc schůzek, řekni kterou" : "žádná budoucí schůzka"); m = ms[0]; }
+        if (s.type === "move") {
+          if (!H.moveMeeting) throw new Error("přesun schůzky tu není dostupný");
+          const r = await H.moveMeeting(lead, m, s.start);
+          lines.push("✓ Schůzka " + lead.name + " přesunuta na " + fmtWhen(s.start) + (r && r.calendar ? " · i v kalendáři" : " · jen v pipeline (v kalendáři ji uprav ručně)"));
+          const tpl = pickTemplate(H.tpls ? H.tpls() : [], m.online);
+          if (tpl && H.openLeadMessage) manuals.push({ lead, label: "Poslat nový termín: " + lead.name, open: () => { const r2 = H.openLeadMessage(fresh(lead), tpl.id); if (r2 && r2.ok && r2.run) r2.run(); else H.toast((r2 && r2.error) || "Zprávu nejde otevřít"); } });
+        } else {
+          if (!H.cancelMeeting) throw new Error("rušení schůzek tu není dostupné");
+          const r = await H.cancelMeeting(lead, m);
+          lines.push("✓ Schůzka " + lead.name + " " + fmtWhen(new Date(m.start)) + " zrušena" + (r && r.calendar ? " · i v kalendáři" : " · jen v pipeline (z kalendáře ji smaž ručně)"));
+        }
+      } else if (s.type === "product") {
+        if (s.done) continue;
+        const lead = fresh(s.lead);
+        if (!lead) throw new Error("klient nenalezen");
+        if (!H.addProducts) throw new Error("zápis produktů tu není dostupný");
+        const same = plan.steps.filter(x => x.type === "product" && !x.done && x.lead && x.lead.id === lead.id);   /* všechny produkty jednoho klienta jedním zápisem */
+        await H.addProducts(lead, same.map(x => x.item));
+        same.forEach(x => { x.done = true; lines.push("✓ " + describeStep(x)); });
       } else if (s.type === "task_done") {
         if (!H.doneTask) throw new Error("úkoly tu nejsou dostupné");
         await H.doneTask(s.task); lines.push("✓ Odškrtnuto: " + s.task.text);
@@ -893,7 +980,7 @@ async function execute(plan) {
   return { lines, manuals, smsJobs };
 }
 
-const STEP_ICON = { meeting: "📅", stage: "➡️", note: "📝", add_lead: "➕", update: "✏️", next: "⏭️", call: "📞", task: "☑️", task_done: "✅" };
+const STEP_ICON = { meeting: "📅", stage: "➡️", note: "📝", add_lead: "➕", update: "✏️", next: "⏭️", call: "📞", task: "☑️", task_done: "✅", delete: "🗑️", move: "🔁", cancel_meeting: "🚫", product: "💼" };
 /* ---- karta s plánem (společná pro psací okno i hlasový překryv) ---- */
 function planCard(plan, hooks) {
   hooks = hooks || {};
@@ -944,7 +1031,7 @@ function planCard(plan, hooks) {
       const b = h("button", { type: "button", class: "go", onclick: () => { H.openSms(job.tel, job.text); H.logLeadMsg(job.lead, { ch: "SMS", tpl: job.tpl, start: job.start, meetId: job.meetId }); b.disabled = true; b.textContent = "✓ SMS otevřená: " + job.lead.name; } }, "💬 Odeslat SMS: " + job.lead.name);
       card.append(h("div", { class: "btns" }, b));
     });
-    out.manuals.forEach(mn => card.append(h("div", { class: "btns" }, h("button", { type: "button", onclick: () => { hooks.beforeManual ? hooks.beforeManual() : H.closeSheet(); H.openMsg(mn.ctx, mn.tplId, r => H.logLeadMsg(mn.lead, r)); } }, "Poslat ručně: " + mn.lead.name))));
+    out.manuals.forEach(mn => card.append(h("div", { class: "btns" }, h("button", { type: "button", onclick: () => { hooks.beforeManual ? hooks.beforeManual() : H.closeSheet(); if (mn.open) setTimeout(mn.open, 380); else H.openMsg(mn.ctx, mn.tplId, r => H.logLeadMsg(mn.lead, r)); } }, mn.label || ("Poslat ručně: " + mn.lead.name)))));
     hooks.afterRun && hooks.afterRun(out);
   }
   return {
@@ -986,7 +1073,7 @@ function cancelPending() {
 }
 function proposePlan(actions, sink) {
   const now = new Date();
-  const plan = buildPlan({ reply: "", actions }, { leads: H.leads(), now, calEvents: H.calEvents(), meetMinutes: MEET_MIN, tasks: H.tasks ? H.tasks() : [] });
+  const plan = buildPlan({ reply: "", actions }, { leads: H.leads(), now, calEvents: H.calEvents(), meetMinutes: MEET_MIN, tasks: H.tasks ? H.tasks() : [], productPreview: H.productPreview || null });
   const prev = pendingPlan();
   if (prev) prev.ui.cancel();   /* nový návrh nahrazuje starý, který ještě nebyl proveden */
   if (!plan.steps.length && !plan.problems.length) return { ok: false, error: "Není co provést – klienta jsem v pipeline nenašla.", notes: plan.notes };
@@ -1003,6 +1090,8 @@ function proposePlan(actions, sink) {
   if (!runnable(plan)) r.instruction = amb.length ? "Víc klientů pasuje, zeptej se uživatele, kterého myslí (řekni jména). Uživatel může vybrat i klepnutím na obrazovce." : "Plán nejde provést. Řekni uživateli stručně, co je špatně, a zeptej se, jak dál.";
   else if (ui.auto) { r.runs_automatically = true; r.seconds = ui.countdown; r.instruction = ui.countdown ? "Plán je na obrazovce a provede se sám za " + ui.countdown + " s, pokud ho uživatel nezruší. Řekni jednou větou, co se chystá (kdo, kdy, online nebo osobně). Výsledek ti pošle systém." : "Plán se právě provádí. Řekni jednou větou, co se děje. Výsledek ti pošle systém."; }
   else { r.needs_tap = true; r.instruction = "Plán je na obrazovce, ale kvůli varování nebo nejistotě ho musí uživatel potvrdit klepnutím na Provést. Řekni mu to a přečti varování."; }
+  /* odpověď uživateli složí appka sama (bez dalšího kola u Googlu = rychleji); jen když je plán jasný */
+  if (runnable(plan) && !amb.length) { const said = spokenPlan(plan, now, ui.countdown, ui.auto); r.local = ui.auto && !ui.countdown ? { text: said, speak: "" } : { text: said, speak: said }; }
   return r;
 }
 
@@ -1040,13 +1129,15 @@ function toolHost(propose, shield) {
   };
   return {
     now: () => new Date(), leads: () => H.leads(), facts: () => (H.facts ? H.facts() : null), propose, cancelPending, shield: shield || null,
+    products: () => { try { return (H.products && H.products()) || []; } catch (e) { return []; } },
     navigate: H.navigate ? async a => guard(await H.navigate(a)) : null,
     openMessage: H.openLeadMessage ? async (lead, tpl) => guard(await H.openLeadMessage(lead, tpl)) : null,
   };
 }
 const usageText = () => { const u = JV().Usage.read(); return "Dnes využito " + u.n + " požadavků na Gemini" + (u.err ? " (z toho " + u.err + " neúspěšných)" : "") + ". Google počítá den podle pacifického času, nulování kolem 9:00."; };
 function getBrain() {
-  const J = JV(), key = J.getKey(), priv = smode() === "private", id = key + "|" + (priv ? "p" : "o");
+  let np = 0; try { np = H.products ? H.products().length : 0; } catch (e) {}
+  const J = JV(), key = J.getKey(), priv = smode() === "private", id = key + "|" + (priv ? "p" : "o") + "|" + np;   /* odemčená provizní příloha = nový katalog produktů */
   if (brain && brainKey === id) return brain;
   const shield = priv ? new J.Shield(api, { known: peopleNames }) : null;
   const tools = J.makeTools(api, toolHost(actions => proposePlan(actions, brainSink || { show() {}, owner: null }), shield));
@@ -1059,6 +1150,8 @@ function getBrain() {
   }));
 }
 function smartAsk(text, sink) { const b = getBrain(); brainSink = sink; return b.ask(text); }
+/* knihovnu Googlu načíst hned při otevření okna, ne až po první větě (ušetří sekundy u prvního příkazu) */
+function warmUp() { try { if (smartOn() && smode() !== "live") getBrain().init().catch(() => {}); } catch (e) {} }
 
 /* hlas Gemini pro rychlý režim; bez úspěchu (limit, síť) se použije systémový hlas */
 let ttsToken = 0;
@@ -1089,7 +1182,7 @@ function open(opts) {
   if (!H) return;
   if (!cfg().on) { H.toast("Asistent je vypnutý – zapni ho v nastavení."); return; }
   closeVoice();
-  addStyle();
+  addStyle(); warmUp();
   const log = h("div", { class: "aiLog" });
   const ta = h("textarea", { rows: 1, placeholder: "Řekni nebo napiš, co se stalo…", "aria-label": "Příkaz pro asistenta", enterkeyhint: "send" });
   let rec = null;
@@ -1120,7 +1213,7 @@ function open(opts) {
       if (note) say("bot", note);
       const res = understand(text, { leads: H.leads(), now: new Date() });
       if (res.query) { const a = answerQuery(res.query, H.facts ? H.facts() : null, new Date()); say("bot", a.lines.join("\n")); return; }
-      const plan = buildPlan(res, { leads: H.leads(), now: new Date(), calEvents: H.calEvents(), meetMinutes: MEET_MIN, tasks: H.tasks ? H.tasks() : [] });
+      const plan = buildPlan(res, { leads: H.leads(), now: new Date(), calEvents: H.calEvents(), meetMinutes: MEET_MIN, tasks: H.tasks ? H.tasks() : [], productPreview: H.productPreview || null });
       if (plan.reply) say("bot", plan.reply);
       if (plan.steps.length || plan.problems.length) {
         const ui = planCard(plan, {});
@@ -1253,7 +1346,7 @@ function openVoice(opts) {
   if (!api.voiceSupported() && !live) { open(); return; }
   if (V) { if (opts && opts.listen) voiceToggle(); return; }
   unlockSpeech();
-  addStyle();
+  addStyle(); warmUp();
   if (document.getElementById("edDlg") && document.getElementById("edDlg").open && cur) document.getElementById("edDlg").close();
   const bars = Array.from({ length: EQ_BARS }, () => h("i"));
   const stateEl = h("div", { class: "vstate", "aria-live": "polite" }), textEl = h("div", { class: "vtext", "aria-live": "polite" }), capEl = h("div", { class: "vcap", "aria-live": "polite" }), logEl = h("div", { class: "vlog" });
@@ -1393,7 +1486,7 @@ function vSmart(text) {
   smartAsk(text, sink).then(r => {
     if (V !== v) return;
     if (smode() === "private" && r.sent) v.capEl.textContent = "🛡 Do Googlu šlo: " + r.sent;
-    if (r.text) { ans.hidden = false; ans.append(h("p", {}, r.text)); vSay(r.text); } else setMode("idle", IDLE_HINT);
+    if (r.text) { ans.hidden = false; ans.append(h("p", {}, r.text)); vSay(r.speak != null ? r.speak : r.text); } else setMode("idle", IDLE_HINT);
     if (navPending) flushNav(speakWait(r.text));
   }, e => { if (V === v) vHandleOffline(text, JV().friendlyError(e) + " Používám základní režim."); });
 }
@@ -1408,7 +1501,7 @@ function vHandleOffline(text, note) {
   try {
     const res = understand(text, { leads: H.leads(), now });
     if (res.query) { const a = answerQuery(res.query, H.facts ? H.facts() : null, now); say(...a.lines); vSay(a.speak); return; }
-    const plan = buildPlan(res, { leads: H.leads(), now, calEvents: H.calEvents(), meetMinutes: MEET_MIN, tasks: H.tasks ? H.tasks() : [] });
+    const plan = buildPlan(res, { leads: H.leads(), now, calEvents: H.calEvents(), meetMinutes: MEET_MIN, tasks: H.tasks ? H.tasks() : [], productPreview: H.productPreview || null });
     if (plan.reply) say(plan.reply);
     if (!plan.steps.length && !plan.problems.length) { vSay(spokenPlan(plan, now, 0)); return; }
     let pre = "";

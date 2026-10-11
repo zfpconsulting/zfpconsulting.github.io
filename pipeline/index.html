@@ -3401,6 +3401,80 @@ function aiOpenMessage(lead,tplId){
   const note=!ctx.start&&/\{(den|datum|cas|vcas)\}/.test(cur.text||"")?"Klient nemá žádnou budoucí schůzku, v textu zůstanou doplňky [den] [čas] – uživatel je musí doplnit.":"";
   return {ok:true,template:cur.name,note,run:()=>openMsg(ctx,tplId||null,r=>logLeadMsg(l,r))};
 }
+/* smazání klienta hlasem: stejné jako tlačítko Smazat v kartě (sdílený obchod se jen opustí) */
+async function aiDeleteLead(l){
+  const cur=leads.find(x=>x.id===l.id)||l;
+  if(cur.shared){if(typeof Deals!=="undefined")await Deals.leave(cur.shared.id);return}
+  if(typeof Deals!=="undefined")Deals.afterSave(cur.id,cur.items||[],[]);
+  await db.doc("leads/"+cur.id).delete();
+}
+/* přesun / zrušení schůzky: Google Kalendář (když je událost tam a je povolený zápis) + karta klienta */
+function aiCalUrl(id){return "https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(calCfg().id)+"/events/"+encodeURIComponent(id)}
+const aiCanCal=()=>!!(GAuth.token()&&GAuth.hasScope("calendar.events")&&calCfg().prefix);
+async function aiMoveMeeting(l,m,start){
+  const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l, startISO=start.toISOString();
+  let calendar=false;
+  if(m.id&&!String(m.id).startsWith("local:")&&aiCanCal()){
+    const r=await gfetch(aiCalUrl(m.id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({start:{dateTime:startISO},end:{dateTime:new Date(start.getTime()+45*60000).toISOString()}})});
+    if(!r.ok)throw new Error("kalendář odmítl změnu ("+r.status+")");calendar=true;
+  }
+  const has=(cur.meetings||[]).some(x=>x.id===m.id);
+  const meetings=(has?(cur.meetings||[]).map(x=>x.id===m.id?{...x,start:startISO}:x):[...(cur.meetings||[]),{id:m.id,start:startISO,title:cur.name||"",online:!!m.online}]).sort((a,b)=>a.start.localeCompare(b.start));
+  const log=[...(cur.log||[]),{d:now,t:"Schůzka přesunuta: "+fmtMeet(m.start)+" → "+fmtMeet(startISO)}].slice(-100);
+  await db.doc("leads/"+cur.id).update({meetings,log,updatedAt:now});
+  if(calendar)setTimeout(()=>{try{refreshCalendar()}catch(e){}},300);
+  return {calendar};
+}
+async function aiCancelMeeting(l,m){
+  const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l;
+  let calendar=false;
+  if(m.id&&!String(m.id).startsWith("local:")&&aiCanCal()){
+    const r=await gfetch(aiCalUrl(m.id),{method:"DELETE"});
+    if(!r.ok&&r.status!==404&&r.status!==410)throw new Error("kalendář odmítl smazání ("+r.status+")");calendar=true;
+  }
+  const meetings=(cur.meetings||[]).filter(x=>x.id!==m.id);
+  const log=[...(cur.log||[]),{d:now,t:"Schůzka zrušena: "+fmtMeet(m.start)}].slice(-100);
+  await db.doc("leads/"+cur.id).update({meetings,log,updatedAt:now});
+  if(calendar)setTimeout(()=>{try{refreshCalendar()}catch(e){}},300);
+  return {calendar};
+}
+/* produkty hlasem: katalog (názvy a varianty, žádná klientská data), náhled bodů stejným výpočtem jako karta klienta, zápis */
+const aiProdOk=()=>typeof PROD!=="undefined"&&typeof PRODUCTS!=="undefined"&&typeof itemCalc==="function";
+function aiProducts(){
+  if(!aiProdOk())return [];
+  return PRODUCTS.filter(p=>PROD[p]).map(p=>{const P=PROD[p];return {p,unit:P.unit||"Kč",kind:P.kind||"",def:P.def||"",vars:(P.vars||[]).filter(v=>!v.hid&&!v.cust).map(v=>({v:v.v,t:v.t||v.v}))}});
+}
+function aiProductPreview(spec){
+  const nn=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  if(!aiProdOk())return {ok:false,error:"výpočet bodů není k dispozici (odemkni provizní přílohu)"};
+  const p=PRODUCTS.find(x=>nn(x)===nn(spec.product||""))||PRODUCTS.find(x=>nn(x).startsWith(nn(spec.product||"").slice(0,3))&&nn(spec.product||"").length>=3);
+  if(!p||!PROD[p])return {ok:false,error:"neznámý produkt „"+(spec.product||"")+"“, povolené: "+PRODUCTS.join(", ")};
+  const P=PROD[p], vs=(P.vars||[]).filter(v=>!v.hid&&!v.cust), assumed=[];
+  let V=null;const q=nn(spec.variant||"");
+  if(q){V=vs.find(v=>nn(v.t)===q||nn(v.v)===q)||vs.find(v=>nn(v.t).includes(q)||(nn(v.v).length>=3&&q.includes(nn(v.v))))||vs.find(v=>q.split(" ").filter(w=>w.length>2).some(w=>nn(v.t).includes(w)));
+    if(!V)return {ok:false,error:"varianta „"+spec.variant+"“ u produktu "+p+" není, možnosti: "+vs.slice(0,15).map(v=>v.t).join(", ")}}
+  else{V=vs.find(v=>v.v===P.def)||vs[0];if(!V)return {ok:false,error:"produkt "+p+" nemá variantu pro hlasový zápis – zadej ho v kartě klienta"};if(vs.length>1)assumed.push("varianta "+V.t)}
+  const amt=+spec.amount;if(!(amt>0))return {ok:false,error:"chybí částka"};
+  const it={p,amt,var:V.v};
+  if(p==="Investice"){const W=varOf(it);it.mode=W.nomode?"jednorazove":(spec.mode==="mesicne"?"mesicne":spec.mode==="jednorazove"?"jednorazove":(assumed.push("jednorázový vklad"),"jednorazove"));
+    const f=spec.fee_percent!=null&&spec.fee_percent!==""?+spec.fee_percent:null;it.fee=W.nofee?0:Math.min(Math.max(f!=null&&isFinite(f)?f:Math.min(3,W.max),W.min||0),W.max);if(f==null&&!W.nofee)assumed.push("vstupní poplatek "+String(it.fee).replace(".",",")+" %")}
+  if(p==="ŽP"){it.yrs=+spec.years>0?+spec.years:(assumed.push("10 let"),10);it.g="M"}
+  if(p==="DPS"){it.age=+spec.age>0?+spec.age:(assumed.push("věk klienta 35"),35)}
+  if(p==="Reality"){it.price=amt;it.pct=+spec.fee_percent>0?+spec.fee_percent:(assumed.push("provize 3 %"),3);it.plusDph=false;syncReal(it)}
+  let pts;try{pts=r1(itemCalc(it).pts)}catch(e){return {ok:false,error:"body se nepodařilo spočítat ("+e.message+")"}}
+  it.pts=pts;it.share=100;
+  let rate=0;try{rate=quarterRow(CURQ()).rate}catch(e){}
+  const unit=p==="Investice"?(it.mode==="mesicne"?"Kč/měs":"Kč"):(P.unit||"Kč");
+  return {ok:true,item:it,pts,kc:Math.round(pts*rate),label:p==="Reality"?"Reality · cena "+fmt0(it.price)+" Kč, provize "+it.pct+" %":p+" "+V.t+" · "+fmt0(it.amt)+" "+unit,assumed};
+}
+async function aiAddProducts(l,items){
+  const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l, stage=cur.stage;
+  const all=[...(cur.items||[]),...items.map(it=>{const o={...it};if(SIGNED(stage))o.signed=true;return o})];
+  const data={items:all,products:[...new Set(all.map(i=>{try{return itemLabel(i)}catch(e){return i.p}}))],updatedAt:now};
+  if(cur.pointsManual==null)data.points=leadPointsFromItems(all,stage);
+  await db.doc("leads/"+cur.id).update(data);
+  if(typeof Deals!=="undefined")try{Deals.afterSave(cur.id,cur.items||[],all)}catch(e){}
+}
 function scheduleMeeting(l,onDone){
   const cfg=calCfg(), canWrite=!!(GAuth.token()&&GAuth.hasScope("calendar.events")&&cfg.prefix);
   const def=new Date();def.setDate(def.getDate()+1);def.setHours(10,0,0,0);
@@ -6667,6 +6741,7 @@ async function updateEurRate(){
       addLead:aiAddLead, saveMeeting, addNote:aiAddNote, moveTo,
       tpls, fillTpl, ensureMeet, logLeadMsg, openMsg, openSms:(t,x)=>aiOpenSms(t,x),
       facts:aiFacts, updateLead:aiUpdateLead, logCall:aiLogCall, tasks:aiTasks, addTask:aiAddTask, doneTask:aiDoneTask, people:aiPeople, navigate:aiNavigate, openLeadMessage:aiOpenMessage,
+      deleteLead:aiDeleteLead, moveMeeting:aiMoveMeeting, cancelMeeting:aiCancelMeeting, products:aiProducts, productPreview:aiProductPreview, addProducts:aiAddProducts,
       openSheet, closeSheet:()=>$("edDlg").close(), toast, demo:DEMO})}else if(tries++<60)setTimeout(start,100)};start()}
   db.collection("leads").onSnapshot(snap=>{leads=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();render();scheduleSync();scheduleTasks();if(typeof Deals!=="undefined")Deals.tick()});
   db.collection("clients").onSnapshot(snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();stafleOv.clear();if(view==="cli"||view==="duch")render();pfSyncClientsSoon()});
@@ -7021,8 +7096,8 @@ const PP_ENC="v1.bNSPw2v-Scx2Eiccfg4sgg.tSwvUcdpKuOqe1fI.OnaA_T5EC7cR2HJOM8Y_omz
 </script>
 <script src="photoedit.js?v=1" defer></script>
 <script src="docs.js?v=2" defer></script>
-<script src="assistant.js?v=5" defer></script>
-<script src="jarvis.js?v=2" defer></script>
+<script src="assistant.js?v=6" defer></script>
+<script src="jarvis.js?v=3" defer></script>
 <script>
 /* ===== v35: Asistentka – propojení poradce ↔ asistentka, sdílené úkoly, asistentský režim ===== */
 /* ===== Síťová vrstva: Firestore – změny se doručují samy (bez dotazování), operace napodobují dřívější server ===== */

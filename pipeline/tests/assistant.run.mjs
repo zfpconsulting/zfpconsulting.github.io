@@ -376,6 +376,44 @@ const tests = {
     assert.equal(A.checkMeeting(new Date(2026, 9, 14, 17, 45), NOW, ev, 45).warnings.length, 0, "17:45 už je volné");
     assert.equal(A.checkMeeting(new Date(2026, 9, 14, 17, 50), NOW, ev, 60).warnings.length, 1, "u starých 60 minut by kolidovalo");
   },
+  "buildPlan: smazání klienta, přesun a zrušení schůzky – vždy až po klepnutí"() {
+    const at = (d, h) => new Date(2026, 9, d, h, 0).toISOString();
+    const L2 = [L("1", "Jan Novák", "schuzka", { meetings: [{ id: "ev1", start: at(14, 17) }] }), L("2", "Marie Svobodová", "kontaktovan", { meetings: [{ id: "a", start: at(13, 9) }, { id: "b", start: at(15, 9) }] }), L("5", "Karel Podepsaný", "podpis")];
+    const cal = [{ id: "ev9", start: at(16, 10), name: "Jan Novák", title: "VK: Novák" }, { id: "x", start: at(15, 18), title: "VK: Jiný" }];
+    const del = A.buildPlan({ actions: [{ name: "delete_client", input: { client_name: "Marie Svobodová" } }] }, { leads: L2, now: NOW });
+    assert.equal(del.steps[0].type, "delete"); assert.ok(A.runnable(del) && !A.autoOk(del), "smazání chce klepnutí"); assert.match(del.warnings.join(" "), /Smažu celou kartu/);
+    const signed = A.buildPlan({ actions: [{ name: "delete_client", input: { client_name: "Karel Podepsaný" } }] }, { leads: L2, now: NOW });
+    assert.equal(signed.steps.length, 0); assert.match(signed.problems[0], /podepsaný obchod/);
+    /* Novák: schůzka v kartě i v kalendáři → bez upřesnění se zeptá */
+    const amb = A.buildPlan({ actions: [{ name: "reschedule_meeting", input: { client_name: "Jan Novák", new_start: "2026-10-20T10:00" } }] }, { leads: L2, now: NOW, calEvents: cal });
+    assert.match(amb.problems.join(" "), /víc schůzek/);
+    const mv = A.buildPlan({ actions: [{ name: "reschedule_meeting", input: { client_name: "Jan Novák", new_start: "2026-10-20T10:00", old_start: "2026-10-14T17:00" } }] }, { leads: L2, now: NOW, calEvents: cal });
+    assert.equal(mv.steps[0].type, "move"); assert.equal(mv.steps[0].meeting.id, "ev1"); assert.ok(A.runnable(mv) && !A.autoOk(mv));
+    assert.match(A.describeStep(mv.steps[0]), /→ út 20\. 10\. 10:00/);
+    const clash = A.buildPlan({ actions: [{ name: "reschedule_meeting", input: { client_name: "Jan Novák", new_start: "2026-10-15T18:30", old_start: "2026-10-16T10:00" } }] }, { leads: L2, now: NOW, calEvents: cal, meetMinutes: 45 });
+    assert.equal(clash.steps[0].meeting.id, "ev9", "schůzka jen z kalendáře se taky najde"); assert.match(clash.warnings.join(" "), /už v tu dobu máš/);
+    const cn = A.buildPlan({ actions: [{ name: "cancel_meeting", input: { client_name: "Marie Svobodová", old_start: "2026-10-15T09:00" } }] }, { leads: L2, now: NOW });
+    assert.equal(cn.steps[0].type, "cancel_meeting"); assert.equal(cn.steps[0].meeting.id, "b"); assert.ok(!A.autoOk(cn));
+    const none = A.buildPlan({ actions: [{ name: "cancel_meeting", input: { client_name: "Karel Podepsaný" } }] }, { leads: L2, now: NOW });
+    assert.match(none.problems[0], /nemá žádnou budoucí schůzku/);
+    for (const p of [del, mv, cn]) assert.ok(A.spokenPlan(p, NOW, 0, false).length > 10);
+  },
+  "buildPlan: produkt s body z výpočtu appky, podpis bez poznámky o chybějících bodech"() {
+    const calls = [];
+    const productPreview = spec => { calls.push(spec); if (spec.product !== "Investice") return { ok: false, error: "neznámý produkt" }; return { ok: true, item: { p: "Investice", amt: spec.amount, var: "zfpi", pts: 12.5 }, pts: 12.5, kc: 2250, label: "Investice ZFPI · 400 000 Kč", assumed: ["vstupní poplatek 3 %"] }; };
+    const p = A.buildPlan({ actions: [{ name: "set_stage", input: { client_name: "Jan Novák", stage: "podpis" } }, { name: "add_product", input: { client_name: "Jan Novák", product: "Investice", variant: "ZFPI", amount: 400000 } }] }, { leads, now: NOW, productPreview });
+    assert.deepEqual(p.steps.map(s => s.type), ["product", "stage"], "nejdřív produkt, pak podpis");
+    assert.match(A.describeStep(p.steps[0]), /12,5 b ≈ 2 250 Kč/);
+    assert.ok(!p.notes.some(n => /bez produktů/.test(n)), "u podpisu s produktem se nepíše, že chybí body");
+    assert.ok(p.notes.some(n => /vstupní poplatek 3 %/.test(n)), "předpoklady jsou vidět");
+    assert.ok(A.runnable(p) && !A.autoOk(p), "produkt chce klepnutí");
+    const bad = A.buildPlan({ actions: [{ name: "add_product", input: { client_name: "Jan Novák", product: "Kosmos", amount: 1 } }] }, { leads, now: NOW, productPreview });
+    assert.match(bad.problems[0], /neznámý produkt/);
+    const no = A.buildPlan({ actions: [{ name: "add_product", input: { client_name: "Jan Novák", product: "Investice", amount: 1 } }] }, { leads, now: NOW });
+    assert.match(no.problems[0], /není dostupný/);
+    const sign = A.buildPlan({ actions: [{ name: "set_stage", input: { client_name: "Jan Novák", stage: "podpis" } }] }, { leads, now: NOW });
+    assert.ok(sign.notes.some(n => /bez produktů/.test(n)));
+  },
   "buildPlan: prázdná nebo rozbitá odpověď"() {
     assert.equal(A.buildPlan(null, { leads, now: NOW }).steps.length, 0);
     assert.equal(A.buildPlan({ reply: "Kdy to bylo?", actions: [] }, { leads, now: NOW }).reply, "Kdy to bylo?");

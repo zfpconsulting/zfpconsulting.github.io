@@ -82,7 +82,7 @@ const isFirstName = n => {
 const firstHit = (w, f) => {
   if (!f) return false;
   if (w === f || (f.length >= 3 && w.startsWith(f) && w.length <= f.length + 3)) return true;
-  if (f.length >= 4 && f.endsWith("a") && w.startsWith(f.slice(0, -1)) && w.length <= f.length + 2) return true;
+  if (f.length >= 3 && f.endsWith("a") && w.startsWith(f.slice(0, -1)) && w.length <= f.length + 2) return true;   /* Eva → Evou, Jana → Janou */
   if (/(el|ek)$/.test(f)) { const st = f.slice(0, -2) + f.slice(-1); return w.startsWith(st) && w.length <= st.length + 3; }
   return false;
 };
@@ -285,8 +285,10 @@ function systemPrompt(now, opt) {
     "- Klient (lead) prochází fázemi: Nový lead → Kontaktován → Schůzka domluvena → Schůzka proběhla → Nabídka odeslána → Podpis → Provize vyplacena; mimo to Zamrzlý a Lost. U klienta je telefon, e-mail, zdroj (cold call, placený lead, doporučení, vlastní kontakt), kdo ho doporučil, další krok s termínem, zápisy a schůzky.",
     "- Čtení: get_overview (úkoly, kdo mám zavolat, schůzky, celá agenda dne, výsledky: body, provize, sazba), find_client (detail jednoho klienta), list_clients (počty klientů podle fází a jména: kdo čeká na zavolání, kdo je dlouho bez kontaktu).",
     "- Zápisy: schedule_meeting (schůzka), set_stage (změna fáze), add_note (zápis do karty), add_lead (nový kontakt), update_client (doplnit nebo opravit telefon, e-mail, zdroj, doporučitele, jméno u KTERÉHOKOLI existujícího klienta), set_next_step (další krok a jeho termín), log_call (zapsat telefonát: hovor proběhl / nezvedl), add_task a complete_task (vlastní úkoly poradce).",
+    "- Schůzky a karta: reschedule_meeting (přesun schůzky na jiný termín), cancel_meeting (zrušení schůzky), delete_client (smazání karty klienta – jen na výslovný pokyn „smaž“). Tyhle tři a add_product se provedou až po klepnutí uživatele.",
+    "- Produkty: add_product zapíše sjednaný produkt (investice, životní pojištění, DPS, hypotéka, úvěr, reality…) a aplikace sama spočítá body a provizi. „Podepsal investici 400 tisíc do ZFPI“ = add_product + set_stage podpis v jednom kole. Částku převeď na číslo v Kč (400 tisíc = 400000).",
     "- Ostatní: open_screen (otevřít kartu klienta, dnešní přehled nebo záložku), prepare_message (otevřít hotovou zprávu klientovi ze šablony; odeslání klepne uživatel), calc_loan (splátka úvěru), calc_saving (spoření, investice).",
-    "- Neumíš: cokoli mazat, přesouvat nebo rušit schůzky, zapisovat produkty, body a provize u podpisu, nábor, daně. Řekni to na rovinu a navrhni, co má udělat ručně. Nikdy nic z toho nepředstírej.",
+    "- Neumíš: mazat úkoly a zápisy, ručně měnit body (jen přes produkty), nábor, daně, portfolia. Řekni to na rovinu a navrhni, co má udělat ručně. Nikdy nic z toho nepředstírej.",
     "",
     "PRAVIDLA",
     "- O klientech, úkolech, schůzkách, telefonátech ani výsledcích nikdy nic nevymýšlej a netipuj. Vždy použij nástroj. Co nástroj nevrátil, nevíš, a to řekni.",
@@ -335,6 +337,8 @@ const kc = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 function makeTools(core, host) {
   const stages = Object.keys(core.STAGE_TITLES), sh = host.shield || null;
   const CLIENT = "přesné jméno z find_client" + (sh ? " nebo značka [K#]/[J#]" : "");
+  let prods = []; try { prods = (host.products && host.products()) || []; } catch (e) {}
+  const prodNames = prods.map(p => p.p), catalog = prods.map(p => p.p + (p.vars && p.vars.length ? " (" + p.vars.slice(0, 12).map(v => v.t).join(", ") + (p.vars.length > 12 ? ", …" : "") + ")" : "")).join("; ").slice(0, 1500);
   const declarations = [
     { name: "get_overview", description: "Přečte z pipeline úkoly, telefonáty, schůzky nebo výsledky (body, provize, sazba, rozjednané leady). Použij vždy, když se uživatel ptá na svoje data.",
       parameters: OBJ({
@@ -384,6 +388,23 @@ function makeTools(core, host) {
       parameters: OBJ({ amount: NUM("výše úvěru v Kč"), rate_percent: NUM("roční úroková sazba v %"), years: NUM("doba splácení v letech") }, ["amount", "rate_percent", "years"]) },
     { name: "calc_saving", description: "Spočítá, kolik naspoří nebo investuje při pravidelném měsíčním vkladu a případném jednorázovém vkladu (připisování měsíčně, vklady na konci měsíce). Použij místo počítání z hlavy.",
       parameters: OBJ({ monthly: NUM("měsíční vklad v Kč"), rate_percent: NUM("roční zhodnocení v %"), years: NUM("doba v letech"), initial: NUM("jednorázový vklad na začátku v Kč (volitelné)") }, ["monthly", "rate_percent", "years"]) },
+    { name: "reschedule_meeting", description: "Připraví přesun existující schůzky klienta na jiný termín (v pipeline i v Google Kalendáři). Provede se až po klepnutí uživatele.",
+      parameters: OBJ({ client_name: STR(CLIENT), new_start: STR("nový začátek YYYY-MM-DDTHH:MM místního času"), old_start: STR("původní termín YYYY-MM-DDTHH:MM, jen když má klient víc schůzek") }, ["client_name", "new_start"]) },
+    { name: "cancel_meeting", description: "Připraví zrušení existující schůzky klienta (smaže ji z pipeline i z Google Kalendáře). Jen když to uživatel výslovně řekl. Provede se až po klepnutí.",
+      parameters: OBJ({ client_name: STR(CLIENT), old_start: STR("termín rušené schůzky YYYY-MM-DDTHH:MM, jen když má klient víc schůzek") }, ["client_name"]) },
+    { name: "delete_client", description: "Připraví smazání celé karty klienta z pipeline. Použij JEN když uživatel výslovně řekne smazat / odstranit klienta (ne při Lost, zamrzlý, nezájem – to je set_stage). Provede se až po klepnutí.",
+      parameters: OBJ({ client_name: STR(CLIENT) }, ["client_name"]) },
+    { name: "add_product", description: "Připraví zápis sjednaného produktu ke klientovi; aplikace spočítá body a provizi stejně jako v kartě klienta. Při podpisu volej spolu se set_stage podpis. Každý produkt zvlášť. Provede se až po klepnutí." + (catalog ? " Produkty a varianty: " + catalog : ""),
+      parameters: OBJ({
+        client_name: STR(CLIENT),
+        product: STR("produkt" + (prodNames.length ? ": " + prodNames.join(", ") : ""), prodNames.length ? { enum: prodNames } : undefined),
+        variant: STR("varianta / společnost / fond, jak ji uživatel řekl (volitelné)"),
+        amount: NUM("částka v Kč: jednorázový vklad nebo měsíční platba (investice), měsíční pojistné (ŽP), měsíční příspěvek (DPS), výše úvěru (hypotéka, úvěr), cena nemovitosti (reality)"),
+        mode: STR("jen u investice: jednorazove nebo mesicne", { enum: ["jednorazove", "mesicne"] }),
+        fee_percent: NUM("jen u investice: vstupní poplatek v %; u reality: provize v %"),
+        years: NUM("jen u životního pojištění: doba v letech"),
+        age: NUM("jen u DPS: věk klienta"),
+      }, ["client_name", "product", "amount"]) },
     { name: "cancel_pending_plan", description: "Zruší plán, který čeká na provedení (odpočet běží nebo čeká na klepnutí). Zavolej, když to uživatel zruší nebo opraví.", parameters: OBJ({}) },
   ];
   const WRITE = {
@@ -417,6 +438,17 @@ function makeTools(core, host) {
       if (trim(a.due) && !due) return { error: "neplatný termín, očekávám YYYY-MM-DD" };
       return { action: { name: "add_task", input: { text: trim(a.text), client_name: trim(a.client_name), due } } };
     },
+    reschedule_meeting: a => { const s = normStart(a.new_start); if (!trim(a.client_name)) return { error: "chybí jméno klienta" }; if (!s || !core.parseLocal(s)) return { error: "neplatný nový čas, očekávám YYYY-MM-DDTHH:MM" }; const o = trim(a.old_start) ? normStart(a.old_start) : ""; if (trim(a.old_start) && !o) return { error: "neplatný původní čas" }; return { action: { name: "reschedule_meeting", input: { client_name: trim(a.client_name), new_start: s, old_start: o } } }; },
+    cancel_meeting: a => { if (!trim(a.client_name)) return { error: "chybí jméno klienta" }; const o = trim(a.old_start) ? normStart(a.old_start) : ""; if (trim(a.old_start) && !o) return { error: "neplatný čas schůzky" }; return { action: { name: "cancel_meeting", input: { client_name: trim(a.client_name), old_start: o } } }; },
+    delete_client: a => { if (!trim(a.client_name)) return { error: "chybí jméno klienta" }; return { action: { name: "delete_client", input: { client_name: trim(a.client_name) } } }; },
+    add_product: a => {
+      if (!trim(a.client_name)) return { error: "chybí jméno klienta" };
+      if (!trim(a.product)) return { error: "chybí produkt" };
+      const amt = +String(a.amount == null ? "" : a.amount).replace(/\s/g, "").replace(",", ".");
+      if (!(amt > 0)) return { error: "chybí částka (kladné číslo v Kč)" };
+      const num = v => (v == null || v === "" ? undefined : +v);
+      return { action: { name: "add_product", input: { client_name: trim(a.client_name), product: trim(a.product), variant: trim(a.variant), amount: amt, mode: trim(a.mode), fee_percent: num(a.fee_percent), years: num(a.years), age: num(a.age) } } };
+    },
     complete_task: a => { if (!trim(a.task_text)) return { error: "chybí text úkolu" }; return { action: { name: "complete_task", input: { task_text: trim(a.task_text) } } }; },
   };
   /* které argumenty se po návratu ze značek převádějí do 1. pádu (jméno zapsané ve skloňovaném tvaru) */
@@ -429,12 +461,15 @@ function makeTools(core, host) {
     return o;
   };
   const mine = () => (host.leads() || []).filter(l => l && !l.example && !l.shared);
+  let quick = null;   /* poslední odpověď get_overview pro rychlou odpověď bez dalšího kola */
   async function read(name, a) {
     if (name === "get_overview") {
       const day = DAYS_OK.test(trim(a.day)) ? trim(a.day) : "today", kind = ["tasks", "calls", "meetings", "agenda", "results"].includes(trim(a.kind)) ? trim(a.kind) : "agenda";
       const F = host.facts();
       if (!F) return { error: "data z aplikace teď nejsou dostupná" };
-      return { lines: core.answerQuery({ kind, day, client: kind === "meetings" ? trim(a.client) : "" }, F, host.now()).lines };
+      const ans = core.answerQuery({ kind, day, client: kind === "meetings" ? trim(a.client) : "" }, F, host.now());
+      quick = { lines: ans.lines, speak: ans.speak };
+      return { lines: ans.lines };
     }
     if (name === "find_client") {
       const r = core.resolveClient(trim(a.name), host.leads());
@@ -490,6 +525,7 @@ function makeTools(core, host) {
   /* calls = [{id,name,args}] z jedné odpovědi modelu; zápisy se spojí do jediného plánu */
   async function runBatch(calls) {
     const out = new Array(calls.length), writes = [];
+    quick = null;
     for (let i = 0; i < calls.length; i++) {
       const c = calls[i];
       try {
@@ -499,11 +535,16 @@ function makeTools(core, host) {
         else out[i] = res(c, await read(c.name, a));
       } catch (e) { out[i] = res(c, { error: String((e && e.message) || e) }); }
     }
+    let local = null;
     if (writes.length) {
       let r;
       try { r = await host.propose(writes.map(w => w.action)); } catch (e) { r = { ok: false, error: String((e && e.message) || e) }; }
+      if (r && r.local) { local = r.local; r = Object.assign({}, r); delete r.local; }
       writes.forEach(w => { out[w.i] = res(calls[w.i], r); });
-    }
+      /* jen zápisy a všechno v pořádku → odpověď složí appka sama a další kolo u Googlu se ušetří */
+      if (local && writes.length === calls.length && out.every(o => o && o.response && o.response.output && o.response.output.ok !== false)) out.finish = local;
+    } else if (calls.length === 1 && calls[0].name === "get_overview" && quick && quick.lines) out.finish = { text: quick.lines.join("\n"), speak: quick.speak || quick.lines.join(" ") };
+    else if (calls.length === 1 && calls[0].name === "cancel_pending_plan") out.finish = { text: "Dobře, zrušeno.", speak: "Dobře, zrušeno." };
     return out;
   }
   return { declarations, runBatch, WRITE_NAMES: Object.keys(WRITE) };
@@ -724,6 +765,13 @@ class LiveCall {
 }
 
 /* ================= textový mozek (psaní a rychlý režim) ================= */
+/* nová konverzace má jen text: odpovědi nástrojů (už zamaskované) se převedou na text, jinak by API hlásilo volání bez dotazu */
+function flattenFR(message) {
+  if (!Array.isArray(message) || !message.some(p => p && p.functionResponse)) return message;
+  const fr = message.filter(p => p && p.functionResponse).map(p => ({ tool: p.functionResponse.name, result: p.functionResponse.response }));
+  const txt = message.filter(p => p && typeof p.text === "string").map(p => p.text).join(" ");
+  return "[Výsledky nástrojů] " + JSON.stringify(fr).slice(0, 4000) + (txt ? "\n" + txt : "");
+}
 class Brain {
   /* o: {key, sdk(), models, system(), declarations, onTools(calls)→responses, shield (volitelně: maskování), onRequest(failed)} */
   constructor(o) { this.o = o; this.mi = 0; this.chat = null; this.turns = 0; this.noThink = false; this.shield = o.shield || null; }
@@ -734,10 +782,10 @@ class Brain {
   newChat(history) {
     const system = typeof this.o.system === "function" ? this.o.system() : this.o.system;
     const config = { systemInstruction: system, tools: [{ functionDeclarations: this.o.declarations }] };
-    if (!this.noThink) config.thinkingConfig = { thinkingLevel: "LOW" };
+    if (!this.noThink) config.thinkingConfig = { thinkingLevel: "MINIMAL" };   /* minimum přemýšlení = rychlejší odpověď; nástroje to zvládnou */
     return this.ai.chats.create({ model: this.models()[this.mi], config, ...(history && history.length ? { history } : {}) });
   }
-  reset() { this.chat = null; this.turns = 0; }
+  reset() { this.chat = null; this.turns = 0; this.pendingFR = null; }
   /* jen text z dosavadní konverzace (funkční volání a podpisy myšlení se mezi modely nepřenášejí) */
   textHistory() {
     try { return this.chat.getHistory(true).map(c => ({ role: c.role, parts: (c.parts || []).filter(p => p.text).map(p => ({ text: p.text })) })).filter(c => c.parts.length); } catch (e) { return []; }
@@ -750,8 +798,8 @@ class Brain {
       catch (e) {
         Usage.bump(true); if (this.o.onRequest) this.o.onRequest(true);
         const st = e && e.status, txt = String((e && e.message) || "");
-        if (st === 400 && /thinking/i.test(txt) && !this.noThink) { this.noThink = true; const h = this.textHistory(); this.chat = this.newChat(h); continue; }
-        if ((st === 404 || st === 429 || st === 503 || st === 500) && this.mi < this.models().length - 1) { const h = this.textHistory(); this.mi++; this.noThink = false; this.chat = this.newChat(h); continue; }
+        if (st === 400 && /thinking/i.test(txt) && !this.noThink) { this.noThink = true; const h = this.textHistory(); this.chat = this.newChat(h); message = flattenFR(message); continue; }
+        if ((st === 404 || st === 429 || st === 503 || st === 500) && this.mi < this.models().length - 1) { const h = this.textHistory(); this.mi++; this.noThink = false; this.chat = this.newChat(h); message = flattenFR(message); continue; }
         throw e;
       }
     }
@@ -759,17 +807,25 @@ class Brain {
   }
   async ask(text) {
     await this.init();
-    if (this.turns > 40) { const h = this.textHistory().slice(-12); this.chat = this.newChat(h); this.turns = 0; }
+    if (this.turns > 40) { const h = this.textHistory().slice(-12); this.chat = this.newChat(h); this.turns = 0; this.pendingFR = null; }
     this.turns++;
     const sent = this.shield ? this.shield.mask(String(text)) : String(text);
-    let resp = await this.send(sent), used = [];
+    /* odpovědi nástrojů z minulého kola, na které model ještě nereagoval (odpověď tehdy složila appka), jdou spolu s novou větou */
+    const pend = this.chat && this.pendingFR; this.pendingFR = null;
+    let resp, used = [];
+    if (pend) {
+      try { resp = await this.send([...pend, { text: sent }]); }
+      catch (e) { if (!(e && e.status === 400)) throw e; await this.send(pend); resp = await this.send(sent); }   /* kdyby API spojení nevzalo, pošlou se zvlášť */
+    } else resp = await this.send(sent);
     for (let i = 0; i < 6; i++) {
       const calls = resp.functionCalls;
       if (!calls || !calls.length) break;
       const list = calls.map(c => ({ id: c.id, name: c.name, args: c.args || {} }));
       used.push(...list.map(c => c.name));
       const out = await this.o.onTools(list);
-      resp = await this.send(out.map(r => ({ functionResponse: { id: r.id, name: r.name, response: r.response } })));
+      const parts = out.map(r => ({ functionResponse: { id: r.id, name: r.name, response: r.response } }));
+      if (out.finish && this.o.quick !== false) { this.pendingFR = parts; return { text: out.finish.text, speak: out.finish.speak, tools: used, model: this.models()[this.mi], sent, local: true }; }
+      resp = await this.send(parts);
     }
     let said = "";
     try { said = (resp.candidates && resp.candidates[0] && resp.candidates[0].content && resp.candidates[0].content.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join(" "); } catch (e) {}
