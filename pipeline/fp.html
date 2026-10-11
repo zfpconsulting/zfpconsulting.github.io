@@ -73,8 +73,8 @@ label.f input:focus,label.f select:focus,label.f textarea:focus{outline:2px soli
 /* ================= SLIDY (design 1600×900) ================= */
 .stage{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:0 0}
 .sl{position:absolute;inset:0;background:#161616;color:#efefef;font-family:Lato,system-ui,sans-serif;overflow:hidden;transition:opacity .55s ease, transform .7s cubic-bezier(.2,.8,.2,1)}
-.sl.enter{opacity:0;transform:translateX(60px)}
-.sl.leave{opacity:0;transform:translateX(-60px)}
+.sl.enter{opacity:0}
+.sl.leave{opacity:0}
 .sl .bar{position:absolute;left:0;top:0;width:100%;height:13px;background:#E8722A}
 .sl .logo{position:absolute;right:72px;top:62px;width:110px}
 .sl h2{position:absolute;left:80px;top:40px;margin:0;font-size:46px;font-weight:900;letter-spacing:-.5px}
@@ -362,7 +362,7 @@ function compute(inp, today, ext) {
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
     const dip = Math.min(prostor, pmt);
     if (prostor < S.dip_strop) flags.push(`DIP: daňový strop částečně čerpá DPS/ŽP — do DIP jen ${prostor} Kč/měs.`);
-    renta = { mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
+    renta = { mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
     flags.push(`Renta: kapitál se vyčerpá v ${S.doziti} letech (reálný výnos při čerpání ${(S.renta_r * 100).toFixed(1).replace(".", ",")} %).`);
   } else if (volne > 0) flags.push(`Nepřiřazený majetek ${Math.round(volne)} Kč — bez cíle renty.`);
   const PJ = inp.pojisteni || {};
@@ -525,7 +525,7 @@ const PPTX = (() => {
   const e = v => Math.round(v * EMU);
   const xe = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
   const parseColor = c => { const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/.exec(c || ""); if (!m) return null; const a = m[4] == null ? 1 : +m[4]; return { hex: [m[1], m[2], m[3]].map(x => (+x | 0).toString(16).padStart(2, "0")).join("").toUpperCase(), a }; };
-  const fill = (c, op) => { if (!c || c.a * op < 0.01) return "<a:noFill/>"; const a = Math.round(c.a * op * 100000); return `<a:solidFill><a:srgbClr val="${c.hex}">${a < 100000 ? `<a:alpha val="${a}"/>` : ""}</a:srgbClr></a:solidFill>`; };
+  const fill = (c, op) => { if (!c || c.a < 0.01) return "<a:noFill/>"; const a = Math.round(c.a * op * 100000); return `<a:solidFill><a:srgbClr val="${c.hex}">${a < 100000 ? `<a:alpha val="${a}"/>` : ""}</a:srgbClr></a:solidFill>`; };
   /* ---------- ZIP (bez komprese) ---------- */
   const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
   const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
@@ -564,48 +564,65 @@ const PPTX = (() => {
     const base = root.getBoundingClientRect(), out = [], used = {};
     const nm = k => { if (!k) return ""; let n = "!!" + k.replace(/[^\w\-]/g, "_"); if (used[n]) n += "_" + (used[n]++); else used[n] = 1; return n; };
     const R = el => { const r = el.getBoundingClientRect(); return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height }; };
-    async function walk(el, op, key) {
+    const INL = c => { const d = c.display; return (d === "inline" || d === "inline-block") && c.position !== "absolute"; };
+    // prvek s čistě řádkovým obsahem (text + inline značky) → jeden textový rámeček na řádek s více běhy
+    const inlineFlow = el => { let txt = false; const ok = n => { for (const c of n.childNodes) { if (c.nodeType === 3) { if (c.textContent.trim()) txt = true; } else if (c.nodeType === 1) { const t = c.tagName.toLowerCase(); if (t === "br") continue; if (t === "svg" || t === "img") return false; if (!INL(getComputedStyle(c))) return false; if (!ok(c)) return false; } } return true; }; return ok(el) && txt; };
+    async function walk(el, op, key, ghost) {
       const cs = getComputedStyle(el);
       if (cs.display === "none" || cs.visibility === "hidden") return;
-      op *= +cs.opacity; if (op < 0.04) return;
       const k = el.dataset && el.dataset.k ? el.dataset.k : key ? key + "_" : "";
+      op *= +cs.opacity;
+      if (op < 0.04) { if (!k) return; ghost = true; op = 0; } // neviditelný klíčový prvek zůstane průhledný – Morph ho pak plynule zobrazí / přesune
       const r = R(el), tag = el.tagName.toLowerCase();
       if (r.w < 0.5 && r.h < 0.5 && !(parseFloat(cs.borderTopWidth) > 0)) return;
       if (tag === "svg") { if (r.w > 1 && r.h > 1) out.push({ t: "pic", r, op, png: await svgPng(el, r.w, r.h), name: nm(k) }); return; }
       if (tag === "img") { if (r.w > 1 && r.h > 1) out.push({ t: "pic", r, op, png: await imgPng(el, r.w, r.h), name: nm(k) }); return; }
-      if (el.classList.contains("dn")) { out.push({ t: "pic", r, op, png: await donutPng(el, r.w, r.h, cs), name: nm(k) }); return; }
-      // plocha + ohraničení
+      if (el.classList.contains("dn")) { // prstenec z nativních oblouků → Morph animuje úhly stejně jako prohlížeč
+        const p1 = parseFloat(cs.getPropertyValue("--p1")) || 0, p2 = parseFloat(cs.getPropertyValue("--p2")) || 0, cols = ["E8722A", "5B8DD6", "8A8A8A"];
+        [[0, p1], [p1, p2], [p2, 100]].forEach(([a, b], ix) => out.push({ t: "arc", r, a, b, fill: { hex: cols[ix], a: 1 }, op, name: nm((k || "dn") + "a" + ix) }));
+        return;
+      }
+      boxOf(el, cs, r, op, k);
+      if (inlineFlow(el)) { let n = 0; for (const c of el.querySelectorAll("*")) { const cc = getComputedStyle(c); if (cc.display === "inline-block") boxOf(c, cc, R(c), op, k && k + "ib" + (n++)); } textFlow(el, cs, op, k); return; }
+      for (const n of el.childNodes) {
+        if (n.nodeType === 3) { if (n.textContent.trim()) textFlow(n, cs, op, k); }
+        else if (n.nodeType === 1) await walk(n, op, k, ghost);
+      }
+    }
+    function boxOf(el, cs, r, op, k) {
       const bg = parseColor(cs.backgroundColor) || (/gradient/.test(cs.backgroundImage) ? parseColor((cs.backgroundImage.match(/rgba?\([^)]+\)/) || [])[0]) : null);
       const bw = ["Top", "Right", "Bottom", "Left"].map(s => ({ w: parseFloat(cs["border" + s + "Width"]) || 0, c: parseColor(cs["border" + s + "Color"]), st: cs["border" + s + "Style"] }));
       const vis = b => b.w > 0 && b.st !== "none" && b.c && b.c.a > 0.01;
       const rad = parseFloat(cs.borderTopLeftRadius) || 0;
-      if (vis(bw[0]) && bw[1].w > 0 && !vis(bw[1]) && Math.abs(r.w - bw[1].w - bw[3].w) < 0.6 && Math.abs(r.h - bw[0].w - bw[2].w) < 0.6) { // CSS trojúhelník (šipka dolů)
-        out.push({ t: "tri", r: { x: r.x, y: r.y, w: bw[1].w + bw[3].w, h: bw[0].w }, fill: bw[0].c, op, name: nm(k) });
-      } else {
-        const uni = bw.every(b => vis(b) && Math.abs(b.w - bw[0].w) < 0.1 && b.c.hex === bw[0].c.hex);
-        if ((bg && bg.a > 0.01) || uni) out.push({ t: "box", r, fill: bg, line: uni ? bw[0] : null, rad, op, name: nm(k), ell: rad >= Math.min(r.w, r.h) / 2 - 0.5 && Math.abs(r.w - r.h) < 2 });
-        if (!uni) bw.forEach((b, i) => { if (!vis(b)) return; const rr = i === 0 ? { x: r.x, y: r.y, w: r.w, h: b.w } : i === 2 ? { x: r.x, y: r.y + r.h - b.w, w: r.w, h: b.w } : i === 3 ? { x: r.x, y: r.y, w: b.w, h: r.h } : { x: r.x + r.w - b.w, y: r.y, w: b.w, h: r.h };
-          if (b.st === "dashed" || b.st === "dotted") out.push({ t: "line", r: i % 2 ? { x: rr.x + b.w / 2, y: rr.y, w: 0, h: rr.h } : { x: rr.x, y: rr.y + b.w / 2, w: rr.w, h: 0 }, line: b, op, name: nm(k && k + "b" + i) });
-          else out.push({ t: "box", r: rr, fill: b.c, op, rad: 0, name: nm(k && k + "b" + i) }); });
-      }
-      // texty: každý textový uzel po řádcích na přesné pozici
-      for (const n of el.childNodes) {
-        if (n.nodeType === 3) { if (n.textContent.trim()) textRuns(n, cs, op, k); }
-        else if (n.nodeType === 1) await walk(n, op, k);
-      }
+      if (vis(bw[0]) && bw[1].w > 0 && !vis(bw[1]) && Math.abs(r.w - bw[1].w - bw[3].w) < 0.6 && Math.abs(r.h - bw[0].w - bw[2].w) < 0.6) { out.push({ t: "tri", r: { x: r.x, y: r.y, w: bw[1].w + bw[3].w, h: bw[0].w }, fill: bw[0].c, op, name: nm(k) }); return; }
+      const uni = bw.every(b => vis(b) && Math.abs(b.w - bw[0].w) < 0.1 && b.c.hex === bw[0].c.hex);
+      if ((bg && bg.a > 0.01) || uni) out.push({ t: "box", r, fill: bg, line: uni ? bw[0] : null, rad, op, name: nm(k), ell: rad >= Math.min(r.w, r.h) / 2 - 0.5 && Math.abs(r.w - r.h) < 2 });
+      if (!uni) bw.forEach((b, i) => { if (!vis(b)) return; const rr = i === 0 ? { x: r.x, y: r.y, w: r.w, h: b.w } : i === 2 ? { x: r.x, y: r.y + r.h - b.w, w: r.w, h: b.w } : i === 3 ? { x: r.x, y: r.y, w: b.w, h: r.h } : { x: r.x + r.w - b.w, y: r.y, w: b.w, h: r.h };
+        if (b.st === "dashed" || b.st === "dotted") out.push({ t: "line", r: i % 2 ? { x: rr.x + b.w / 2, y: rr.y, w: 0, h: rr.h } : { x: rr.x, y: rr.y + b.w / 2, w: rr.w, h: 0 }, line: b, op, name: nm(k && k + "b" + i) });
+        else out.push({ t: "box", r: rr, fill: b.c, op, rad: 0, name: nm(k && k + "b" + i) }); });
     }
-    function textRuns(node, cs, op, k) {
-      const txt = node.textContent, rg = document.createRange(), words = [], re = /\S+\s*/g; let m;
-      const tt = cs.textTransform === "uppercase" ? s => s.toUpperCase() : s => s;
-      while ((m = re.exec(txt))) { rg.setStart(node, m.index); rg.setEnd(node, m.index + m[0].trimEnd().length); const rs = rg.getClientRects(); if (!rs.length) continue; const q = rs[0]; words.push({ s: m[0], x: q.left - base.left, y: q.top - base.top, w: q.width, h: q.height, x2: rs[rs.length - 1].right - base.left }); }
-      const lines = []; words.forEach(w => { const L = lines[lines.length - 1]; if (L && Math.abs(L.y - w.y) < 3) { L.s += w.s; L.x2 = Math.max(L.x2, w.x2); L.h = Math.max(L.h, w.h); } else lines.push({ s: w.s, x: w.x, y: w.y, x2: w.x2, h: w.h }); });
-      const lead = /^\s/.test(txt) && lines.length ? "" : "";
-      const li = node.parentElement && node.parentElement.tagName === "LI" && node === node.parentElement.firstChild;
+    // text: slova ze všech textových uzlů (s vlastním stylem) → řádky → běhy
+    function textFlow(scope, scs, op, k) {
+      const nodes = [];
+      if (scope.nodeType === 3) nodes.push([scope, scs]);
+      else { const tw = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT); let n = tw.currentNode;
+        while ((n = tw.nextNode())) { if (n.nodeType === 3 && n.textContent.trim()) nodes.push([n, getComputedStyle(n.parentElement)]); } }
+      const words = [], rg = document.createRange();
+      nodes.forEach(([node, cs]) => { const txt = node.textContent, re = /\S+\s*/g; let m; const up = cs.textTransform === "uppercase";
+        const st = { fs: parseFloat(cs.fontSize), b: +cs.fontWeight >= 700 || cs.fontWeight === "bold", i: cs.fontStyle === "italic", col: parseColor(cs.color), ff: /lato/i.test(cs.fontFamily) ? "Lato" : "Arial" };
+        const lead = /^\s/.test(txt);
+        let first = true;
+        while ((m = re.exec(txt))) { rg.setStart(node, m.index); rg.setEnd(node, m.index + m[0].trimEnd().length); const rs = rg.getClientRects(); if (!rs.length) continue; const q = rs[0];
+          words.push({ s: (first && lead ? " " : "") + (up ? m[0].toUpperCase() : m[0]), x: q.left - base.left, y: q.top - base.top, h: q.height, x2: rs[rs.length - 1].right - base.left, st }); first = false; } });
+      const lines = [];
+      words.forEach(w => { const L = lines[lines.length - 1], c = w.y + w.h / 2; if (L && Math.abs(L.c - c) < Math.max(L.h, w.h) / 2) { L.w.push(w); L.x2 = Math.max(L.x2, w.x2); L.y = Math.min(L.y, w.y); L.h = Math.max(L.h, w.h); } else lines.push({ w: [w], x: w.x, y: w.y, x2: w.x2, h: w.h, c }); });
+      const li = scope.nodeType === 1 && scope.tagName === "LI";
       lines.forEach((L, i) => {
-        const col = parseColor(cs.color), fs = parseFloat(cs.fontSize), fw = +cs.fontWeight >= 700 || cs.fontWeight === "bold";
-        const s = (li && i === 0 ? "•  " : "") + lead + tt(L.s.trimEnd());
-        const xx = li && i === 0 ? L.x - fs * 1.1 : L.x;
-        out.push({ t: "text", r: { x: xx, y: L.y, w: (L.x2 - xx) * 1.08 + 4, h: L.h }, s, fs, b: fw, i: cs.fontStyle === "italic", col, op, ff: /lato/i.test(cs.fontFamily) ? "Lato" : "Arial", name: nm(k && k + "t" + i) });
+        const runs = []; L.w.forEach(w => { const R0 = runs[runs.length - 1]; if (R0 && R0.st === w.st) R0.s += w.s; else runs.push({ s: w.s, st: w.st }); });
+        runs[0].s = runs[0].s.replace(/^\s+/, ""); runs[runs.length - 1].s = runs[runs.length - 1].s.replace(/\s+$/, "");
+        let x = L.x;
+        if (li && i === 0) { runs.unshift({ s: "•  ", st: runs[0].st }); x -= runs[0].st.fs * 1.1; }
+        out.push({ t: "text", r: { x, y: L.y, w: (L.x2 - x) * 1.1 + 6, h: L.h }, runs, op, name: nm(k && k + "t" + i) });
       });
     }
     for (const c of root.children) await walk(c, 1, "");
@@ -624,16 +641,19 @@ const PPTX = (() => {
     }
     if (sh.t === "tri") return `<p:sp><p:nvSpPr>${nv}<p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm rot="10800000"><a:off x="${e(r.x)}" y="${e(r.y)}"/><a:ext cx="${e(r.w)}" cy="${e(r.h)}"/></a:xfrm><a:prstGeom prst="triangle"><a:avLst/></a:prstGeom>${fill(sh.fill, sh.op)}<a:ln><a:noFill/></a:ln></p:spPr>${empty}</p:sp>`;
     if (sh.t === "line") return `<p:cxnSp><p:nvCxnSpPr>${nv}<p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm><a:off x="${e(r.x)}" y="${e(r.y)}"/><a:ext cx="${e(r.w)}" cy="${e(r.h)}"/></a:xfrm><a:prstGeom prst="line"><a:avLst/></a:prstGeom><a:ln w="${e(sh.line.w)}">${fill(sh.line.c, sh.op)}<a:prstDash val="${sh.line.st === "dotted" ? "sysDot" : "dash"}"/></a:ln></p:spPr></p:cxnSp>`;
+    if (sh.t === "arc") { const ang = p => Math.round(((270 + p * 3.6) % 360) * 60000), full = sh.b - sh.a >= 99.99;
+      return `<p:sp><p:nvSpPr>${nv}<p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${xf}<a:prstGeom prst="blockArc"><a:avLst><a:gd name="adj1" fmla="val ${ang(sh.a)}"/><a:gd name="adj2" fmla="val ${full ? ang(sh.a) - 1 : ang(sh.b)}"/><a:gd name="adj3" fmla="val 21250"/></a:avLst></a:prstGeom>${fill(sh.fill, sh.b - sh.a > 0.01 ? sh.op : 0)}<a:ln><a:noFill/></a:ln></p:spPr>${empty}</p:sp>`; }
     // text
+    const runs = sh.runs.map(rn => `<a:r><a:rPr lang="cs-CZ" sz="${Math.max(100, Math.round(rn.st.fs * 60))}" b="${rn.st.b ? 1 : 0}" i="${rn.st.i ? 1 : 0}" dirty="0">${fill(rn.st.col, sh.op)}<a:latin typeface="${rn.st.ff}"/><a:cs typeface="${rn.st.ff}"/></a:rPr><a:t>${xe(rn.s)}</a:t></a:r>`).join("");
     return `<p:sp><p:nvSpPr>${nv}<p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr>${xf}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>
-<p:txBody><a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPct val="100000"/></a:lnSpc></a:pPr><a:r><a:rPr lang="cs-CZ" sz="${Math.max(100, Math.round(sh.fs * 60))}" b="${sh.b ? 1 : 0}" i="${sh.i ? 1 : 0}" dirty="0">${fill(sh.col, sh.op)}<a:latin typeface="${sh.ff}"/><a:cs typeface="${sh.ff}"/></a:rPr><a:t>${xe(sh.s)}</a:t></a:r></a:p></p:txBody></p:sp>`;
+<p:txBody><a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPct val="100000"/></a:lnSpc></a:pPr>${runs}</a:p></p:txBody></p:sp>`;
   }
   const NS = `xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"`;
   function slideXml(shapes, bg, trans, rels) {
     let id = 2, ri = 0;
     const body = shapes.map(sh => shapeXml(sh, id++, sh.t === "pic" ? "rId" + (2 + ri++) : null)).join("");
     const tr = trans === "morph"
-      ? `<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main" Requires="p159"><p:transition spd="slow" p14:dur="1100"><p159:morph option="byObject"/></p:transition></mc:Choice><mc:Fallback><p:transition spd="slow"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>`
+      ? `<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main" Requires="p159"><p:transition spd="slow" p14:dur="900"><p159:morph option="byObject"/></p:transition></mc:Choice><mc:Fallback><p:transition spd="slow"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>`
       : `<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" Requires="p14"><p:transition spd="med" p14:dur="600"><p:fade/></p:transition></mc:Choice><mc:Fallback><p:transition spd="med"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>`;
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld ${NS} xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"><p:cSld><p:bg><p:bgPr>${fill(bg, 1)}<a:effectLst/></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${body}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${tr}</p:sld>`;
@@ -896,13 +916,13 @@ function buildFrames(I,R){
   const out=[];
   const PR=[{n:"Rezerva",kdy:"Ihned",cil:kc(R.rez.cil),lump:R.rez.vklad,pmt:0,vys:kc(R.rez.vklad),s:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100),sj:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100)}]
    .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),lump:c.vklad,pmt:c.pmt,vys:kc(c.vysledek),s:Math.round(c.splneni*100),sj:Math.round(c.splneniJ*100)})))
-   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(R.renta.kap),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(R.renta.vysledek),s:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100)}]:[]);
+   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(R.renta.kap),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(R.renta.vysledek),s:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100),sd:Math.round(R.renta.splneniDps*100)}]:[]);
   const nGoals=PR.length;
   if(withIns){if(R.pojNove)PR.push({n:"Životní pojištění",kdy:"Ihned",cil:"–",lump:0,pmt:R.pojNove,vys:"–",s:null,ins:1});
     R.pojOst.forEach(x=>PR.push({n:esc(x.nazev.replace("Pojištění ","Poj. ")),kdy:"Ihned",cil:x.pc?kc(x.pc):"–",lump:0,pmt:x.plat,vys:"–",s:null,ins:1}))}
-  const TXP=[];PR.forEach((r,i)=>{if(r.lump>0.5)TXP.push({i,k:"v",a:r.lump});if(r.pmt>0.5)TXP.push({i,k:"p",a:r.pmt})});
+  const TXP=[];PR.forEach((r,i)=>{if(r.dps>0.5)TXP.push({i,k:"v",a:r.dps,dps:1});if(r.lump>0.5)TXP.push({i,k:"v",a:r.lump});if(r.pmt>0.5)TXP.push({i,k:"p",a:r.pmt})});
   const pre=withIns?TXP.filter(t=>t.i<nGoals).length:0;
-  const M0=TXP.filter(t=>t.k==="v").reduce((a,t)=>a+t.a,0)+R.zbyva;
+  const M0=R.majCelkem;
   const COL={n:[80,250],kdy:[340,110],cil:[460,300],v:[780,230],p:[1030,210],vys:[1250,170],s:[1430,90]};
   const gap=PR.length>6?52:PR.length>5?58:68,rowY=i=>445+i*gap,rh=gap-6;
   const bx=[80,445,810,1175];
@@ -910,7 +930,7 @@ function buildFrames(I,R){
     const done=TXP.slice(0,step),t=step>pre?TXP[step-1]:null;
     const sumV=done.filter(x=>x.k==="v").reduce((a,x)=>a+x.a,0),sumP=done.filter(x=>x.k==="p").reduce((a,x)=>a+x.a,0);
     const mz=M0-sumV,cz=R.cf-sumP;
-    const has=(i,k)=>done.some(x=>x.i===i&&x.k===k),rowDone=i=>TXP.filter(x=>x.i===i).every(x=>done.includes(x));
+    const has=(i,k)=>done.some(x=>x.i===i&&x.k===k),rowDone=i=>TXP.filter(x=>x.i===i).every(x=>done.includes(x)),vSum=i=>done.filter(x=>x.i===i&&x.k==="v").reduce((a,x)=>a+x.a,0),onlyDps=i=>has(i,"v")&&done.filter(x=>x.i===i&&x.k==="v").every(x=>x.dps);
     const box=(n,l,big,sub,bar,act)=>`<div class="card k" data-k="bc${n}" style="left:${bx[n]}px;top:170px;width:340px;height:150px;border-color:${act?"#E8722A":"#2e2e2e"}"></div>
       <div style="position:absolute;left:${bx[n]+20}px;top:185px;font-size:15px;color:#b4b4b4">${l}</div>
       <div class="k" data-k="bv${n}" style="position:absolute;left:${bx[n]+20}px;top:212px;font-size:32px;font-weight:900;color:#E8722A">${big}</div>
@@ -926,20 +946,20 @@ function buildFrames(I,R){
       [["n","Co"],["kdy","Kdy"],["cil","Cíl"],["v","Jedn. vklad"],["p","Prav. platba"],["vys","Výsledek"],["s","Splnění"]].map(([c,tt])=>`<div style="position:absolute;left:${COL[c][0]}px;top:402px;width:${COL[c][1]}px;font-size:14px;font-weight:700;color:#cfcfcf;text-transform:uppercase;letter-spacing:.3px;text-align:${c==="n"?"left":c==="kdy"?"center":"right"}">${tt}</div>`).join("");
     h+=`<div class="k" data-k="hl" style="position:absolute;left:${t?COL[t.k][0]-14:COL.v[0]-14}px;top:${t?rowY(t.i)+4:rowY(0)+4}px;width:${COL.v[1]+24}px;height:${rh-8}px;border-radius:8px;background:rgba(232,114,42,.16);border:2px solid #E8722A;opacity:${t?1:0}"></div>`;
     PR.forEach((r,i)=>{const y=rowY(i),rd=rowDone(i)&&done.some(x=>x.i===i),part=!rowDone(i)&&has(i,"v");
-      const sTxt=r.s==null?(rd?"✓":""):rd?r.s+" %":part?r.sj+" %":"";
+      const sTxt=r.s==null?(rd?"✓":""):rd?r.s+" %":part?(onlyDps(i)?r.sd:r.sj)+" %":"";
       h+=`<div style="position:absolute;left:80px;top:${y+rh}px;width:1440px;height:1px;background:#2c2c2c"></div>
        <div style="position:absolute;left:${COL.n[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.n[1]+20}px;font-size:18px;font-weight:700;white-space:nowrap">${r.n}</div>
        <div style="position:absolute;left:${COL.kdy[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.kdy[1]}px;text-align:center;font-size:17px">${r.kdy}</div>
        <div style="position:absolute;left:${COL.cil[0]}px;top:${y+(r.sub?4:rh>56?16:12)}px;width:${COL.cil[1]}px;text-align:right;font-size:17px">${r.cil}${r.sub?`<div class="mut" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.sub)}</div>`:""}</div>
-       <div class="k" data-k="v${i}" style="position:absolute;left:${COL.v[0]}px;top:${y+(r.dps?4:rh>56?16:12)}px;width:${COL.v[1]}px;text-align:right;font-size:18px;font-weight:700;color:${has(i,"v")?"#E8722A":"#555"}">${r.lump||!r.ins?kc(has(i,"v")?r.lump:0):"–"}${r.dps?`<div class="mut" style="font-size:12px;font-weight:400">+ DPS ${kc(r.dps)}</div>`:""}</div>
+       <div class="k" data-k="v${i}" style="position:absolute;left:${COL.v[0]}px;top:${y+(r.dps?4:rh>56?16:12)}px;width:${COL.v[1]}px;text-align:right;font-size:18px;font-weight:700;color:${has(i,"v")?"#E8722A":"#555"}">${r.lump||r.dps||!r.ins?kc(vSum(i)):"–"}${r.dps?`<div class="mut" style="font-size:12px;font-weight:400">z toho DPS ${kc(r.dps)}</div>`:""}</div>
        <div class="k" data-k="p${i}" style="position:absolute;left:${COL.p[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.p[1]}px;text-align:right;font-size:18px;font-weight:700;color:${has(i,"p")?"#E8722A":"#555"}">${kc(has(i,"p")?r.pmt:0)}</div>
        <div class="k" data-k="r${i}" style="position:absolute;left:${COL.vys[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.vys[1]}px;text-align:right;font-size:17px;opacity:${rd?1:0}">${r.vys}</div>
        <div class="k" data-k="s${i}" style="position:absolute;left:${COL.s[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.s[1]}px;text-align:right;font-size:18px;font-weight:900;color:${rd?"#4FB389":"#E8722A"};opacity:${sTxt?1:0}">${sTxt}</div>`});
     TXP.forEach((x,j)=>{if(j<pre)return;const cur=j===step-1,past=j<step-1,src=x.k==="v"?0:1;
       const atCell=cur||past,X=atCell?COL[x.k][0]+COL[x.k][1]-190:bx[src]+80,Y=atCell?rowY(x.i)+rh/2-22:226;
       h+=`<div class="k" data-k="ch${j}" style="position:absolute;left:${X}px;top:${Y}px;width:190px;height:44px;border-radius:22px;background:#E8722A;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;opacity:${cur?1:0};transition:all 1.1s cubic-bezier(.5,0,.2,1)">${x.k==="p"?fmt(x.a)+"/měs":fmt(x.a)+NB+"Kč"}</div>`});
-    const r=t?PR[t.i]:null,partTxt=t&&t.k==="v"&&r.pmt>0.5&&r.s!=null?` <span class="mut">· jednorázový vklad pokryje ${r.sj} % – zbytek doplníme z cash flow</span>`:t&&t.k==="p"&&r.s!=null?` <span class="mut">· cíl splněn na ${r.s} %</span>`:"";
-    h+=`<div class="k" data-k="ptxt" style="position:absolute;left:80px;top:812px;width:1440px;font-size:19px">${t?`<b class="o">${t.k==="v"?kc(t.a):kcm(t.a)}</b> ${t.k==="v"?"z finančního majetku jako jednorázový vklad":"z cash flow jako pravidelná platba"} → <b>${r.n}</b>${partTxt}`:withIns?`<span class="mut">Volné cash flow po investicích: ${kcm(R.cf-R.pmtCelkem)}.</span>`:`<span class="mut">Majetek ${kc(M0)} a volné cash flow ${kcm(R.cf)} rozdělíme krok za krokem.</span>`}</div>
+    const r=t?PR[t.i]:null,partTxt=t&&t.dps?` <span class="mut">· samo pokryje ${r.sd} % renty</span>`:t&&t.k==="v"&&r.pmt>0.5&&r.s!=null?` <span class="mut">· jednorázový vklad pokryje ${r.sj} % – zbytek doplníme z cash flow</span>`:t&&t.k==="p"&&r.s!=null?` <span class="mut">· cíl splněn na ${r.s} %</span>`:"";
+    h+=`<div class="k" data-k="ptxt" style="position:absolute;left:80px;top:812px;width:1440px;font-size:19px">${t?`<b class="o">${t.k==="v"?kc(t.a):kcm(t.a)}</b> ${t.dps?"stávající DPS – zůstává a pracuje pro rentu":t.k==="v"?"z finančního majetku jako jednorázový vklad":"z cash flow jako pravidelná platba"} → <b>${r.n}</b>${partTxt}`:withIns?`<span class="mut">Volné cash flow po investicích: ${kcm(R.cf-R.pmtCelkem)}.</span>`:`<span class="mut">Finanční majetek ${kc(M0)} a volné cash flow ${kcm(R.cf)} rozdělíme krok za krokem.</span>`}</div>
       <div class="foot">Vstupní poplatky produktů jsou započteny v každém vkladu. Renta: do starobního důchodu celá, potom dorovnání ke státnímu důchodu do ${R.S.doziti} let. Cíle v dnešních cenách.</div>`;
     out.push({g:G,h,lbl:(withIns?"Plán + pojištění":"Plán")+(step>pre?": krok "+(step-pre):"")});
   }
@@ -1042,7 +1062,7 @@ function buildFrames(I,R){
   });
   // realokace – převody a trvalé příkazy (jeden snímek = jedna transakce, peníze se přesunou)
   const prodOf=k=>FPE.PRODUKTY.find(x=>x.k===k)||(R.pozice.find(p=>p.k===k)?{s:R.pozice.find(p=>p.k===k).s}:null);
-  const why=t=>{if(t.bezpoplatku)return "Penzijní připojištění převádíme do DPS bez poplatku – dynamická strategie s vyšším výnosem.";if(t.naUcet)return "Zbytek zůstává jako hotovost na spořicím účtu.";if(t.chybi)return "Na tuto částku chybí zdroj – uprav návrh realokace.";
+  const why=t=>{if(t.k==="poj")return "Ochrana příjmu a majetku – platí se z cash flow.";if(t.bezpoplatku)return "Penzijní připojištění převádíme do DPS bez poplatku – dynamická strategie s vyšším výnosem.";if(t.naUcet)return "Zbytek zůstává jako hotovost na spořicím účtu.";if(t.chybi)return "Na tuto částku chybí zdroj – uprav návrh realokace.";
     const p=prodOf(t.k);if(!p)return "";return p.dip?"Daňově zvýhodněná část renty.":p.s[0]===100?"Akciová složka – růst na dlouhý horizont.":p.s[1]===100?"Dluhopisová složka – stabilita a nižší kolísání.":p.s[2]===100?"Hotovostní složka – likvidita.":"Smíšené portfolio."};
   const txFrames=(TX,bal0,dst0,unit,G,title,lblOne,intro)=>{
     if(!TX.length)return;
@@ -1073,14 +1093,16 @@ function buildFrames(I,R){
   { const TX=R.transakce,b0={},d0={};TX.forEach(t=>{if(b0[t.z]==null){const m=R.maj.find(a=>(a.nazev||a.typ)===t.z);b0[t.z]=m?m.hodnota:TX.filter(x=>x.z===t.z).reduce((a,x)=>a+x.castka,0)}});
     TX.forEach(t=>{if(d0[t.do]==null){const m=R.maj.find(a=>(a.nazev||a.typ)===t.do);d0[t.do]=m?m.hodnota:0}});
     txFrames(TX,b0,d0,false,"tx","Převody","Převod","Výchozí stav – odkud peníze půjdou"); }
-  { const TO=R.pozice.filter(p=>p.mesicne>0).map(p=>({z:"Volné cash flow",do:p.nazev,k:p.k,castka:p.mesicne}));
-    txFrames(TO,{"Volné cash flow":R.pmtCelkem},{},true,"to","Trvalé příkazy","Trvalý příkaz","Pravidelné investice z cash flow"); }
+  { const TO=R.pozice.filter(p=>p.mesicne>0).map(p=>({z:"Volné cash flow",do:p.nazev,k:p.k,castka:p.mesicne}))
+      .concat(R.pojNove?[{z:"Volné cash flow",do:"Životní pojištění",k:"poj",castka:R.pojNove}]:[])
+      .concat(R.pojOst.map(x=>({z:"Volné cash flow",do:x.nazev,k:"poj",castka:x.plat})));
+    txFrames(TO,{"Volné cash flow":TO.reduce((a,x)=>a+x.castka,0)},{},true,"to","Trvalé příkazy","Trvalý příkaz","Pravidelné investice a pojištění z cash flow"); }
   // produkty
   const fee=x=>{const f=R.poplatky.find(q=>q.k===x.k);return f?(f.vstupJ||f.vstupM?kc(f.vstupJ)+(f.vstupM?` + ${fmt(f.vstupM)}/měs`:""):"0 Kč"):"–"};
-  F.push({g:"r2",h:chrome("Návrh realokace","Detailní přehled produktů a změn"+(R.manual?" (upraveno ručně)":""))+`<table class="t" style="left:50px;top:170px;width:1500px;font-size:15.5px"><tr><th>Produkt</th><th>Nový zůstatek</th><th>Měs. vklady</th><th>Podíl</th><th>Korekce zůst.</th><th>Korekce vkl.</th><th>Vstupní poplatek</th><th>Poznámka</th></tr>
-   ${R.produkty.map(p=>`<tr><td style="font-weight:700">${esc(p.nazev)}</td><td>${kc(p.zust)}</td><td>${kc(p.mes)}</td><td>${p.podil} %</td><td class="${p.korZ>0?"grn":p.korZ<0?"red":"mut"}">${sgn(p.korZ)}</td><td class="${p.korV>0?"grn":p.korV<0?"red":"mut"}">${sgn(p.korV)}</td><td class="mut">${p.novy?fee(p):"–"}</td><td class="mut" style="text-align:left;font-style:italic;white-space:normal">${esc(p.pozn)}</td></tr>`).join("")}
-   <tr class="sum"><td>Celkem</td><td>${kc(R.produkty.reduce((s,p)=>s+p.zust,0))}</td><td>${kc(R.produkty.reduce((s,p)=>s+p.mes,0))}</td><td>100 %</td><td></td><td class="grn">${sgn(R.produkty.reduce((s,p)=>s+p.korV,0))}</td><td>${kc(R.poplatky.reduce((s,f)=>s+f.vstupJ,0))}</td><td></td></tr></table>
-   <div class="foot">Vstupní poplatky jsou už započtené ve výpočtu plánu (každý vklad je o poplatek nižší). Procentní podíl se týká zůstatků; pravidelné vklady se v čase rebalancují.</div>`,lbl:"Produkty"});
+  F.push({g:"r2",h:chrome("Návrh realokace","Detailní přehled produktů a změn"+(R.manual?" (upraveno ručně)":""))+`<table class="t" style="left:50px;top:170px;width:1500px;font-size:15.5px"><tr><th>Produkt</th><th>Nový zůstatek</th><th>Měs. vklady</th><th>Podíl</th><th>Korekce zůst.</th><th>Korekce vkl.</th><th>Poznámka</th></tr>
+   ${R.produkty.map(p=>`<tr><td style="font-weight:700">${esc(p.nazev)}</td><td>${kc(p.zust)}</td><td>${kc(p.mes)}</td><td>${p.podil} %</td><td class="${p.korZ>0?"grn":p.korZ<0?"red":"mut"}">${sgn(p.korZ)}</td><td class="${p.korV>0?"grn":p.korV<0?"red":"mut"}">${sgn(p.korV)}</td><td class="mut" style="text-align:left;font-style:italic;white-space:normal">${esc(p.pozn)}</td></tr>`).join("")}
+   <tr class="sum"><td>Celkem</td><td>${kc(R.produkty.reduce((s,p)=>s+p.zust,0))}</td><td>${kc(R.produkty.reduce((s,p)=>s+p.mes,0))}</td><td>100 %</td><td></td><td class="grn">${sgn(R.produkty.reduce((s,p)=>s+p.korV,0))}</td><td></td></tr></table>
+   <div class="foot">Procentní podíl se týká zůstatků; pravidelné vklady se v čase rebalancují.</div>`,lbl:"Produkty"});
   // portfolio – přehled, pak se postupně „otevře“ každý produkt (informace + historický graf)
   {
   const PZ=R.pozice.filter(p=>p.jednor>0||p.mesicne>0),PI=R.portfolio.invest,W=R.portfolio.w,pc=["#E8722A","#2E9C8F","#5b8dd6","#C2508D","#6BAA45","#D9A441","#8a8a8a"];
@@ -1109,8 +1131,8 @@ function buildFrames(I,R){
       ${ys.map(yy=>{const xx=X(Date.UTC(yy,0,1)/864e5);return `<line x1="${xx}" y1="0" x2="${xx}" y2="${h}" stroke="#2c2c2c"/><text x="${xx+4}" y="${h+18}" fill="#8a8a8a" font-size="13">${yy}</text>`}).join("")}
       <polygon points="0,${h} ${line} ${w},${h}" fill="url(#gg)"/><polyline points="${line}" fill="none" stroke="#E8722A" stroke-width="3"/></svg>`};
   const N=PZ.length;
-  for(let open=-1;open<=N;open++){
-    const op=open>=0&&open<N?open:-1;
+  const seq=[-1];for(let q=0;q<N;q++)seq.push(q,-1);
+  for(const op of seq){
     let h=chrome("Detailní pohled: Naše portfolio",op>=0?esc(PZ[op].nazev):"Složení investic po realokaci")+
      (PI.length?`<div class="k" data-k="dnut" style="position:absolute;left:90px;top:200px;opacity:${op>=0?0:1}">${donut(PI.map(p=>p.castka),pc,330,0)}</div>
       <div class="k" data-k="leg" style="position:absolute;left:80px;top:560px;font-size:15px;line-height:1.7;opacity:${op>=0?0:1}">${PI.map((p,i)=>`<div><span style="display:inline-block;width:13px;height:13px;background:${pc[i%pc.length]};margin-right:8px"></span>${esc(p.nazev)} (${W[i]} %)</div>`).join("")}</div>`:"")+
@@ -1131,7 +1153,6 @@ function buildFrames(I,R){
     h+=`<div class="k" data-k="wr" style="position:absolute;left:640px;top:${rowY(N)+6}px;width:880px;display:flex;justify-content:space-between;font-size:18px;opacity:${op>=0?0:1}"><b class="o">Vážený čistý výnos</b><b class="o">${PI.length?pct(wR,2):"–"}</b></div>
       <div class="foot" style="bottom:12px">Čistý výnos = předpoklad plánu po poplatku za správu (nominálně). Historické výnosy nejsou zárukou budoucích.</div>`;
     F.push({g:"pf",h,lbl:op>=0?"Portfolio: "+PZ[op].nazev:"Portfolio"});
-    if(open===-1&&!N)break;
   }
   }
   // časová osa
