@@ -1010,7 +1010,7 @@ function buildFrames(I,R){
     PR.forEach((r,i)=>{const y=rowY(i),rd=rowDone(i)&&done.some(x=>x.i===i),part=!rowDone(i)&&has(i,"v");
       const F2=fin&&r.kr,sTxt=r.s==null?(rd?"✓":""):F2?"100 %":rd?r.s+" %":part?(onlyDps(i)?r.sd:r.sj)+" %":"";
       h+=`<div style="position:absolute;left:80px;top:${y+rh}px;width:1440px;height:1px;background:#2c2c2c"></div>
-       <div style="position:absolute;left:${COL.n[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.n[1]+20}px;font-size:18px;font-weight:700;white-space:nowrap">${r.n}</div>
+       <div style="position:absolute;left:${COL.n[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.n[1]}px;font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.n}">${r.n}</div>
        <div style="position:absolute;left:${COL.kdy[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.kdy[1]}px;text-align:center;font-size:17px">${r.kdy}</div>
        <div class="k" data-k="c${i}" style="position:absolute;left:${COL.cil[0]}px;top:${y+(F2?2:r.sub?4:rh>56?16:12)}px;width:${COL.cil[1]}px;text-align:right;font-size:${F2?13:17}px;color:${F2?"#8a8a8a":"#efefef"};text-decoration:${F2?"line-through":"none"}">${r.cil}${r.sub&&!F2?`<div class="mut" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.sub)}</div>`:""}</div>
        ${r.kr?`<div class="k" data-k="cn${i}" style="position:absolute;left:${COL.cil[0]}px;top:${y+(F2?(r.dosSub?18:20):rh+10)}px;width:${COL.cil[1]}px;text-align:right;font-size:${F2?19:15}px;font-weight:900;color:#E8722A;opacity:${F2?1:0}">${r.dos}${r.dosSub?`<div style="font-size:11.5px;font-weight:400;color:#b4b4b4">${r.dosSub}</div>`:""}</div>`:""}
@@ -1337,9 +1337,12 @@ function show(stageEl,i,animate){
     const tmp=document.createElement("div");tmp.innerHTML=f.h;
     const mapNew={};tmp.querySelectorAll("[data-k]").forEach(e=>mapNew[e.dataset.k]=e);
     old.querySelectorAll("[data-k]").forEach(e=>{const n=mapNew[e.dataset.k];if(!n)return;e.setAttribute("style",n.getAttribute("style")||"");if(e.innerHTML!==n.innerHTML)e.innerHTML=n.innerHTML});
-    // nekeyované prvky (titulek ap.) přepsat
-    const keepK=new Set(Object.keys(mapNew));
-    [...old.children].forEach((c,ix)=>{if(!c.dataset.k&&tmp.children[ix]&&!tmp.children[ix].dataset.k&&c.outerHTML!==tmp.children[ix].outerHTML)c.outerHTML=tmp.children[ix].outerHTML});
+    // nekeyované prvky (titulek, sloupec Kdy ap.) vyměnit za nové – podle pořadí vůči keyovaným, ne podle indexu
+    // (snímky ve skupině nemusí mít stejný počet prvků; keyované prvky se nehýbou v DOM, aby běžela animace)
+    const oldK={};old.querySelectorAll(":scope>[data-k]").forEach(e=>oldK[e.dataset.k]=e);
+    [...old.children].forEach(c=>{if(!c.dataset.k)c.remove()});
+    const kids=[...tmp.children];
+    kids.forEach((c,ix)=>{if(c.dataset.k)return;let a=null;for(let j=ix+1;j<kids.length;j++){const k=kids[j].dataset.k;if(k&&oldK[k]){a=oldK[k];break}}old.insertBefore(c,a)});
     return}
   const el=document.createElement("div");el.className="sl";el.dataset.g=f.g;el.innerHTML=f.h;
   if(old&&animate!==false){el.classList.add("enter");stageEl.appendChild(el);requestAnimationFrame(()=>requestAnimationFrame(()=>{el.classList.remove("enter");old.classList.add("leave");setTimeout(()=>old.remove(),700)}))}
