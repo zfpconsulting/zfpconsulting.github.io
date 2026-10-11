@@ -151,6 +151,8 @@ function alok(y) {
   for (let i = 0; i < k.length - 1; i++) { const a = k[i], b = k[i + 1]; if (y >= a && y <= b) { const t = (y - a) / (b - a), A = Math.round(ALOK[a][0] + t * (ALOK[b][0] - ALOK[a][0])), D = Math.round(ALOK[a][1] + t * (ALOK[b][1] - ALOK[a][1])); return [A, D, 100 - A - D]; } }
   return ALOK[30];
 }
+/* volba „bez hotovosti mimo rezervu“: hotovostní složka cíle/renty přejde do dluhopisů */
+const bezHot = (a, S) => S && S.bez_hotovosti && a[2] > 0 ? [a[0], a[1] + a[2], 0] : a;
 const mr = r => Math.pow(1 + r, 1 / 12) - 1;
 function parseDate(s) { if (!s) return null; if (s instanceof Date) return s; const m = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/.exec(String(s)); if (!m) return null; return new Date(+m[1], +m[2] - 1, +(m[3] || 1)); }
 const monthsBetween = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
@@ -322,7 +324,7 @@ function compute(inp, today, ext) {
   /* termín cíle: „za kolik let“ (za_let); starší plány mají datum */
   const cilMesice = c => n0(c.za_let) > 0 ? Math.max(1, Math.round(n0(c.za_let) * 12)) : parseDate(c.datum) ? Math.max(1, monthsBetween(T0, parseDate(c.datum))) : 0;
   const cile = (inp.cile || []).filter(c => n0(c.castka) > 0 && cilMesice(c) > 0).map(c => {
-    const months = cilMesice(c), d = new Date(T0.getFullYear(), T0.getMonth() + months, 1), a = alok(months / 12), r = rr(a);
+    const months = cilMesice(c), d = new Date(T0.getFullYear(), T0.getMonth() + months, 1), a = bezHot(alok(months / 12), S), r = rr(a);
     return { nazev: c.nazev || "Cíl", castka: n0(c.castka), datum: d, months, alok: a, r, rNom: r + S.inflace, fee: feeA(a) };
   }).sort((x, y) => x.months - y.months);
   cile.forEach(c => {
@@ -338,7 +340,7 @@ function compute(inp, today, ext) {
   if (rentaMes > 0) {
     const odVeku = n0(RT.od_veku);
     const start = odVeku > 0 ? new Date(K.nar.getFullYear() + odVeku, K.nar.getMonth(), 1) : new Date(Math.min(...persons.map(p => p.duch.getTime())));
-    const months = Math.max(1, monthsBetween(T0, start)), a = alok(months / 12), r = rr(a), fee = feeA(a);
+    const months = Math.max(1, monthsBetween(T0, start)), a = bezHot(alok(months / 12), S), r = rr(a), fee = feeA(a);
     /* renta: do starobního důchodu celá částka, potom jen dorovnání ke státnímu důchodu až do věku dožití */
     const starobni = persons.reduce((s, p) => s + p.starobni, 0), duchK = K.duch;
     const vekDuch = yearsBetween(K.nar, duchK), vekStart0 = yearsBetween(K.nar, start);
@@ -570,7 +572,7 @@ function compute(inp, today, ext) {
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
     portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, toky, vyvoj, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
 }
-return { POJ_TYPY, PP, DPS, compute, alok, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
+return { POJ_TYPY, PP, DPS, compute, alok, bezHot, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
 });
 </script>
 <script>/* Export živé prezentace do PowerPointu (.pptx) – nativní tvary a texty, přechod Morph mezi snímky stejné skupiny.
@@ -867,6 +869,8 @@ function renderEditor(){
   ()=>`<details open><summary>Nastavení výnosů a pravidel</summary><div class="g">
    ${[["Inflace %","inflace"],["Hotovost reálně %","hotovost_real"],["Renta – výnos při čerpání %","renta_r"],["DPS (dynamická) nominálně %","dps_nom"],["Daňová úleva DIP %","dan"],["Invalidita I – zbylá prac. schopnost %","prac_inv1"],["Invalidita II – zbylá prac. schopnost %","prac_inv2"]].map(([l,k])=>pfld(l,"nastaveni."+k,FPE.DEFAULT_SET[k])).join("")}
    ${fld("Renta – do věku (dožití)","nastaveni.doziti","number",'placeholder="85"')}${fld("Úmrtí bez dětí – násobek ročního příjmu","nastaveni.smrt_nasobek","number",'placeholder="3"')}${fld("DIP – strop Kč/měs","nastaveni.dip_strop","number",'placeholder="4 000"')}</div>
+   <label class="chk"><input type="checkbox" data-p="nastaveni.bez_hotovosti" ${(I.nastaveni||{}).bez_hotovosti?"checked":""}> Bez hotovosti mimo rezervu – cíle a renta jen v akciích a dluhopisech</label>
+   <p class="hint">Hotovostní složka z alokační tabulky se přesune do dluhopisů (akciový podíl zůstává podle horizontu). Rezerva zůstává na spořicím účtu.</p>
    <p class="hint">Procenta zadávej celými čísly: 4 = 4 %.</p></details>
   <details open><summary>Produkty v automatickém návrhu</summary>${mixInit(I)}
    <div class="hint"><b>Akciová složka</b> – podíly uvnitř složky (součet ${mixSum(I,"mixA")} %)</div>${rows("nastaveni.mixA",[["Produkt","k","text","full",PRODSEL()],["Podíl ve složce %","w","number"]],{k:"cq_akc",w:0})}
@@ -964,9 +968,9 @@ function buildFrames(I,R){
    <div style="position:absolute;left:${80+i*496}px;top:660px;width:448px;text-align:center;font-size:24px;font-weight:900">${esc(v.t||"")}</div><div style="position:absolute;left:${80+i*496+30}px;top:705px;width:388px;text-align:center;font-size:17px;color:#b4b4b4">${esc(v.d||"")}</div>`).join("")}`,lbl:"Hodnoty"});
   // 3 alokace
   const yrs=[0,1,3,5,7,10,15,20,25,30],tr=[[47,40,13],[49,40,12],[51,39,10],[54,38,8],[58,35,7],[63,32,5],[74,23,3],[84,14,2],[90,9,1],[92,7,1]];
-  const tab=(rows,top)=>`<table class="t" style="left:80px;top:${top}px;width:1440px;font-size:15px"><tr><th></th>${yrs.map(y=>`<th style="text-align:center">${y}</th>`).join("")}</tr>${["Akcie","Dluhopisy","Hotovost"].map((n,j)=>`<tr><td style="color:${["#E8722A","#5b8dd6","#cfcfcf"][j]};font-weight:700">${n}</td>${rows.map(r=>`<td style="text-align:center">${r[j]} %</td>`).join("")}</tr>`).join("")}</table>`;
-  F.push({g:"a",h:chrome("Doporučená alokace portfolia","Jak vybíráme správné rozložení aktiv pro každý cíl")+`<div style="position:absolute;left:80px;top:180px;color:#E8722A;font-weight:900;font-size:20px">Pro dosažení cíle</div>${tab(yrs.map(y=>FPE.alok(y)),215)}
-   <div style="position:absolute;left:80px;top:440px;color:#E8722A;font-weight:900;font-size:20px">Pro čerpání renty</div>${tab(tr,475)}
+  const tab=(rows,top)=>`<table class="t" style="left:80px;top:${top}px;width:1440px;font-size:15px"><tr><th></th>${yrs.map(y=>`<th style="text-align:center">${y}</th>`).join("")}</tr>${["Akcie","Dluhopisy","Hotovost"].slice(0,R.S.bez_hotovosti?2:3).map((n,j)=>`<tr><td style="color:${["#E8722A","#5b8dd6","#cfcfcf"][j]};font-weight:700">${n}</td>${rows.map(r=>`<td style="text-align:center">${r[j]} %</td>`).join("")}</tr>`).join("")}</table>`;
+  F.push({g:"a",h:chrome("Doporučená alokace portfolia","Jak vybíráme správné rozložení aktiv pro každý cíl")+`<div style="position:absolute;left:80px;top:180px;color:#E8722A;font-weight:900;font-size:20px">Pro dosažení cíle</div>${tab(yrs.map(y=>FPE.bezHot(FPE.alok(y),R.S)),215)}
+   <div style="position:absolute;left:80px;top:440px;color:#E8722A;font-weight:900;font-size:20px">Pro čerpání renty</div>${tab(tr.map(a=>FPE.bezHot(a,R.S)),475)}
    <div class="foot">Mezi body tabulky lineární interpolace podle horizontu cíle. Zdroj: Morningstar, metodika ZFP.</div>`,lbl:"Alokace"});
   // 4 finanční plán – animovaně: každý krok = jedna platba (jednorázově z majetku / pravidelně z cash flow)
   const planFrames=(withIns,G)=>{
