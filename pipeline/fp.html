@@ -944,11 +944,12 @@ function keepOpen(fn){const op=[...document.querySelectorAll("#ed details")].map
 const C={inv:"#E8722A",smrt:"#C2508D",pn:"#3D7FD1",ok:"#3E9B7A",bar:"#9AA7B5"};
 const H=(h)=>h;
 function chrome(title,sub){return `<div class="bar"></div><img class="logo" src="${LOGO}" alt=""><h2>${title}</h2>${sub?`<div class="sub">${sub}</div>`:""}`}
-function donut(vals,cols,size,hole){let a=-Math.PI/2,out="";const t=vals.reduce((x,y)=>x+y,0)||1,R=size/2,r=R*hole;
+/* popisky dílů vždy jako celá čísla se součtem 100 (stejná funkce jako legenda a tabulky), ne zaokrouhlené každý zvlášť */
+function donut(vals,cols,size,hole){let a=-Math.PI/2,out="";const t=vals.reduce((x,y)=>x+y,0)||1,R=size/2,r=R*hole,pc=FPE.pct100(vals);
   vals.forEach((v,i)=>{if(v<=0)return;const b=a+2*Math.PI*v/t,lg=b-a>Math.PI?1:0;const p=(ang,rad)=>[R+rad*Math.cos(ang),R+rad*Math.sin(ang)];
    if(v>=t-1e-9){out+=`<circle cx="${R}" cy="${R}" r="${(R+r)/2}" fill="none" stroke="${cols[i]}" stroke-width="${R-r}"/>`;}
    else{const[x1,y1]=p(a,R),[x2,y2]=p(b,R),[x3,y3]=p(b,r),[x4,y4]=p(a,r);out+=`<path d="M${x1},${y1}A${R},${R} 0 ${lg} 1 ${x2},${y2}L${x3},${y3}A${r},${r} 0 ${lg} 0 ${x4},${y4}Z" fill="${cols[i]}" stroke="#161616" stroke-width="2"/>`}
-   const m=(a+b)/2,[lx,ly]=p(m,(R+r)/2);if(v/t>0.06)out+=`<text x="${lx}" y="${ly}" fill="#fff" font-size="${size/13}" font-weight="700" text-anchor="middle" dominant-baseline="middle">${Math.round(v/t*100)} %</text>`;a=b});
+   const m=(a+b)/2,[lx,ly]=p(m,(R+r)/2);if(v/t>0.06)out+=`<text x="${lx}" y="${ly}" fill="#fff" font-size="${size/13}" font-weight="700" text-anchor="middle" dominant-baseline="middle">${pc[i]} %</text>`;a=b});
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${out}</svg>`}
 const svg=(d,sz=44)=>`<svg viewBox="0 0 24 24" width="${sz}" height="${sz}"><path fill="#fff" fill-rule="evenodd" d="${d}"/></svg>`;
 const ICON={shield:svg("M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm0 2.2v15.6c-3.4-1.2-6-5-6-8.8V6.4l6-2.2z"),

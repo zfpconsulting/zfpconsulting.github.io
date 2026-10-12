@@ -1765,6 +1765,8 @@ const fmt1=n=>(Math.round(n*10)/10).toLocaleString("cs-CZ");
 const kc=n=>fmt0(n)+" Kč";
 const r1=v=>Math.round(v*10)/10;
 function plural(n,a,b,c){return n===1?a:n>1&&n<5?b:c}
+/* podíly jedné množiny jako celá procenta se součtem přesně 100 (největší zbytek) – nikdy se nezaokrouhluje každý díl zvlášť (49+25+25=99) */
+function pct100(vals){const t=vals.reduce((a,b)=>a+Math.max(0,b),0);if(t<=0)return vals.map(()=>0);const raw=vals.map(v=>Math.max(0,v)/t*100),fl=raw.map(Math.floor);let rest=100-fl.reduce((a,b)=>a+b,0);raw.map((r,i)=>[r-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,rest).forEach(([,i])=>fl[i]++);return fl}
 function shortKc(a){a=+a||0;return a>=1e6?(Math.round(a/1e5)/10).toLocaleString("cs-CZ")+" mil.":a>=1e4?fmt0(a/1e3)+" tis.":fmt0(a)}
 function initials(n){return (n||"?").replace(/\(.*?\)/g,"").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()}
 function teamAvatar(m,cls,col){return m.photo?el("img",{class:cls,src:m.photo,alt:""}):el("span",{class:cls,style:"background:"+col},initials(m.name))}
@@ -2447,7 +2449,8 @@ function drawQuarterMix(cq,cur,ymSel){
     <text x="20" y="24.7" text-anchor="middle" font-size="${numFs}" font-weight="700" fill="var(--label)" class="mixNumTxt">${totTxt}</text>
   </svg>`;
   const wrap=el("div",{style:"flex:none"});wrap.innerHTML=svg;
-  const leg=el("div",{class:"mixleg"},...parts.filter(p=>p[2]>0).map(([k,t,v])=>el("div",{class:"r"},el("i",{style:"background:"+MIX_HEX[k]}),el("span",{},t),el("b",{},Math.round(v/total*100)+" %"))));
+  const legP=parts.filter(p=>p[2]>0),legPc=pct100(legP.map(p=>p[2]));
+  const leg=el("div",{class:"mixleg"},...legP.map(([k,t,v],i)=>el("div",{class:"r"},el("i",{style:"background:"+MIX_HEX[k]}),el("span",{},t),el("b",{},legPc[i]+" %"))));
   box.replaceChildren(wrap,leg);
   /* jistota navrch: ať už odhad velikosti podle délky textu sedí, nebo ne, číslo se nikdy nezakousne
      do prstence – pokud se i tak nevejde do volného kruhu uprostřed, SVG ho pomocí textLength dotáhne */
@@ -6057,7 +6060,7 @@ function pfAllocBar(parts){
   const t=eq+bd+ot;if(!t)return null;
   const seg=[["Akcie",eq,"var(--tint)"],["Dluhopisy",bd,"var(--green)"],["Ostatní",ot,"var(--orange)"]].filter(x=>x[1]>.5);
   return el("div",{class:"pfalloc"},el("div",{class:"pfallocbar"},...seg.map(([k,v,c])=>el("i",{style:"width:"+(v/t*100)+"%;background:"+c,title:k}))),
-    el("div",{class:"pfalloclg"},...seg.map(([k,v,c])=>el("span",{},el("i",{style:"background:"+c}),k+" "+Math.round(v/t*100)+" % · "+shortKc(v)+" Kč"))));
+    el("div",{class:"pfalloclg"},...seg.map(([k,v,c],i)=>el("span",{},el("i",{style:"background:"+c}),k+" "+pct100(seg.map(x=>x[1]))[i]+" % · "+shortKc(v)+" Kč"))));
 }
 function pfSimMsg(s){return s.miss?"Nástroj, do kterého investice směřuje, už v Portfoliích není.":s.wait?"Chybí data nebo ceny: "+s.wait.join(", ")+" – u penzijního fondu stačí zadat roční zhodnocení v % (Fondy → fond → Zadat vývoj)":s.later?"Vklady jsou až po posledním dostupném ocenění.":"Doplň vklady (datum a částku)."}
 function pfDelBtn(what,onDel){const b=el("button",{type:"button",class:"pfdel"},"Smazat");
@@ -6126,7 +6129,7 @@ function pfClientCard(cid,opt={}){
   const idx=Math.min(pfSlide[cid]||0,groups.length-1);
   const tax=pfTax(xs);
   const ratio=g=>{const m=new Map();g.parts.forEach(p=>{const a=p.dl.length?p.dl[0][1]:0;m.set(p.name,(m.get(p.name)||0)+a)});const t=[...m.values()].reduce((a,b)=>a+b,0);
-    return t&&m.size>1?el("div",{class:"pfcomps"},...[...m].sort((a,b)=>b[1]-a[1]).map(([k,v])=>el("span",{class:"pfcomp"},Math.round(v/t*100)+" % "+k.replace(/^ZFP WI – /,"WI ")))):null};
+    const es=[...m].sort((a,b)=>b[1]-a[1]),ep=pct100(es.map(e=>e[1]));return t&&m.size>1?el("div",{class:"pfcomps"},...es.map(([k,v],i)=>el("span",{class:"pfcomp"},ep[i]+" % "+k.replace(/^ZFP WI – /,"WI ")))):null};
   const slide=(g,gi)=>{const a=pfAgg(g.parts),id="cl:"+cid+":"+g.k,per=pfPer[id]||"Max",gp=a.invd?a.gain/a.invd:null;
     return el("div",{class:"pfslide"},
       el("div",{class:"pfhead"},el("div",{},el("div",{class:"pfname"},g.k),el("div",{class:"pfmeta"},g.parts.length+" "+plural(g.parts.length,"pozice","pozice","pozic")+(a.foreign.length?" · "+a.foreign.join(", ")+" přepočteno denním kurzem ECB"+(a.fxWait?" (stahuji kurzy…)":""):""))),
@@ -6540,7 +6543,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=16#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=17#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
