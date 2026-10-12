@@ -1040,7 +1040,8 @@ function buildFrames(I,R){
   const anyKr=!withIns&&PR.some(r=>r.kr);
   const nGoals=PR.length;
   if(withIns){if(R.pojNove)PR.push({n:"Životní pojištění",kdy:"Ihned",cil:"–",lump:0,pmt:R.pojNove,vys:"–",s:null,ins:1})}
-  const TXP=[];PR.forEach((r,i)=>{if(r.dps>0.5)TXP.push({i,k:"v",a:r.dps,dps:1});if(r.lump>0.5)TXP.push({i,k:"v",a:r.lump});if(r.pmt>0.5)TXP.push({i,k:"p",a:r.pmt})});
+  /* pořadí kroků = pravidlo „nejprve veškerý finanční majetek, teprve potom cash flow“: nejdřív všechny jednorázové vklady (u renty i DPS), pak všechny pravidelné platby */
+  const TXP=[];PR.forEach((r,i)=>{if(r.dps>0.5)TXP.push({i,k:"v",a:r.dps,dps:1});if(r.lump>0.5)TXP.push({i,k:"v",a:r.lump})});PR.forEach((r,i)=>{if(r.pmt>0.5)TXP.push({i,k:"p",a:r.pmt})});
   const pre=withIns?TXP.filter(t=>t.i<nGoals).length:0;
   const M0=R.majCelkem;
   /* sloupce jsou odsazené 24 px od okrajů záhlaví (pruh 80–1520), aby text nelepil na hranu */
@@ -1082,7 +1083,7 @@ function buildFrames(I,R){
     TXP.forEach((x,j)=>{if(j<pre)return;const cur=!fin&&j===step-1,past=j<step-1||fin,src=x.k==="v"?0:1;
       const atCell=cur||past,X=atCell?COL[x.k][0]+COL[x.k][1]-190:bx[src]+80,Y=atCell?rowY(x.i)+rh/2-22:226;
       h+=`<div class="k" data-k="ch${j}" style="position:absolute;left:${X}px;top:${Y}px;width:190px;height:44px;border-radius:22px;background:#E8722A;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;opacity:${cur?1:0};transition:all 1.1s cubic-bezier(.5,0,.2,1)">${x.k==="p"?fmt(x.a)+"/měs":fmt(x.a)+NB+"Kč"}</div>`});
-    const r=t?PR[t.i]:null,partTxt=t&&t.dps?` <span class="mut">· samo pokryje ${r.sd} % renty</span>`:t&&t.k==="v"&&r.pmt>0.5&&r.s!=null?` <span class="mut">· jednorázový vklad pokryje ${r.sj} % – zbytek doplníme z cash flow</span>`:t&&t.k==="p"&&r.s!=null?` <span class="mut">· cíl splněn na ${r.s} %</span>`:"";
+    const r=t?PR[t.i]:null,partTxt=t&&t.dps?` <span class="mut">· samo pokryje ${r.sd} % renty</span>`:t&&t.k==="v"&&r.pmt>0.5&&r.s!=null?` <span class="mut">· vklad pokryje ${r.sj} %, zbytek z cash flow</span>`:t&&t.k==="p"&&r.s!=null?` <span class="mut">· cíl splněn na ${r.s} %</span>`:"";
     const nKr=PR.filter(x=>x.kr).length;
     h+=`<div class="k" data-k="ptxt" style="position:absolute;left:80px;top:812px;width:1440px;font-size:19px">${fin?`<b class="o">Cash flow ${kcm(R.cf)} nestačí na plné cíle.</b> <span class="mut">S platbami, které zvládnete, dosáhnete na 100 % oranžových částek.</span>`:t?`<b class="o">${t.k==="v"?kc(t.a):kcm(t.a)}</b> ${t.dps?"stávající DPS – zůstává a pracuje pro rentu":t.k==="v"?"z finančního majetku jako jednorázový vklad":"z cash flow jako pravidelná platba"} → <b>${r.n}</b>${partTxt}`:withIns?`<span class="mut">Volné cash flow po investicích: ${kcm(R.cf-R.pmtCelkem)}.</span>`:`<span class="mut">Finanční majetek ${kc(M0)} a volné cash flow ${kcm(R.cf)} rozdělíme krok za krokem.</span>`}</div>
       <div class="foot">Vstupní poplatky produktů jsou započteny v každém vkladu. Renta: do starobního důchodu celá, potom dorovnání ke státnímu důchodu do ${R.S.doziti} let. Cíle v dnešních cenách.</div>`;

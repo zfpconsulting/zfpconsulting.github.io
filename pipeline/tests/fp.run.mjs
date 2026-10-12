@@ -174,6 +174,23 @@ tests["prezentace: jen životní pojištění (bez nemovitosti, domácnosti, aut
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["plán po krocích: nejdřív veškerý finanční majetek (i DPS u renty), teprve potom cash flow"] = async function () {
+  const { ctx, page, errors } = await open();
+  /* plán jako Horáková: po rezervě zbývá majetek na dva cíle, DPS patří rentě a cash flow pokryje platby u tří cílů */
+  await setPlan(page, zaklad({ klient: { jmeno: "Test", narozen: "1980-05-05", zam: 80000, vydaje_osobni: 60000, vydaje_dom: 40000, starobni: 30000, inv1: 8000, inv2: 16000, inv3: 25000, hruba: 100000, bez_partnera: true }, partner: { zapnuto: false }, deti: [],
+    majetek: [{ typ: "Spořicí účet", nazev: "Rezerva", hodnota: 1700000 }, { typ: "Podílový fond (OPF)", nazev: "Fond", hodnota: 800000 }, { typ: "Doplňkové penzijní spoření (DPS)", nazev: "DPS", hodnota: 140000, vklad: 1700 }], uvery: [],
+    cile: [{ nazev: "Rekonstrukce", castka: 900000, za_let: 3 }, { nazev: "Předčasné splacení", castka: 1500000, za_let: 6 }, { nazev: "Studium", castka: 1200000, za_let: 9 }], renta: { mesicne: 70000, od_veku: 58 } }));
+  const o = await page.evaluate(() => { compute(); const num = h => { const t = document.createElement("div"); t.innerHTML = h; const g = k => { const e = t.querySelector("[data-k=" + k + "]"); return e ? +(e.textContent.replace(/\s|\u00a0/g, "").match(/zbývá:(-?\d+)/) || [])[1] : NaN; }; return [g("bz0"), g("bz1")]; };
+    return { cf: R.cf, kroky: FR.filter(f => /^Plán: krok/.test(f.lbl)).map(f => num(f.h)) }; });
+  assert(o.kroky.length >= 5, "plán má kroky (" + o.kroky.length + ")");
+  const mzEnd = o.kroky[o.kroky.length - 1][0];
+  const first = o.kroky.findIndex(k => k[1] < o.cf);
+  assert(first > 0, "cash flow se nakonec čerpá");
+  o.kroky.forEach((k, i) => { if (i >= first) eq(k[0], mzEnd, "krok " + (i + 1) + ": než se sáhne na cash flow, musí být rozdělený veškerý majetek (zbývá " + k[0] + ")"); });
+  eq(o.kroky.slice(0, first).every(k => k[1] === o.cf), true, "před prvním krokem z cash flow se cash flow nemění");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 /* hotové plány demo klientů (index.html → demoFpPlans): musí se spočítat, nesmí nic chybět a musí být splnitelné */
 tests["demo plány: spočítají se, jsou kompletní, splnitelné a sedí s kartami klientů"] = async function () {
   const { readFileSync } = await import("node:fs");
