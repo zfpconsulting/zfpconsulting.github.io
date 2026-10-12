@@ -6566,6 +6566,94 @@ const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kal
 /* „Uživatelé“ je speciální záložka jen pro admina – vždy úplně na konci, nejde skrýt ani přeřadit
    (proto stojí mimo TABS/nastavení pořadí), zjišťuje se přímo z uloženého přihlášeného e-mailu. */
 /* ===== prezentační režim: fiktivní poradce (jen admin) ===== */
+/*DEMO-FP-START*/
+/* hotové finanční plány demo klientů (stejný tvar, jaký ukládá okno Finanční plán). Čistě data: Y = letošní rok, bd(i) = datum narození
+   klienta z jeho karty, aby věk v plánu seděl s kartou, ym(k) = rok-měsíc za k měsíců. Klíč = pořadí klienta v demoBuild (democ<i>). */
+function demoFpPlans(Y,bd,ym){
+  const pr=(jmeno,narozen,o)=>({titul:"",jmeno,narozen,duchod:"",zam:0,podnik:0,pasiv:0,pronajem:0,bonus:0,vydaje_osobni:0,inv1:0,inv2:0,inv3:0,vdovsky:0,sirotci:0,hruba:"",starobni:0,bez_partnera:false,...o});
+  const mj=(nazev,typ,hodnota,vklad,odpocet)=>({nazev,typ,hodnota,vklad:vklad||0,odpocet:odpocet||0});
+  const ne=(nazev,typ,hodnota)=>({nazev,typ,hodnota});
+  const uv=(nazev,zustatek,splatka,fixace_do,splatnost)=>({nazev,zustatek,splatka,fixace_do,splatnost});
+  const ci=(nazev,castka,za_let)=>({nazev,castka,za_let});
+  const dt=(jmeno,vek,md,vs)=>({jmeno,narozen:(Y-vek)+"-"+md,vs:!!vs});
+  const pj=(zs,zn,nem,dom,auto)=>({zivotni:{stav:zs,navrh:zn},nemovitost:{stav:nem[0],navrh:nem[1],pc:nem[2],pozn:nem[3]||""},domacnost:{stav:dom[0],navrh:dom[1],pc:dom[2],pozn:dom[3]||""},auto:{stav:auto[0],navrh:auto[1],pozn:auto[2]||""}});
+  const pl=o=>({partner:{zapnuto:false},deti:[],motivace:"",vydaje:{celkem:0,splatky:0,pojistne:0,sporeni:0},docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},realokace:{rucne:false,polozky:[]},...o});
+  return {
+    /* Jan Novák – rodina, 2 děti (obě plánují VŠ), hypotéka, renta od 60 */
+    0:pl({klient:pr("Jan Novák",bd(0),{zam:58000,vydaje_osobni:42000,hruba:80000,inv1:6800,inv2:14600,inv3:23400,starobni:25600,vdovsky:6900,sirotci:5700}),
+      partner:{zapnuto:true,...pr("Eva Nováková",(Y-45)+"-05-22",{zam:34000,vydaje_osobni:25000,hruba:47000,inv1:5100,inv2:11200,inv3:17900,starobni:21000,vdovsky:5800,sirotci:5100})},
+      deti:[dt("Adam",12,"03-18",1),dt("Klára",8,"09-02",1)],
+      motivace:"Chci, aby děti mohly studovat bez půjček a abychom s Evou v 60 nemuseli řešit, z čeho žít.",
+      majetek:[mj("Rezerva – spořicí účet","Spořicí účet",460000),mj("ZFP World Index – spoření pro děti","Podílový fond (OPF)",205000,3000),mj("ZFP Investments + Conseq – renta","Podílový fond (OPF)",310000)],
+      nefin:[ne("Rodinný dům","Nemovitost k bydlení",6500000),ne("Škoda Kodiaq","Auto",480000)],
+      uvery:[uv("Hypotéka – Česká spořitelna",3900000,21400,(Y+1)+"-06",(Y+26)+"-06")],
+      cile:[ci("Rekonstrukce koupelny",300000,2),ci("Studium Adama",400000,7),ci("Studium Kláry",400000,11)],renta:{mesicne:27000,od_veku:60},
+      pojisteni:pj(1850,3900,[1900,1900,6500000,"Rozšířeno o povodeň"],[550,550,1200000],[1400,1400,"POV + havarijní"])}),
+    /* Petra Svobodová – OSVČ grafička, bez partnera a dětí, rezerva hotová, DIP */
+    1:pl({klient:pr("Petra Svobodová",bd(1),{podnik:52000,vydaje_osobni:31000,inv1:5200,inv2:11400,inv3:18300,starobni:17800,bez_partnera:true}),
+      motivace:"Chci být nezávislá – nemuset brát každou zakázku a mít klid na kreativní práci.",
+      majetek:[mj("Rezerva – spořicí účet","Spořicí účet",390000),mj("ZFP Investments","Podílový fond (OPF)",650000),mj("DPS – NN","Doplňkové penzijní spoření (DPS)",78000,1700,700)],
+      nefin:[ne("Škoda Fabia","Auto",260000)],
+      cile:[ci("Pracovní vybavení (iMac, tablet)",90000,2),ci("Cesta na Nový Zéland",160000,3),ci("Vlastní byt – akontace",1200000,8)],renta:{mesicne:25000,od_veku:60},
+      pojisteni:pj(0,1600,[0,0,0],[300,300,400000,"Byt v pronájmu"],[400,400,"POV + havarijní"])}),
+    /* Karel Dvořák – před důchodem (za 4 roky), konzervativní, s manželkou */
+    2:pl({klient:pr("Karel Dvořák",bd(2),{zam:62000,vydaje_osobni:33000,hruba:85000,inv1:7900,inv2:17100,inv3:25600,starobni:29400,vdovsky:8200}),
+      partner:{zapnuto:true,...pr("Božena Dvořáková",(Y-59)+"-02-09",{zam:30000,vydaje_osobni:18000,hruba:42000,inv1:4800,inv2:10600,inv3:17000,starobni:17500,vdovsky:7600})},
+      motivace:"Chci v 65 skončit bez stresu, užívat chalupu, cestování a vnoučata a nebýt závislý na státním důchodu.",
+      majetek:[mj("Rezerva – spořicí účet","Spořicí účet",520000),mj("Termínovaný vklad","Termínovaný vklad",300000),mj("Conseq – důchodové portfolio","Podílový fond (OPF)",1100000),mj("ZFP World Index","Podílový fond (OPF)",230000),mj("ZFP Investments – stabilní výnos","Podílový fond (OPF)",660000),mj("DPS – Conseq","Doplňkové penzijní spoření (DPS)",340000,2000,700)],
+      nefin:[ne("Rodinný dům","Nemovitost k bydlení",7200000),ne("Chata","Rekreační objekt",1800000),ne("Auto","Auto",420000)],
+      cile:[ci("Rekonstrukce chaty",700000,3),ci("Dar synovi na bydlení",300000,3),ci("Cestování po odchodu do důchodu",400000,4)],renta:{mesicne:25000,od_veku:65},
+      pojisteni:pj(0,2600,[3200,3200,7200000],[650,650,1500000],[1300,1300,"POV + havarijní"])}),
+    /* Martin Dvořák – IT, vysoký příjem, agresivní profil, bez partnera */
+    4:pl({klient:pr("Martin Dvořák",bd(4),{zam:78000,bonus:120000,vydaje_osobni:34000,hruba:105000,inv1:8600,inv2:18500,inv3:29100,starobni:31000,bez_partnera:true}),
+      motivace:"Chci mít peníze, které pracují za mě, a svobodu změnit práci nebo zkusit vlastní projekt.",
+      majetek:[mj("Rezerva – spořicí účet","Spořicí účet",380000),mj("Termínovaný vklad","Termínovaný vklad",150000),mj("ZFP World Index","Podílový fond (OPF)",85000,3000),mj("Conseq – akciové portfolio","Podílový fond (OPF)",95000,5000)],
+      nefin:[ne("Auto","Auto",380000)],uvery:[uv("Úvěr na auto",140000,4900,"",(Y+2)+"-11")],
+      cile:[ci("Notebook a vybavení",80000,1),ci("Sabbatical – cestování",300000,4),ci("Akontace na byt",1500000,6)],renta:{mesicne:50000,od_veku:55},
+      pojisteni:pj(900,2400,[0,0,0],[0,250,500000],[1100,1100,"POV + havarijní"])}),
+    /* Hana Procházková – rozvedená, dcera na VŠ, za 2 měsíce končí fixace hypotéky */
+    5:pl({klient:pr("Hana Procházková",bd(5),{zam:52000,vydaje_osobni:36000,hruba:70000,inv1:6100,inv2:13300,inv3:21000,starobni:24200,sirotci:5400,bez_partnera:true}),
+      deti:[dt("Natálie",20,"04-12",1)],
+      motivace:"Zajistit dceru, aby dostudovala bez dluhů, a sama mít v důchodu klid a nezávislost.",
+      majetek:[mj("Rezerva – spořicí účet","Spořicí účet",280000),mj("ZFP Investments – rezerva","Podílový fond (OPF)",205000),mj("ZFP World Index","Podílový fond (OPF)",82000),mj("Conseq – model","Podílový fond (OPF)",58000),mj("DPS","Doplňkové penzijní spoření (DPS)",95000,1000)],
+      nefin:[ne("Byt 3+1 Brno","Nemovitost k bydlení",4600000),ne("Auto","Auto",180000)],
+      uvery:[uv("Hypotéka – Komerční banka",2100000,14800,ym(2),(Y+14)+"-03")],
+      cile:[ci("Dovolená s dcerou",80000,1),ci("Rekonstrukce bytu",200000,2),ci("Studium Natálie – ubytování a náklady",100000,3)],renta:{mesicne:22000,od_veku:63},
+      pojisteni:pj(0,2300,[1100,1100,4600000],[380,380,700000],[900,900,"POV + havarijní"])}),
+    /* Tomáš Beneš – podnikatel ve stavebnictví, manželka, 2 děti, firemní majetek */
+    6:pl({klient:pr("Tomáš Beneš",bd(6),{podnik:98000,vydaje_osobni:52000,inv1:6200,inv2:13400,inv3:20600,starobni:20900,vdovsky:6600,sirotci:5500}),
+      partner:{zapnuto:true,...pr("Lenka Benešová",(Y-41)+"-10-03",{zam:32000,vydaje_osobni:20000,hruba:45000,inv1:4900,inv2:10800,inv3:17300,starobni:19800,vdovsky:6100,sirotci:5200})},
+      deti:[dt("Filip",10,"06-14"),dt("Anežka",6,"11-27",1)],
+      motivace:"Chci zajistit rodinu pro případ, že mi nebo firmě něco přijde do cesty, a v 60 už stavět jen pro radost.",
+      majetek:[mj("Rezerva – spořicí účet","Spořicí účet",650000),mj("Termínovaný vklad","Termínovaný vklad",250000),mj("ZFP Investments – firemní rezerva","Podílový fond (OPF)",330000),mj("Conseq","Podílový fond (OPF)",165000),mj("ZFP World Index","Podílový fond (OPF)",118000,5000)],
+      nefin:[ne("Rodinný dům","Nemovitost k bydlení",8900000),ne("Beneš stavby s.r.o.","Podíl ve firmě",4500000),ne("Osobní auto","Auto",700000)],
+      uvery:[uv("Úvěr – ČSOB",850000,17800,(Y+1)+"-03",(Y+5)+"-03"),uv("Hypotéka na dům",2600000,17500,(Y+3)+"-09",(Y+22)+"-09")],
+      cile:[ci("Rodinná dovolená",120000,1),ci("Zahrada a terasa",450000,3),ci("Studium dětí",700000,9)],renta:{mesicne:45000,od_veku:60},
+      pojisteni:pj(2400,5200,[2300,2300,8900000,"Dům + odpovědnost"],[780,780,1400000],[1500,1500,"Osobní auto: POV + havarijní; flotila firemní zvlášť"])}),
+    /* Markéta Horáková – lékařka, manžel zubař, investiční byt, dcera */
+    9:pl({klient:pr("Markéta Horáková",bd(9),{titul:"MUDr.",zam:88000,pronajem:17000,vydaje_osobni:70000,hruba:120000,inv1:8900,inv2:19200,inv3:30100,starobni:35400,vdovsky:8400,sirotci:6100}),
+      partner:{zapnuto:true,...pr("Petr Horák",(Y-47)+"-08-19",{titul:"MUDr.",podnik:120000,vydaje_osobni:55000,inv1:6800,inv2:14500,inv3:22400,starobni:24600,vdovsky:7700,sirotci:5900})},
+      deti:[dt("Sofie",9,"07-30",1)],
+      motivace:"Jsme na sobě oba závislí – chci mít rodinu zajištěnou při výpadku příjmu a v 58 moct zpomalit.",
+      majetek:[mj("Rezerva – spořicí účet","Spořicí účet",1100000),mj("Termínovaný vklad","Termínovaný vklad",600000),mj("Conseq – konzervativní","Podílový fond (OPF)",470000),mj("ZFP World Index","Podílový fond (OPF)",360000),mj("ZFP Investments","Podílový fond (OPF)",235000),mj("DPS","Doplňkové penzijní spoření (DPS)",140000,1700,700)],
+      nefin:[ne("Rodinný dům","Nemovitost k bydlení",12500000),ne("Byt 2+kk Brno (pronájem)","Investiční nemovitost",5200000),ne("Auto","Auto",900000)],
+      uvery:[uv("Hypotéka na rodinný dům",1900000,15200,(Y+2)+"-05",(Y+14)+"-05"),uv("Hypotéka na investiční byt",3100000,19600,(Y+2)+"-10",(Y+24)+"-10")],
+      cile:[ci("Rekonstrukce domu",900000,3),ci("Předčasné splacení hypotéky na byt",1500000,6),ci("Studium dcery v zahraničí",1200000,9)],renta:{mesicne:70000,od_veku:58},
+      pojisteni:pj(3200,7800,[3600,3600,12500000],[1200,1200,2500000],[2400,2400,"POV + havarijní"])})
+  };
+}
+/* doplní hotové plány do prezentačního úložiště s={docs}: klientům „democ<i>“, kteří ještě nemají záznam fplan/democ<i>
+   (ani smazaný). Používá se při sestavení nových demo dat i u starších, už vytvořených – ostatní data zůstanou. */
+function demoFpMigrate(s){
+  const d=s&&s.docs;if(!d||!d["clients/democ0"])return false;
+  const n=new Date(),Y=n.getFullYear(),ym=k=>{const x=new Date(Y,n.getMonth()+k,1);return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")};
+  let ch=false;
+  Object.entries(demoFpPlans(Y,i=>(d["clients/democ"+i]||{}).birth||"",ym)).forEach(([i,plan])=>{
+    const c=d["clients/democ"+i];if(!c||c._del||d["fplan/democ"+i])return;
+    d["fplan/democ"+i]={clientId:"democ"+i,name:plan.klient.jmeno,plan,updatedAt:Date.now()-(1+i*3%20)*864e5-i*36e5,_u:Date.now()};ch=true});
+  return ch;
+}
+/*DEMO-FP-END*/
 function demoBuild(real){
   const R=(a,b)=>a+Math.random()*(b-a), RI=(a,b)=>Math.round(R(a,b)), pick=a=>a[Math.floor(Math.random()*a.length)], r1=v=>Math.round(v*10)/10;
   const now=new Date(), iso=now.toISOString(), today=iso.slice(0,10), Y=now.getFullYear(), DAY=864e5;
@@ -6681,6 +6769,8 @@ function demoBuild(real){
     Object.entries(ag.dep).forEach(([co,o])=>keep.push(mk("Investice",co,o.amt,"Kč",o.from)));
     Object.entries(ag.reg).forEach(([co,o])=>keep.push(mk("Pravidelná investice",co,o.amt,"Kč/měs",o.from)));
     c.products=keep;const since=keep.map(p=>p.from).sort()[0];if(since)c.since=since});
+  /* hotové finanční plány vybraných klientů – otevřou se rovnou v prezentaci (záložka Finanční plán i karta klienta) */
+  demoFpMigrate({docs});
   return docs;
 }
 /* on: true = prezentační, "clean" = čistý režim, false = zpět na skutečná data; regen = začít znovu (zahodit úpravy v režimu) */
@@ -6697,6 +6787,8 @@ function demoSwitch(on,regen){
   try{localStorage.setItem("pipe_view","pipe")}catch(e){}
   location.reload();
 }
+/* starší prezentační data (vytvořená před hotovými plány) dostanou plány doplněné při startu; ostatní data zůstanou */
+if(MODE==="demo"){try{const dd=LStore.docs();if(demoFpMigrate({docs:dd}))LStore.replace(dd)}catch(e){console.warn("Demo plány se nepodařilo doplnit",e)}}
 /* nastavení zámku v okně Data a synchronizace */
 async function initLockCfg(){
   const box=$("lockCfgBody");if(!box)return;

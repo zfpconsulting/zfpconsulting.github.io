@@ -75,6 +75,62 @@ const tests = {
   },
 };
 
+/* hotové plány demo klientů (index.html → demoFpPlans): musí se spočítat, nesmí nic chybět a musí být splnitelné */
+tests["demo plány: spočítají se, jsou kompletní, splnitelné a sedí s kartami klientů"] = async function () {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const fn = src.split("/*DEMO-FP-START*/")[1].split("/*DEMO-FP-END*/")[0];
+  /* klienti z demoBuild: jméno + rok narození, ať plán sedí s kartou */
+  const CL = [...src.split("const CL=[")[1].split("const cids=[]")[0].matchAll(/\["([^"]+)",(\d{4}),"/g)].map(m => [m[1], +m[2]]);
+  assert(CL.length === 10, "našel jsem 10 demo klientů");
+  const { ctx, page, errors } = await open();
+  const res = await page.evaluate(([fn, CL]) => {
+    eval(fn + ";window.__dfp=demoFpPlans");
+    const n = new Date(), Y = n.getFullYear(), ym = k => { const d = new Date(Y, n.getMonth() + k, 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
+    const P = __dfp(Y, i => CL[i][1] + "-06-15", ym), out = [];
+    for (const [i, plan] of Object.entries(P)) {
+      const r = { i: +i, jmeno: plan.klient.jmeno, narozen: plan.klient.narozen, karta: CL[i][0], karta_rok: CL[i][1] };
+      try {
+        const R = FPE.compute(JSON.parse(JSON.stringify(plan)), n, {});
+        r.chybi = missing(plan, R).map(m => m.t);
+        r.cf = R.cf; r.nesplnene = (R.cile || []).filter(c => c.splneni < 0.995).map(c => c.nazev);
+        r.rentaKracena = !!(R.renta && R.renta.kraceno); r.nedostatek = R.flags.filter(f => /nestačí/.test(f));
+        r.cile = (R.cile || []).length; r.nan = JSON.stringify(R.cile.map(c => [c.vklad, c.pmt, c.splneni])).includes("null");
+        r.frames = (() => { try { const d = JSON.parse(JSON.stringify(DB)); d.clients[d.cur] = plan; DB = d; compute(); return FR.length; } catch (e) { return "ERR " + e.message; } })();
+      } catch (e) { r.err = String(e && e.message || e); }
+      out.push(r);
+    }
+    return out;
+  }, [fn, CL]);
+  assert(res.length >= 6, "aspoň 6 hotových plánů");
+  res.forEach(r => {
+    eq(r.err, undefined, r.jmeno + ": compute spadl");
+    eq(r.jmeno, r.karta, "jméno v plánu = jméno na kartě klienta #" + r.i);
+    eq(r.narozen.slice(0, 4), String(r.karta_rok), r.jmeno + ": rok narození = karta");
+    eq(r.chybi, [], r.jmeno + ": chybějící údaje před prezentací");
+    assert(r.cf > 0, r.jmeno + ": kladné volné cash flow");
+    eq(r.nedostatek, [], r.jmeno + ": cash flow nestačí na cíle");
+    eq(r.nesplnene, [], r.jmeno + ": nesplněné cíle");
+    assert(!r.rentaKracena, r.jmeno + ": renta nesmí být krácená");
+    assert(r.cile >= 3 && !r.nan, r.jmeno + ": aspoň 3 cíle bez NaN");
+    assert(typeof r.frames === "number" && r.frames > 30, r.jmeno + ": snímky prezentace se vykreslí (" + r.frames + ")");
+  });
+  /* migrace starších demo dat: doplní jen chybějící plány, nic nepřepíše ani neobnoví smazané, podruhé už nic nedělá */
+  const mig = await page.evaluate(([fn, CL]) => {
+    eval(fn + ";window.__mig=demoFpMigrate");
+    const d = {}; CL.forEach((c, i) => d["clients/democ" + i] = { name: c[0], birth: c[1] + "-06-15" });
+    d["fplan/democ0"] = { clientId: "democ0", name: "Moje úprava", plan: { klient: { jmeno: "X" } }, updatedAt: 1 };
+    d["fplan/democ1"] = { _del: true, _u: 5 };
+    const s = { docs: d }, c1 = __mig(s), after1 = Object.keys(d).filter(k => k.startsWith("fplan/")).sort(), c2 = __mig(s);
+    return { c1, c2, after1, keep: d["fplan/democ0"].name, del: !!d["fplan/democ1"]._del, other: { docs: { "clients/x": { name: "x" } } } };
+  }, [fn, CL]);
+  eq(mig.c1, true, "migrace doplnila plány"); eq(mig.c2, false, "druhé spuštění už nic nemění");
+  eq(mig.keep, "Moje úprava", "existující plán se nepřepsal"); assert(mig.del, "smazaný plán se neobnovil");
+  assert(mig.after1.length === res.length + 0 || mig.after1.length >= res.length, "po migraci mají plán všichni vybraní klienti");
+  eq(errors, [], "chyby v konzoli");
+  await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
