@@ -75,6 +75,83 @@ const tests = {
   },
 };
 
+/* společný základ pro nové testy engine: čisté FPE.compute nad plánem (bez DOM) */
+const calc = (page, plan) => page.evaluate(p => { const R = FPE.compute(JSON.parse(JSON.stringify(p)), new Date(), {});
+  return { rH: R.trida.rH, flags: R.flags, cf: R.cf, cfZbyva: R.cfZbyva, pmtCelkem: R.pmtCelkem, renta: R.renta ? { pmt: R.renta.pmt, inh: R.renta.inh, spl: R.renta.splneni } : null,
+    cile: R.cile.map(c => ({ n: c.nazev, vklad: c.vklad, pmt: c.pmt, inh: c.inh, spl: c.splneni, castka: c.castka })),
+    kat: R.katastrofy.map(k => ({ vyd: k.vyd, vydFP: k.vydFP, invPlan: k.invPlan, normal: k.normal, smrt: { p3: k.smrt.prijem3, vyd: k.smrt.vyd, vydOs: k.smrt.vydOs, faze: k.smrt.faze.map(f => f.gap) } })), miss: missing(p, R).map(m => m.p) }; }, plan);
+const zaklad = o => Object.assign({ klient: { jmeno: "Test", narozen: "1985-05-05", zam: 60000, vydaje_osobni: 30000, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 80000 }, partner: { zapnuto: false }, deti: [], motivace: "x",
+  majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 400000 }], uvery: [], cile: [{ nazev: "Auto", castka: 300000, za_let: 3 }, { nazev: "Byt", castka: 1500000, za_let: 8 }], renta: { mesicne: 40000, od_veku: 60 }, pojisteni: { zivotni: { stav: 0, navrh: 1500 } } }, o);
+
+tests["hotovost 2 % nominálně: reálně = 2 % − inflace; vklad na cíl se nezaokrouhluje na 10 000"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = zaklad({ majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 900000 }], cile: [{ nazev: "Koupelna", castka: 300000, za_let: 2 }, { nazev: "Notebook", castka: 80000, za_let: 1 }], renta: { mesicne: 0, od_veku: "" } });
+  let o = await calc(page, base);
+  assert(Math.abs(o.rH - (0.02 - 0.03)) < 1e-9, "rH = 2 % − 3 % = −1 %, je " + o.rH);
+  o = await calc(page, Object.assign({}, base, { nastaveni: { inflace: 0.04 } }));
+  assert(Math.abs(o.rH - (0.02 - 0.04)) < 1e-9, "rH sleduje inflaci");
+  o = await calc(page, base);
+  const k = o.cile.find(c => c.n === "Koupelna"), n = o.cile.find(c => c.n === "Notebook");
+  assert(k.vklad < 310000, "koupelna za 300 000 už nepotřebuje 310 000 (je " + k.vklad + ")");
+  assert(n.vklad % 10000 !== 0 || n.vklad === 80000 || n.vklad < 90000, "notebook za 80 000 se nezaokrouhluje na 90 000 (je " + n.vklad + ")");
+  assert(k.spl >= 0.995 && n.spl >= 0.995, "cíle jsou splněné");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["kaskáda cílů: když cash flow stačí, každý cíl platí plnou platbu hned; přelévá se jen v nutné míře"] = async function () {
+  const { ctx, page, errors } = await open();
+  const mk = vyd => zaklad({ klient: { jmeno: "Test", narozen: "1985-05-05", zam: 60000, vydaje_osobni: vyd, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 80000 },
+    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }], cile: [{ nazev: "Auto", castka: 600000, za_let: 2 }, { nazev: "Byt", castka: 1200000, za_let: 10 }], renta: { mesicne: 0, od_veku: "" } });
+  const res = [];
+  for (let vyd = 14000; vyd <= 40000; vyd += 1000) {
+    const o = await calc(page, mk(vyd));
+    res.push({ vyd, kas: o.cile.some(c => c.inh > 0.5), flag: o.flags.some(f => /přelévá/.test(f)), kraceno: o.flags.some(f => /zkráceny/.test(f)), zbyva: o.cfZbyva, byt: o.cile.find(c => c.n === "Byt").pmt });
+  }
+  const info = JSON.stringify(res.map(r => [r.vyd, r.kas, r.kraceno]));
+  const bez = res.filter(r => !r.kas && !r.kraceno), s = res.filter(r => r.kas && !r.kraceno);
+  assert(bez.length >= 2, "při dost cash flow se nekaskáduje " + info);
+  assert(s.length >= 1, "při těsném cash flow se přelévá " + info);
+  bez.forEach(r => { assert(!r.flag, "bez kaskády není varování o přelévání"); assert(r.zbyva >= 0, "bez kaskády nezbývá záporné cash flow"); assert(r.byt > 3000, "pozdější cíl platí plnou platbu hned, ne drobnou (" + r.byt + ")"); });
+  s.forEach(r => { assert(r.flag, "s kaskádou je varování o přelévání"); assert(r.zbyva >= -0.5, "i s kaskádou se platby vejdou"); });
+  // čím méně cash flow, tím víc přelévání: jakmile se kaskáduje, platí to i pro všechny těsnější případy
+  const first = res.findIndex(r => r.kas || r.kraceno); assert(res.slice(first).every(r => r.kas || r.kraceno), "monotónnost: kaskáda se po zapnutí nevypíná " + info);
+  // renta při dost cash flow: plná platba od začátku (ne „900 Kč“ s tím, že se později přelije)
+  const o = await calc(page, zaklad({ klient: { jmeno: "Test", narozen: "1985-05-05", zam: 90000, vydaje_osobni: 30000, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 120000 }, majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 450000 }] }));
+  assert(o.renta && o.renta.inh === 0 && o.renta.pmt > 3000, "renta: plná vlastní platba od začátku (" + JSON.stringify(o.renta) + ")");
+  assert(o.cile.every(c => c.inh === 0), "žádný cíl nebere přítok, když cash flow stačí");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["renta, kterou pokrývá státní důchod, se do plánu nedává (žádné Infinity)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const plan = zaklad({ klient: { jmeno: "Dů", narozen: "1962-03-03", zam: 60000, vydaje_osobni: 30000, starobni: 40000, inv1: 6000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 80000 }, renta: { mesicne: 25000, od_veku: 65 } });
+  const o = await calc(page, plan);
+  eq(o.renta, null, "renta s nulovou potřebou");
+  assert(o.flags.some(f => /už pokrývá státní důchod/.test(f)), "vysvětlující poznámka");
+  await setPlan(page, plan);
+  const bad = await page.evaluate(() => { compute(); return FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl); });
+  eq(bad, [], "snímky bez Infinity / NaN");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["výdaje: úmrtí kryje jen výdaje domácnosti (osobní odpadnou); bez rozdělení = vše domácnost"] = async function () {
+  const { ctx, page, errors } = await open();
+  const d = (tot, dom) => zaklad({ klient: { jmeno: "Jitka", narozen: "1985-03-14", zam: 60000, vydaje_osobni: tot, vydaje_dom: dom, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, sirotci: 8000, bez_partnera: true, hruba: 80000 }, deti: [{ jmeno: "D", narozen: "2016-06-01", vs: true }], cile: [], renta: { mesicne: 0, od_veku: "" } });
+  const a = await calc(page, d(41000, 30000)), b = await calc(page, d(41000, undefined)), c = await calc(page, d(50000, 30000));
+  eq(a.kat[0].smrt.faze, [22000], "gap = výdaje domácnosti 30 000 − sirotčí 8 000"); eq(a.kat[0].smrt.vydOs, 11000, "osobní výdaje 11 000");
+  eq(b.kat[0].smrt.faze, [33000], "bez rozdělení: celé výdaje 41 000 − 8 000"); eq(b.kat[0].smrt.vydOs, 0);
+  eq(c.kat[0].smrt.p3, a.kat[0].smrt.p3, "vyšší osobní výdaje nezvyšují krytí smrti");
+  assert(c.kat[0].vyd === 50000 && a.kat[0].vyd === 41000, "celkové výdaje pro invaliditu a nemoc zůstávají celkové");
+  assert(!a.miss.includes("klient.vydaje_dom") && b.miss.includes("klient.vydaje_dom"), "s dětmi se před prezentací chce rozdělení výdajů (a když je vyplněné, nechybí)");
+  const e = await calc(page, d(41000, 90000)); eq(e.kat[0].smrt.vyd, 41000, "domácnost nad celkem se ořízne"); assert(e.flags.some(f => /vyšší než výdaje celkem/.test(f)), "upozornění");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["manželé: platba do plánu se dělí poměrem příjmů (stejné % z platu)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const o = await calc(page, zaklad({ klient: { jmeno: "A", narozen: "1985-05-05", zam: 80000, vydaje_osobni: 40000, vydaje_dom: 30000, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, hruba: 100000 }, partner: { zapnuto: true, jmeno: "B", narozen: "1986-05-05", zam: 40000, vydaje_osobni: 20000, vydaje_dom: 15000, starobni: 15000, inv1: 5000, inv2: 9000, inv3: 15000, hruba: 55000 } }));
+  const [a, b] = o.kat; assert(o.pmtCelkem > 0, "plán má platby");
+  assert(Math.abs(a.invPlan - 2 * b.invPlan) <= 2, "manžel s 2× vyšším příjmem dává 2× víc (" + a.invPlan + " vs " + b.invPlan + ")");
+  assert(Math.abs(a.invPlan + b.invPlan - o.pmtCelkem) <= 2, "součet podílů = platba celkem");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 /* hotové plány demo klientů (index.html → demoFpPlans): musí se spočítat, nesmí nic chybět a musí být splnitelné */
 tests["demo plány: spočítají se, jsou kompletní, splnitelné a sedí s kartami klientů"] = async function () {
   const { readFileSync } = await import("node:fs");
