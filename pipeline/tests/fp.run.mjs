@@ -152,6 +152,28 @@ tests["manželé: platba do plánu se dělí poměrem příjmů (stejné % z pla
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["prezentace: jen životní pojištění (bez nemovitosti, domácnosti, auta), bez „v termínu“ a tabulka plánu s odsazením od okrajů"] = async function () {
+  const { ctx, page, errors } = await open();
+  const pl = zaklad({ klient: { jmeno: "Test", narozen: "1985-05-05", zam: 70000, vydaje_osobni: 40000, vydaje_dom: 30000, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, hruba: 90000, bez_partnera: true }, partner: { zapnuto: false }, deti: [{ jmeno: "D", narozen: "2016-06-01", vs: true }],
+    pojisteni: { zivotni: { stav: 1000, navrh: 2500 }, nemovitost: { stav: 1900, navrh: 1900, pc: 6500000 }, domacnost: { stav: 550, navrh: 550, pc: 1200000 }, auto: { stav: 1400, navrh: 1400 } } });
+  const o = await calc(page, pl);
+  const ref = await page.evaluate(p => { const R = FPE.compute(JSON.parse(JSON.stringify(p)), new Date(), {}); return { typy: FPE.POJ_TYPY.map(x => x[0]), pojOst: R.pojOst, nove: R.pojNove, cf: R.cf, pmt: R.pmtCelkem, zbyva: R.cfZbyva }; }, pl);
+  eq(ref.typy, ["zivotni"], "jediný typ pojištění v plánu"); eq(ref.pojOst, undefined, "žádné majetkové pojištění ve výsledku");
+  eq(ref.nove, 2500, "životní pojištění zůstává"); eq(ref.zbyva, ref.cf - ref.pmt - 2500, "cash flow se krátí jen o životní pojištění");
+  await setPlan(page, pl);
+  const f = await page.evaluate(() => { compute(); const out = { lbl: FR.map(x => x.lbl), txt: [], bar: [] };
+    FR.forEach(x => { const t = document.createElement("div"); t.innerHTML = x.h; out.txt.push([x.lbl, t.textContent]);
+      t.querySelectorAll("div").forEach(d => { const tx = d.textContent.trim().toLowerCase(); if ((tx === "co" || tx === "splnění") && d.children.length === 0) out.bar.push([tx, parseFloat(d.style.left), parseFloat(d.style.width), d.style.textAlign]); }); });
+    return out; });
+  assert(!f.lbl.some(l => /majetku/i.test(l)), "žádný snímek Pojištění majetku");
+  const bad = f.txt.filter(([, t]) => /v termínu|Pojištění (domácnosti|nemovitosti|auta)|Poj\. (domácnosti|nemovitosti|auta)/.test(t)).map(x => x[0]);
+  eq(bad, [], "snímky s textem o majetkovém pojištění nebo „v termínu“");
+  assert(f.txt.some(([, t]) => /Životní pojištění/.test(t)), "životní pojištění v prezentaci zůstává");
+  assert(f.bar.length >= 2, "našel jsem záhlaví Co / Splnění");
+  f.bar.forEach(([t, l, w, al]) => { if (al === "left") assert(l >= 80 + 16, "„Co“ je odsazené od levé hrany pruhu (" + l + ")"); else assert(l + w <= 1520 - 16, "„Splnění“ je odsazené od pravé hrany pruhu (" + (l + w) + ")"); });
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 /* hotové plány demo klientů (index.html → demoFpPlans): musí se spočítat, nesmí nic chybět a musí být splnitelné */
 tests["demo plány: spočítají se, jsou kompletní, splnitelné a sedí s kartami klientů"] = async function () {
   const { readFileSync } = await import("node:fs");
