@@ -1768,7 +1768,7 @@ function plural(n,a,b,c){return n===1?a:n>1&&n<5?b:c}
 /* podíly jedné množiny jako celá procenta se součtem přesně 100 (největší zbytek) – nikdy se nezaokrouhluje každý díl zvlášť (49+25+25=99) */
 function pct100(vals){const t=vals.reduce((a,b)=>a+Math.max(0,b),0);if(t<=0)return vals.map(()=>0);const raw=vals.map(v=>Math.max(0,v)/t*100),fl=raw.map(Math.floor);let rest=100-fl.reduce((a,b)=>a+b,0);raw.map((r,i)=>[r-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,rest).forEach(([,i])=>fl[i]++);return fl}
 function shortKc(a){a=+a||0;return a>=1e6?(Math.round(a/1e5)/10).toLocaleString("cs-CZ")+" mil.":a>=1e4?fmt0(a/1e3)+" tis.":fmt0(a)}
-function initials(n){return (n||"?").replace(/\(.*?\)/g,"").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()}
+function initials(n){const w=nameWords(n).filter(x=>!isTitleWord(x));return (w.length?w:(n||"?").trim().split(/\s+/)).map(x=>x[0]).slice(0,2).join("").toUpperCase()}
 function teamAvatar(m,cls,col){return m.photo?el("img",{class:cls,src:m.photo,alt:""}):el("span",{class:cls,style:"background:"+col},initials(m.name))}
 function meAvatar(cls){return settings.myPhoto?el("img",{class:cls,src:settings.myPhoto,alt:""}):el("span",{class:cls,style:"background:var(--tint)"},"Já")}
 /* profilovka (člen týmu i ty): bez fotky výběr souboru → editor; s fotkou rovnou editor s uloženým výřezem
@@ -3100,7 +3100,7 @@ async function callQSet(ids){const q={d:todayStr(),ids};settings={...settings,ca
 async function callQToggle(e){try{const rec=await ensureClient(e),ids=callQIds();if(ids.includes(rec.id)){await callQSet(ids.filter(x=>x!==rec.id));toast("Odebráno z volacího bloku")}else{await callQSet([...ids,rec.id]);toast("Přidáno do dnešního volacího bloku")}}catch(err){toast("Nepodařilo se uložit")}}
 function callQEntries(){const E=clientEntries();return callQIds().map(id=>E.find(e=>e.rec?.id===id)).filter(Boolean)}
 function callBlockIds(){const q=callQEntries().filter(e=>!todoState("qcall:"+e.rec.id,true)).map(e=>"c:"+e.rec.id);return [...q,...todayData().calls.filter(l=>!todoState("call:"+l.id,true)).map(l=>l.id)]}
-function surnameOfDisplay(n){const w=(n||"").replace(/\(.*?\)/g," ").trim().split(/\s+/);return w[w.length-1]||n}
+function surnameOfDisplay(n){const w=nameWords(n).filter(x=>!isTitleWord(x));return w[w.length-1]||n}
 async function srvPostpone(e,k){
   try{const rec=await ensureClient(e);const t=todayStr(), base=[t,rec.servisNext||t].sort().pop();
     const next=shiftWeekend(k==="w"?addDaysFrom(base,7):addMonthsStr(base,k==="m"?1:k==="q"?3:12));
@@ -4632,16 +4632,23 @@ const CAL={server:"Google Calendar",tool:"list_events",id:"3ofcp7go7l73e8l10cfj6
 let calEvents=null, calState="loading", calMsg="";
 const NOISE=new Set(["podpis","online","teams","ing","judr","mgr","bc","mudr","phdr","dps","zp","zfpi","hypo","hypoteka","fyzicky","schuzka","servis","analyza","u","v","ni","na","a","s","se","k","kanclu","doma","zoom","meet","ft","fp","porada","porady","trenink","treninku","skoleni","kurz","akce","ukoly","ukol","meeting","call","obed","vecere","tym","tymu","tymova","tymovka","prezentace","workshop","konference","seminar","mentoring","coaching","onboarding","nabor","pohovor","supervize","kancelar","kancl","osobni","volno","dovolena","narozeniny","vikend","skola","prednaska","zkouska","sraz","vecirek","party","firma","zfp","akademie","vybor","planovani","plan","reporting","report","jednani","callcentrum","telefonovani","volani","obvolavani","nabory","info","infoschuzka","konzultace"]);
 function norm(x){return (x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"")}
-function surnameOf(name){const w=(name||"").replace(/\(.*?\)/g," ").trim().split(/\s+/).filter(Boolean);return norm(w[w.length-1]||"")}
+const TITLE_CANON={prof:"Prof.",doc:"Doc.",judr:"JUDr.",mudr:"MUDr.",phdr:"PhDr.",rndr:"RNDr.",paeddr:"PaedDr.",mvdr:"MVDr.",pharmdr:"PharmDr.",thdr:"ThDr.",phmr:"PhMr.",dr:"Dr.",ing:"Ing.",mgr:"Mgr.",bc:"Bc.",ba:"BA",bsc:"BSc.",mba:"MBA",phd:"Ph.D.",csc:"CSc.",dis:"DiS.",llm:"LL.M.",msc:"MSc."};
+const isTitleWord=w=>Object.prototype.hasOwnProperty.call(TITLE_CANON,norm(w));
+function nameWords(name){return (name||"").replace(/\(.*?\)/g," ").replace(/,/g," ").trim().split(/\s+/).filter(Boolean)}
+function surnameOf(name){const w=nameWords(name).filter(x=>!isTitleWord(x));return norm(w[w.length-1]||"")}
 function parseEvent(e){
   if(!e||!e.start||!e.start.dateTime||e.status==="cancelled")return null;
   if(e.extendedProperties?.private?.pipeline==="tasks")return null;
   const raw=(e.summary||"").trim();const pre=prefixRe();if(!pre||!pre.test(raw))return null;
   const words=raw.replace(pre||/^$/,"").replace(/\(.*?\)/g," ").split(/[\s,;+/]+/).map(w=>w.replace(/[.]+$/,"")).filter(Boolean);
-  const kept=words.filter(w=>!NOISE.has(norm(w)));
-  let cap=kept.filter(w=>/^\p{Lu}/u.test(w));
+  /* tituly se z kalendáře přenášejí do jména (jednotný tvar), do párovacích klíčů ale nevstupují */
+  const isT=w=>isTitleWord(w), kept=words.filter(w=>isT(w)||!NOISE.has(norm(w)));
+  let cap=kept.filter(w=>!isT(w)&&/^\p{Lu}/u.test(w));
   if(!cap.length)return null;
-  const name=cap.join(" ");
+  const firstIdx=kept.indexOf(cap[0]), lastIdx=kept.lastIndexOf(cap[cap.length-1]);
+  const tt=(a,b)=>kept.slice(a,b).filter(isT).map(w=>TITLE_CANON[norm(w)]);
+  const tPre=tt(0,firstIdx), tPost=tt(lastIdx+1);
+  const name=[...tPre,...cap].join(" ")+(tPost.length?", "+tPost.join(" "):"");
   return {id:e.id,start:e.start.dateTime,title:raw,name,keys:cap.map(norm),key:name?norm(cap[cap.length-1]):"",online:/online|teams|zoom|meet/i.test(raw+" "+(e.location||"")),podpis:/podpis/i.test(raw),link:e.htmlLink||"",place:(e.location||"").trim()};
 }
 function evMatches(ev,l){const sn=surnameOf(l.name);if(sn.length<3)return false;return ev.keys.some(k=>k===sn||k===sn+"ovi"||(k.length>4&&sn.length>4&&(k===sn+"a"||sn===k+"a")))}
@@ -4663,6 +4670,16 @@ async function syncCalendar(){
       const old=(l.meetings||[]);
       const merged=[...old.filter(m=>!ms.some(x=>x.id===m.id)&&m.start<new Date(Date.now()-60*864e5).toISOString()),...ms].sort((a,b)=>a.start.localeCompare(b.start)).slice(-30);
       const patch={};
+      /* titul z kalendáře doplní do jména leadu (jen přidává; jen když jde zjevně o stejnou osobu) */
+      try{if(!nameWords(l.name).some(isTitleWord)){
+        const sn=surnameOf(l.name), lw=new Set(nameWords(l.name).map(norm));
+        const tev=calEvents.filter(ev=>evMatches(ev,l)&&nameWords(ev.name).some(isTitleWord)).sort((a,b)=>b.start.localeCompare(a.start))[0];
+        if(tev){const ew=nameWords(tev.name).filter(w=>!isTitleWord(w)).map(norm);
+          if(ew.every(w=>lw.has(w)||w===sn||w===sn+"ova")){
+            const nw=nameWords(tev.name),fi=nw.findIndex(w=>!isTitleWord(w)),li=nw.length-1-[...nw].reverse().findIndex(w=>!isTitleWord(w));
+            const pre=nw.slice(0,fi).filter(isTitleWord), post=nw.slice(li+1).filter(isTitleWord);
+            patch.name=[...pre,l.name].join(" ")+(post.length?", "+post.join(" "):"")}}
+      }}catch(e){}
       const sig=arr=>arr.map(m=>[m.id,m.start,m.title,!!m.online,!!m.podpis].join("|")).sort().join("~");
       if(sig(merged)!==sig(old))patch.meetings=merged;
       const fut=merged.filter(m=>m.start>=now)[0], past=merged.filter(m=>m.start<now).pop();
