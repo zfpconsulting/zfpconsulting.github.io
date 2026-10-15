@@ -1120,6 +1120,9 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
   </section>
   <section id="view_atasks" hidden><div id="atBox"></div></section>
   <section id="view_aclients" hidden><div id="acBox"></div></section>
+  <section id="view_db" hidden>
+    <div id="dbBox"></div>
+  </section>
   <section id="view_users" hidden>
     <div id="uCalcBox"></div>
     <div id="uListBox" class="ulist"></div>
@@ -1361,7 +1364,7 @@ const AppLock=(()=>{
     $("lockPin").addEventListener("keydown",e=>{if(e.key==="Enter")tryPin($("lockPin").value)});
     $("lockPin").addEventListener("input",()=>{const v=$("lockPin").value,c=cfg();if(c&&c.pin&&v.length>=(c.pin.len||4))tryPin(v)});
     $("lockForgot").onclick=()=>{if(!confirm("Odemknout nejde? Data z tohoto zařízení se smažou a zámek se vypne. Na Google Disku zůstanou – po přihlášení Googlem se stáhnou zpět."))return;
-      setCfg(null);let w;try{LStore.replace({});["g_fid","g_synced","cal_cache","cal_hist","g_tok","g_ok","pp_docs_folder","gem_key"].forEach(k=>localStorage.removeItem(k));w=window.Docs?Docs.wipe():indexedDB.deleteDatabase("pp_docs")}catch(e){}reloadAfter(w)};
+      setCfg(null);let w;try{LStore.replace({});["g_fid","g_synced","cal_cache","cal_hist","g_tok","g_ok","pp_docs_folder","gem_key","db_rows_v1"].forEach(k=>localStorage.removeItem(k));w=window.Docs?Docs.wipe():indexedDB.deleteDatabase("pp_docs")}catch(e){}reloadAfter(w)};
     ["pointerdown","keydown","touchstart","wheel"].forEach(ev=>addEventListener(ev,()=>{if(!locked)lastAct=Date.now()},{capture:true,passive:true}));
     document.addEventListener("visibilitychange",()=>{const c=cfg();if(!c)return;
       if(document.visibilityState==="hidden"){hiddenAt=Date.now();if(!(+c.min))show()}
@@ -1556,7 +1559,7 @@ async function gfetch(url,opt={}){
   return r;
 }
 
-function wipeLocal(){LStore.replace({});["g_fid","g_synced","cal_cache","cal_hist","fc_draft_v1","as_flag","as_adv","as_asst","as_invites","as_notified","as_snap_at","as_snap_sig","as_auto","as_inv_at","pp_docs_folder","gem_key"].forEach(k=>localStorage.removeItem(k));
+function wipeLocal(){LStore.replace({});["g_fid","g_synced","cal_cache","cal_hist","fc_draft_v1","db_rows_v1","as_flag","as_adv","as_asst","as_invites","as_notified","as_snap_at","as_snap_sig","as_auto","as_inv_at","pp_docs_folder","gem_key"].forEach(k=>localStorage.removeItem(k));
   /* obsah souborů u klientů (IndexedDB) – vrací slib, ať s ním jde počkat před reloadem */
   try{return window.Docs?Docs.wipe():Promise.resolve()}catch(e){return Promise.resolve()}}
 /* reload až po smazání souborů (max 1,5 s), jinak by ho přerušil */
@@ -1849,6 +1852,7 @@ function render(){
   else if(view==="duch"){$("bigTitle").textContent="Důchodová kalkulačka";$("sub").textContent="Invalidní, vdovský a sirotčí důchod z údajů IOLDP";renderDuch()}
   else if(view==="atasks"){$("bigTitle").textContent="Úkoly";if(typeof renderAsTasks==="function")renderAsTasks()}
   else if(view==="aclients"){$("bigTitle").textContent="Klienti";if(typeof renderAsClients==="function")renderAsClients()}
+  else if(view==="db"){$("bigTitle").textContent="Databáze";$("sub").textContent="Smlouvy načtené z PDF ze Stely – jen v tomto zařízení";renderDb()}
   else if(view==="users"){$("bigTitle").textContent="Uživatelé";$("sub").textContent="Kdo appku používá a kalkulačka příjmu";if(typeof renderUsersTab==="function")renderUsersTab()}
   else{$("bigTitle").textContent="Sazebník";$("sub").textContent="Jak se počítají body u tvých produktů";renderPP()}
 }
@@ -1871,6 +1875,16 @@ function renderDuch(then){
     duchUI=DuchodCalc.mount($("duchBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),ensure:ensureClient});fire()};
   if(window.DuchodCalc)return go();
   duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=5";sc.onload=go;sc.onerror=go;document.head.append(sc);
+}
+/* záložka Databáze (jen admin) – modul databaze.js se načte až při prvním otevření; data jen v localStorage tohoto zařízení */
+let dbUI=null,dbLoading=false;
+function renderDb(){
+  if(dbUI){dbUI.refresh();return}
+  if(dbLoading)return;
+  const go=()=>{dbLoading=false;if(!window.Databaze){$("dbBox").textContent="Databázi se nepodařilo načíst – zkontroluj připojení.";return}
+    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)}})};
+  if(window.Databaze)return go();
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=1";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 function renderCareer(cur){
   if($("careerBar").contains(document.activeElement))return;
@@ -6847,10 +6861,10 @@ function tabOrder(){const out=(settings.tabOrder||[]).filter(k=>TABS.some(t=>t[0
   const ci=out.indexOf("calc");if(ci>0&&out[ci-1]==="pf"&&out.includes("cli")){out.splice(ci,1);out.splice(out.indexOf("cli")+1,0,"calc")}
   return out}
 function tabHiddenSet(){return new Set(settings.tabHidden!==undefined?settings.tabHidden:["pp"])}
-function visibleTabs(){if(typeof asMode==="function"&&asMode())return ["atasks","aclients"];const hidden=tabHiddenSet();const vis0=tabOrder().filter(k=>!hidden.has(k));const vis=vis0.length?vis0:["pipe"];const ex=(typeof asFlag!=="undefined"&&asFlag)?["atasks"]:[];return isAdminUser()&&!DEMO?[...vis,...ex,"users"]:[...vis,...ex]}
+function visibleTabs(){if(typeof asMode==="function"&&asMode())return ["atasks","aclients"];const hidden=tabHiddenSet();const vis0=tabOrder().filter(k=>!hidden.has(k));const vis=vis0.length?vis0:["pipe"];const ex=(typeof asFlag!=="undefined"&&asFlag)?["atasks"]:[];return isAdminUser()&&!DEMO?[...vis,...ex,"db","users"]:[...vis,...ex]}
 function renderTabBar(){
   const bar=$("tabBar");if(!bar)return;
-  bar.replaceChildren(...visibleTabs().map(k=>{const t=TABS.find(x=>x[0]===k)||({users:["users","Uživatelé"],atasks:["atasks","Úkoly"],aclients:["aclients","Klienti"]})[k];if(!t)return null;
+  bar.replaceChildren(...visibleTabs().map(k=>{const t=TABS.find(x=>x[0]===k)||({db:["db","Databáze"],users:["users","Uživatelé"],atasks:["atasks","Úkoly"],aclients:["aclients","Klienti"]})[k];if(!t)return null;
     return el("button",{type:"button",role:"tab",id:"tab_"+k,"aria-selected":String(k===view),onclick:()=>setView(k)},t[1])}).filter(Boolean));
 }
 /* editor pořadí a viditelnosti záložek – v Data a synchronizace; přepínač skryje, šipky posunou */
@@ -6875,7 +6889,7 @@ function renderTabsConfig(){
 function setView(v){
   if(!visibleTabs().includes(v))v=visibleTabs()[0];
   if(v==="money"&&view!=="money")mixSpinPending=true;
-  view=v;TABS.concat([["users","Uživatelé"],["atasks","Úkoly"],["aclients","Klienti"]]).forEach(([k])=>{const e=$("view_"+k);if(!e)return;const show=k===v;e.hidden=!show;
+  view=v;TABS.concat([["db","Databáze"],["users","Uživatelé"],["atasks","Úkoly"],["aclients","Klienti"]]).forEach(([k])=>{const e=$("view_"+k);if(!e)return;const show=k===v;e.hidden=!show;
     if(show){e.classList.remove("vIn");void e.offsetWidth;e.classList.add("vIn")}
     const tb=$("tab_"+k);if(tb)tb.setAttribute("aria-selected",String(k===v))});
   $("searchBox").hidden=v!=="pipe";
@@ -6937,7 +6951,7 @@ renderTabBar();
 let sv="pipe";try{sv=localStorage.getItem("pipe_view")||"pipe"}catch(e){}
 if(sv==="srv")sv="cli";
 {let nav="";try{nav=(performance.getEntriesByType("navigation")[0]||{}).type||""}catch(e){}
- const HM={"#vydelek":"money","#klienti":"cli","#servis":"cli","#sazebnik":"pp","#sit":"net","#dane":"tax","#cile":"goals","#uzivatele":"users","#portfolia":"pf"};
+ const HM={"#vydelek":"money","#klienti":"cli","#servis":"cli","#sazebnik":"pp","#sit":"net","#dane":"tax","#cile":"goals","#uzivatele":"users","#databaze":"db","#portfolia":"pf"};
  /* odkaz s # platí jen při novém otevření; při obnovení stránky (refresh) zůstane záložka, kde jsi skončil */
  if(HM[location.hash]&&nav!=="reload")sv=HM[location.hash];
  if(location.hash&&!/access_token=|error=/.test(location.hash)){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}}
