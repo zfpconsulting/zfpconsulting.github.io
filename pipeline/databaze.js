@@ -60,24 +60,30 @@ function parseStela(raw){
 }
 
 /* text z PDF: řádky podle svislé polohy, uvnitř řádku podle vodorovné (nezávisí na pořadí v obsahu PDF) */
+/* jeden sdílený worker pro celé dávkové nahrání (dřív vznikal worker na každé PDF a zůstával naživu → u stovek PDF zasekla stránka) */
+let sharedWorker=null;
+function releaseWorker(){if(sharedWorker){try{sharedWorker.destroy()}catch(e){}sharedWorker=null}}
 async function pdfText(file){
   const lib=await import(BASE+"vendor/pdf.min.mjs");
   lib.GlobalWorkerOptions.workerSrc=BASE+"vendor/pdf.worker.min.mjs";
-  const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,enableXfa:false}).promise;
+  if(!sharedWorker){try{sharedWorker=new lib.PDFWorker({name:"databaze"})}catch(e){sharedWorker=null}}
+  const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer()),worker:sharedWorker||undefined,isEvalSupported:false,enableXfa:false}).promise;
   let out="";
-  for(let p=1;p<=doc.numPages;p++){
-    const c=await(await doc.getPage(p)).getTextContent();
-    const its=c.items.filter(it=>it.str&&it.str.trim()&&it.transform).map(it=>({s:it.str,x:it.transform[4],y:it.transform[5],w:it.width||0}));
-    its.sort((a,b)=>b.y-a.y||a.x-b.x);
-    const rows=[];
-    for(const it of its){const r=rows[rows.length-1];if(r&&Math.abs(r.y-it.y)<=3)r.items.push(it);else rows.push({y:it.y,items:[it]})}
-    for(const r of rows){
-      r.items.sort((a,b)=>a.x-b.x);
-      let line="",end=null;
-      for(const it of r.items){line+=(end!==null&&it.x-end<=0.5?"":" ")+it.s;end=it.x+it.w}
-      out+=line.trim()+"\n";
+  try{
+    for(let p=1;p<=doc.numPages;p++){
+      const c=await(await doc.getPage(p)).getTextContent();
+      const its=c.items.filter(it=>it.str&&it.str.trim()&&it.transform).map(it=>({s:it.str,x:it.transform[4],y:it.transform[5],w:it.width||0}));
+      its.sort((a,b)=>b.y-a.y||a.x-b.x);
+      const rows=[];
+      for(const it of its){const r=rows[rows.length-1];if(r&&Math.abs(r.y-it.y)<=3)r.items.push(it);else rows.push({y:it.y,items:[it]})}
+      for(const r of rows){
+        r.items.sort((a,b)=>a.x-b.x);
+        let line="",end=null;
+        for(const it of r.items){line+=(end!==null&&it.x-end<=0.5?"":" ")+it.s;end=it.x+it.w}
+        out+=line.trim()+"\n";
+      }
     }
-  }
+  }finally{try{await doc.destroy()}catch(e){}}
   return out;
 }
 
@@ -102,6 +108,7 @@ const CSS=`
 .dbx .db-btn:disabled{opacity:.45;cursor:default}
 .dbx .db-search{width:100%;box-sizing:border-box;height:42px;border:1px solid var(--sep);border-radius:10px;background:var(--bg,#f2f2f7);color:var(--label);font:inherit;font-size:16px;padding:0 12px;margin-bottom:12px}
 .dbx .db-msg{font-size:13.5px;line-height:1.45;border-radius:10px;padding:9px 12px;margin:0 0 12px;background:var(--bg,#f2f2f7)}
+.dbx .db-prog{font-size:13.5px;line-height:1.45;border-radius:10px;padding:9px 12px;margin:0 0 12px;background:var(--bg,#f2f2f7);color:var(--label2)}
 .dbx .db-msg.warn{background:var(--orange-soft,rgba(255,149,0,.14))}
 .dbx .db-wrap{overflow:auto;border:1px solid var(--sep);border-radius:12px}
 .dbx table{border-collapse:collapse;width:100%;min-width:640px;font-size:14.5px}
@@ -211,21 +218,35 @@ function mount(root,opts={}){
   function draw(){drawMsg();drawTable()}
 
   const LBL={name:"jméno",premium:"pojistné",surrender:"odkupné",start:"datum technického počátku"};
+  let busy=false;
+  const cap=(arr,n)=>arr.length>n?[...arr.slice(0,n),"… a dalších "+(arr.length-n)]:arr;
   async function importFiles(files){
+    if(busy){toast("Import ještě běží – počkej, až doběhne");return}
     const pdfs=[...files].filter(f=>/\.pdf$/i.test(f.name)||f.type==="application/pdf");
     if(!pdfs.length){toast("Vyber PDF soubory");return}
-    let added=0,updated=0;const out=[];
-    for(const f of pdfs){
-      let res;
-      try{res=parseStela(await pdfText(f))}catch(e){out.push({warn:true,t:f.name+": PDF se nepodařilo přečíst"});continue}
-      if(!res.ok){out.push({warn:true,t:f.name+": nevypadá to jako detail smlouvy ze Stely – nic jsem nenašel"});continue}
-      const r=res.rec,ex=r.key&&rows.find(x=>x.key===r.key);
-      if(ex){for(const k of["name","premium","surrender","start","asOf"])if(r[k]!=null&&r[k]!=="")ex[k]=r[k];updated++}
-      else{rows.push({id:uid(),key:r.key,name:r.name,premium:r.premium,surrender:r.surrender,start:r.start,asOf:r.asOf,added:Date.now()});added++}
-      if(res.missing.length)out.push({warn:true,t:f.name+": chybí "+res.missing.map(k=>LBL[k]).join(", ")+" – doplň ručně v tabulce (oranžová pole)"});
-    }
-    persist();
-    out.unshift({t:"Načteno "+(added+updated)+" z "+pdfs.length+" PDF"+(added+updated?" ("+(added?added+" nových":"")+(added&&updated?", ":"")+(updated?updated+" aktualizovaných":"")+")":"")+"."});
+    busy=true;bImp.disabled=true;
+    let added=0,updated=0;const bad=[],miss=[];
+    try{
+      for(let i=0;i<pdfs.length;i++){
+        const f=pdfs[i];
+        bImp.textContent="Čtu "+(i+1)+" / "+pdfs.length+"…";
+        msgBox.replaceChildren(h("div",{class:"db-prog"},"Zpracovávám PDF "+(i+1)+" z "+pdfs.length+"…"));
+        await new Promise(r=>setTimeout(r,0));          /* ať se průběh stihne vykreslit */
+        let res;
+        try{res=parseStela(await pdfText(f))}catch(e){bad.push(f.name);continue}
+        if(!res.ok){bad.push(f.name);continue}
+        const r=res.rec,ex=r.key&&rows.find(x=>x.key===r.key);
+        if(ex){for(const k of["name","premium","surrender","start","asOf"])if(r[k]!=null&&r[k]!=="")ex[k]=r[k];updated++}
+        else{rows.push({id:uid(),key:r.key,name:r.name,premium:r.premium,surrender:r.surrender,start:r.start,asOf:r.asOf,added:Date.now()});added++}
+        if(res.missing.length)miss.push({name:f.name,fields:res.missing});
+        if(i%20===19){persist();drawTable()}             /* průběžně uložit i ukázat, ať se nic neztratí */
+      }
+    }finally{releaseWorker();persist();busy=false;bImp.disabled=false;bImp.textContent="Nahrát PDF ze Stely"}
+    const out=[{t:"Načteno "+(added+updated)+" z "+pdfs.length+" PDF"+(added+updated?" ("+(added?added+" nových":"")+(added&&updated?", ":"")+(updated?updated+" aktualizovaných":"")+")":"")+"."}];
+    if(bad.length)out.push({warn:true,t:"Nerozpoznáno "+bad.length+"× (není to detail smlouvy ze Stely, nebo se PDF nepodařilo přečíst): "+cap(bad,5).join(", ")});
+    if(miss.length&&miss.length<=3)miss.forEach(m=>out.push({warn:true,t:m.name+": chybí "+m.fields.map(k=>LBL[k]).join(", ")+" – doplň ručně v tabulce (oranžová pole)"}));
+    else if(miss.length){const c={};miss.forEach(m=>m.fields.forEach(k=>c[k]=(c[k]||0)+1));
+      out.push({warn:true,t:"U "+miss.length+" smluv chybí údaje ("+Object.entries(c).map(([k,n])=>LBL[k]+" u "+n).join(", ")+") – doplň ručně v tabulce (oranžová pole)."})}
     msg=out;draw();
   }
   fileI.addEventListener("change",async()=>{const fs=[...fileI.files];fileI.value="";if(fs.length)await importFiles(fs)});

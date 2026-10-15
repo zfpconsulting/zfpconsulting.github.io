@@ -58,7 +58,7 @@ async function open({ width = 1100, height = 800, dark = false, pre = null } = {
 }
 const upload = async (page, files) => {
   await page.setInputFiles('input[type="file"]', files);
-  await page.waitForFunction(() => document.querySelector(".db-msg"), null, { timeout: 15000 });
+  await page.waitForFunction(() => /Načteno/.test(document.querySelector(".dbx")?.textContent || ""), null, { timeout: 60000 });
 };
 const table = page => page.$$eval("tbody tr", trs => trs.map(tr => [...tr.querySelectorAll("input")].map(i => i.value.replace(/[  ]/g, " "))));
 const foot = page => page.$eval("tfoot", f => f.textContent.replace(/[\u00a0\u202f]/g, " "));
@@ -148,7 +148,7 @@ const tests = {
     eq(await table(page), [["Alena Dvořáková", "800 Kč", "9 999 Kč", "2012-07-20"], ["Zdeněk Čermák", "1 250 Kč", "45 678,9 Kč", "2015-03-01"]], "seřazeno podle jména (česky)");
     eq(await foot(page), "Celkem55 677,9 Kč", "součet odkupného (45 678,9 + 9 999)");
     const t = await page.textContent(".dbx");
-    assert(/Načteno 2 z 3 PDF/.test(t) && t.includes("3.pdf: nevypadá to jako detail smlouvy"), "hlášky: " + t.slice(0, 300));
+    assert(/Načteno 2 z 3 PDF/.test(t) && t.includes("Nerozpoznáno 1×") && t.includes("3.pdf"), "hlášky: " + t.slice(0, 300));
     await ctx.close();
   },
   async "tabulka: úprava buňky se uloží a přežije znovunačtení, hledání bez diakritiky, řazení, mazání"() {
@@ -192,6 +192,21 @@ const tests = {
     eq(await foot(page), "Celkem · 1 bez odkupného nezapočteno3 000,5 Kč", "součet všech");
     await page.fill(".db-search", "cermak");
     eq(await foot(page), "Celkem (vyhledané)1 000,5 Kč", "součet vyhledaných");
+    await ctx.close();
+  },
+  async "dávka 60 PDF najednou: všechny řádky, žádné osiřelé workery, tlačítko znovu aktivní, shrnutí chybějících údajů"() {
+    const { ctx, page, errors } = await open();
+    const many = [];
+    for (let i = 1; i <= 60; i++) many.push(file(`s${i}.pdf`, await stelaPdf({ key: "98" + String(i).padStart(8, "0"), name: i % 2 ? "" : "Klient " + i, start: "", premium: 500 + i + " Kč", surrender: 10000 + i + ",25 Kč" })));
+    await upload(page, many);
+    eq((await stored(page)).length, 60, "uložených řádků");
+    eq(await page.$$eval("tbody tr", t => t.length), 60, "řádků v tabulce");
+    const w = page.workers().length;
+    assert(w <= 1, "po dávce zůstalo " + w + " workerů");
+    assert(await page.$eval(".db-btn.pri", b => !b.disabled && b.textContent === "Nahrát PDF ze Stely"), "tlačítko po dávce");
+    const t = await page.textContent(".dbx");
+    assert(t.includes("U 60 smluv chybí údaje (jméno u 30, datum technického počátku u 60)"), "souhrn: " + t.slice(0, 260));
+    assert(!errors.length, "chyby: " + errors.join(" | "));
     await ctx.close();
   },
   async "CSV export: BOM, středník, desetinná čárka a ochrana před vzorcem"() {

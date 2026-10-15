@@ -1884,7 +1884,7 @@ function renderDb(){
   const go=()=>{dbLoading=false;if(!window.Databaze){$("dbBox").textContent="Databázi se nepodařilo načíst – zkontroluj připojení.";return}
     dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=2";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=3";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 function renderCareer(cur){
   if($("careerBar").contains(document.activeElement))return;
