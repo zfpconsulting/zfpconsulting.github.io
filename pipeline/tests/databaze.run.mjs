@@ -11,7 +11,7 @@ const base = url.replace(/index\.html$/, "");
 /* ---------- fiktivní PDF ve tvaru „Detail smlouvy“ ze Stely ---------- */
 const row = (l1, v1, l2, v2) => `<tr><td class="l">${l1}</td><td class="v">${v1 ?? ""}</td><td class="l">${l2}</td><td class="v">${v2 ?? ""}</td></tr>`;
 function stelaHtml(o) {
-  const d = { name: "Jana Nováková", name2: "Petr Novák", premium: "500 Kč", freq: "měsíčně", start: "15.12.2008", surrender: "153651,61 Kč", key: "9900000001", asOf: "14.10.2026", ...o };
+  const d = { name: "Jana Nováková", name2: "Petr Novák", premium: "500 Kč", freq: "měsíčně", start: "20.01.2009", surrender: "123456,78 Kč", key: "9900000001", asOf: "14.10.2026", ...o };
   return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><style>
     body{font:11px Arial,sans-serif;margin:24px}table{width:100%;border-collapse:collapse;margin-bottom:8px}td{border:1px solid #ccc;padding:5px 6px;vertical-align:top}
     td.l{width:22%}td.v{width:28%}h4{margin:10px 0 4px}</style></head><body>
@@ -22,13 +22,13 @@ function stelaHtml(o) {
     ${row("Telefon", "", "Email", "")}</table>
     <h4>Údaje o pojištění</h4><table>
     ${row("Pojistné", d.premium, "Datum sepsání smlouvy", "01.12.2008")}
-    ${row("Frekvence placení", d.freq, "Datum počátku pojištění", "15.12.2008")}
+    ${row("Frekvence placení", d.freq, "Datum počátku pojištění", "20.01.2009")}
     ${row("Způsob placení", "bankovním převodem", "Datum technického počátku", d.start)}
     ${row("Indexace", "ne", "Datum zaevidování v systému", "02.12.2008")}</table>
     <h4>Pojištěná osoba</h4><table>
     ${row("Jméno a příjmení", d.name2, "Trvalé bydliště", "Fiktivní 2, Brno")}
     ${row("Datum narození", "", "Email", "")}</table>
-    <h4>Podílový účet</h4><p>Hodnota investice: 165469,58 Kč</p><p>Hodnota odkupného: ${d.surrender}</p>
+    <h4>Podílový účet</h4><p>Hodnota investice: 130000,50 Kč</p><p>Hodnota odkupného: ${d.surrender}</p>
     <p>Platnost dat: ${d.asOf} Poslední přihlášení: 15.12.2015 09:56:33</p>
     <p>https://stela20.nn.cz/Agent/SmlouvaDetail.aspx?cntID=${d.key}</p></body></html>`;
 }
@@ -65,14 +65,14 @@ const stored = page => page.evaluate(() => JSON.parse(localStorage.getItem("db_r
 
 /* text tak, jak ho dává pdf.js z Stely: levý i pravý sloupec na jednom řádku */
 const TXT = (o = {}) => {
-  const d = { name: "Jana Nováková", start: "15.12.2008", premium: "500 Kč", surrender: "153651,61 Kč", key: "9900000002", ...o };
+  const d = { name: "Jana Nováková", start: "20.01.2009", premium: "500 Kč", surrender: "123456,78 Kč", key: "9900000002", ...o };
   return [
     "Detail smlouvy", `2010 - ZFP DŮCHOD - ${d.key}`, "Pojistník",
     `Jméno a příjmení ${d.name} Trvalé bydliště Fiktivní 1, Brno`, "Datum narození Kontaktní adresa", "Údaje o pojištění",
-    `Pojistné ${d.premium} Datum sepsání smlouvy 01.12.2008`, "Frekvence placení měsíčně Datum počátku pojištění 15.12.2008",
+    `Pojistné ${d.premium} Datum sepsání smlouvy 01.12.2008`, "Frekvence placení měsíčně Datum počátku pojištění 20.01.2009",
     `Způsob placení bankovním převodem Datum technického počátku ${d.start}`.trim(), "Indexace ne Datum zaevidování v systému 02.12.2008",
     "Pojištěná osoba", "Jméno a příjmení Petr Novák Trvalé bydliště Fiktivní 2, Brno",
-    "Podílový účet", "Hodnota investice: 165469,58 Kč", `Hodnota odkupného: ${d.surrender}`,
+    "Podílový účet", "Hodnota investice: 130000,50 Kč", `Hodnota odkupného: ${d.surrender}`,
     "Funkční zařazení: Broker Platnost dat: 14.10.2026 Poslední přihlášení: 15.12.2015 09:56:33",
     `https://stela20.nn.cz/Agent/SmlouvaDetail.aspx?cntID=${d.key} 1/2`
   ].join("\n");
@@ -82,7 +82,7 @@ const tests = {
   async "parseStela: čtyři pole, jméno bere z Pojistníka (ne z pojištěné osoby)"() {
     const { ctx, page } = await open();
     const r = await page.evaluate(t => Databaze.math.parseStela(t), TXT());
-    eq(r.rec, { key: "9900000002", name: "Jana Nováková", premium: 500, surrender: 153651.61, start: "2008-12-15", asOf: "2026-10-14" }, "záznam");
+    eq(r.rec, { key: "9900000002", name: "Jana Nováková", premium: 500, surrender: 123456.78, start: "2009-01-20", asOf: "2026-10-14" }, "záznam");
     eq(r.missing, [], "chybějící");
     assert(r.ok, "ok");
     await ctx.close();
@@ -90,7 +90,7 @@ const tests = {
   async "parseStela: prázdné jméno a datum (začerněné/chybí) se nepřevezme z jiného řádku"() {
     const { ctx, page } = await open();
     const r = await page.evaluate(t => Databaze.math.parseStela(t), TXT({ name: "", start: "" }));
-    eq([r.rec.name, r.rec.start, r.rec.premium, r.rec.surrender], ["", "", 500, 153651.61], "pole");
+    eq([r.rec.name, r.rec.start, r.rec.premium, r.rec.surrender], ["", "", 500, 123456.78], "pole");
     eq(r.missing, ["name", "start"], "chybějící");
     assert(r.ok, "částky stačí na ok");
     await ctx.close();
@@ -100,7 +100,7 @@ const tests = {
     const r = await page.evaluate(t => Databaze.math.parseStela(t), TXT({ premium: "6 000 Kč", surrender: "1 234 567,89 Kč" }));
     eq([r.rec.premium, r.rec.surrender], [6000, 1234567.89], "částky");
     const nd = await page.evaluate(t => Databaze.math.parseStela(t.normalize("NFD").replace(/[̀-ͯ]/g, "")), TXT());
-    eq([nd.rec.premium, nd.rec.surrender, nd.rec.start], [500, 153651.61, "2008-12-15"], "bez diakritiky");
+    eq([nd.rec.premium, nd.rec.surrender, nd.rec.start], [500, 123456.78, "2009-01-20"], "bez diakritiky");
     await ctx.close();
   },
   async "parseStela: cizí text není smlouva"() {
@@ -112,7 +112,7 @@ const tests = {
   async "import PDF: čtyři sloupce se naplní z reálně vygenerovaného PDF"() {
     const { ctx, page, errors } = await open();
     await upload(page, [file("detail.pdf", await stelaPdf())]);
-    eq(await table(page), [["Jana Nováková", "500 Kč", "153 651,61 Kč", "2008-12-15"]], "řádek");
+    eq(await table(page), [["Jana Nováková", "500 Kč", "123 456,78 Kč", "2009-01-20"]], "řádek");
     eq((await page.$$eval("th", ths => ths.map(t => t.textContent.replace(/[▲▼]/g, "").trim()))).slice(0, 4), ["Jméno a příjmení", "Pojistné", "Odkupné", "Datum technického počátku"], "hlavičky");
     const st = await stored(page);
     eq([st.length, st[0].key, st[0].asOf], [1, "9900000001", "2026-10-14"], "uložený záznam");
@@ -122,7 +122,7 @@ const tests = {
   async "import PDF: prázdné jméno a datum → oranžová pole, ruční doplnění se při dalším nahrání nepřepíše"() {
     const { ctx, page } = await open();
     await upload(page, [file("a.pdf", await stelaPdf({ name: "", start: "" }))]);
-    eq(await table(page), [["", "500 Kč", "153 651,61 Kč", ""]], "řádek");
+    eq(await table(page), [["", "500 Kč", "123 456,78 Kč", ""]], "řádek");
     eq(await page.$$eval("input.miss", i => i.length), 2, "počet oranžových polí");
     assert((await page.textContent(".dbx")).includes("chybí jméno, datum technického počátku"), "hláška o chybějících polích");
     /* ruční doplnění */

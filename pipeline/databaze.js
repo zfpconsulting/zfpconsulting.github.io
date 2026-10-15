@@ -39,7 +39,7 @@ function parseStela(raw){
   const mp=new RegExp("(?:^|\\s)"+lab("Pojistné")+"\\s+"+NUM+"\\s*K[čc]","i").exec(text);
   if(mp){rec.premium=toNum(mp[1],mp[2]);found.push("premium")}else missing.push("premium");
 
-  /* odkupné: „Hodnota odkupného: 153651,61 Kč“ */
+  /* odkupné: „Hodnota odkupného: 123456,78 Kč“ */
   const mo=new RegExp(lab("Hodnota odkupného")+"\\s*:?\\s*"+NUM+"\\s*K[čc]","i").exec(text);
   if(mo){rec.surrender=toNum(mo[1],mo[2]);found.push("surrender")}else missing.push("surrender");
 
