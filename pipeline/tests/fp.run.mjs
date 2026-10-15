@@ -64,12 +64,13 @@ const tests = {
     let o = await run([true], ["2016-06-01"]);
     eq(o.faze.length, 1, "jedna fáze"); eq(o.faze[0][2], 33000, "výdaje − sirotčí");
     eq(o.p3, Math.ceil(pvAnn(33000, Math.round((26 - o.ages[0]) * 12), 0.045) / 100000) * 100000, "pojistná částka = PV výdajů po odečtu dávek");
-    // totéž dítě bez VŠ: dávky jen do 18 let, pak celé výdaje
+    // totéž dítě bez VŠ: krytí končí v 18 letech dítěte (po 18. už není koho živit, žádný „ocas“ na celé výdaje)
     o = await run([false], ["2016-06-01"]);
-    eq(o.faze.map(f => f[2]), [33000, 41000], "po 18. narozeninách odpadne sirotčí a roste krytí na celé výdaje");
-    // dvě děti s různým věkem: nejdřív 2× sirotčí, pak 1×, pak nic
+    eq(o.faze.map(f => f[2]), [33000], "do 18 let výdaje − sirotčí, dál nic");
+    eq(o.p3, Math.ceil(pvAnn(33000, Math.round((18 - o.ages[0]) * 12), 0.045) / 100000) * 100000, "částka = PV výdajů do 18 let dítěte");
+    // dvě děti s různým věkem: nejdřív 2× sirotčí, pak 1× sirotčí; po 18. narozeninách mladšího krytí končí
     o = await run([false, false], ["2016-06-01", "2020-01-01"]);
-    eq(o.faze.map(f => f[2]), [25000, 33000, 41000], "tři fáze podle věku dětí");
+    eq(o.faze.map(f => f[2]), [25000, 33000], "dvě fáze podle věku dětí, bez doběhu po 18. narozeninách mladšího");
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
@@ -245,6 +246,82 @@ tests["demo plány: spočítají se, jsou kompletní, splnitelné a sedí s kart
   assert(mig.after1.length === res.length + 0 || mig.after1.length >= res.length, "po migraci mají plán všichni vybraní klienti");
   eq(errors, [], "chyby v konzoli");
   await ctx.close();
+};
+
+/* ---- navazující cash flow: splněný cíl předá svou platbu dalšímu cíli a je to vidět ve slidu Finanční plán ---- */
+const kaskada = { klient: { jmeno: "Test Klient", narozen: "1985-05-05", zam: 60000, vydaje_osobni: 38000, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 80000 }, partner: { zapnuto: false }, deti: [], motivace: "x",
+  majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 490000 }], uvery: [], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 1500 } },
+  cile: [{ nazev: "Auto", castka: 800000, za_let: 3 }, { nazev: "Byt", castka: 1500000, za_let: 8 }] };
+tests["navazující platba: cíl, který vyčerpá cash flow, po splnění předá platbu dalšímu – ve slidu plánu vidět krok i výsledek"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, kaskada);
+  const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/ /g, " "); };
+    const P = FR.filter(f => f.g === "p");
+    return { cile: R.cile.map(c => ({ n: c.nazev, pmt: c.pmt, flowIdx: c.flowIdx, flowTake: c.flowTake, spl: c.splneni })), lbl: P.map(f => f.lbl), txt: P.map(f => t(f.h)), cf: R.cf }; });
+  const [auto, byt] = o.cile;
+  assert(auto.pmt > 15000, "první cíl platí z cash flow naplno (" + auto.pmt + ")");
+  eq(auto.flowIdx, 1, "platba Auta po splnění teče do Bytu"); assert(auto.flowTake > 10000, "do Bytu přeteče velká část platby (" + auto.flowTake + ")");
+  assert(byt.pmt < 8000 && byt.spl >= 0.995, "Byt má málo vlastní platby a přesto vychází na 100 % díky navazující platbě (" + byt.pmt + ", " + byt.spl + ")");
+  assert(o.lbl.includes("Plán: navazující platba"), "ve slidu je krok „navazující platba“ (" + o.lbl.join(" | ") + ")");
+  assert(o.lbl[o.lbl.length - 1] === "Plán: hotovo", "slide končí snímkem bez bubliny, který ukáže výsledek");
+  const f = o.txt[o.txt.length - 1], c = o.txt.find((_, i) => o.lbl[i] === "Plán: navazující platba");
+  assert(/po splnění → Byt/.test(f), "u Auta je poznámka, kam platba po splnění teče");
+  assert(/za 3 roky už 20 \d{3} Kč\/měs/.test(f), "u Bytu je vidět, kolik bude platit po splnění Auta: " + f.match(/za \d+ roky už[^A-Z]*/));
+  assert(/z cíle Auto poteče po jeho splnění/.test(c), "popis kroku vysvětluje přelévání");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["nedostatek cash flow: dřívější cíl má přednost a dostane 100 %, zkrácení dopadne na pozdější cíle"] = async function () {
+  const { ctx, page, errors } = await open();
+  const o = await calc(page, Object.assign({}, kaskada, { cile: [{ nazev: "Auto", castka: 800000, za_let: 3 }, { nazev: "Byt", castka: 6000000, za_let: 8 }] }));
+  const [auto, byt] = o.cile;
+  assert(o.flags.some(f => /dřívější cíle mají přednost/.test(f)), "varování o pořadí (" + o.flags.join(" / ") + ")");
+  assert(auto.spl >= 0.995, "dřívější cíl se splní na 100 % (" + auto.spl + ")");
+  assert(byt.spl < 0.995 && byt.pmt > 0, "krácen je až pozdější cíl (" + byt.spl + ")");
+  assert(o.cfZbyva >= -0.5, "platby se vejdou do cash flow (" + o.cfZbyva + ")");
+  await setPlan(page, Object.assign({}, kaskada, { cile: [{ nazev: "Auto", castka: 800000, za_let: 3 }, { nazev: "Byt", castka: 6000000, za_let: 8 }] }));
+  const lbl = await page.evaluate(() => { compute(); return FR.filter(f => f.g === "p").map(f => f.lbl); });
+  assert(lbl.includes("Plán: dosažitelné cíle"), "při nedostatku je závěrečný snímek „dosažitelné cíle“");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+/* ---- úmrtí: partner / dospělé děti = výdaje domácnosti na 3 roky − vdovský (1 rok) + závazky; do 18 let dětí po fázích ---- */
+tests["úmrtí s dospělými dětmi: výdaje domácnosti na 3 roky minus vdovský plus závazky (bez fází)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const mk = (uvery, vs) => ({ klient: { jmeno: "Jan Novák", narozen: "1970-05-05", zam: 70000, vydaje_osobni: 50000, vydaje_dom: 40000, starobni: 25000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 95000 },
+    partner: { zapnuto: false }, deti: [{ jmeno: "Dospělý", narozen: "2004-01-01", vs: vs }], motivace: "x",
+    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 800000 }], uvery, cile: [], renta: { mesicne: 30000 }, pojisteni: { zivotni: { stav: 0, navrh: 2000 } } });
+  const run = plan => page.evaluate(p => { const R = FPE.compute(JSON.parse(JSON.stringify(p)), new Date(), {}); const s = R.katastrofy[0].smrt; return { p3: s.prijem3, pc: s.pc, faze: s.faze.length, met: s.metoda, zav: s.zavazky, zavisli: s.zavisli }; }, plan);
+  let o = await run(mk([], false));
+  eq(o.faze, 0, "dospělé dítě: žádné fáze sirotčího"); eq(o.met, "partner", "metoda: výdaje domácnosti na několik let");
+  eq(o.p3, Math.ceil((3 * 12 * 40000 - 12 * 9000) / 100000) * 100000, "3 roky výdajů domácnosti − 12× vdovský");
+  o = await run(mk([{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }], false));
+  eq(o.zav, 2500000, "závazky = zůstatek úvěrů"); eq(o.pc, o.p3 + 2500000, "pojistná částka = výdaje domácnosti na 3 roky − vdovský + závazky");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+/* ---- slide „Proč pojištění, když platím sociální?“ za slidem s modelací ŽP ---- */
+tests["slide sociální vs. pojištění: 3 animované snímky hned za modelací ŽP, 7,1 % z hrubé, OSVČ jen odhad"] = async function () {
+  const { ctx, page, errors } = await open();
+  const rodina = { klient: { jmeno: "Jan Novák", narozen: "1986-05-05", zam: 55000, vydaje_osobni: 52000, vydaje_dom: 44000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 75000 },
+    partner: { zapnuto: true, jmeno: "Eva Nováková", narozen: "1988-02-02", zam: 38000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 52000 },
+    deti: [{ jmeno: "Anička", narozen: "2018-04-01", vs: false }], motivace: "x", majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 600000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }],
+    cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 3200 } } };
+  await setPlan(page, rodina);
+  const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/ /g, " "); };
+    const idx = FR.map((f, i) => [f.g, i]).filter(x => /^soc\d$/.test(x[0]));
+    const zp0 = FR.findIndex(f => f.g === "zp0"), s0 = FR.map((f, i) => f.g === "soc0" ? i : -1).filter(i => i >= 0);
+    return { groups: [...new Set(idx.map(x => x[0]))], n0: s0.length, nextToZp: s0[0] === zp0 + 1, last: t(FR[s0[s0.length - 1]].h), first: t(FR[s0[0]].h), bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl),
+      keys: s0.map(i => [...FR[i].h.matchAll(/data-k="(sb0|ib0|sum)"/g)].map(m => m[1]).join(",")), lbl: FR[s0[0]].lbl }; });
+  eq(o.groups, ["soc0", "soc1"], "slide pro každou osobu"); eq(o.n0, 3, "3 snímky = animace karty → stát → + pojištění"); assert(o.nextToZp, "slide je hned za slidem s modelací ŽP");
+  assert(/5 320/.test(o.first) && /7,1 %/.test(o.first), "sociální pojistné = 7,1 % z hrubé 75 000 = 5 320 Kč");
+  assert(/Stát\s+20 000 Kč/.test(o.last) && /pojištění/.test(o.last), "poslední snímek ukazuje dávku státu i doplatek pojištění");
+  assert(!/majetku/i.test(o.lbl), "popisek bez „majetku“"); eq(o.bad, [], "bez Infinity / NaN"); assert(o.keys.every(k => k === "sb0,ib0,sum"), "stejné animované prvky ve všech snímcích (" + o.keys.join(" | ") + ")");
+  const osvc = { klient: { jmeno: "Petr Svoboda", narozen: "1990-03-03", zam: 0, podnik: 70000, vydaje_osobni: 45000, starobni: 20000, inv1: 6000, inv2: 10000, inv3: 18000, bez_partnera: true }, partner: { zapnuto: false }, deti: [], motivace: "x",
+    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 150000 }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 2500 } } };
+  await setPlan(page, osvc);
+  const p = await page.evaluate(() => { compute(); const e = document.createElement("div"), f = FR.filter(x => x.g === "soc0"); e.innerHTML = f[f.length - 1].h; return { n: f.length, t: e.textContent.replace(/ /g, " ") }; });
+  eq(p.n, 3, "OSVČ má také 3 snímky"); assert(/odhad/.test(p.t) && !/7,1 %/.test(p.t), "OSVČ: částka je označená jako odhad, bez sazby zaměstnance"); assert(/OSVČ bez nemocenského/.test(p.t), "OSVČ nemá nemocenskou");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
 let ok = 0, bad = 0;
