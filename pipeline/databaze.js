@@ -118,6 +118,9 @@ const CSS=`
 .dbx td.x{width:44px;text-align:center}
 .dbx td.x button{border:0;background:none;color:var(--label2);font-size:20px;line-height:1;cursor:pointer;padding:6px 10px;border-radius:8px}
 .dbx td.x button:hover{color:var(--red)}
+.dbx tfoot td{padding:11px 12px;font-weight:700;background:var(--bg,#f2f2f7);border-top:1px solid var(--sep);border-bottom:0;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dbx tfoot td.num{text-align:right}
+.dbx tfoot .db-sub{font-weight:400;font-size:12.5px;color:var(--label2)}
 .dbx .db-empty{padding:28px 12px;text-align:center;color:var(--label2);font-size:14.5px;line-height:1.5}
 .dbx .db-note{font-size:12.5px;color:var(--label2);line-height:1.5;margin:12px 0 0}
 `;
@@ -194,7 +197,13 @@ function mount(root,opts={}){
     const head=h("tr",{},COLS.map(([k,t,n])=>h("th",{class:n?"num":"",onclick:()=>{if(sortK===k)sortDir=-sortDir;else{sortK=k;sortDir=1}drawTable()},"aria-sort":sortK===k?(sortDir>0?"ascending":"descending"):"none"},t,sortK===k?h("span",{class:"ar"},sortDir>0?"▲":"▼"):null)),h("th",{}));
     const body=list.map(r=>h("tr",{},COLS.map(([k,,n])=>h("td",{class:n?"num":""},cell(r,k))),
       h("td",{class:"x"},h("button",{type:"button",title:"Smazat řádek","aria-label":"Smazat řádek "+(r.name||""),onclick:()=>{if(confirm("Smazat řádek"+(r.name?" „"+r.name+"“":"")+"?")){rows=rows.filter(x=>x!==r);persist();drawTable()}}},"×"))));
-    tblBox.replaceChildren(h("div",{class:"db-wrap"},h("table",{},h("thead",{},head),h("tbody",{},body))));
+    /* součet odkupného zobrazených řádků (při hledání jen vyhledané); smlouvy bez odkupného se nepočítají, ale je to vidět */
+    const withS=list.filter(r=>typeof r.surrender==="number"&&isFinite(r.surrender)),no=list.length-withS.length;
+    const sum=Math.round(withS.reduce((a,r)=>a+r.surrender,0)*100)/100;
+    const foot=h("tfoot",{},h("tr",{class:"db-total"},
+      h("td",{},"Celkem"+(f.length?" (vyhledané)":""),no?h("span",{class:"db-sub"}," · "+no+" bez odkupného nezapočteno"):null),
+      h("td",{}),h("td",{class:"num"},kc(sum)),h("td",{}),h("td",{})));
+    tblBox.replaceChildren(h("div",{class:"db-wrap"},h("table",{},h("thead",{},head),h("tbody",{},body),foot)));
   }
   function drawMsg(){
     msgBox.replaceChildren(...(msg?msg.map(m=>h("div",{class:"db-msg"+(m.warn?" warn":"")},m.t)):[]));

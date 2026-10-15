@@ -61,6 +61,7 @@ const upload = async (page, files) => {
   await page.waitForFunction(() => document.querySelector(".db-msg"), null, { timeout: 15000 });
 };
 const table = page => page.$$eval("tbody tr", trs => trs.map(tr => [...tr.querySelectorAll("input")].map(i => i.value.replace(/[  ]/g, " "))));
+const foot = page => page.$eval("tfoot", f => f.textContent.replace(/[\u00a0\u202f]/g, " "));
 const stored = page => page.evaluate(() => JSON.parse(localStorage.getItem("db_rows_v1") || "[]"));
 
 /* text tak, jak ho dává pdf.js z Stely: levý i pravý sloupec na jednom řádku */
@@ -145,6 +146,7 @@ const tests = {
       file("3.pdf", junk)
     ]);
     eq(await table(page), [["Alena Dvořáková", "800 Kč", "9 999 Kč", "2012-07-20"], ["Zdeněk Čermák", "1 250 Kč", "45 678,9 Kč", "2015-03-01"]], "seřazeno podle jména (česky)");
+    eq(await foot(page), "Celkem55 677,9 Kč", "součet odkupného (45 678,9 + 9 999)");
     const t = await page.textContent(".dbx");
     assert(/Načteno 2 z 3 PDF/.test(t) && t.includes("3.pdf: nevypadá to jako detail smlouvy"), "hlášky: " + t.slice(0, 300));
     await ctx.close();
@@ -178,6 +180,18 @@ const tests = {
     eq((await stored(page)).length, 1, "po smazání řádku");
     await page.click("text=Smazat vše");
     eq((await stored(page)).length, 0, "po smazání všeho");
+    await ctx.close();
+  },
+  async "součet odkupného: při hledání jen vyhledané, smlouva bez odkupného se nepočítá a je to vidět"() {
+    const { ctx, page } = await open();
+    await upload(page, [
+      file("1.pdf", await stelaPdf({ key: "9900000041", name: "Zdeněk Čermák", surrender: "1 000,50 Kč" })),
+      file("2.pdf", await stelaPdf({ key: "9900000042", name: "Alena Dvořáková", surrender: "2 000 Kč" })),
+      file("3.pdf", await stelaPdf({ key: "9900000043", name: "Bez Odkupného", surrender: "" }))
+    ]);
+    eq(await foot(page), "Celkem · 1 bez odkupného nezapočteno3 000,5 Kč", "součet všech");
+    await page.fill(".db-search", "cermak");
+    eq(await foot(page), "Celkem (vyhledané)1 000,5 Kč", "součet vyhledaných");
     await ctx.close();
   },
   async "CSV export: BOM, středník, desetinná čárka a ochrana před vzorcem"() {
