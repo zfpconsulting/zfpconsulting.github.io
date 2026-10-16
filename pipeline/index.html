@@ -1046,13 +1046,14 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
         <p class="secfoot" id="akvFFoot"></p>
       </div>
       <div>
-        <div class="sechead-row"><h3 class="sechead">Kolegové na nábor</h3><div class="sh-actions"><button type="button" class="chipbtn" id="akvAddP">+ Kolega</button></div></div>
+        <div class="sechead-row"><h3 class="sechead">Kolegové na nábor</h3><div class="sh-actions"><button type="button" class="chipbtn" id="akvCnbBtn">Import ČNB</button><button type="button" class="chipbtn" id="akvAddP">+ Kolega</button></div></div>
+        <input type="file" id="akvCnb" accept=".csv,text/csv" hidden>
         <input type="search" class="akvq" id="akvPq" placeholder="Hledat jméno, firmu…" autocomplete="off">
         <div class="chips akvfilt" id="akvPType"></div>
         <div class="group" id="akvPList"></div>
         <h3 class="sechead">Hledat na LinkedInu</h3>
         <div class="chips" id="akvLi"></div>
-        <p class="secfoot">Otevře hledání lidí v Brně na LinkedInu. Filtr „v oboru do 1 roku“ si tam nastav podle data nástupu v profilu; zajímavé lidi přidej sem a ulož si rok, od kdy jsou v oboru. Když kandidáta oslovíš, tlačítkem v jeho kartě ho přesuneš do náboru v Rozvoji sítě.</p>
+        <p class="secfoot">„Registr ČNB“ = vázaní zástupci pro spotřebitelské úvěry se sídlem v Brně a okolí (PSČ 600–649, 664–667), zapsaní za posledních 12 měsíců – tedy nováčci v oboru. Obnovíš je tak, že stáhneš <a href="https://jerrs.cnb.cz/apljerrsdad/JERRS.OPENDATA.STAHUJ?p_seznam=4" target="_blank" rel="noopener">CSV z otevřených dat ČNB</a> a dáš Import ČNB – noví přibudou, nikdo se nezdvojí. Registr neříká, pod jakou síť patří; to uvidíš na LinkedInu (tlačítko v kartě). Lidi z bank v registru nejsou – na ty jsou tlačítka „in · …“. Při prvním oslovení řekni, odkud kontakt máš (GDPR).</p>
       </div>
     </div>
   </section>
@@ -3993,6 +3994,23 @@ const akvNorm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCa
 async function akvUpd(col,r,patch){Object.assign(r,patch);try{await db.doc(col+"/"+r.id).update({...patch,updatedAt:new Date().toISOString()})}catch(e){toast("Nepodařilo se uložit")}}
 function akvBenTags(b){return (b||[]).map(k=>el("span",{class:"tag akvben akv"+k},(AKV_BEN.find(x=>x[0]===k)||[k,k])[1]))}
 function akvDot(S){return el("span",{class:"akvst",style:"--c:"+S.c},S.t)}
+function akvSinceTxt(p){if(p.sinceDate){const d=new Date(p.sinceDate),n=new Date(),m=(n.getFullYear()-d.getFullYear())*12+n.getMonth()-d.getMonth();return "v registru od "+fmtDate(p.sinceDate)+" "+p.sinceDate.slice(0,4)+" ("+(m<1?"tento měsíc":m+" měs.")+")"}return akvYears(p.since)}
+function akvHrLine(f){if(f.hrPhone)return (f.hrName?"HR: "+f.hrName:f.hrLevel==="ustredna"?"recepce":"HR")+" "+f.hrPhone;return f.cName?"kontakt: "+f.cName:""}
+const AKV_PSC=n=>(n>=60000&&n<=64999)||(n>=66400&&n<=66799);
+const AKV_LEGAL=/(s\.\s*r\.\s*o|spol\.|a\.\s*s\.|z\.\s*s\.|v\.\s*o\.\s*s|k\.\s*s\.|družstvo|\bSE$|o\.\s*p\.\s*s|z\.\s*ú\.|\bltd|gmbh)/i;
+/* řádky z otevřených dat ČNB (vázaní zástupci ZSÚ): jen fyzické osoby z Brna a okolí, zapsané za posledních 12 měsíců; ulice se neukládá */
+async function akvImportCnbRows(rows){
+  const cut=new Date();cut.setFullYear(cut.getFullYear()-1);const cs=ymd(cut);
+  const pick=rows.filter(r=>r.ico&&r.name&&r.since>=cs&&AKV_PSC(+String(r.psc).replace(/\s/g,""))&&!AKV_LEGAL.test(r.name));
+  const have=new Set(akvLidi.map(p=>p.ico).filter(Boolean));let add=0;const now=new Date().toISOString();
+  for(const r of pick){if(have.has(r.ico))continue;have.add(r.ico);
+    await db.collection("akvLidi").add({name:r.name.replace(/\s+/g," ").trim(),type:"poradce",company:"",role:"vázaný zástupce – spotřebitelské úvěry",obec:r.obec||"",ico:r.ico,sinceDate:r.since,since:+r.since.slice(0,4),src:"cnb",phone:"",email:"",linkedin:"",note:"",stage:"tip",createdAt:now});add++}
+  toast(add?"Přidáno "+add+" "+plural(add,"nováček","nováčci","nováčků")+" z registru ČNB":"Z registru nic nového");return add;
+}
+async function akvImportCnb(file){
+  try{const rows=akvParseCsv(await file.text());if(!rows.length||!("datumvzniku" in rows[0]))return toast("Tohle není CSV z otevřených dat ČNB");
+    await akvImportCnbRows(rows.map(o=>({ico:o["ico"],name:o["nazev"],obec:o["nazevobce"],psc:o["psc"],since:o["datumvzniku"]})))}catch(e){toast("Soubor se nepodařilo načíst")}
+}
 function akvYears(since){const y=+since;if(!y)return "";const n=new Date().getFullYear()-y;return n<=0?"v oboru od letoška":n===1?"v oboru ~1 rok":"v oboru ~"+n+" "+plural(n,"rok","roky","let")}
 
 function renderAkv(){
@@ -4004,25 +4022,25 @@ function renderAkv(){
     tile("Potenciální kolegové",akvLidi.filter(p=>p.stage!=="nezajem").length,akvLidi.filter(p=>p.stage==="nabor").length+" už v náboru","var(--orange)"));
   /* ---- levá půlka: firmy ---- */
   const q=akvNorm(akvF.q);
-  const list=akvFirmy.filter(f=>(!akvF.hideNo||f.stage!=="nezajem")&&(!akvF.ben||(f.ben||[]).includes(akvF.ben))&&(!q||akvNorm([f.name,f.city,f.positions,f.cName,f.note].join(" ")).includes(q)))
+  const list=akvFirmy.filter(f=>(!akvF.hideNo||f.stage!=="nezajem")&&(!akvF.ben||(f.ben||[]).includes(akvF.ben))&&(!q||akvNorm([f.name,f.city,f.positions,f.cName,f.hrName,f.note].join(" ")).includes(q)))
     .sort((a,b)=>AKV_FST.findIndex(s=>s.k===(a.stage||"nova"))-AKV_FST.findIndex(s=>s.k===(b.stage||"nova"))||(a.name||"").localeCompare(b.name||"","cs"));
   $("akvFBen").replaceChildren(...[["","Vše"],...AKV_BEN].map(([k,t])=>el("button",{type:"button",class:"chipbtn"+(akvF.ben===k?" on":""),onclick:()=>{akvF.ben=k;renderAkv()}},t)),
     el("button",{type:"button",class:"chipbtn"+(akvF.hideNo?"":" on"),onclick:()=>{akvF.hideNo=!akvF.hideNo;renderAkv()}},akvF.hideNo?"Ukázat i nezájem":"Skrýt nezájem"));
   $("akvFList").replaceChildren(...(list.length?list.map(f=>el("button",{type:"button",class:"row row-btn",onclick:()=>openAkvFirma(f)},
       el("span",{class:"main"},el("div",{class:"t"},f.name||"Bez názvu"),
-        el("div",{class:"s"},[f.city,f.cName?"kontakt: "+f.cName:"",f.positions].filter(Boolean).join(" · ")),
+        el("div",{class:"s"},[f.city,akvHrLine(f),f.positions].filter(Boolean).join(" · ")),
         el("div",{class:"akvtags"},...akvBenTags(f.ben))),
       akvDot(akvSt(AKV_FST,f.stage)),chev()))
     :[el("div",{class:"row"},el("span",{class:"main"},el("div",{class:"s",style:"white-space:normal"},akvFirmy.length?"Filtru nic neodpovídá.":"Zatím žádné firmy. Naimportuj seznam (JSON/CSV) nebo přidej firmu ručně.")))]));
   $("akvFFoot").textContent=list.length+" z "+akvFirmy.length+" "+plural(akvFirmy.length,"firmy","firem","firem")+". Kontaktní osoba je ta, kterou firma sama uvádí v inzerátu – nabídku zaměstnaneckých benefitů směřuj na HR/personalistu, ne na náboráře.";
   /* ---- pravá půlka: potenciální kolegové ---- */
   const pq=akvNorm(akvP.q);
-  const pl=akvLidi.filter(p=>(!akvP.hideNo||p.stage!=="nezajem")&&(!akvP.type||p.type===akvP.type)&&(!pq||akvNorm([p.name,p.company,p.role,p.note].join(" ")).includes(pq)))
-    .sort((a,b)=>AKV_PST.findIndex(s=>s.k===(a.stage||"tip"))-AKV_PST.findIndex(s=>s.k===(b.stage||"tip"))||(b.since||0)-(a.since||0)||(a.name||"").localeCompare(b.name||"","cs"));
-  $("akvPType").replaceChildren(...[["","Vše"],...AKV_PTYPE].map(([k,t])=>el("button",{type:"button",class:"chipbtn"+(akvP.type===k?" on":""),onclick:()=>{akvP.type=k;renderAkv()}},t)));
+  const pl=akvLidi.filter(p=>(!akvP.hideNo||p.stage!=="nezajem")&&(!akvP.type||(akvP.type==="cnb"?p.src==="cnb":p.type===akvP.type))&&(!pq||akvNorm([p.name,p.company,p.role,p.obec,p.note].join(" ")).includes(pq)))
+    .sort((a,b)=>AKV_PST.findIndex(s=>s.k===(a.stage||"tip"))-AKV_PST.findIndex(s=>s.k===(b.stage||"tip"))||String(b.sinceDate||b.since||"").localeCompare(String(a.sinceDate||a.since||""))||(a.name||"").localeCompare(b.name||"","cs"));
+  $("akvPType").replaceChildren(...[["","Vše"],["cnb","Registr ČNB"],...AKV_PTYPE].map(([k,t])=>el("button",{type:"button",class:"chipbtn"+(akvP.type===k?" on":""),onclick:()=>{akvP.type=k;renderAkv()}},t)));
   $("akvPList").replaceChildren(...(pl.length?pl.map(p=>el("button",{type:"button",class:"row row-btn",onclick:()=>openAkvLide(p)},
       el("span",{class:"main"},el("div",{class:"t"},p.name||"Bez jména"),
-        el("div",{class:"s"},[p.role,p.company,akvYears(p.since)].filter(Boolean).join(" · "))),
+        el("div",{class:"s"},[p.company||p.role,p.obec,akvSinceTxt(p)].filter(Boolean).join(" · "))),
       akvDot(akvSt(AKV_PST,p.stage)),chev()))
     :[el("div",{class:"row"},el("span",{class:"main"},el("div",{class:"s",style:"white-space:normal"},akvLidi.length?"Filtru nic neodpovídá.":"Zatím nikdo. Otevři si hledání na LinkedInu níž a zajímavé lidi sem přidávej tlačítkem + Kolega.")))]));
   $("akvLi").replaceChildren(...AKV_LI.map(([t,kw])=>el("a",{class:"chipbtn",href:"https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(kw)+"&origin=GLOBAL_SEARCH_HEADER",target:"_blank",rel:"noopener",style:"text-decoration:none"},"in · "+t)));
@@ -4035,13 +4053,21 @@ function openAkvFirma(f0,isNew){
   const stg=el("select",{},AKV_FST.map(s=>el("option",{value:s.k},s.t)));stg.value=f.stage||"nova";stg.addEventListener("change",()=>upd({stage:stg.value,[stg.value+"At"]:new Date().toISOString()}).then(renderAkv));
   const ben=el("div",{class:"chips",style:"justify-content:flex-end"},...AKV_BEN.map(([k,t])=>{const on=(f.ben||[]).includes(k);return el("button",{type:"button",class:"chipbtn"+(on?" on":""),onclick:async()=>{const b=new Set(f.ben||[]);on?b.delete(k):b.add(k);await upd({ben:AKV_BEN.map(x=>x[0]).filter(x=>b.has(x))});openAkvFirma(f)}},t)}));
   const ta=(k,ph)=>{const t=el("textarea",{placeholder:ph});t.value=f[k]||"";t.addEventListener("change",()=>upd({[k]:t.value.trim()}));return t};
-  const tel=(f.phone||"").replace(/\s/g,"");
+  const tel=(f.phone||"").split(/[,;]/)[0].replace(/[^\d+]/g,"");
   const del=el("button",{type:"button",class:"danger-row"},"Smazat firmu");del.onclick=async()=>{if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="Opravdu smazat?";return}try{await db.doc("akvFirmy/"+f.id).delete();$("edDlg").close();toast("Smazáno")}catch(e){}};
   openSheet(f.name||"Firma",[
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Firma"),nm),el("div",{class:"frow"},el("label",{},"Obec"),inp("city","např. Brno, Modřice")),
       el("div",{class:"frow"},el("label",{},"Příspěvky"),ben),el("div",{class:"frow"},el("label",{},"Fáze"),stg),
       el("div",{class:"frow"},el("label",{},"Inzerované pozice"),inp("positions","např. skladník, účetní"))),
-    el("h3",{class:"sechead"},"Kontakt ve firmě"),
+    el("h3",{class:"sechead"},"Kdo řeší benefity (HR)"),
+    el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),inp("hrName","HR / personální")),el("div",{class:"frow"},el("label",{},"Role"),inp("hrRole","např. HR manažerka")),
+      el("div",{class:"frow"},el("label",{},"Telefon"),inp("hrPhone","telefon","tel")),el("div",{class:"frow"},el("label",{},"E-mail"),inp("hrEmail","e-mail","email")),
+      el("div",{class:"frow"},el("label",{},"Zdroj"),inp("hrSrc","odkud kontakt je","url"))),
+    f.hrLevel==="ustredna"?el("p",{class:"hint"},"Číslo je ústředna / recepce – řekni si o personální oddělení, kdo má na starosti benefity."):f.hrLevel==="nenalezeno"?el("p",{class:"hint"},"Telefon na HR firma nezveřejňuje – zkus e-mail nebo kontakt z inzerátu."):null,
+    el("div",{class:"chips"},(f.hrPhone||"").replace(/[^\d+]/g,"")?el("a",{class:"chipbtn",href:"tel:"+(f.hrPhone||"").split(/[,;]/)[0].replace(/[^\d+]/g,""),style:"text-decoration:none"},"📞 Zavolat HR"):null,
+      f.hrEmail?el("a",{class:"chipbtn",href:"mailto:"+f.hrEmail,style:"text-decoration:none"},"✉️ E-mail HR"):null,
+      /^https?:\/\//.test(f.hrSrc||"")?el("a",{class:"chipbtn",href:f.hrSrc,target:"_blank",rel:"noopener",style:"text-decoration:none"},"Zdroj kontaktu"):null),
+    el("h3",{class:"sechead"},"Kontakt z inzerátu"),
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),inp("cName","kontaktní osoba")),el("div",{class:"frow"},el("label",{},"Role"),inp("cRole","např. HR, personalistka")),
       el("div",{class:"frow"},el("label",{},"Telefon"),inp("phone","telefon","tel")),el("div",{class:"frow"},el("label",{},"E-mail"),inp("email","e-mail","email")),
       el("div",{class:"frow"},el("label",{},"Zdroj"),inp("src","odkaz na inzerát","url"))),
@@ -4064,19 +4090,19 @@ function openAkvLide(p0,isNew){
   const recruit=recruits.find(r=>r.id===p.recruitId);
   const toRec=recruit?el("p",{class:"hint"},"✓ Je v náboru – najdeš ho v Rozvoji sítě (fáze „"+RS(recruit.stage).t+"“)."):
     el("button",{type:"button",class:"chipbtn",onclick:async()=>{try{const now=new Date().toISOString();
-      const r=await db.collection("recruits").add({name:p.name||"",phone:p.phone||"",source:"Akvizice"+(p.company?" – "+p.company:""),note:[p.role,p.company,akvYears(p.since),p.note].filter(Boolean).join(" · "),stage:"osloven",stageAt:now,oslovenAt:now,next:"Zavolat",nextDate:todayStr(),log:[],createdAt:now});
+      const r=await db.collection("recruits").add({name:p.name||"",phone:p.phone||"",source:"Akvizice"+(p.company?" – "+p.company:""),note:[p.role,p.company,p.obec,akvSinceTxt(p),p.note].filter(Boolean).join(" · "),stage:"osloven",stageAt:now,oslovenAt:now,next:"Zavolat",nextDate:todayStr(),log:[],createdAt:now});
       await upd({recruitId:r.id,stage:"nabor"});toast("Přidán do náboru v Rozvoji sítě");openAkvLide(p);renderAkv()}catch(e){toast("Nepodařilo se uložit")}}},"→ Přesunout do náboru (oslovený)");
   const ta=el("textarea",{placeholder:"proč by mohl chtít změnu, společní známí, jak oslovit"});ta.value=p.note||"";ta.addEventListener("change",()=>upd({note:ta.value.trim()}));
   const del=el("button",{type:"button",class:"danger-row"},"Smazat");del.onclick=async()=>{if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="Opravdu smazat?";return}try{await db.doc("akvLidi/"+p.id).delete();$("edDlg").close();toast("Smazáno")}catch(e){}};
   openSheet(p.name||"Kolega",[
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),nm),el("div",{class:"frow"},el("label",{},"Kde pracuje"),typ),
       el("div",{class:"frow"},el("label",{},"Firma"),inp("company","např. KB, Partners, Allianz")),el("div",{class:"frow"},el("label",{},"Pozice"),inp("role","např. hypoteční specialista")),
-      el("div",{class:"frow"},el("label",{},"V oboru od",el("div",{class:"xh"},akvYears(p.since))),sinceI),el("div",{class:"frow"},el("label",{},"Fáze"),stg)),
+      p.sinceDate?el("div",{class:"frow"},el("label",{},"V oboru od"),el("span",{class:"xh"},akvSinceTxt(p))):el("div",{class:"frow"},el("label",{},"V oboru od",el("div",{class:"xh"},akvYears(p.since))),sinceI),el("div",{class:"frow"},el("label",{},"Obec"),inp("obec","kde působí")),p.ico?el("div",{class:"frow"},el("label",{},"IČO"),el("span",{class:"xh"},p.ico)):null,el("div",{class:"frow"},el("label",{},"Fáze"),stg)),
     el("h3",{class:"sechead"},"Kontakt"),
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Telefon"),inp("phone","telefon","tel")),el("div",{class:"frow"},el("label",{},"E-mail"),inp("email","e-mail","email")),
       el("div",{class:"frow"},el("label",{},"LinkedIn"),inp("linkedin","odkaz na profil","url"))),
     el("div",{class:"chips"},tel?el("a",{class:"chipbtn",href:"tel:"+tel,style:"text-decoration:none"},"📞 Zavolat"):null,
-      /^https?:\/\//.test(p.linkedin||"")?el("a",{class:"chipbtn",href:p.linkedin,target:"_blank",rel:"noopener",style:"text-decoration:none"},"Profil na LinkedInu"):null),
+      /^https?:\/\//.test(p.linkedin||"")?el("a",{class:"chipbtn",href:p.linkedin,target:"_blank",rel:"noopener",style:"text-decoration:none"},"Profil na LinkedInu"):(p.name?el("a",{class:"chipbtn",href:"https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(p.name),target:"_blank",rel:"noopener",style:"text-decoration:none"},"in · Najít na LinkedInu"):null)),
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámka"),ta)),
     el("div",{class:"chips"},toRec),
     el("div",{class:"group"},del)]);
@@ -4101,7 +4127,7 @@ function akvFromRaw(o){
   const ben=AKV_BEN.map(x=>x[0]).filter(k=>b.some(v=>akvNorm(v)===akvNorm(k)||(k==="ZP"&&/zivot/.test(akvNorm(v)))||(k==="PS"&&/penz|dps|pp/.test(akvNorm(v)))));
   const pos=g("pozice","positions");
   return {name:String(g("firma","name")).trim(),city:String(g("obec","city")).trim(),ben,positions:Array.isArray(pos)?pos.join(", "):String(pos),
-    cName:String(g("kontakt_jmeno","cName")),cRole:String(g("kontakt_role","cRole")),phone:String(g("telefon","phone")),email:String(g("email")),src:String(g("zdroj","src")),note:String(g("poznamka","note"))};
+    cName:String(g("kontakt_jmeno","cName")),cRole:String(g("kontakt_role","cRole")),phone:String(g("telefon","phone")),email:String(g("email")),src:String(g("zdroj","src")),note:String(g("poznamka","note")),hrName:String(g("hr_jmeno","hrName")),hrRole:String(g("hr_role","hrRole")),hrPhone:String(g("hr_telefon","hrPhone")),hrEmail:String(g("hr_email","hrEmail")),hrSrc:String(g("hr_zdroj","hrSrc")),hrLevel:String(g("uroven","hrLevel"))};
 }
 async function akvImport(file){
   try{const txt=await file.text();let raw;
@@ -4109,7 +4135,7 @@ async function akvImport(file){
     if(!Array.isArray(raw))raw=raw.firmy||raw.items||[];
     const have=new Map(akvFirmy.map(f=>[akvNorm(f.name),f]));let add=0,merged=0;const now=new Date().toISOString();
     for(const o of raw){const f=akvFromRaw(o);if(!f.name)continue;const k=akvNorm(f.name),ex=have.get(k);
-      if(ex){const patch={};["city","positions","cName","cRole","phone","email","src","note"].forEach(x=>{if(!ex[x]&&f[x])patch[x]=f[x]});
+      if(ex){const patch={};["city","positions","cName","cRole","phone","email","src","note","hrName","hrRole","hrPhone","hrEmail","hrSrc","hrLevel"].forEach(x=>{if(!ex[x]&&f[x])patch[x]=f[x]});
         const nb=[...new Set([...(ex.ben||[]),...f.ben])];if(nb.length!==(ex.ben||[]).length)patch.ben=AKV_BEN.map(x=>x[0]).filter(x=>nb.includes(x));
         if(Object.keys(patch).length){await akvUpd("akvFirmy",ex,patch);merged++}continue}
       const r=await db.collection("akvFirmy").add({...f,stage:"nova",createdAt:now});have.set(k,{id:r.id,...f});add++}
@@ -4117,6 +4143,8 @@ async function akvImport(file){
   }catch(e){toast("Soubor se nepodařilo načíst")}
 }
 $("akvAddF").onclick=addAkvFirma;$("akvAddP").onclick=addAkvLide;
+$("akvCnbBtn").onclick=()=>$("akvCnb").click();
+$("akvCnb").addEventListener("change",e=>{const f=e.target.files[0];e.target.value="";if(f)akvImportCnb(f)});
 $("akvImpBtn").onclick=()=>$("akvImp").click();
 $("akvImp").addEventListener("change",e=>{const f=e.target.files[0];e.target.value="";if(f)akvImport(f)});
 $("akvFq").addEventListener("input",e=>{akvF.q=e.target.value;renderAkv()});
