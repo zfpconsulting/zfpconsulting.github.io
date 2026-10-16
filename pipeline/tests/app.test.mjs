@@ -229,6 +229,24 @@ export default {
     function groupSinceExpected() { const now = new Date(), cur = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"); return ["2026-07", "2026-08", "2026-09"].filter(m => m < cur).reduce((s, m) => s + ({ "2026-07": 400, "2026-08": 300, "2026-09": 200 })[m], 0) }
   },
 
+  async "schůzky podle iniciálů vedle bodů celkem"(env) {
+    const store = { ...STORE, "settings/main": { ...STORE["settings/main"], calPrefix: "VK:", calId: "primary" } };
+    const { ctx, page, errors } = await openApp(env, { store });
+    eq(await page.evaluate(() => ["VK: Novák", "Vk: Novák", "MB a VK: Herka", "VK+MB Trnka", "JT + VK podpis", "VK podpis Chloupek", "Konzultace VK", "Porada", "MB: Novák"].map(x => meetInitials(x, "VK"))),
+      ["VK", "VK", "VK+MB", "VK+MB", "VK+JT", "VK", null, null, null], "iniciály v názvu");
+    const ev = (id, summary, dateTime, extra = {}) => ({ id, summary, start: { dateTime }, ...extra });
+    await page.evaluate(items => { calHist = items; _msMemo = null; render(); }, [
+      ev("a", "VK: Novák", "2025-03-01T10:00:00+01:00"), ev("b", "VK: Dvořák", "2025-04-01T10:00:00+02:00"), ev("c", "Vk: Svoboda podpis", "2026-01-05T10:00:00+01:00"),
+      ev("d", "MB a VK: Herka", "2024-10-18T13:00:00+02:00"), ev("e", "VK: Budoucí", "2099-01-01T10:00:00+01:00"),
+      ev("f", "VK: Zrušená", "2025-05-01T10:00:00+02:00", { status: "cancelled" }), ev("g", "Konzultace VK", "2025-06-01T10:00:00+02:00"),
+      ev("h", "VK: Úkoly", "2025-07-01T10:00:00+02:00", { extendedProperties: { private: { pipeline: "tasks" } } })]);
+    eq(await page.evaluate(() => meetStats()), { total: 4, planned: 1, groups: [["VK", 3], ["VK+MB", 1]] }, "počty odehraných schůzek podle iniciálů");
+    eq(await page.locator("#c_meets").textContent(), "4", "celkem vedle bodů celkem");
+    assert(/VK 3 · VK\+MB 1/.test(await page.locator("#careerBar").textContent()), "rozpad podle iniciálů v pruhu");
+    eq(errors, [], "bez chyb v konzoli");
+    await ctx.close();
+  },
+
   async "oddělovače tisíců v číselných polích"(env) {
     const { ctx, page } = await openApp(env, { store: STORE });
     await page.evaluate(() => openEdit({ name: "T", stage: "nabidka", items: [{ p: "Investice", amt: 400000, var: "ZFPI", fee: 3, mode: "jednorazove" }] }));

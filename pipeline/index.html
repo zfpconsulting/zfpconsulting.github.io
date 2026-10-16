@@ -1886,6 +1886,47 @@ function renderDb(){
   if(window.Databaze)return go();
   dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=3";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
+/* iniciály na začátku názvu schůzky z kalendáře: „VK: Novák“ → VK, „MB a VK: Novák“ / „MB+VK Novák“ / „VK a MB: Novák“ → VK+MB.
+   Bere se jen název, který začíná iniciály a obsahuje tvoje (z prefixu, tedy VK); „Konzultace VK“, porady a cizí události se nepočítají. */
+function meetInitials(title,mine){
+  mine=String(mine||"").toUpperCase();if(!mine)return null;
+  const set=new Set();
+  for(const raw of String(title||"").replace(/:/g,": ").replace(/[+&/,]/g," + ").split(/\s+/).filter(Boolean)){
+    const colon=raw.endsWith(":"), t=colon?raw.slice(0,-1):raw;
+    if(t==="+"||/^(a|and)$/i.test(t)){if(!set.size)return null;continue}
+    if(!/^\p{L}{2,3}$/u.test(t)||!(t===t.toUpperCase()||t.toUpperCase()===mine))break;
+    set.add(t.toUpperCase());if(colon)break;
+  }
+  return set.has(mine)?[mine,...[...set].filter(x=>x!==mine).sort()].join("+"):null;
+}
+/* odehrané schůzky za celou historii kalendáře podle iniciálů (calHist + cache kalendáře); naplánované se počítají zvlášť */
+let _msMemo=null;
+function meetStats(){
+  try{
+    const mine=(calCfg().prefix||"").replace(/[^\p{L}]/gu,"").toUpperCase(), cache=lsGet("cal_cache");
+    if(!mine||!calHist)return null;
+    const sig=calHist.length+"|"+(cache?.at||0)+"|"+mine+"|"+Math.floor(Date.now()/6e4);
+    if(_msMemo&&_msMemo.sig===sig)return _msMemo.v;
+    const now=Date.now(), seen=new Set(), by=new Map();let total=0, planned=0;
+    for(const e of [...calHist,...(cache?.items||[])]){
+      if(!e||seen.has(e.id)||!e.start?.dateTime||e.status==="cancelled"||e.extendedProperties?.private?.pipeline==="tasks")continue;seen.add(e.id);
+      const k=meetInitials(e.summary,mine);if(!k)continue;
+      if(Date.parse(e.start.dateTime)>=now){planned++;continue}
+      total++;by.set(k,(by.get(k)||0)+1);
+    }
+    const v={total,planned,groups:[...by.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))};
+    _msMemo={sig,v};return v;
+  }catch(e){return null}
+}
+/* po načtení historie kalendáře se jen přepočítá pruh nahoře (bez překreslení celé appky) */
+function refreshMeetBar(){try{if(view==="pipe")renderCareer(quarterRow(CURQ()))}catch(e){}}
+function meetStatsEl(){
+  const s=meetStats();if(!s||!s.total)return null;
+  const top=s.groups.slice(0,4), rest=s.groups.slice(4).reduce((a,g)=>a+g[1],0);
+  const txt=top.map(([k,n])=>k+" "+fmt0(n)).concat(rest?["ostatní "+fmt0(rest)]:[]).join(" · ");
+  return el("label",{title:"Odehrané schůzky z kalendáře „"+calCfg().name+"“ za celou historii podle iniciálů na začátku názvu („VK: …“, „MB a VK: …“)."+(s.planned?" Naplánováno dál: "+fmt0(s.planned)+".":"")},
+    "Schůzky",el("span",{class:"statchip",id:"c_meets"},fmt0(s.total)),el("span",{class:"cnext",style:"white-space:normal"},txt));
+}
 function renderCareer(cur){
   if($("careerBar").contains(document.activeElement))return;
   const c=career(), cum=cumPts();
@@ -1902,6 +1943,7 @@ function renderCareer(cur){
   $("careerBar").replaceChildren(
     el("label",{},"Statická kariéra",c.auto?el("span",{class:"statchip",title:"Podle bodů celkem"},c.stat+" · "+statRate(c.stat)+" Kč"):s1),
     el("label",{title:"Body celkem = vlastní + skupinové. Klikni a uprav, kolik je vlastních a kolik skupinových."},"Body celkem",cp,cum==null?null:el("span",{class:"cnext",style:"white-space:normal"},(nxt?"do "+nxt[0]+" chybí "+fmt0(nxt[2]-cum)+" b":"nejvyšší pozice")+(own!=null?" · vlastní "+fmt0(own)+" · skupinové "+fmt0(grp):""))),
+    ...[meetStatsEl()].filter(Boolean),
     el("label",{title:"Zvol úroveň, na které jsi teď. Další kvartál se určí automaticky podle bodů za tento kvartál."},"Obratová v "+qLabel(cur.qk),s2,el("span",{class:"cnext"},"→ "+qLabel(nQ)+": "+(nL&&nL.r>statRate(c.stat)?nL.t+" · "+cz(nL.r)+" Kč":"statická "+c.stat+" (zatím "+fmt0(cur.total)+" b z 1 000)"))),
     el("span",{class:"rate"},"Tarif "+qLabel(cur.qk)+" ",el("b",{},cz(cur.rate)+" Kč/b"),el("small",{},cur.src+" · v "+qLabel(pq)+" "+fmt1(cur.prev)+" b")));
 }
@@ -3200,14 +3242,14 @@ $("cliSearch").addEventListener("input",ev=>{cliQ=ev.target.value.trim();cliShow
 let histBusy=false;
 async function fetchCalHistory(force){
   const cfg=calCfg(), c=lsGet("cal_hist");
-  if(c&&c.id===cfg.id&&c.pf===cfg.prefix){calHist=c.items;if(!force&&Date.now()-c.at<6*3600e3)return}
+  if(c&&c.id===cfg.id&&c.pf===cfg.prefix){calHist=c.items;refreshMeetBar();if(!force&&Date.now()-c.at<6*3600e3)return}
   if(histBusy||!cfg.prefix||!GAuth.token()||!navigator.onLine)return;histBusy=true;
   try{
     const p=new URLSearchParams({q:cfg.prefix,timeMin:"2005-01-01T00:00:00Z",timeMax:new Date(Date.now()+400*864e5).toISOString(),singleEvents:"true",orderBy:"startTime",maxResults:"2500"});
     let items=[],page=null,g=0;
     do{if(page)p.set("pageToken",page);const r=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events?"+p)).json();
       items=items.concat((r.items||[]).filter(e=>e.start?.dateTime&&e.status!=="cancelled"&&e.extendedProperties?.private?.pipeline!=="tasks").map(e=>({id:e.id,summary:e.summary,start:{dateTime:e.start.dateTime}})));page=r.nextPageToken}while(page&&++g<25);
-    lsSet("cal_hist",{at:Date.now(),id:cfg.id,pf:cfg.prefix,items});calHist=items;if(view==="cli")render();
+    lsSet("cal_hist",{at:Date.now(),id:cfg.id,pf:cfg.prefix,items});calHist=items;if(view==="cli")render();refreshMeetBar();
   }catch(err){console.warn("hist",err)}finally{histBusy=false}
 }
 
