@@ -748,23 +748,20 @@ html.locked body{overflow:hidden}
 .tpl .del{justify-self:end;border:none;background:none;color:var(--red);font:600 13px var(--font);cursor:pointer}
 .msgbox textarea{width:100%;min-height:150px;font:inherit;font-size:16px;color:var(--label);background:var(--fill2);border:none;border-radius:12px;padding:12px;resize:vertical}
 .msgto{font-size:14px;color:var(--label2)}
-/* ===== Moje cíle ===== */
-.gcard{background:var(--bg2);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--card-shadow);display:flex;gap:14px;align-items:flex-start;margin-bottom:10px}
-.gpie{width:64px;height:64px;border-radius:50%;position:relative;flex:none;display:grid;place-items:center;margin-top:2px}
-.gpie::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--bg2)}
-.gpie b{position:relative;z-index:1;font-size:12px;font-variant-numeric:tabular-nums}
-.gcard .gi{flex:1;min-width:0}
-.gcard .gt{font-weight:600}
-.gcard .gt input{font:inherit;font-weight:600;border:none;background:none;color:var(--label);width:100%;padding:0}
-.gcard .gs{font-size:13px;color:var(--label2);margin-top:1px}
-.gcard .gbar{height:6px;border-radius:3px;background:var(--fill2);margin-top:8px;overflow:hidden}
-.gcard .gbar i{display:block;height:100%;background:var(--tint);border-radius:3px}
-.gmix{font-size:12.5px;color:var(--label2);margin-top:6px;line-height:1.4}
-.gmix b{color:var(--label);font-weight:600}
-.gedit{display:grid;gap:2px;margin-top:8px;background:var(--fill2);border-radius:10px;padding:2px 0}
-.gedit .frow{padding:6px 10px;min-height:36px}
-.gedit .frow label{flex:0 0 120px;font-size:13px;color:var(--label2)}
-.gdel{border:none;background:none;color:var(--red);font:600 13px var(--font);cursor:pointer;padding:8px 10px}
+/* ===== Akvizice ===== */
+.akvq{width:100%;font:inherit;font-size:15px;color:var(--label);background:var(--bg2);box-shadow:var(--card-shadow);border:none;border-radius:10px;padding:9px 12px;margin:0 0 8px}
+.akvgrid .sh-actions .chipbtn{white-space:nowrap}
+.akvgrid .sechead-row .sechead{min-width:0}
+.akvfilt{margin:0 0 10px}.akvfilt .chipbtn{padding:5px 11px;font-size:13px}
+.akvtags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.akvben{font-size:11px;padding:1px 7px}
+.akvPS{background:var(--tint-soft);color:var(--tint)}
+.akvZP{background:var(--green-soft);color:var(--green)}
+.akvDIP{background:var(--orange-soft);color:var(--orange)}
+.akvst{font-size:12px;color:var(--label2);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.akvst::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+#akvFList,#akvPList{max-height:70vh;overflow-y:auto}
+@media (max-width:900px){#akvFList,#akvPList{max-height:none}}
 /* ===== záložka Kalendář – měsíční mřížka ===== */
 .calhead{margin-bottom:10px}
 .calhead .sechead{margin-bottom:8px}
@@ -1037,25 +1034,27 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
     </div>
     <p class="secfoot" style="margin-top:18px">Orientační výpočet podle pravidel pro rok 2026, nenahrazuje daňového poradce. Nepočítá příjmy ze zaměstnání, z pronájmu ani kapitálové. Přiznání se podává do 1. 4. (elektronicky do 1. 5.), přehledy pro ČSSZ a zdravotní pojišťovnu do měsíce po termínu přiznání.</p>
   </section>
-  <section id="view_goals" hidden>
-    <div class="tiles" id="gTiles"></div>
-    <h3 class="sechead">Příjmové cíle</h3>
-    <div class="group" id="gIncGoal"></div>
-    <div id="gIncActive"></div>
-    <div class="group" id="gIncPassive"></div>
-    <div class="group" id="gIncTeam"></div>
-    <p class="secfoot">Aktivní příjem podle kategorie je průměr z posledních 3 měsíců uzavřených obchodů při tvém aktuálním tarifu. Pasivní příjem a příjem z týmu vychází ze stejných dat jako v Obratu a Rozvoji sítě.</p>
-    <h3 class="sechead">Rozpočet</h3>
-    <div class="group" id="gBudget"></div>
-    <h3 class="sechead">Cíle</h3>
-    <div id="gList"></div>
-    <div class="row"><button type="button" class="chipbtn" id="addGoal">+ Cíl</button></div>
-    <h3 class="sechead">Rozdělení volných peněz do cílů</h3>
-    <div class="group" id="gAlloc"></div>
-    <p class="secfoot">Doporučené rozložení akcie/dluhopisy/hotovost podle horizontu cíle vychází z metodiky finančního plánu (tabulka „Pro dosažení cíle“), počítáno s reálným výnosem po odečtení průměrné inflace 3 % ročně. Orientační, nenahrazuje finanční plán.</p>
-    <h3 class="sechead">Po sjetině</h3>
-    <div class="group" id="gPayout"></div>
-    <p class="secfoot">Po každé provizní uzávěrce (1. a 2. polovina měsíce) ukazuje, kolik z výplaty jde na náklady a kolik na cíle. Primárně se na cíle odkládá až po 2. uzávěrce, kdy jsou náklady kryté – pokud ale 1. uzávěrka sama o sobě náklady převýší, jde přebytek na cíle hned.</p>
+  <section id="view_akv" hidden>
+    <div class="tiles" id="akvTiles"></div>
+    <div class="xgrid akvgrid">
+      <div>
+        <div class="sechead-row"><h3 class="sechead">Firmy s příspěvky</h3><div class="sh-actions"><button type="button" class="chipbtn" id="akvImpBtn">Import</button><button type="button" class="chipbtn" id="akvAddF">+ Firma</button></div></div>
+        <input type="file" id="akvImp" accept=".json,.csv,application/json,text/csv" hidden>
+        <input type="search" class="akvq" id="akvFq" placeholder="Hledat firmu, obec, kontakt…" autocomplete="off">
+        <div class="chips akvfilt" id="akvFBen"></div>
+        <div class="group" id="akvFList"></div>
+        <p class="secfoot" id="akvFFoot"></p>
+      </div>
+      <div>
+        <div class="sechead-row"><h3 class="sechead">Kolegové na nábor</h3><div class="sh-actions"><button type="button" class="chipbtn" id="akvAddP">+ Kolega</button></div></div>
+        <input type="search" class="akvq" id="akvPq" placeholder="Hledat jméno, firmu…" autocomplete="off">
+        <div class="chips akvfilt" id="akvPType"></div>
+        <div class="group" id="akvPList"></div>
+        <h3 class="sechead">Hledat na LinkedInu</h3>
+        <div class="chips" id="akvLi"></div>
+        <p class="secfoot">Otevře hledání lidí v Brně na LinkedInu. Filtr „v oboru do 1 roku“ si tam nastav podle data nástupu v profilu; zajímavé lidi přidej sem a ulož si rok, od kdy jsou v oboru. Když kandidáta oslovíš, tlačítkem v jeho kartě ho přesuneš do náboru v Rozvoji sítě.</p>
+      </div>
+    </div>
   </section>
   <section id="view_net" hidden>
     <div class="tiles" id="nTiles"></div>
@@ -1441,7 +1440,7 @@ const LStore=(()=>{
   const apply=(g,dir)=>{replaying=true;try{(dir==="undo"?[...g.ops].reverse():g.ops).forEach(o=>{const tgt=dir==="undo"?o.before:o.after;
       put(o.path,!tgt||tgt._del?{_del:true,_u:Date.now()}:{...clean(tgt),_u:Date.now()})})}finally{replaying=false}};
   const label=g=>{const o=g.ops[0],d=(o.after&&!o.after._del?o.after:o.before)||{},col=o.path.split("/")[0],
-      what={leads:"lead",clients:"klient",team:"člen týmu",recruits:"kandidát",pfinv:"investice",funds:"fond",pfmodels:"model portfolia",fincalc:"kalkulace",duchod:"důchodová kalkulace",fplan:"finanční plán",settings:"nastavení"}[col]||"záznam";
+      what={leads:"lead",clients:"klient",team:"člen týmu",recruits:"kandidát",akvFirmy:"firma (akvizice)",akvLidi:"potenciální kolega",pfinv:"investice",funds:"fond",pfmodels:"model portfolia",fincalc:"kalkulace",duchod:"důchodová kalkulace",fplan:"finanční plán",settings:"nastavení"}[col]||"záznam";
     const act=!o.before||o.before._del?"přidání":!o.after||o.after._del?"smazání":"úprava";
     return act+" – "+what+(d.name&&col!=="settings"?" „"+d.name+"“":"")+(g.ops.length>1?" (+"+(g.ops.length-1)+")":"")};
   const inCol=(name)=>Object.entries(s.docs).filter(([k,v])=>k.startsWith(name+"/")&&k.indexOf("/",name.length+1)<0&&!v._del);
@@ -1846,7 +1845,7 @@ function render(){
   else if(view==="fp"){$("bigTitle").textContent="Finanční plán";$("sub").textContent="Živé finanční plány klientů";renderFpTab()}
   else if(view==="net"){$("bigTitle").textContent="Rozvoj sítě";renderNet()}
   else if(view==="tax"){$("bigTitle").textContent="Daně";renderTax()}
-  else if(view==="goals"){$("bigTitle").textContent="Moje cíle";$("sub").textContent="Rozpočet a investiční cíle podle finančního plánu";renderGoals()}
+  else if(view==="akv"){$("bigTitle").textContent="Akvizice";$("sub").textContent="Firmy s příspěvky zaměstnavatele a potenciální kolegové";renderAkv()}
   else if(view==="pf"){$("bigTitle").textContent="Portfolia";$("sub").textContent="Fondy, portfolia ZFP a tvoje modelová portfolia";renderPf()}
   else if(view==="calc"){$("bigTitle").textContent="Kalkulačka";$("sub").textContent="Finanční matematika – úvěr, investice, renta";renderCalc()}
   else if(view==="duch"){$("bigTitle").textContent="Důchodová kalkulačka";$("sub").textContent="Invalidní, vdovský a sirotčí důchod z údajů IOLDP";renderDuch()}
@@ -3980,298 +3979,148 @@ function renderTax(force){
     el("tr",{},el("td",{},"Zůstane ti"),...REG.map(r=>el("td",{class:(r===best?"best ":"")+(r===c.regime?"cur":"")},r==="flat"&&!RR.flat.ok?"–":kc(left(r))))));
   $("xCmpNote").textContent=(best?"Nejvíc ti teď zůstane při „"+({flat:"paušální dani",p40:"výdajovém paušálu",real:"skutečných výdajích",sro:"s.r.o."})[best]+"“. ":"")+"U skutečných výdajů a s.r.o. je „zůstane ti“ po odečtení výdajů, které jsi zaplatil (u s.r.o. i účetní"+(RR.sro.keep>0?", a bez zisku ponechaného ve firmě":"")+"). S.r.o. počítá s nastavením odměny jednatele a dividendy z režimu s.r.o.";
 }
-/* ================= Moje cíle ================= */
-const GOAL_TABLE=[[0,0,0,100],[5,29,62,9],[10,54,44,3],[15,74,24,2],[20,85,13,2],[25,90,8,2],[30,93,7,0]];
-function goalAlloc(years){
-  const y=Math.max(0,+years||0);
-  if(y>=30)return {akcie:93,dluh:7,hot:0};
-  let i=0;while(i<GOAL_TABLE.length-1&&GOAL_TABLE[i+1][0]<=y)i++;
-  const[y0,a0,d0,h0]=GOAL_TABLE[i],[y1,a1,d1,h1]=GOAL_TABLE[Math.min(i+1,GOAL_TABLE.length-1)];
-  const f=y1>y0?(y-y0)/(y1-y0):0;
-  return {akcie:a0+(a1-a0)*f,dluh:d0+(d1-d0)*f,hot:h0+(h1-h0)*f};
-}
-/* reálné (po odečtení průměrné inflace 3 %/rok) očekávané výnosy podle třídy aktiv */
-const REAL_RET={akcie:.07,dluh:.021,hot:-.03};
-function blendedReal(alloc){return (alloc.akcie*REAL_RET.akcie+alloc.dluh*REAL_RET.dluh+alloc.hot*REAL_RET.hot)/100}
-/* měsíční částka anuitně potřebná k dosažení cíle v reálné hodnotě (s inflací 3 %) */
-function annuityMonthly(target,saved,years){
-  const y=Math.max(0,+years||0);
-  if(y<=0)return 0;
-  const n=Math.max(1,Math.round(y*12)), rReal=blendedReal(goalAlloc(y)), rm=Math.pow(1+rReal,1/12)-1;
-  const fvSaved=(+saved||0)*Math.pow(1+rm,n), need=Math.max(0,(+target||0)-fvSaved);
-  if(need<=0)return 0;
-  if(Math.abs(rm)<1e-6)return need/n;
-  return need*rm/(Math.pow(1+rm,n)-1);
-}
-/* průměrný měsíční výdělek z posledních uzavřených výplat (stejná data jako Obrat/Daně) */
-function myMonthlyIncome(){
-  const s0=passiveNow(), P={tot:s0.tot,udr:s0.udr}, d0=new Date();
-  const rows=[];for(let i=1;i<=6;i++){const d=new Date(d0.getFullYear(),d0.getMonth()-i,1);rows.push(monthRow(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),P))}
-  const real=rows.filter(r=>r.has);
-  if(!real.length)return 0;
-  return real.reduce((s,r)=>s+r.tot,0)/real.length;
-}
-function myMonthlyIncomeNet(){
-  const gross=myMonthlyIncome();
-  const c=(settings.tax||{})[new Date().getFullYear()]||{};
-  return Math.max(0,gross-(+c.mTax||0))+otherIncomeMonthly();
-}
-async function goalsSave(patch){try{await db.doc("settings/main").set({...settings,...patch});toast("Uloženo")}catch(e){toast("Nepodařilo se uložit")}}
-function pieDiv(pct){const p=Math.max(0,Math.min(100,pct||0));return el("div",{class:"gpie",style:`background:conic-gradient(var(--tint) ${p*3.6}deg, var(--fill2) 0)`},el("b",{},fmt0(p)+"%"))}
-const COST_CATS=[["byd","Bydlení (nájem/hypotéka, energie)"],["jidlo","Jídlo a domácnost"],["doprava","Doprava"],["pojisteni","Pojištění"],["deti","Děti a rodina"],["volny","Volný čas, koníčky"],["splatky","Splátky a úvěry"],["ostatni","Ostatní"]];
-function myCostsTotal(){return COST_CATS.reduce((s,[k])=>s+(+((settings.myCostsCat||{})[k])||0),0)}
-function parseMoney(s){const d=String(s??"").replace(/[^\d]/g,"");return d===""?null:+d}
-function moneyInput(v,ph,on,w){
-  const i=el("input",{type:"text",inputmode:"numeric",placeholder:ph,style:w?"flex:0 0 "+w:null});
-  i.value=(v!=null&&v!=="")?fmt0(v):"";
-  i.addEventListener("input",()=>{const n=parseMoney(i.value);i.value=n!=null?fmt0(n):""});
-  i.addEventListener("change",()=>on(parseMoney(i.value)));
-  return i;
-}
-function periodKc(ym,half){return periodVal(ym+"/"+half).v*monthRate(ym)}
-function blendAmount(amount,needs,totalNeed){
-  const out={akcie:0,dluh:0,hot:0};
-  if(amount<=0||totalNeed<=0)return out;
-  needs.forEach(({g,need})=>{const share=amount*(need/totalNeed),alloc=goalAlloc(g.horizon);out.akcie+=share*alloc.akcie/100;out.dluh+=share*alloc.dluh/100;out.hot+=share*alloc.hot/100});
-  return out;
-}
-/* ---- Příjmové cíle ---- */
-const INCOME_ACT_CATS=[["ŽP","ŽP"],["Investice","Jednorázové vklady do investic"],["Reality","Reality"],["Úvěr","Úvěry"],["DPS","DPS"]];
-function incMonthsBack(n){const d0=new Date(),out=[];for(let i=1;i<=n;i++){const d=new Date(d0.getFullYear(),d0.getMonth()-i,1);out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"))}return out}
-function activeCatPts(ym){
-  const out={};INCOME_ACT_CATS.forEach(([k])=>out[k]=0);
-  leads.filter(l=>SIGNED(l.stage)&&l.signedAt&&ymOf(l.signedAt)===ym).forEach(l=>{
-    (l.items||[]).forEach(raw=>{
-      const it=normItem(raw);if(it.signed===false)return;
-      const cat=it.p==="Hypotéka"?"Úvěr":it.p;
-      if(!(cat in out))return;
-      if(cat==="Investice"&&it.mode==="mesicne")return;
-      out[cat]+=itemCalc(it).pts*((it.share??l.share??100)/100);
-    });
-  });
-  return out;
-}
-function activeCatKcAvg(){
-  const rate=quarterRate(CURQ()),months=incMonthsBack(3),sum={};INCOME_ACT_CATS.forEach(([k])=>sum[k]=0);
-  months.forEach(ym=>{const p=activeCatPts(ym);INCOME_ACT_CATS.forEach(([k])=>sum[k]+=p[k])});
-  const out={};INCOME_ACT_CATS.forEach(([k])=>out[k]=sum[k]/months.length*rate);
-  return out;
-}
-const INCOME_PAS=[["ZFPI",["ZFPI","UP"]],["ZFPWI",["WI"]],["Conseq",["CQ","PLAT"]]];
-function passiveCatKc(){
-  const rate=quarterRate(CURQ()),base=passiveBase(),out={};INCOME_PAS.forEach(([k])=>out[k]=0);
-  let other=0;
-  base.forEach(c=>{const b=INCOME_PAS.find(([,ks])=>ks.includes(c.k));if(b)out[b[0]]+=c.pts*rate;else other+=c.pts*rate});
-  other+=(+(settings.passive?.ostatni??settings.passive?.book?.OST??0)||0)*rate;
-  return {...out,Ostatní:other};
-}
-function teamKcAvg(){
-  const s0=passiveNow(),P={tot:s0.tot,udr:s0.udr},months=incMonthsBack(3);
-  const vals=months.map(ym=>monthRow(ym,P)).filter(r=>r.has);
-  if(!vals.length)return 0;
-  return vals.reduce((s,r)=>s+r.team,0)/vals.length;
-}
-async function incomeSave(patch){
-  try{
-    const merged={...settings,incomeGoal:{...(settings.incomeGoal||{}),...patch}};
-    await db.doc("settings/main").set(merged);
-    toast("Uloženo");
-    incomeCelebrate(merged.incomeGoal);
-  }catch(e){toast("Nepodařilo se uložit")}
-}
-function prodDefaults(){const P=settings.incomeGoal?.prod||{};return {zp:+P.zp||0,inv:+P.inv||0,invFee:P.invFee??3,real:+P.real||0,realPct:P.realPct??3,uver:+P.uver||0,uverType:P.uverType||"hypo",dpsN:+P.dpsN||0,dpsPts:P.dpsPts??10.4}}
-async function prodSave(patch){await incomeSave({prod:{...prodDefaults(),...patch}})}
-function zpDefV(){return ZP_VARS.find(v=>v.v==="NN_OR")}
-function uverTypeDefs(){return {
-  hypo:{t:"Hypotéka",V:HYPO.find(v=>v.v==="CS")},
-  spotrebak:{t:"Spotřebák",V:UVER.find(v=>v.v==="CSOB")},
-  podnikatelsky:{t:"Podnikatelský úvěr",V:UVER.find(v=>v.v==="CSOB")}
-}}
-function uverDefV(type){return (uverTypeDefs()[type]||uverTypeDefs().spotrebak).V}
-/*@@PP:C@@*/
-function numSliderRow(label,val,min,max,step,fmtFn,on){
-  const vB=el("b",{},fmtFn(val));
-  const r=el("input",{type:"range",min:String(min),max:String(max),step:String(step),"aria-label":label});
-  r.value=Math.max(min,Math.min(max,val||0));sliderFill(r);
-  r.addEventListener("input",()=>{vB.textContent=fmtFn(+r.value);sliderFill(r)});
-  r.addEventListener("change",()=>on(+r.value));
-  return el("div",{class:"slider"},el("div",{class:"sl-head"},el("span",{},label),vB),r,el("div",{class:"sl-ticks"},el("span",{},fmtFn(min)),el("span",{},fmtFn(Math.round((min+max)/2))),el("span",{},fmtFn(max))));
-}
-function realTeamRows(){
-  const qk=CURQ(), myRate=quarterRate(qk), months=monthsBack(3);
-  return team.map(m=>{
-    const maxR=Math.max(...pathTo(m).map(x=>teamRate(x,qk)));
-    const rateDiff=Math.max(0,myRate-maxR);
-    const avgPts=months.reduce((s,ym)=>s+memberMPts(m,ym),0)/months.length;
-    return {m,avgPts,rateDiff,kc:avgPts*rateDiff};
-  });
-}
-function realTeamKcSum(){return realTeamRows().reduce((s,r)=>s+r.kc,0)}
-function incomePlanTotals(IGOverride){
-  const IG=IGOverride||settings.incomeGoal||{};
-  const target=+IG.target||0, rate=quarterRate(CURQ());
-  const P=IG.prod||{};
-  const PR={zp:+P.zp||0,inv:+P.inv||0,invFee:P.invFee??3,real:+P.real||0,realPct:P.realPct??3,uver:+P.uver||0,uverType:P.uverType||"hypo",dpsN:+P.dpsN||0,dpsPts:P.dpsPts??10.4};
-  const prodPts={"ŽP":prodPtsZp(PR.zp),"Investice":prodPtsInv(PR.inv,PR.invFee),"Reality":prodPtsReal(PR.real,PR.realPct),"Úvěr":prodPtsUver(PR.uver,PR.uverType),"DPS":prodPtsDps(PR.dpsN,PR.dpsPts)};
-  const actTargetSum=INCOME_ACT_CATS.reduce((s,[k])=>s+prodPts[k]*rate,0);
-  const pasTargets=IG.pasTargets||{};
-  const pasTargetSum=INCOME_PAS.reduce((s,[k])=>s+(+pasTargets[k]||0),0);
-  const teamTargetSum=realTeamKcSum();
-  const planSum=actTargetSum+pasTargetSum+teamTargetSum;
-  return {target,planSum,pct:target>0?Math.min(999,planSum/target*100):0};
-}
-function incomeCelebrate(IGOverride){
-  const {target,planSum,pct}=incomePlanTotals(IGOverride);
-  document.querySelector(".celebr")?.remove();
-  const box=el("div",{class:"c-box"},pieDiv(Math.min(100,pct)),el("div",{class:"c-kicker"},"Příjmový cíl"),el("h2",{},fmt1(pct)+" %"),el("div",{class:"c-big"},kc(planSum)+"/měs"),el("p",{},target?"z cíle "+kc(target)+"/měs":"nejdřív si nastav cílový měsíční příjem"),el("button",{type:"button",class:"c-btn"},"OK"));
-  const ov=el("div",{class:"celebr",role:"dialog","aria-live":"assertive"},box);
-  const close=()=>{ov.classList.add("out");setTimeout(()=>ov.remove(),300)};
-  ov.addEventListener("click",close);document.body.append(ov);
-  box.querySelector(".c-btn")?.focus();
-  clearTimeout(incomeCelebrate._t);incomeCelebrate._t=setTimeout(close,3200);
-}
-function renderIncome(){
-  const RC=(id,...k)=>$(id).replaceChildren(...k.flat().filter(x=>x!=null&&x!==false));
-  const line=(t,v,cls,sub)=>el("div",{class:"row xl"+(cls?" "+cls:"")},el("span",{class:"main"},el("div",{class:"t"},t),sub?el("div",{class:"s"},sub):null),el("span",{class:"end"},v));
-  const fr=(lab,ctl,hint)=>el("div",{class:"frow"},el("label",{},lab,hint?el("div",{class:"xh"},hint):null),ctl);
-  const IG=settings.incomeGoal||{};
-  const pasTargets=IG.pasTargets||{};
-  const rate=quarterRate(CURQ());
-  const PR=prodDefaults();
-  const actCur=activeCatKcAvg(), pasCur=passiveCatKc(), teamCur=teamKcAvg();
-  const prodPts={"ŽP":prodPtsZp(PR.zp),"Investice":prodPtsInv(PR.inv,PR.invFee),"Reality":prodPtsReal(PR.real,PR.realPct),"Úvěr":prodPtsUver(PR.uver,PR.uverType),"DPS":prodPtsDps(PR.dpsN,PR.dpsPts)};
-  const actTargetKc={};INCOME_ACT_CATS.forEach(([k])=>actTargetKc[k]=prodPts[k]*rate);
-  const actTargetSum=INCOME_ACT_CATS.reduce((s,[k])=>s+actTargetKc[k],0);
-  const pasTargetSum=INCOME_PAS.reduce((s,[k])=>s+(+pasTargets[k]||0),0);
-  const teamTargetSum=realTeamKcSum();
-  const actCurSum=INCOME_ACT_CATS.reduce((s,[k])=>s+actCur[k],0);
-  const pasCurSum=INCOME_PAS.reduce((s,[k])=>s+pasCur[k],0)+(pasCur.Ostatní||0);
-  const target=+IG.target||0, planSum=actTargetSum+pasTargetSum+teamTargetSum, curSum=actCurSum+pasCurSum+teamCur;
-  const remainPts=Math.max(0,target-curSum)/rate;
-  RC("gIncGoal",
-    fr("Cílový měsíční příjem",moneyInput(IG.target,"0 Kč",v=>incomeSave({target:v||0}))),
-    numSliderRow("Cílový měsíční příjem",target,0,1000000,5000,kc,v=>incomeSave({target:v})),
-    line("Aktuálně (průměr 3 měsíce)",kc(curSum),"xs","aktivní "+kc(actCurSum)+" · pasivní "+kc(pasCurSum)+" · z týmu "+kc(teamCur)),
-    line("Naplánováno produkcí a cíli níže",kc(planSum),"xs",target?fmt1(Math.min(999,planSum/target*100))+" % cíle "+(planSum<target?"· chybí "+kc(target-planSum):""):""));
-  const singleNeed=(k)=>{
-    if(remainPts<=0)return "";
-    if(k==="ŽP")return "Samo o sobě by na zbytek cíle stačilo cca "+kc(invNeedZp(remainPts))+"/měs nového pojistného (vč. VZIZ bodů).";
-    if(k==="Investice")return "Samo o sobě by na zbytek cíle stačil vklad cca "+kc(invNeedInv(remainPts,PR.invFee))+".";
-    if(k==="Reality")return "Samo o sobě by na zbytek cíle stačil prodej za cca "+kc(invNeedReal(remainPts,PR.realPct))+".";
-    if(k==="Úvěr")return "Samo o sobě by na zbytek cíle stačil objem úvěru cca "+kc(invNeedUver(remainPts,PR.uverType))+".";
-    if(k==="DPS")return "Samo o sobě by na zbytek cíle stačilo cca "+Math.ceil(invNeedDps(remainPts,PR.dpsPts))+" smluv DPS.";
-    return "";
-  };
-  const catCtl={
-    "ŽP":()=>el("div",{},numSliderRow("Měsíční pojistné (orientačně)",PR.zp,0,50000,500,kc,v=>prodSave({zp:v})),el("div",{class:"xh"},"+ VZIZ: 2 body za každých celých 100 Kč pojistného")),
-    "Investice":()=>el("div",{},numSliderRow("Jednorázový vklad",PR.inv,0,20000000,100000,kc,v=>prodSave({inv:v})),numSliderRow("Vstupní poplatek",PR.invFee,0,5,0.1,v=>cz(v)+" %",v=>prodSave({invFee:v}))),
-    "Reality":()=>el("div",{},numSliderRow("Prodejní cena",PR.real,0,10000000,50000,kc,v=>prodSave({real:v})),numSliderRow("Provize RK vč. DPH",PR.realPct,1,5,0.1,v=>cz(v)+" %",v=>prodSave({realPct:v}))),
-    "Úvěr":()=>el("div",{},
-      el("div",{class:"seg",role:"tablist","aria-label":"Typ úvěru"},...Object.entries(uverTypeDefs()).map(([tk,td])=>el("button",{type:"button","aria-selected":String(PR.uverType===tk),onclick:()=>prodSave({uverType:tk})},td.t))),
-      numSliderRow("Objem úvěru",PR.uver,0,50000000,100000,kc,v=>prodSave({uver:v})),
-      PR.uverType==="podnikatelsky"?el("div",{class:"xh"},"pozn.: appka nemá vlastní bodovou tabulku pro podnikatelské úvěry, počítá se orientačně stejným koeficientem jako spotřebák"):null),
-    "DPS":()=>el("div",{},numSliderRow("Počet smluv",PR.dpsN,0,20,1,v=>fmt0(v)+" ks",v=>prodSave({dpsN:v})),numSliderRow("Bodů na 1 smlouvu",PR.dpsPts,0,10.4,0.1,v=>cz(v)+" b",v=>prodSave({dpsPts:v})))
-  };
-  const actRows=INCOME_ACT_CATS.map(([k,lab])=>{
-    const note=singleNeed(k);
-    return el("div",{class:"frow",style:"flex-direction:column;align-items:stretch"},
-      el("div",{class:"row"},el("span",{class:"main"},el("div",{class:"t"},lab),el("div",{class:"s"},"teď "+kc(actCur[k])+"/měs skutečně")),el("span",{class:"end"},kc(actTargetKc[k])+"/měs")),
-      catCtl[k](),
-      note?el("div",{class:"xh"},note):null);
-  });
-  RC("gIncActive",el("details",{class:"ppd",open:true},el("summary",{},el("span",{},"Aktivní příjem – kolik vyrobit"),el("span",{class:"cnt"},kc(actTargetSum)+"/měs cíl")),el("div",{class:"group"},...actRows)));
-  const pasRows=INCOME_PAS.map(([k])=>fr(k+" · teď "+kc(pasCur[k])+"/měs",moneyInput(pasTargets[k],"0 Kč",v=>{const m={...(settings.incomeGoal?.pasTargets||{})};if(v==null)delete m[k];else m[k]=v;incomeSave({pasTargets:m})})));
-  const invPasNow=prodPassiveInvKc(PR.inv,PR.invFee,0), invPasY1=prodPassiveInvKc(PR.inv,PR.invFee,12), invPasY3=prodPassiveInvKc(PR.inv,PR.invFee,36), invPasY5=prodPassiveInvKc(PR.inv,PR.invFee,60);
-  const pasFromProd=PR.inv>0?el("div",{class:"frow",style:"flex-direction:column;align-items:stretch"},
-    el("div",{class:"row"},el("span",{class:"main"},el("div",{class:"t"},"Z namodelovaného vkladu do investic"),el("div",{class:"s"},"vklad "+kc(PR.inv)+" z Aktivního příjmu výše · ZFP realitní fond, růst 5 %/rok")),el("span",{class:"end"},kc(invPasNow)+"/měs")),
-    el("div",{class:"xh"},"za 1 rok cca "+kc(invPasY1)+"/měs · za 3 roky cca "+kc(invPasY3)+"/měs · za 5 let cca "+kc(invPasY5)+"/měs")):null;
-  RC("gIncPassive",line("Pasivní příjem","","xs","z ZFPI, ZFPWI a Conseq – stejná data jako v Obratu"),...pasRows,pasCur.Ostatní>0?line("Ostatní pasivní (mimo tyto 3)",kc(pasCur.Ostatní),"xs","Generali a další – bez vlastního cíle"):null,pasFromProd,
-    line("Pasivní příjem celkem (aktuální + z modelace)",kc(pasCurSum+invPasNow),"xs","aktuální pasivní ze všech zdrojů + odhad z namodelovaného vkladu"));
-  const teamRowsReal=realTeamRows().sort((a,b)=>b.kc-a.kc);
-  const teamRowsUi=teamRowsReal.map(r=>el("div",{class:"row"},
-    teamAvatar(r.m,"avatar",POSCOL[r.m.pos]||POSCOL.P1),
-    el("span",{class:"main"},el("div",{class:"t"},r.m.name||"Bez jména"),el("div",{class:"s"},fmt1(r.avgPts)+" b/měs × "+cz(r.rateDiff)+" Kč/b")),
-    el("span",{class:"end"},kc(r.kc)+"/měs")));
-  RC("gIncTeam",
-    line("Příjem z týmu (meziprovize)","","xs","aktuálně "+kc(teamCur)+"/měs ze skutečných dat týmu"),
-    teamRowsReal.length?el("div",{class:"group"},teamRowsUi):el("p",{class:"hint"},"Zatím nemáš žádné členy týmu – přidáš je v Rozvoji sítě."),
-    line("Naplánováno z týmu",kc(teamTargetSum),"xs","tvůj tarif "+cz(quarterRate(CURQ()))+" Kč/b − nejvyšší tarif v linii k členovi, × jeho průměrné měsíční body (3 měsíce)"));
-}
-function renderGoals(){
-  renderIncome();
-  const RC=(id,...k)=>$(id).replaceChildren(...k.flat().filter(x=>x!=null&&x!==false));
-  const line=(t,v,cls,sub)=>el("div",{class:"row xl"+(cls?" "+cls:"")},el("span",{class:"main"},el("div",{class:"t"},t),sub?el("div",{class:"s"},sub):null),el("span",{class:"end"},v));
-  const fr=(lab,ctl,hint)=>el("div",{class:"frow"},el("label",{},lab,hint?el("div",{class:"xh"},hint):null),ctl);
+/* ================= Akvizice: firmy s příspěvky zaměstnavatele + potenciální kolegové ================= */
+/* Data jsou jen v úložišti appky (synchronizace přes Google Disk), nikdy v kódu – repo je veřejné. */
+let akvFirmy=[], akvLidi=[], akvF={q:"",ben:"",hideNo:true}, akvP={q:"",type:"",hideNo:true};
+const AKV_BEN=[["PS","Penzijko"],["ZP","Životko"],["DIP","DIP"]];
+const AKV_FST=[{k:"nova",t:"Nová",c:"var(--gray)"},{k:"osloveno",t:"Oslovená",c:"var(--indigo)"},{k:"schuzka",t:"Schůzka",c:"var(--orange)"},{k:"spoluprace",t:"Spolupráce",c:"var(--green)"},{k:"nezajem",t:"Nezájem",c:"var(--red)"}];
+const AKV_PST=[{k:"tip",t:"Vytipovaný",c:"var(--gray)"},{k:"osloven",t:"Oslovený",c:"var(--indigo)"},{k:"nabor",t:"V náboru",c:"var(--green)"},{k:"nezajem",t:"Nezájem",c:"var(--red)"}];
+const AKV_PTYPE=[["poradce","Finanční poradce"],["banka","Banka"],["pojistovna","Pojišťovna"],["jine","Jiné"]];
+/* hledání na LinkedInu otevírá Vojta sám – appka profily nestahuje ani neukládá automaticky */
+const AKV_LI=[["Finanční poradce","finanční poradce Brno"],["Hypoteční specialista","hypoteční specialista Brno"],["Bankéř","bankéř Brno"],["Investiční specialista","investiční specialista banka Brno"],["Pojišťovací poradce","pojišťovací poradce Brno"],["Úvěrový specialista","úvěrový specialista Brno"]];
+const akvSt=(L,k)=>L.find(x=>x.k===k)||L[0];
+const akvNorm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\b(a\.?\s?s\.?|s\.?\s?r\.?\s?o\.?|spol\.?|se|k\.?\s?s\.?|v\.?\s?o\.?\s?s\.?)\b/g,"").replace(/[^a-z0-9]/g,"");
+async function akvUpd(col,r,patch){Object.assign(r,patch);try{await db.doc(col+"/"+r.id).update({...patch,updatedAt:new Date().toISOString()})}catch(e){toast("Nepodařilo se uložit")}}
+function akvBenTags(b){return (b||[]).map(k=>el("span",{class:"tag akvben akv"+k},(AKV_BEN.find(x=>x[0]===k)||[k,k])[1]))}
+function akvDot(S){return el("span",{class:"akvst",style:"--c:"+S.c},S.t)}
+function akvYears(since){const y=+since;if(!y)return "";const n=new Date().getFullYear()-y;return n<=0?"v oboru od letoška":n===1?"v oboru ~1 rok":"v oboru ~"+n+" "+plural(n,"rok","roky","let")}
+
+function renderAkv(){
+  const fAct=akvFirmy.filter(f=>f.stage!=="nezajem"), withDip=akvFirmy.filter(f=>(f.ben||[]).includes("DIP")).length;
   const tile=(k,v,h,col)=>el("div",{class:"tile"},el("div",{class:"k"},el("i",{style:"background:"+col}),k),el("div",{class:"v"},v),el("div",{class:"h"},h));
-  const inc=myMonthlyIncomeNet(), costs=myCostsTotal(), cf=Math.max(0,inc-costs);
-  const goals=settings.goals||[];
-  const totalTarget=goals.reduce((s,g)=>s+(+g.target||0),0), totalSaved=goals.reduce((s,g)=>s+(+g.saved||0),0);
-  const pctAll=totalTarget>0?Math.min(100,totalSaved/totalTarget*100):0;
-  RC("gTiles",
-    tile("Volné CF měsíčně",kc(cf),"průměrný výdělek − tvoje náklady","var(--green)"),
-    tile("Cíle celkem",kc(totalTarget),goals.length+" "+plural(goals.length,"cíl","cíle","cílů"),"var(--tint)"),
-    tile("Naspořeno",kc(totalSaved),fmt1(pctAll)+" % z cílů","var(--orange)"));
-  RC("gBudget",
-    line("Průměrný měsíční výdělek (čistý)",kc(inc),"","po odečtení zálohy na daň + Ostatní příjem "+kc(otherIncomeMonthly())),
-    ...COST_CATS.map(([k,lab])=>fr(lab,moneyInput((settings.myCostsCat||{})[k],"0 Kč",v=>{const m={...(settings.myCostsCat||{})};if(v==null)delete m[k];else m[k]=v;goalsSave({myCostsCat:m})}))),
-    line("Náklady celkem",kc(costs),"xs","součet kategorií výše"),
-    line("Volné CF na cíle",kc(cf),"xs",cf<=0&&inc>0?"náklady jsou vyšší nebo rovny výdělku":""));
-  RC("gList",...goals.map((g,i)=>{
-    const pct=g.target>0?Math.min(100,(g.saved||0)/g.target*100):0, alloc=goalAlloc(g.horizon||1);
-    const name=el("input",{placeholder:"Název cíle"});name.value=g.name||"";
-    name.addEventListener("change",()=>{const a=[...(settings.goals||[])];a[i]={...a[i],name:name.value.trim()};goalsSave({goals:a})});
-    const setField=(k)=>v=>{const a=[...(settings.goals||[])];a[i]={...a[i],[k]:v||0};goalsSave({goals:a})};
-    const horizon=g.horizon||1, monthlyNeed=annuityMonthly(g.target,g.saved,horizon);
-    const hv=el("b",{},fmt0(horizon)+" "+plural(horizon,"rok","roky","let"));
-    const hr=el("input",{type:"range",min:"1",max:"45",step:"1","aria-label":"Horizont cíle"});hr.value=horizon;sliderFill(hr);
-    hr.addEventListener("input",()=>{const y=+hr.value;hv.textContent=fmt0(y)+" "+plural(y,"rok","roky","let");sliderFill(hr)});
-    hr.addEventListener("change",()=>setField("horizon")(+hr.value));
-    return el("div",{class:"gcard"},pieDiv(pct),
-      el("div",{class:"gi"},
-        el("div",{class:"gt"},name),
-        el("div",{class:"gs"},kc(g.saved||0)+" / "+kc(g.target||0)+" · horizont "+fmt0(horizon)+" "+plural(horizon,"rok","roky","let")),
-        el("div",{class:"gbar"},el("i",{style:"width:"+pct+"%"})),
-        el("div",{class:"gmix"},"Doporučená alokace podle horizontu: ",el("b",{},fmt0(alloc.akcie)+"% akcie"),", ",el("b",{},fmt0(alloc.dluh)+"% dluhopisy"),", ",el("b",{},fmt0(alloc.hot)+"% hotovost"),monthlyNeed?el("span",{}," · s inflací 3 % potřebuješ "+kc(monthlyNeed)+"/měs"):null),
-        el("div",{class:"gedit"},
-          fr("Cílová částka",moneyInput(g.target,"0 Kč",setField("target"))),
-          fr("Naspořeno",moneyInput(g.saved,"0 Kč",setField("saved"))),
-          el("div",{class:"slider"},el("div",{class:"sl-head"},el("span",{},"Horizont"),hv),hr,el("div",{class:"sl-ticks"},el("span",{},"1 rok"),el("span",{},"23 let"),el("span",{},"45 let"))),
-          el("button",{type:"button",class:"gdel",onclick:()=>goalsSave({goals:(settings.goals||[]).filter((_,j)=>j!==i)})},"Smazat cíl"))))}));
-  const active=goals.filter(g=>g.horizon>0&&(g.target||0)>(g.saved||0));
-  const needs=active.map(g=>({g,need:annuityMonthly(g.target,g.saved,g.horizon)})).filter(x=>x.need>0);
-  const totalNeed=needs.reduce((s,x)=>s+x.need,0);
-  if(!active.length||totalNeed<=0){
-    RC("gAlloc",el("p",{class:"xnote"},"Přidej cíl s horizontem a cílovou částkou vyšší než naspořeno – spočítám ti, jak rozdělit volné CF."));
-  }else{
-    const scale=cf>0?Math.min(1,cf/totalNeed):0, blend={akcie:0,dluh:0,hot:0};
-    const rows=needs.map(({g,need})=>{const alloc=goalAlloc(g.horizon),give=need*scale;
-      blend.akcie+=give*alloc.akcie/100;blend.dluh+=give*alloc.dluh/100;blend.hot+=give*alloc.hot/100;
-      return line(g.name||"(bez názvu)",kc(give)+"/měs","",fmt0(alloc.akcie)+" % akcie · "+fmt0(alloc.dluh)+" % dluhopisy · "+fmt0(alloc.hot)+" % hotovost")});
-    RC("gAlloc",...rows,
-      line("Rozděleno celkem",kc(blend.akcie+blend.dluh+blend.hot)+" / "+kc(cf),"xs"),
-      totalNeed>cf?el("p",{class:"xnote warn"},"Volné CF nestačí na plné tempo všech cílů najednou (i s inflací 3 %) – rozděleno poměrně podle potřeby, cíle se v čase posunou."):null,
-      line("→ do akcií",kc(blend.akcie)),line("→ do dluhopisů",kc(blend.dluh)),line("→ do hotovosti",kc(blend.hot)));
-  }
-  const curYm=ymOf(todayStr()), invLog=settings.invLog||{};
-  const rows=[];
-  let suggestedTotal=0, remainBefore=costs;
-  [1,2].forEach(half=>{
-    const key=curYm+"/"+half, val=periodVal(key), payKc=val.v*monthRate(curYm);
-    const toGoals=Math.max(0,payKc-remainBefore);
-    suggestedTotal+=toGoals;
-    const mix=blendAmount(toGoals,needs,totalNeed);
-    const logged=(invLog[key]!=null)?invLog[key]:null;
-    rows.push(line((half===1?"1. uzávěrka (1.–15.)":"2. uzávěrka (16.–konec měsíce)"),kc(payKc),"",val.act?"potvrzeno":"odhad podle pipeline"));
-    rows.push(line("→ na náklady",kc(Math.min(payKc,remainBefore))));
-    rows.push(line("→ na cíle (doporučeno)",kc(toGoals),"",half===1?(toGoals>0?"1. uzávěrka sama převýšila náklady – přebytek jde na cíle hned":"náklady zatím nejsou kryté z 1. uzávěrky"):"po pokrytí zbytku nákladů z 2. uzávěrky"));
-    if(toGoals>0)rows.push(line("z toho akcie / dluhopisy / hotovost",fmt0(mix.akcie)+" / "+fmt0(mix.dluh)+" / "+fmt0(mix.hot)+" Kč"));
-    rows.push(fr("Kolik jsi reálně vložil do investic",moneyInput(logged,"0 Kč",v=>{const m={...(settings.invLog||{})};if(v==null)delete m[key];else m[key]=v;goalsSave({invLog:m})}),"zapiš si skutečně vloženou částku po této uzávěrce"));
-    remainBefore=Math.max(0,remainBefore-payKc);
-  });
-  const loggedTotal=(invLog[curYm+"/1"]||0)+(invLog[curYm+"/2"]||0);
-  RC("gPayout",...rows,line("Vloženo do investic celkem tento měsíc",kc(loggedTotal),"xs","doporučeno "+kc(suggestedTotal)));
+  $("akvTiles").replaceChildren(
+    tile("Firmy s příspěvky",fAct.length,withDip+" "+plural(withDip,"nabízí","nabízejí","nabízí")+" i DIP","var(--tint)"),
+    tile("Oslovené firmy",akvFirmy.filter(f=>["osloveno","schuzka","spoluprace"].includes(f.stage)).length,akvFirmy.filter(f=>f.stage==="schuzka").length+" na schůzce","var(--indigo)"),
+    tile("Potenciální kolegové",akvLidi.filter(p=>p.stage!=="nezajem").length,akvLidi.filter(p=>p.stage==="nabor").length+" už v náboru","var(--orange)"));
+  /* ---- levá půlka: firmy ---- */
+  const q=akvNorm(akvF.q);
+  const list=akvFirmy.filter(f=>(!akvF.hideNo||f.stage!=="nezajem")&&(!akvF.ben||(f.ben||[]).includes(akvF.ben))&&(!q||akvNorm([f.name,f.city,f.positions,f.cName,f.note].join(" ")).includes(q)))
+    .sort((a,b)=>AKV_FST.findIndex(s=>s.k===(a.stage||"nova"))-AKV_FST.findIndex(s=>s.k===(b.stage||"nova"))||(a.name||"").localeCompare(b.name||"","cs"));
+  $("akvFBen").replaceChildren(...[["","Vše"],...AKV_BEN].map(([k,t])=>el("button",{type:"button",class:"chipbtn"+(akvF.ben===k?" on":""),onclick:()=>{akvF.ben=k;renderAkv()}},t)),
+    el("button",{type:"button",class:"chipbtn"+(akvF.hideNo?"":" on"),onclick:()=>{akvF.hideNo=!akvF.hideNo;renderAkv()}},akvF.hideNo?"Ukázat i nezájem":"Skrýt nezájem"));
+  $("akvFList").replaceChildren(...(list.length?list.map(f=>el("button",{type:"button",class:"row row-btn",onclick:()=>openAkvFirma(f)},
+      el("span",{class:"main"},el("div",{class:"t"},f.name||"Bez názvu"),
+        el("div",{class:"s"},[f.city,f.cName?"kontakt: "+f.cName:"",f.positions].filter(Boolean).join(" · ")),
+        el("div",{class:"akvtags"},...akvBenTags(f.ben))),
+      akvDot(akvSt(AKV_FST,f.stage)),chev()))
+    :[el("div",{class:"row"},el("span",{class:"main"},el("div",{class:"s",style:"white-space:normal"},akvFirmy.length?"Filtru nic neodpovídá.":"Zatím žádné firmy. Naimportuj seznam (JSON/CSV) nebo přidej firmu ručně.")))]));
+  $("akvFFoot").textContent=list.length+" z "+akvFirmy.length+" "+plural(akvFirmy.length,"firmy","firem","firem")+". Kontaktní osoba je ta, kterou firma sama uvádí v inzerátu – nabídku zaměstnaneckých benefitů směřuj na HR/personalistu, ne na náboráře.";
+  /* ---- pravá půlka: potenciální kolegové ---- */
+  const pq=akvNorm(akvP.q);
+  const pl=akvLidi.filter(p=>(!akvP.hideNo||p.stage!=="nezajem")&&(!akvP.type||p.type===akvP.type)&&(!pq||akvNorm([p.name,p.company,p.role,p.note].join(" ")).includes(pq)))
+    .sort((a,b)=>AKV_PST.findIndex(s=>s.k===(a.stage||"tip"))-AKV_PST.findIndex(s=>s.k===(b.stage||"tip"))||(b.since||0)-(a.since||0)||(a.name||"").localeCompare(b.name||"","cs"));
+  $("akvPType").replaceChildren(...[["","Vše"],...AKV_PTYPE].map(([k,t])=>el("button",{type:"button",class:"chipbtn"+(akvP.type===k?" on":""),onclick:()=>{akvP.type=k;renderAkv()}},t)));
+  $("akvPList").replaceChildren(...(pl.length?pl.map(p=>el("button",{type:"button",class:"row row-btn",onclick:()=>openAkvLide(p)},
+      el("span",{class:"main"},el("div",{class:"t"},p.name||"Bez jména"),
+        el("div",{class:"s"},[p.role,p.company,akvYears(p.since)].filter(Boolean).join(" · "))),
+      akvDot(akvSt(AKV_PST,p.stage)),chev()))
+    :[el("div",{class:"row"},el("span",{class:"main"},el("div",{class:"s",style:"white-space:normal"},akvLidi.length?"Filtru nic neodpovídá.":"Zatím nikdo. Otevři si hledání na LinkedInu níž a zajímavé lidi sem přidávej tlačítkem + Kolega.")))]));
+  $("akvLi").replaceChildren(...AKV_LI.map(([t,kw])=>el("a",{class:"chipbtn",href:"https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(kw)+"&origin=GLOBAL_SEARCH_HEADER",target:"_blank",rel:"noopener",style:"text-decoration:none"},"in · "+t)));
 }
-$("addGoal").onclick=()=>goalsSave({goals:[...(settings.goals||[]),{name:"",target:0,saved:0,horizon:5}]});
+
+function openAkvFirma(f0,isNew){
+  const f=akvFirmy.find(x=>x.id===f0.id)||f0, upd=p=>akvUpd("akvFirmy",f,p);
+  const inp=(k,ph,type)=>{const i=el("input",{placeholder:ph,type:type||"text"});i.value=f[k]||"";i.addEventListener("change",()=>upd({[k]:i.value.trim()}));return i};
+  const nm=inp("name","Název firmy");nm.addEventListener("change",()=>{$("edTitle").textContent=nm.value.trim()||"Firma"});
+  const stg=el("select",{},AKV_FST.map(s=>el("option",{value:s.k},s.t)));stg.value=f.stage||"nova";stg.addEventListener("change",()=>upd({stage:stg.value,[stg.value+"At"]:new Date().toISOString()}).then(renderAkv));
+  const ben=el("div",{class:"chips",style:"justify-content:flex-end"},...AKV_BEN.map(([k,t])=>{const on=(f.ben||[]).includes(k);return el("button",{type:"button",class:"chipbtn"+(on?" on":""),onclick:async()=>{const b=new Set(f.ben||[]);on?b.delete(k):b.add(k);await upd({ben:AKV_BEN.map(x=>x[0]).filter(x=>b.has(x))});openAkvFirma(f)}},t)}));
+  const ta=(k,ph)=>{const t=el("textarea",{placeholder:ph});t.value=f[k]||"";t.addEventListener("change",()=>upd({[k]:t.value.trim()}));return t};
+  const tel=(f.phone||"").replace(/\s/g,"");
+  const del=el("button",{type:"button",class:"danger-row"},"Smazat firmu");del.onclick=async()=>{if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="Opravdu smazat?";return}try{await db.doc("akvFirmy/"+f.id).delete();$("edDlg").close();toast("Smazáno")}catch(e){}};
+  openSheet(f.name||"Firma",[
+    el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Firma"),nm),el("div",{class:"frow"},el("label",{},"Obec"),inp("city","např. Brno, Modřice")),
+      el("div",{class:"frow"},el("label",{},"Příspěvky"),ben),el("div",{class:"frow"},el("label",{},"Fáze"),stg),
+      el("div",{class:"frow"},el("label",{},"Inzerované pozice"),inp("positions","např. skladník, účetní"))),
+    el("h3",{class:"sechead"},"Kontakt ve firmě"),
+    el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),inp("cName","kontaktní osoba")),el("div",{class:"frow"},el("label",{},"Role"),inp("cRole","např. HR, personalistka")),
+      el("div",{class:"frow"},el("label",{},"Telefon"),inp("phone","telefon","tel")),el("div",{class:"frow"},el("label",{},"E-mail"),inp("email","e-mail","email")),
+      el("div",{class:"frow"},el("label",{},"Zdroj"),inp("src","odkaz na inzerát","url"))),
+    el("div",{class:"chips"},tel?el("a",{class:"chipbtn",href:"tel:"+tel,style:"text-decoration:none"},"📞 Zavolat"):null,f.email?el("a",{class:"chipbtn",href:"mailto:"+f.email,style:"text-decoration:none"},"✉️ E-mail"):null,
+      /^https?:\/\//.test(f.src||"")?el("a",{class:"chipbtn",href:f.src,target:"_blank",rel:"noopener",style:"text-decoration:none"},"Otevřít inzerát"):null),
+    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámka"),ta("note","výše příspěvku, co jste si řekli, další krok"))),
+    el("div",{class:"group"},del)]);
+  if(isNew)setTimeout(()=>nm.focus(),80);
+}
+async function addAkvFirma(){try{const now=new Date().toISOString();const r=await db.collection("akvFirmy").add({name:"",city:"",ben:[],stage:"nova",positions:"",cName:"",cRole:"",phone:"",email:"",src:"",note:"",createdAt:now});setTimeout(()=>{const x=akvFirmy.find(y=>y.id===r.id);if(x)openAkvFirma(x,true)},60)}catch(e){toast("Nepodařilo se uložit")}}
+
+function openAkvLide(p0,isNew){
+  const p=akvLidi.find(x=>x.id===p0.id)||p0, upd=x=>akvUpd("akvLidi",p,x);
+  const inp=(k,ph,type)=>{const i=el("input",{placeholder:ph,type:type||"text"});i.value=p[k]||"";i.addEventListener("change",()=>upd({[k]:type==="number"?(+i.value||null):i.value.trim()}));return i};
+  const nm=inp("name","Jméno a příjmení");nm.addEventListener("change",()=>{$("edTitle").textContent=nm.value.trim()||"Kolega"});
+  const typ=el("select",{},el("option",{value:""},"—"),AKV_PTYPE.map(([k,t])=>el("option",{value:k},t)));typ.value=p.type||"";typ.addEventListener("change",()=>upd({type:typ.value}));
+  const stg=el("select",{},AKV_PST.map(s=>el("option",{value:s.k},s.t)));stg.value=p.stage||"tip";stg.addEventListener("change",()=>upd({stage:stg.value}).then(renderAkv));
+  const sinceI=inp("since","rok, např. "+new Date().getFullYear(),"number");sinceI.min="1990";sinceI.max=String(new Date().getFullYear());
+  const tel=(p.phone||"").replace(/\s/g,"");
+  const recruit=recruits.find(r=>r.id===p.recruitId);
+  const toRec=recruit?el("p",{class:"hint"},"✓ Je v náboru – najdeš ho v Rozvoji sítě (fáze „"+RS(recruit.stage).t+"“)."):
+    el("button",{type:"button",class:"chipbtn",onclick:async()=>{try{const now=new Date().toISOString();
+      const r=await db.collection("recruits").add({name:p.name||"",phone:p.phone||"",source:"Akvizice"+(p.company?" – "+p.company:""),note:[p.role,p.company,akvYears(p.since),p.note].filter(Boolean).join(" · "),stage:"osloven",stageAt:now,oslovenAt:now,next:"Zavolat",nextDate:todayStr(),log:[],createdAt:now});
+      await upd({recruitId:r.id,stage:"nabor"});toast("Přidán do náboru v Rozvoji sítě");openAkvLide(p);renderAkv()}catch(e){toast("Nepodařilo se uložit")}}},"→ Přesunout do náboru (oslovený)");
+  const ta=el("textarea",{placeholder:"proč by mohl chtít změnu, společní známí, jak oslovit"});ta.value=p.note||"";ta.addEventListener("change",()=>upd({note:ta.value.trim()}));
+  const del=el("button",{type:"button",class:"danger-row"},"Smazat");del.onclick=async()=>{if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="Opravdu smazat?";return}try{await db.doc("akvLidi/"+p.id).delete();$("edDlg").close();toast("Smazáno")}catch(e){}};
+  openSheet(p.name||"Kolega",[
+    el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),nm),el("div",{class:"frow"},el("label",{},"Kde pracuje"),typ),
+      el("div",{class:"frow"},el("label",{},"Firma"),inp("company","např. KB, Partners, Allianz")),el("div",{class:"frow"},el("label",{},"Pozice"),inp("role","např. hypoteční specialista")),
+      el("div",{class:"frow"},el("label",{},"V oboru od",el("div",{class:"xh"},akvYears(p.since))),sinceI),el("div",{class:"frow"},el("label",{},"Fáze"),stg)),
+    el("h3",{class:"sechead"},"Kontakt"),
+    el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Telefon"),inp("phone","telefon","tel")),el("div",{class:"frow"},el("label",{},"E-mail"),inp("email","e-mail","email")),
+      el("div",{class:"frow"},el("label",{},"LinkedIn"),inp("linkedin","odkaz na profil","url"))),
+    el("div",{class:"chips"},tel?el("a",{class:"chipbtn",href:"tel:"+tel,style:"text-decoration:none"},"📞 Zavolat"):null,
+      /^https?:\/\//.test(p.linkedin||"")?el("a",{class:"chipbtn",href:p.linkedin,target:"_blank",rel:"noopener",style:"text-decoration:none"},"Profil na LinkedInu"):null),
+    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámka"),ta)),
+    el("div",{class:"chips"},toRec),
+    el("div",{class:"group"},del)]);
+  if(isNew)setTimeout(()=>nm.focus(),80);
+}
+async function addAkvLide(){try{const now=new Date().toISOString();const r=await db.collection("akvLidi").add({name:"",type:"",company:"",role:"",since:null,phone:"",email:"",linkedin:"",note:"",stage:"tip",createdAt:now});setTimeout(()=>{const x=akvLidi.find(y=>y.id===r.id);if(x)openAkvLide(x,true)},60)}catch(e){toast("Nepodařilo se uložit")}}
+
+/* import seznamu firem – JSON pole nebo CSV (oddělovač ; nebo ,) se sloupci firma, obec, pozice, benefity, kontakt_jmeno, kontakt_role, telefon, email, zdroj, poznamka */
+function akvParseCsv(txt){
+  const d=(txt.split("\n")[0].match(/;/g)||[]).length>=(txt.split("\n")[0].match(/,/g)||[]).length?";":",";
+  const rows=[];let row=[],cur="",inq=false;
+  for(let i=0;i<txt.length;i++){const c=txt[i];
+    if(inq){if(c==='"'){if(txt[i+1]==='"'){cur+='"';i++}else inq=false}else cur+=c}
+    else if(c==='"')inq=true;else if(c===d){row.push(cur);cur=""}else if(c==="\n"){row.push(cur.replace(/\r$/,""));rows.push(row);row=[];cur=""}else cur+=c}
+  if(cur||row.length){row.push(cur);rows.push(row)}
+  const h=(rows.shift()||[]).map(x=>akvNorm(x));
+  return rows.filter(r=>r.some(x=>x.trim())).map(r=>Object.fromEntries(h.map((k,i)=>[k,(r[i]||"").trim()])));
+}
+function akvFromRaw(o){
+  const g=(...ks)=>{for(const k of ks){const v=o[k]??o[akvNorm(k)];if(v!=null&&String(v).trim()!=="")return v}return ""};
+  const benRaw=g("benefity","ben"), b=Array.isArray(benRaw)?benRaw:String(benRaw).split(/[,;/ +]+/);
+  const ben=AKV_BEN.map(x=>x[0]).filter(k=>b.some(v=>akvNorm(v)===akvNorm(k)||(k==="ZP"&&/zivot/.test(akvNorm(v)))||(k==="PS"&&/penz|dps|pp/.test(akvNorm(v)))));
+  const pos=g("pozice","positions");
+  return {name:String(g("firma","name")).trim(),city:String(g("obec","city")).trim(),ben,positions:Array.isArray(pos)?pos.join(", "):String(pos),
+    cName:String(g("kontakt_jmeno","cName")),cRole:String(g("kontakt_role","cRole")),phone:String(g("telefon","phone")),email:String(g("email")),src:String(g("zdroj","src")),note:String(g("poznamka","note"))};
+}
+async function akvImport(file){
+  try{const txt=await file.text();let raw;
+    try{raw=JSON.parse(txt)}catch(e){raw=akvParseCsv(txt)}
+    if(!Array.isArray(raw))raw=raw.firmy||raw.items||[];
+    const have=new Map(akvFirmy.map(f=>[akvNorm(f.name),f]));let add=0,merged=0;const now=new Date().toISOString();
+    for(const o of raw){const f=akvFromRaw(o);if(!f.name)continue;const k=akvNorm(f.name),ex=have.get(k);
+      if(ex){const patch={};["city","positions","cName","cRole","phone","email","src","note"].forEach(x=>{if(!ex[x]&&f[x])patch[x]=f[x]});
+        const nb=[...new Set([...(ex.ben||[]),...f.ben])];if(nb.length!==(ex.ben||[]).length)patch.ben=AKV_BEN.map(x=>x[0]).filter(x=>nb.includes(x));
+        if(Object.keys(patch).length){await akvUpd("akvFirmy",ex,patch);merged++}continue}
+      const r=await db.collection("akvFirmy").add({...f,stage:"nova",createdAt:now});have.set(k,{id:r.id,...f});add++}
+    toast("Přidáno "+add+" "+plural(add,"firma","firmy","firem")+(merged?", doplněno "+merged:""));
+  }catch(e){toast("Soubor se nepodařilo načíst")}
+}
+$("akvAddF").onclick=addAkvFirma;$("akvAddP").onclick=addAkvLide;
+$("akvImpBtn").onclick=()=>$("akvImp").click();
+$("akvImp").addEventListener("change",e=>{const f=e.target.files[0];e.target.value="";if(f)akvImport(f)});
+$("akvFq").addEventListener("input",e=>{akvF.q=e.target.value;renderAkv()});
+$("akvPq").addEventListener("input",e=>{akvP.q=e.target.value;renderAkv()});
 /* ================= Rozvoj sítě: nábor + přehled týmu ================= */
 let recruits=[];
 const RST=[{k:"osloven",t:"Oslovený",c:"var(--gray)"},{k:"pohovor",t:"Pohovor",c:"var(--indigo)"},{k:"registrace",t:"Registrace",c:"var(--orange)"},{k:"prvni",t:"První obchod",c:"var(--green)"},{k:"pryc",t:"Nezájem",c:"var(--red)"}];
@@ -6635,7 +6484,7 @@ function pfClientSection(e,rec){
   return [el("h3",{class:"sechead"},"Portfolio"),has?pfClientCard(rec.id,{back}):el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>pfInvEdit(null,rec?{client:rec.id}:{cid:e.id},back)},"+ Sledovat investici v Portfoliích"))];
 }
 
-const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačka"],["duch","Důchodová kalkulačka"],["fp","Finanční plán"],["net","Rozvoj sítě"],["tax","Daně"],["goals","Moje cíle"],["pf","Portfolia"],["pp","Sazebník"]];
+const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačka"],["duch","Důchodová kalkulačka"],["fp","Finanční plán"],["net","Rozvoj sítě"],["tax","Daně"],["akv","Akvizice"],["pf","Portfolia"],["pp","Sazebník"]];
 /* „Uživatelé“ je speciální záložka jen pro admina – vždy úplně na konci, nejde skrýt ani přeřadit
    (proto stojí mimo TABS/nastavení pořadí), zjišťuje se přímo z uloženého přihlášeného e-mailu. */
 /* ===== prezentační režim: fiktivní poradce (jen admin) ===== */
@@ -6993,7 +6842,7 @@ renderTabBar();
 let sv="pipe";try{sv=localStorage.getItem("pipe_view")||"pipe"}catch(e){}
 if(sv==="srv")sv="cli";
 {let nav="";try{nav=(performance.getEntriesByType("navigation")[0]||{}).type||""}catch(e){}
- const HM={"#vydelek":"money","#klienti":"cli","#servis":"cli","#sazebnik":"pp","#sit":"net","#dane":"tax","#cile":"goals","#uzivatele":"users","#databaze":"db","#portfolia":"pf"};
+ const HM={"#vydelek":"money","#klienti":"cli","#servis":"cli","#sazebnik":"pp","#sit":"net","#dane":"tax","#akvizice":"akv","#uzivatele":"users","#databaze":"db","#portfolia":"pf"};
  /* odkaz s # platí jen při novém otevření; při obnovení stránky (refresh) zůstane záložka, kde jsi skončil */
  if(HM[location.hash]&&nav!=="reload")sv=HM[location.hash];
  if(location.hash&&!/access_token=|error=/.test(location.hash)){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}}
@@ -7032,7 +6881,9 @@ async function updateEurRate(){
   db.collection("funds").onSnapshot(snap=>{funds=snap.docs.map(d=>({id:d.id,...d.data()}));pfSyncClientsSoon();if(view==="pf"){renderPf();pfRefreshAll()}else if(DEMO&&!pfRefreshAll._d){pfRefreshAll._d=1;pfRefreshAll()}});
   db.collection("pfmodels").onSnapshot(snap=>{pfModels=snap.docs.map(d=>({id:d.id,...d.data()}));pfSyncClientsSoon();if(view==="pf")renderPf()});
   db.collection("pfinv").onSnapshot(snap=>{pfInv=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="pf")renderPf();pfSyncClientsSoon()});
-  db.collection("recruits").onSnapshot(snap=>{recruits=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="net")render()});
+  db.collection("recruits").onSnapshot(snap=>{recruits=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="net"||view==="akv")render()});
+  db.collection("akvFirmy").onSnapshot(snap=>{akvFirmy=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="akv")render()});
+  db.collection("akvLidi").onSnapshot(snap=>{akvLidi=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="akv")render()});
   db.doc("settings/main").onSnapshot(d=>{settings=d.exists?{manual:{},...d.data()}:{manual:{}};clLoaded.settings=true;setTimeout(clMigrate,0);applyAppName();if(typeof applyAsMode==="function")applyAsMode();renderTabBar();if(!visibleTabs().includes(view))setView(visibleTabs()[0]);else render();scheduleTasks();if(window.Assistant)Assistant.refresh()});
   $("todayBtn").onclick=openToday;maybeOpenToday();
   $("addRecruit").onclick=addRecruit;$("addMember2").onclick=()=>addMember(null);$("addMember3").onclick=()=>addMember(null);
@@ -7379,7 +7230,7 @@ const PP_ENC="v1.gl_MkFRAFqTjO4sq2hdS6w.ghGopD2PoO01XO38.MCDGRGTPkxSu6a6nh09Q2r4
 <script src="photoedit.js?v=1" defer></script>
 <script src="docs.js?v=2" defer></script>
 <script src="assistant.js?v=6" defer></script>
-<script src="jarvis.js?v=3" defer></script>
+<script src="jarvis.js?v=4" defer></script>
 <script>
 /* ===== v35: Asistentka – propojení poradce ↔ asistentka, sdílené úkoly, asistentský režim ===== */
 /* ===== Síťová vrstva: Firestore – změny se doručují samy (bez dotazování), operace napodobují dřívější server ===== */

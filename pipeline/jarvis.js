@@ -327,8 +327,8 @@ function normStart(s) {
 }
 const DAYS_OK = /^(today|tomorrow|week|nextweek|\d{4}-\d{2}-\d{2})$/;
 const normDate = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(trim(s)); if (!m) return ""; const d = new Date(+m[1], +m[2] - 1, +m[3]); return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] ? m[0] : ""; };
-const SCREENS = { today: "dnešní přehled „Co tě dneska čeká“", client: "karta klienta (potřebuje client_name)", pipeline: "Pipeline", money: "Obrat (výdělek, body)", clients: "Klienti (servis)", calculator: "Kalkulačka úvěr/investice", pension_calculator: "Důchodová kalkulačka", calendar: "Kalendář", network: "Rozvoj sítě", taxes: "Daně", goals: "Moje cíle", portfolio: "Portfolia", rates: "Sazebník" };
-const SCREEN_VIEW = { pipeline: "pipe", money: "money", clients: "cli", calculator: "calc", pension_calculator: "duch", calendar: "cal", network: "net", taxes: "tax", goals: "goals", portfolio: "pf", rates: "pp" };
+const SCREENS = { today: "dnešní přehled „Co tě dneska čeká“", client: "karta klienta (potřebuje client_name)", pipeline: "Pipeline", money: "Obrat (výdělek, body)", clients: "Klienti (servis)", calculator: "Kalkulačka úvěr/investice", pension_calculator: "Důchodová kalkulačka", calendar: "Kalendář", network: "Rozvoj sítě", taxes: "Daně", acquisition: "Akvizice (firmy s příspěvky, potenciální kolegové)", portfolio: "Portfolia", rates: "Sazebník" };
+const SCREEN_VIEW = { pipeline: "pipe", money: "money", clients: "cli", calculator: "calc", pension_calculator: "duch", calendar: "cal", network: "net", taxes: "tax", acquisition: "akv", portfolio: "pf", rates: "pp" };
 const kc = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
 /* core = čistá logika z assistant.js (resolveClient, answerQuery, STAGE_TITLES, normPhone, validEmail, parseLocal)
