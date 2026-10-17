@@ -870,6 +870,32 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
 .tksend:active{opacity:.6}
 .row .end+.tksend{margin-left:-4px}
 @media (max-width:560px){.row .end:has(+ .tksend){display:none}}
+
+/* ---------- telefon: spodní lišta záložek jako v nativní appce (desktop beze změny) ---------- */
+.tabbar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--bar-bg);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabbar-in{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;height:56px;max-width:640px;margin:0 auto}
+.tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10.5px;font-weight:500;color:var(--label2);min-width:0;padding:0 2px;-webkit-tap-highlight-color:transparent}
+.tabbar button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tabbar button[aria-selected="true"]{color:var(--tint)}
+.tabbar button:active{opacity:.6}
+.tbic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.morelist .row .tbic{color:var(--tint)}
+@media (max-width:759px){
+  .bar .seg#tabBar{display:none}
+  .tabbar{display:block}
+  .bar-in{flex-wrap:nowrap;gap:8px;padding-block:8px}
+  .bar .search{width:auto;flex:1 1 auto;min-width:0;order:0}
+  #usersBtn:not(.hot){display:none}
+  .wrap{padding-bottom:calc(56px + 28px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(56px + 14px + env(safe-area-inset-bottom,0px))}
+  .large{margin:8px 0 14px}
+  .tiles{grid-template-columns:1fr 1fr;gap:10px}
+  .tile{padding:12px 14px}
+  .tile .v{font-size:24px}
+  .board{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  .cols{grid-auto-columns:86%;gap:10px}
+  .col{scroll-snap-align:center}
+}
 </style>
 </head>
 <body>
@@ -1279,6 +1305,8 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
   <button type="button" class="lockforgot" id="lockForgot">Nemůžu odemknout</button>
 </div></dialog>
 <dialog id="edDlg"><div class="sheet"><div class="sbar"><span></span><h2 id="edTitle"></h2><button type="button" class="r" id="edClose">Hotovo</button></div><div class="ebody" id="edBody"></div></div></dialog>
+<nav class="tabbar" id="tabBottom" aria-label="Sekce"><div class="tabbar-in" role="tablist" id="tabBottomIn"></div></nav>
+<dialog id="moreDlg"><div class="sheet"><div class="sbar"><span></span><h2>Další záložky</h2><button type="button" class="r" id="moreClose">Hotovo</button></div><div class="dbody"><div class="group morelist" id="moreList"></div></div></div></dialog>
 <div class="toast" id="toast" hidden></div>
 <canvas id="fx" aria-hidden="true"></canvas>
 
@@ -6781,10 +6809,53 @@ function tabOrder(){const out=(settings.tabOrder||[]).filter(k=>TABS.some(t=>t[0
   return out}
 function tabHiddenSet(){return new Set(settings.tabHidden!==undefined?settings.tabHidden:["pp"])}
 function visibleTabs(){if(typeof asMode==="function"&&asMode())return ["atasks","aclients"];const hidden=tabHiddenSet();const vis0=tabOrder().filter(k=>!hidden.has(k));const vis=vis0.length?vis0:["pipe"];const ex=(typeof asFlag!=="undefined"&&asFlag)?["atasks"]:[];return isAdminUser()&&!DEMO?[...vis,...ex,"db","users"]:[...vis,...ex]}
+/* ---------- spodní lišta na telefonu: první 4 záložky + „Další“ (zbytek v listu), pořadí z nastavení ---------- */
+const TAB_ICON={
+  pipe:'<rect x="3.5" y="4" width="4.5" height="16" rx="1.5"/><rect x="9.75" y="4" width="4.5" height="11" rx="1.5"/><rect x="16" y="4" width="4.5" height="7" rx="1.5"/>',
+  money:'<path d="M4 19V5"/><path d="M4 19h16"/><path d="M7.5 15l3.5-4 3 2.5L19.5 7"/><path d="M15.5 7h4v4"/>',
+  cli:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.8 14.6c2.4-.2 4.2 1.4 4.7 4.4"/>',
+  calc:'<rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8" y="6" width="8" height="3.5" rx="1"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.8h.01M12 16.8h.01M15.5 16.8h.01" stroke-width="2.4"/>',
+  duch:'<path d="M7 3.5h10M7 20.5h10"/><path d="M8 3.5c0 4.5 4 5.5 4 8.5s-4 4-4 8.5M16 3.5c0 4.5-4 5.5-4 8.5s4 4 4 8.5"/>',
+  fp:'<path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5"/><path d="M10 17v-2.5M12.75 17v-4.5M15.5 17v-3"/>',
+  net:'<circle cx="12" cy="5.5" r="2.3"/><circle cx="5.5" cy="18" r="2.3"/><circle cx="18.5" cy="18" r="2.3"/><path d="M12 7.8v4.2M12 12l-5.2 4M12 12l5.2 4"/>',
+  tax:'<path d="M6 3.5h12v17l-2.4-1.6-2.4 1.6-1.2-.8-1.2.8-2.4-1.6L6 20.5z"/><path d="M9.5 14.5l5-5"/><circle cx="9.8" cy="9.8" r=".9"/><circle cx="14.2" cy="14.2" r=".9"/>',
+  akv:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2"/>',
+  pf:'<path d="M12 3.5v8.5h8.5A8.5 8.5 0 1 1 12 3.5z"/><path d="M15 3.8a8.5 8.5 0 0 1 5.2 5.2H15z"/>',
+  pp:'<path d="M4 4h8.5l7.5 7.5-8.5 8.5L4 12.5z"/><circle cx="8.5" cy="8.5" r="1.4"/>',
+  db:'<ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v6c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V6M5 12v6c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8v-6"/>',
+  users:'<circle cx="10" cy="8" r="3.4"/><path d="M3.5 20c.6-3.4 3.1-5.4 6.5-5.4 1.4 0 2.6.3 3.6.9"/><path d="M15.5 17.5l2 2 3.5-4"/>',
+  atasks:'<path d="M4 6.5l1.6 1.6L8.5 5.2M4 12.5l1.6 1.6 2.9-2.9M4 18.5l1.6 1.6 2.9-2.9"/><path d="M11.5 7h8.5M11.5 13h8.5M11.5 19h8.5"/>',
+  aclients:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.8 14.6c2.4-.2 4.2 1.4 4.7 4.4"/>',
+  more:'<circle cx="5.5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18.5" cy="12" r="1.5"/>'
+};
+const TAB_SHORT={duch:"Důchod",fp:"Fin. plán",net:"Síť",calc:"Kalkulačka",tax:"Daně",money:"Obrat"};
+function tabIcon(k){const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("class","tbic");s.setAttribute("aria-hidden","true");s.innerHTML=TAB_ICON[k]||TAB_ICON.more;return s}
+function tabName(k){const t=TABS.find(x=>x[0]===k)||({db:["db","Databáze"],users:["users","Uživatelé"],atasks:["atasks","Úkoly"],aclients:["aclients","Klienti"]})[k];return t?t[1]:null}
+function renderBottomTabs(){
+  const box=$("tabBottomIn");if(!box)return;
+  const vis=visibleTabs().filter(tabName), MAX=5;
+  const main=vis.length<=MAX?vis:vis.slice(0,MAX-1), rest=vis.length<=MAX?[]:vis.slice(MAX-1);
+  const btn=(k,label,sel,on)=>el("button",{type:"button",role:"tab","aria-selected":String(sel),"aria-label":label,onclick:on},tabIcon(k),el("span",{},label));
+  const kids=main.map(k=>btn(k,TAB_SHORT[k]||tabName(k),k===view,()=>setView(k)));
+  if(rest.length){const inRest=rest.includes(view);kids.push(btn(inRest?view:"more",inRest?(TAB_SHORT[view]||tabName(view)):"Další",inRest,openMoreTabs))}
+  box.replaceChildren(...kids);
+  $("tabBottom").hidden=vis.length<2;
+}
+function moreChev(){const n=document.createElementNS("http://www.w3.org/2000/svg","svg");n.setAttribute("class","chev");n.setAttribute("width","8");n.setAttribute("height","13");n.setAttribute("viewBox","0 0 8 13");n.setAttribute("aria-hidden","true");n.innerHTML='<path d="M1.5 1.5 6.5 6.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';return n}
+function openMoreTabs(){
+  const d=$("moreDlg"),list=$("moreList");if(!d||!list)return;
+  const vis=visibleTabs().filter(tabName),rest=vis.length<=5?[]:vis.slice(4);
+  list.replaceChildren(...rest.map(k=>el("button",{type:"button",class:"row row-btn",onclick:()=>{d.close();setView(k);window.scrollTo(0,0)}},
+    tabIcon(k),el("span",{class:"main"},el("div",{class:"t",style:k===view?"color:var(--tint);font-weight:600":""},tabName(k))),
+    moreChev())));
+  $("moreClose").onclick=()=>d.close();
+  if(!d.open)d.showModal();
+}
 function renderTabBar(){
   const bar=$("tabBar");if(!bar)return;
   bar.replaceChildren(...visibleTabs().map(k=>{const t=TABS.find(x=>x[0]===k)||({db:["db","Databáze"],users:["users","Uživatelé"],atasks:["atasks","Úkoly"],aclients:["aclients","Klienti"]})[k];if(!t)return null;
     return el("button",{type:"button",role:"tab",id:"tab_"+k,"aria-selected":String(k===view),onclick:()=>setView(k)},t[1])}).filter(Boolean));
+  renderBottomTabs();
 }
 /* editor pořadí a viditelnosti záložek – v Data a synchronizace; přepínač skryje, šipky posunou */
 function renderTabsConfig(){
@@ -6812,6 +6883,7 @@ function setView(v){
     if(show){e.classList.remove("vIn");void e.offsetWidth;e.classList.add("vIn")}
     const tb=$("tab_"+k);if(tb)tb.setAttribute("aria-selected",String(k===v))});
   $("searchBox").hidden=v!=="pipe";
+  try{renderBottomTabs()}catch(e){}
   if(v==="cli")fetchCalHistory();
   if(v==="pf")pfRefreshAll();
   if(v==="users"&&typeof fetchUsersTab==="function")fetchUsersTab();
