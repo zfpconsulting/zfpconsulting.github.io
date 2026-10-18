@@ -7,24 +7,27 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://zfp-push.kudlicka-vojtech2002.workers.dev; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
-<link rel="icon" type="image/png" sizes="48x48" href="/og/icon-48.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/og/icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/og/icon-180.png">
-<title>Rezervace konzultace – Vojtěch Kudlička | ZFP GROUP</title>
+<link rel="icon" type="image/png" sizes="48x48" href="/og/icon-48.png?v=3">
+<link rel="icon" type="image/png" sizes="192x192" href="/og/icon-192.png?v=3">
+<link rel="apple-touch-icon" sizes="180x180" href="/og/icon-180.png?v=3">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark light">
+<script>/* klientská stránka je vždy černá; uvnitř plánu (#fp) se řídí motivem zařízení */if(!(location.hash==="#fp"&&window.parent!==window))document.documentElement.setAttribute("data-theme","dark")</script>
+<title>Rezervace konzultace – Vojtěch Kudlička | ZFP Consulting</title>
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="ZFP GROUP">
+<meta property="og:site_name" content="ZFP Consulting">
 <meta property="og:locale" content="cs_CZ">
 <meta property="og:url" content="https://zfpconsulting.github.io/termin/vk/">
 <meta property="og:title" content="Rezervace konzultace – Vojtěch Kudlička">
-<meta property="og:description" content="Vyberte si termín konzultace – osobně v Brně (Trnitá 500/9) nebo online. ZFP GROUP">
-<meta property="og:image" content="https://zfpconsulting.github.io/og/termin.jpg">
-<meta property="og:image:secure_url" content="https://zfpconsulting.github.io/og/termin.jpg">
+<meta property="og:description" content="Vyberte si termín konzultace – osobně v Brně (Trnitá 500/9) nebo online. ZFP Consulting">
+<meta property="og:image" content="https://zfpconsulting.github.io/og/termin-2.jpg">
+<meta property="og:image:secure_url" content="https://zfpconsulting.github.io/og/termin-2.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Rezervace konzultace – Vojtěch Kudlička · ZFP GROUP">
+<meta property="og:image:alt" content="Rezervace konzultace – Vojtěch Kudlička · ZFP Consulting">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="description" content="Vyberte si termín konzultace – osobně v Brně (Trnitá 500/9) nebo online. ZFP GROUP">
+<meta name="description" content="Vyberte si termín konzultace – osobně v Brně (Trnitá 500/9) nebo online. ZFP Consulting">
 <link rel="canonical" href="https://zfpconsulting.github.io/termin/vk/">
 <style>
 /* Vstupní dotazník k finančnímu plánu. Otázky odpovídají vstupům živé prezentace (fp.html) – co klient vyplní, jde 1:1 do plánu.
@@ -40,7 +43,9 @@ body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 -apple-system,
 button,input,select,textarea{font:inherit;color:inherit}
 .top{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px 0;padding-top:max(12px,env(safe-area-inset-top))}
 .top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px}
-.brand{display:flex;align-items:center;gap:12px;white-space:nowrap}.brand .logo{height:30px;width:auto;display:block}
+.brand{display:flex;align-items:center;gap:12px;white-space:nowrap}.brand .logo{height:34px;width:auto;display:block}.brand .logo-d{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand .logo-l{display:none}:root:not([data-theme="light"]) .brand .logo-d{display:block}}
+:root[data-theme="dark"] .brand .logo-l{display:none}:root[data-theme="dark"] .brand .logo-d{display:block}
 .brand>span{color:var(--mut);font-weight:500;font-size:14px;border-left:1px solid var(--line2);padding-left:12px}
 .top .sp{flex:1}
 .prog{height:2px;background:var(--line);max-width:720px;margin:12px auto 0}
@@ -135,7 +140,7 @@ body.emb .hero h1{font-size:22px}
 </style>
 </head>
 <body>
-<div class="top"><div class="in"><span class="brand"><picture><source srcset="/pipeline/zfp-logo-white.svg" media="(prefers-color-scheme: dark)"><img src="/pipeline/zfp-logo.svg" alt="ZFP GROUP" class="logo"></picture><span>Vstupní dotazník</span></span><span class="sp"></span><span id="topBtns"></span></div><div class="prog"><i id="prog"></i></div></div>
+<div class="top"><div class="in"><span class="brand"><img src="/pipeline/zfp-consulting-logo.svg" alt="ZFP Consulting" class="logo logo-l"><img src="/pipeline/zfp-consulting-logo-white.svg" alt="ZFP Consulting" class="logo logo-d"><span>Vstupní dotazník</span></span><span class="sp"></span><span id="topBtns"></span></div><div class="prog"><i id="prog"></i></div></div>
 <main id="main"></main>
 <div class="bottom" id="bottom"><div class="in"><span class="st" id="st"></span><span id="botBtns"></span></div></div>
 <div class="toast" id="toast"></div>
@@ -155,7 +160,7 @@ const PUSH_URL="https://zfp-push.kudlicka-vojtech2002.workers.dev";
 function pushPing(k){if(!PUSH_URL||!LINK.to)return;try{fetch(PUSH_URL+"/ping",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({to:LINK.to,k}),credentials:"omit",referrerPolicy:"strict-origin",keepalive:true}).catch(()=>{})}catch(e){}}
 /* m=r → odkaz jen na rezervaci schůzky (bez dotazníku) */
 const ONLY=!EMB&&H.get("m")==="r",ADVN=H.get("p")||"";
-if(ONLY){document.title="Rezervace konzultace"+(ADVN?" – "+ADVN:"")+" | ZFP GROUP";const t=document.querySelector(".brand > span");if(t)t.textContent="Rezervace konzultace"}
+if(ONLY){document.title="Rezervace konzultace"+(ADVN?" – "+ADVN:"")+" | ZFP Consulting";const t=document.querySelector(".brand > span");if(t)t.textContent="Rezervace konzultace"}
 /* přišel přes krátký odkaz (/dotaznik/vk): v adresním řádku zůstane jen krátký odkaz, klíč se drží v paměti (obnovení stránky znovu načte krátký odkaz) */
 (()=>{const c=H.get("s");if(EMB||!c||!/^[a-z0-9-]{1,24}$/.test(c)||!history.replaceState)return;
   try{document.querySelectorAll("picture source[srcset]").forEach(e=>e.srcset=new URL(e.getAttribute("srcset"),location.href).href);
@@ -328,7 +333,7 @@ function renderSent(){
   $("#bottom").hidden=true;$("#topBtns").innerHTML="";$("#prog").style.width="100%";
   const K0=ONLY?{email:BK.c.email}:(SENT&&SENT.kontakt)||{},mail=K0.email||"váš e-mail";
   if(BK.done){$("#main").innerHTML=`<div class="done">${OK_IC}<h1>Termín je zarezervovaný</h1><p><b>${esc(dayTxt(BK.done.start))} v ${esc(hm(BK.done.start))}</b> – ${BK.done.online?`online. Odkaz na schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.`:`osobně, ${esc(BK.addr)}.`}</p></div>${BK.done.online?"":mapBox()}`;return}
-  const head=ONLY?`<div class="hero"><h1>Rezervace konzultace</h1><p>${ADVN?esc(ADVN)+", ZFP GROUP · ":""}vyberte si den a čas, který vám vyhovuje. Konzultace trvá zhruba 45 minut, osobně v kanceláři nebo online.</p></div>`
+  const head=ONLY?`<div class="hero"><h1>Rezervace konzultace</h1><p>${ADVN?esc(ADVN)+", ZFP Consulting · ":""}vyberte si den a čas, který vám vyhovuje. Konzultace trvá zhruba 45 minut, osobně v kanceláři nebo online.</p></div>`
     :`<div class="done" style="padding:40px 10px 20px">${OK_IC}<h1>Odesláno</h1><p>Dotazník dorazil vašemu poradci – zašifrovaný, přečíst ho může jen on. Z tohoto zařízení jsme odpovědi smazali.</p></div>`;
   if(BK.slots===null){$("#main").innerHTML=head+`<p class="hint" style="text-align:center">Načítám volné termíny…</p>`;return}
   if(!BK.slots.length){$("#main").innerHTML=head+`<div class="book"><div class="note">${ONLY?"Volné termíny se teď nepodařilo načíst. Zkuste to prosím později, nebo se ozvěte přímo poradci.":"Termín druhé konzultace si domluvíme – poradce se vám ozve."}</div></div>`;return}
