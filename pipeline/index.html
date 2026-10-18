@@ -2101,9 +2101,11 @@ setInterval(()=>{try{renderDzNotes()}catch(e){}},1500);
 const DZS={from:510,to:1140,len:45,buf:15,block:90,grid:[510,600,690,780,870,960,1050],days:21,addr:()=>(settings.dzAddr||"Trnitá 500/9, 602 00 Brno")};
 /* pevná mřížka bloků po 90 min (každý týden stejné časy): 8:30, 10:00, 11:30, 13:00, 14:30, 16:00, 17:30.
    Tvoje schůzka / osobní událost v okně bloku → blok je obsazený. Škola v okně → začátek se posune na 50 min po konci výuky
-   (konec v hh:40 → (hh+1):30), ale jen uvnitř okna; když se schůzka (45 min) do okna nevejde, blok ten den odpadá. */
+   (konec v IS hh:50 / reálně hh:40 → (hh+1):30), ale jen uvnitř okna; když se schůzka (45 min) do okna nevejde, blok ten den odpadá. */
+/* po škole: nejbližší celá půlhodina (hh:30) aspoň 40 min po konci výuky v IS (IS píše konec 9:50, výuka končí 9:40) → 10:30 */
+function dzAfterSchool(b){const m=b+40;return m+((30-m%60)+60)%60}
 function dzFreeSlots(dayKey,busy){const dow=new Date(dayKey+"T12:00:00").getDay();if(dow===0||dow===6)return[];
-  const mine=busy.filter(x=>x[2]===undefined),sch=busy.filter(x=>x[2]!==undefined).map(([a,b,after])=>[a-DZS.buf,b+after]),out=[];
+  const mine=busy.filter(x=>x[2]===undefined),sch=busy.filter(x=>x[2]!==undefined).map(([a,b])=>[a-DZS.buf,dzAfterSchool(b)]),out=[];
   for(const g of DZS.grid){const ge=g+DZS.block;
     if(mine.some(([a,b])=>a<ge&&b>g))continue;
     let t=g;for(let n=0;n<10;n++){const c=sch.find(([a,b])=>t<b&&t+DZS.len>a);if(!c)break;t=Math.ceil(c[1]/5)*5}
@@ -2113,8 +2115,8 @@ function dzFreeSlots(dayKey,busy){const dow=new Date(dayKey+"T12:00:00").getDay(
    own = tvůj osobní kalendář, off = kolegové v kanclu (JT:, PV:, porada…) → v tu dobu kancelář obsazená = jen online */
 function ctKind(ev){
   const t=ev.title||"",pl=ev.place||"";
-  const sch=ev.school||/\b[A-Z]{2,5}_[A-Z0-9]{2,8}\b/.test(t)||/\((přednáška|seminář|cvičení)\b/i.test(t)||/^odpovědník/i.test(t);
-  if(sch){if(/přednášk/i.test(t))return "hide";if(/seminář|cvičení/i.test(t))return ev.allDay?"hide":"sem";
+  const sch=ev.school||/\b[A-Z]{2,5}_[A-Za-z0-9]{2,10}\b/.test(t)||/\((přednáška|seminář|cvičení)(\s|\))/i.test(t)||/^odpovědník/i.test(t);
+  if(sch){if(/přednášk|odpovědník|zkouš|zápoč|přihlašování|registrace|zápis|e-?learning|test\b/i.test(t)||(!ev.allDay&&ev.end&&ev.end<=ev.start))return "hide";if(/seminář|cvičení/i.test(t))return ev.allDay?"hide":"sem";
     if(/^P\d/i.test(pl))return "hide";if(!ev.allDay&&(/\/\d{1,3}\b/.test(t)||/^(S|VT)\d/i.test(pl)))return "sem";return "hide"}
   if(ctIsMine(ev))return "mine";
   if(ev.calId==="primary"||ev.calId===dzMe())return "own";
