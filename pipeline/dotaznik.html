@@ -9,6 +9,15 @@
 <link rel="icon" type="image/png" href="/og/icon.png">
 <link rel="apple-touch-icon" href="/og/icon.png">
 <title>Vstupní dotazník – finanční plán</title>
+<!--og--><meta property="og:type" content="website">
+<meta property="og:site_name" content="ZFP GROUP">
+<meta property="og:locale" content="cs_CZ">
+<meta property="og:title" content="Vstupní dotazník k finančnímu plánu">
+<meta property="og:description" content="Podklady k finančnímu plánu – vyplnění zabere asi 15 minut, odpovědi se šifrují. ZFP GROUP">
+<meta property="og:image" content="https://zfpconsulting.github.io/og/dotaznik.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image"><!--/og-->
 <style>
 /* Vstupní dotazník k finančnímu plánu. Otázky odpovídají vstupům živé prezentace (fp.html) – co klient vyplní, jde 1:1 do plánu.
    Odkaz pro klienta: koncept se drží jen v tomto prohlížeči; „Odeslat poradci“ dotazník (+ IOLDP) zašifruje veřejným klíčem poradce
@@ -129,7 +138,8 @@ const EMB=location.hash==="#fp"&&window.parent!==window;
 if(EMB)document.body.classList.add("emb");
 const DRAFT="fp_dotaznik_draft_v1",ADV="dz_poradce_v1";
 /* parametry odkazu jsou za # (prohlížeč je neposílá na server): to = e-mail poradce (schránka), k = veřejný klíč, p/t/e = jméno, telefon, e-mail poradce */
-const H=new URLSearchParams(EMB?"":location.hash.replace(/^#/,"")),Q=new URLSearchParams(location.search);
+/* parametry: z odkazu za # (dlouhý odkaz), nebo zapečené ve stránce krátkého odkazu (/termin/vk/, /dotaznik/vk/ – window.DZ_LINK, viz tools/short-links.mjs) */
+const H=new URLSearchParams(EMB?"":(window.DZ_LINK||location.hash.replace(/^#/,""))),Q=new URLSearchParams(location.search);
 const LINK={to:H.get("to")||"",k:H.get("k")||""};
 /* po odeslání „šťouchnout“ poradci push notifikaci (jen obecná zpráva, žádné údaje) – prostředník worker/push.js */
 const PUSH_URL="https://zfp-push.kudlicka-vojtech2002.workers.dev";
