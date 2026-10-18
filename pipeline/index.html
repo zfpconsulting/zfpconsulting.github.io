@@ -2136,23 +2136,87 @@ async function pushDisable(){pushBusy=true;renderPushCfg();
   try{const sub=await pushSub();if(sub){const ep=sub.endpoint;await sub.unsubscribe();try{await pushApi("/unsubscribe",{body:{endpoint:ep}})}catch(e){}}pushSubsCache=null;lsSet("push_sig","");toast("Na tomto zařízení vypnuto")}
   catch(e){toast("Vypnutí se nepovedlo")}pushBusy=false;renderPushCfg()}
 async function pushTest(){try{const r=await pushApi("/test",{body:{}});toast(r.sent?"Zkušební notifikace odeslaná na "+r.sent+" "+plural(r.sent,"zařízení","zařízení","zařízení"):"Žádné zařízení nemá push zapnutý")}catch(e){toast("Nepovedlo se ("+(e.code||e.message)+")")}}
-/* připomínky schůzek na příštích 14 dní – posílá se jen při změně (šetří limity prostředníka) */
+/* ---------- naplánované notifikace (všechny se šifrují tady v Pipeline pro každé zařízení – prostředník obsah nevidí) ----------
+   rem   = připomínka schůzky X min předem
+   brief = ranní přehled (po–pá): schůzky dnes, hovory, leady po termínu
+   after = X min po konci schůzky: zapsat výsledek a další krok (klepnutím se otevře lead)
+   tmr   = odpoledne: zítřejší schůzky a kolik z nich není potvrzených
+   goal  = večer (po–pá): kolik schůzek jsem dnes domluvil vůči cíli (výchozí 2)
+   Obsah se počítá ze stavu Pipeline v okamžiku nahrání; při každé změně se plán nahraje znovu. */
+const PUSHX_DEF={brief:"08:00",after:15,tmr:"15:00",goal:"19:00",goalN:2};
+const pushX=()=>({...PUSHX_DEF,...((settings&&settings.pushX)||{})});
+const pxAt=(dayKey,hm)=>{const[h,m]=String(hm).split(":").map(Number);const d=new Date(dayKey+"T00:00:00");d.setHours(h,m||0,0,0);return d.getTime()};
+const pxWork=k=>{const g=new Date(k+"T12:00:00").getDay();return g>=1&&g<=5};
+const pxN=(n,a,b,c)=>n+" "+plural(n,a,b,c);
+function pxMeets(k){/* moje schůzky v daný den: kalendář (VK: …) + schůzky zapsané jen u leadu */
+  const L=(calEvents||[]).filter(e=>e.start.slice(0,10)===k).map(e=>({id:e.id,start:e.start,end:e.end,name:e.name||e.title.replace(prefixRe()||/^$/,"").trim(),online:e.online,ev:e}));
+  leads.forEach(l=>(l.meetings||[]).forEach(m=>{if(m.start&&m.start.slice(0,10)===k&&!L.some(x=>x.id===m.id))L.push({id:m.id,start:m.start,end:null,name:l.name,online:!!m.online,lead:l})}));
+  return L.sort((a,b)=>a.start.localeCompare(b.start))}
+const pxLeadOf=x=>{if(x.lead)return x.lead;try{return x.ev&&typeof contactFor==="function"?contactFor(x.ev).lead:null}catch(e){return null}};
+function pxBooked(k){/* kolik schůzek jsem v den k domluvil (událost s mým prefixem vytvořená ten den) */
+  const ids=new Set();(calEvents||[]).forEach(e=>{if(e.created&&ymd(new Date(e.created))===k)ids.add(e.id)});return ids.size}
+function pxBrief(k){
+  const M=pxMeets(k),act=leads.filter(l=>!l.shared&&ACTIVE(l.stage)),calls=act.filter(l=>l.nextDate&&l.nextDate<=k).length,late=act.filter(l=>l.nextDate&&l.nextDate<k).length,none=act.filter(l=>!l.nextDate).length;
+  const f=M[0],parts=[];if(f)parts.push("první "+fmtHM(f.start)+" "+f.name);if(calls)parts.push(pxN(calls,"hovor","hovory","hovorů")+" v plánu");if(late)parts.push(late+" po termínu");if(none)parts.push(none+" bez dalšího kroku");
+  return {t:M.length?"Dobré ráno · dnes "+pxN(M.length,"schůzka","schůzky","schůzek"):"Dobré ráno · dnes žádná schůzka",b:(parts.join(" · ")||"Nic po termínu")+(M.length?"":" – dej si volací blok"),u:"./?push=brief",tag:"brief-"+k}}
+function pxTmr(k){const M=pxMeets(k);if(!M.length)return null;
+  const un=M.filter(x=>todoState("conf:"+x.id,false)!=="done");
+  return {t:"Zítra "+pxN(M.length,"schůzka","schůzky","schůzek")+(un.length?" · "+un.length+" "+plural(un.length,"nepotvrzená","nepotvrzené","nepotvrzených"):" · všechny potvrzené"),
+    b:un.length?un.slice(0,3).map(x=>fmtHM(x.start)+" "+x.name).join(" · ")+(un.length>3?" …":"")+" – pošli potvrzení":M.slice(0,3).map(x=>fmtHM(x.start)+" "+x.name).join(" · "),u:"./?push=conf",tag:"tmr-"+k}}
+function pxGoal(k){const n=pxBooked(k),g=pushX().goalN||2;
+  return {t:n>=g?"Splněno – dnes "+pxN(n,"domluvená schůzka","domluvené schůzky","domluvených schůzek"):n?"Dnes "+n+"/"+g+" domluvených schůzek":"Dnes jsi nedomluvil žádnou schůzku",
+    b:n>=g?"Cíl "+g+" schůzky denně máš splněný. Dobrá práce!":n?"Ještě "+pxN(g-n,"schůzka","schůzky","schůzek")+" a máš denní cíl. Pár hovorů?":"Cíl je "+g+" denně – ještě je čas na pár hovorů.",u:"./?push=goal",tag:"goal-"+k}}
+function pxAfter(x,mins){const l=pxLeadOf(x);return {t:"Jak dopadla schůzka: "+x.name+"?",b:"Zapiš výsledek a další krok, ať lead nevychladne.",u:"./?push=after"+(l?"&lead="+encodeURIComponent(l.id):""),tag:"after-"+String(x.id).slice(-20)}}
+function pushPlan(now){
+  const X=pushX(),mins=pushRemMin(),out=[],t=todayStr(),lim=now+14*864e5,add=(at,pl)=>{if(at>now+30000&&at<lim)out.push({at,pl})};
+  for(let i=0;i<=14;i++){const k=addDaysFrom(t,i);
+    if(X.brief&&pxWork(k))add(pxAt(k,X.brief),pxBrief(k));
+    if(X.tmr){const pl=pxTmr(addDaysFrom(k,1));if(pl)add(pxAt(k,X.tmr),pl)}
+    pxMeets(k).forEach(x=>{const st=new Date(x.start).getTime(),en=x.end?new Date(x.end).getTime():st+DZS.len*60000;
+      if(mins)add(st-mins*60000,{t:(mins>=60&&mins%60===0?(mins===60?"Za hodinu":"Za "+mins/60+" h"):"Za "+mins+" min")+" schůzka: "+x.name,b:fmtHM(x.start)+(x.online?" · online":x.ev&&x.ev.place?" · "+x.ev.place:""),u:"./?push=rem",tag:"rem-"+String(x.id).slice(-24)});
+      if(+X.after)add(en+ +X.after*60000,pxAfter(x,+X.after))})}
+  /* denní cíl jen pro dnešek – na budoucí dny ještě nevíme, kolik toho domluvíš */
+  if(X.goal&&pxWork(t))add(pxAt(t,X.goal),pxGoal(t));
+  return out.sort((a,b)=>a.at-b.at).slice(0,180)}
+let pushUpAt=0,pushUpT=null,pushDemo=null;
 async function pushSyncReminders(force){
   if(!PUSH_URL||DEMO||!settings||!settings.pushOn||!GAuth.token()||!navigator.onLine||!Array.isArray(calEvents))return;
   if(!pushSubsCache||force||Date.now()-pushSubsAt>30*60000){pushSubsCache=(await pushApi("/subs")).subs||[];pushSubsAt=Date.now()}
-  const subs=pushSubsCache,mins=pushRemMin(),now=Date.now();
-  const evs=mins?calEvents.filter(e=>{const t=new Date(e.start).getTime()-mins*60000;return t>now+30000&&t<now+14*864e5}).slice(0,120):[];
-  const sig=JSON.stringify([mins,subs.map(x=>x.id),evs.map(e=>[e.id,e.start,e.title,e.place])]);
+  const subs=pushSubsCache,now=Date.now(),plan=pushPlan(now).concat(pushDemo&&pushDemo.until>now?pushDemo.items:[]);
+  const sig=JSON.stringify([subs.map(x=>x.id),plan.map(p=>[p.at,p.pl])]);
   if(!force&&sig===lsGet("push_sig"))return;
   if(!subs.length){lsSet("push_sig",sig);return}
-  await pushLib();const items=[],za=mins>=60&&mins%60===0?(mins===60?"Za hodinu":"Za "+mins/60+" h"):"Za "+mins+" min";
-  for(const e of evs){const who=(e.name||e.title.replace(prefixRe()||/^$/,"")).trim();
-    const pl={t:za+" schůzka: "+who,b:fmtHM(e.start)+(e.online?" · online":e.place?" · "+e.place:""),u:"./?push=rem",tag:"rem-"+String(e.id).slice(-24)};
-    for(const x of subs)items.push({id:x.id,at:new Date(e.start).getTime()-mins*60000,body:PushCrypto.b64u(await PushCrypto.encrypt(x,pl)),tag:pl.tag})}
-  await pushApi("/reminders",{body:{items}});lsSet("push_sig",sig)}
+  if(!force&&now-pushUpAt<4*60000){clearTimeout(pushUpT);pushUpT=setTimeout(()=>pushSyncReminders().catch(()=>{}),4*60000-(now-pushUpAt)+500);return}
+  await pushLib();const items=[];
+  for(const p of plan)for(const x of subs)items.push({id:x.id,at:p.at,body:PushCrypto.b64u(await PushCrypto.encrypt(x,p.pl)),tag:p.pl.tag});
+  await pushApi("/reminders",{body:{items:items.slice(0,400)}});lsSet("push_sig",sig);pushUpAt=Date.now()}
+/* ukázka všech typů jednou hned (do minuty) – z tvých skutečných dat */
+async function pushTestAll(){
+  const t=todayStr(),tm=addDaysFrom(t,1),at=Math.ceil((Date.now()+20000)/60000)*60000,M=pxMeets(t).concat(pxMeets(tm)),last=(calEvents||[]).filter(e=>new Date(e.start)<new Date()).slice(-1)[0];
+  const ex=M[0]||(last?{id:last.id,start:last.start,name:last.name||last.title,ev:last}:{id:"x",start:new Date().toISOString(),name:"Ukázkový klient"});
+  const items=[{at,pl:pxBrief(t)},{at,pl:{...pxAfter(ex,15),tag:"t-after"}},{at,pl:pxTmr(tm)||{t:"Zítra žádná schůzka",b:"Až si domluvíš, ve "+pushX().tmr+" ti přijde přehled potvrzení.",u:"./?push=conf",tag:"t-tmr"}},{at,pl:pxGoal(t)}].map(x=>({at:x.at,pl:{...x.pl,tag:"t-"+x.pl.tag}}));
+  pushDemo={until:at+5*60000,items};
+  try{await pushSyncReminders(true);toast("Ukázky všech notifikací přijdou do minuty")}catch(e){toast("Nepovedlo se ("+(e.code||e.message)+")")}}
+/* klepnutí na notifikaci → rovnou na správné místo */
+function pushOpen(u){try{const q=new URL(u||location.href,location.href).searchParams,k=q.get("push");if(!k)return;
+  const go=()=>{if(k==="after"){const l=leads.find(x=>x.id===q.get("lead"));setView("pipe");if(l)openEdit(l)}else if(k==="bk"||k==="rem")setView("cal");else setView("pipe")};
+  if(Array.isArray(leads)&&leads.length)go();else setTimeout(go,1500);
+  if(location.search.includes("push="))history.replaceState(null,"",location.pathname)}catch(e){}}
+setTimeout(()=>pushOpen(location.href),1200);
 setInterval(()=>{pushSyncReminders().catch(()=>{})},10*60000);
 /* klepnutí na notifikaci, když je Pipeline už otevřená: hned zkontrolovat schránku dotazníků/rezervací a kalendář */
-try{navigator.serviceWorker&&navigator.serviceWorker.addEventListener("message",e=>{if(!e.data||e.data.type!=="push-open")return;try{if(!DZI.on)dzStart();Promise.resolve(refreshCalendar()).catch(()=>{});if(/push=(bk|rem)/.test(e.data.u||""))setView("cal")}catch(x){}})}catch(e){}
+try{navigator.serviceWorker&&navigator.serviceWorker.addEventListener("message",e=>{if(!e.data||e.data.type!=="push-open")return;try{if(!DZI.on)dzStart();Promise.resolve(refreshCalendar()).catch(()=>{});pushOpen(e.data.u)}catch(x){}})}catch(e){}
+/* nastavení naplánovaných notifikací (synchronizuje se mezi zařízeními) */
+function pxCfgRows(){const X=pushX();
+  const save=async patch=>{const v={...pushX(),...patch};settings={...settings,pushX:v};try{await db.doc("settings/main").update({pushX:v})}catch(e){}lsSet("push_sig","");pushSyncReminders(true).catch(()=>{})};
+  const selOf=(label,key,opts,num)=>{const sl=el("select",{"aria-label":label},...opts.map(([v,t])=>{const o=el("option",{value:String(v)},t);if(String(v)===String(X[key]))o.selected=true;return o}));
+    sl.onchange=()=>save({[key]:num?+sl.value:sl.value});return el("label",{},label,sl)};
+  const hrs=(a,b)=>{const o=[["","Vypnuto"]];for(let h=a;h<=b;h++){o.push([String(h).padStart(2,"0")+":00",h+":00"]);if(h<b)o.push([String(h).padStart(2,"0")+":30",h+":30"])}return o};
+  return [selOf("Ranní přehled (po–pá)","brief",hrs(6,10)),
+    selOf("Po schůzce: zapsat výsledek","after",[[0,"Vypnuto"],[5,"5 min po konci"],[15,"15 min po konci"],[30,"30 min po konci"],[60,"hodinu po konci"]],true),
+    selOf("Zítřejší schůzky a potvrzení","tmr",hrs(10,20)),
+    selOf("Denní cíl domluvených schůzek (po–pá)","goal",hrs(15,21)),
+    selOf("Cíl schůzek denně","goalN",[[1,"1"],[2,"2"],[3,"3"],[4,"4"],[5,"5"]],true)]}
 async function renderPushCfg(){const box=$("pushCfg");if(!box)return;
   const sub=await pushSub(),on=!!sub&&Notification.permission==="granted",mins=pushRemMin();
   const sel=el("select",{"aria-label":"Připomínka před schůzkou"},...[[0,"Vypnuto"],[10,"10 min"],[15,"15 min"],[30,"30 min"],[60,"1 hodinu"],[120,"2 hodiny"]].map(([v,t])=>{const o=el("option",{value:String(v)},t);if(v===mins)o.selected=true;return o}));
@@ -2161,9 +2225,11 @@ async function renderPushCfg(){const box=$("pushCfg");if(!box)return;
     Notification.permission==="denied"?"Notifikace jsou pro Pipeline zakázané – povol je v nastavení prohlížeče / telefonu.":on?"Na tomto zařízení zapnuto ("+pushUa()+").":"Na tomto zařízení vypnuto.";
   box.replaceChildren(el("label",{},"Push notifikace"),el("p",{class:"hint",style:"margin-top:0"},st),
     el("div",{class:"chips"},on?el("button",{type:"button",class:"dbtn",disabled:pushBusy,onclick:pushDisable},"Vypnout na tomto zařízení"):el("button",{type:"button",class:"dbtn",disabled:pushBusy||!PUSH_URL||!pushCan(),onclick:pushEnable},pushBusy?"Zapínám…":"Zapnout na tomto zařízení"),
-      on?el("button",{type:"button",class:"dbtn",onclick:pushTest},"Poslat zkušební"):null),
+      on?el("button",{type:"button",class:"dbtn",onclick:pushTest},"Poslat zkušební"):null,
+      on?el("button",{type:"button",class:"dbtn",onclick:pushTestAll},"Vyzkoušet všechny (do minuty)"):null),
     el("label",{},"Připomínka před schůzkou",sel),
-    el("p",{class:"hint"},"Přijde: nový vstupní dotazník, rezervace schůzky od klienta a připomínka tvých schůzek (VK: …). Zapni na každém zařízení zvlášť. Text připomínek se šifruje přímo v Pipeline – prostředník ani nikdo jiný ho nepřečte; u dotazníku a rezervace jde jen obecná zpráva bez údajů klienta."))}
+    ...pxCfgRows(),
+    el("p",{class:"hint"},"Přijde: nový vstupní dotazník, rezervace schůzky od klienta, připomínka tvých schůzek (VK: …), ranní přehled, výzva zapsat výsledek po schůzce, zítřejší nepotvrzené schůzky a večer denní cíl (schůzky domluvené ten den). Zapni na každém zařízení zvlášť. Text připomínek se šifruje přímo v Pipeline – prostředník ani nikdo jiný ho nepřečte; u dotazníku a rezervace jde jen obecná zpráva bez údajů klienta."))}
 /* rezervace, které se nepovedlo zapsat do kalendáře: drží se v nastavení (vidí je všechna zařízení) a zkouší se znovu každou minutu */
 const dzQ=()=>(settings&&Array.isArray(settings.dzBkQ)?settings.dzBkQ:[]);
 async function dzQueue(it){const L=[...dzQ().filter(q=>!(q.lead===it.lead&&q.start===it.start)),{...it,at:Date.now()}].slice(-20);settings={...settings,dzBkQ:L};try{await db.doc("settings/main").update({dzBkQ:L})}catch(e){}}
@@ -5011,7 +5077,7 @@ function parseEvent(e){
   const tt=(a,b)=>kept.slice(a,b).filter(isT).map(w=>TITLE_CANON[norm(w)]);
   const tPre=tt(0,firstIdx), tPost=tt(lastIdx+1);
   const name=[...tPre,...cap].join(" ")+(tPost.length?", "+tPost.join(" "):"");
-  return {id:e.id,start:e.start.dateTime,title:raw,name,keys:cap.map(norm),key:name?norm(cap[cap.length-1]):"",online:/online|teams|zoom|meet/i.test(raw+" "+(e.location||"")),podpis:/podpis/i.test(raw),link:e.htmlLink||"",place:(e.location||"").trim()};
+  return {id:e.id,start:e.start.dateTime,title:raw,name,keys:cap.map(norm),key:name?norm(cap[cap.length-1]):"",online:/online|teams|zoom|meet/i.test(raw+" "+(e.location||"")),podpis:/podpis/i.test(raw),link:e.htmlLink||"",place:(e.location||"").trim(),end:e.end&&e.end.dateTime||null,created:e.created||null};
 }
 function evMatches(ev,l){const sn=surnameOf(l.name);if(sn.length<3)return false;return ev.keys.some(k=>k===sn||k===sn+"ovi"||(k.length>4&&sn.length>4&&(k===sn+"a"||sn===k+"a")))}
 function fmtMeet(iso){const d=new Date(iso);const z=n=>String(n).padStart(2,"0");return ["ne","po","út","st","čt","pá","so"][d.getDay()]+" "+d.getDate()+". "+(d.getMonth()+1)+". "+z(d.getHours())+":"+z(d.getMinutes())}
