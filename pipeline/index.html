@@ -1932,6 +1932,15 @@ function toast(msg){const t=$("toast");clearTimeout(toast._t);clearTimeout(toast
   toast._t=setTimeout(()=>{t.classList.remove("in");t.classList.add("out")},1900);
   toast._t2=setTimeout(()=>{t.hidden=true;t.classList.remove("out")},2200)}
 function sliderFill(r){const p=(r.value-r.min)/(r.max-r.min)*100;r.style.setProperty("--p",p+"%")}
+/* posuvník s hodnotou (Obrat → srovnání výdělku); omylem smazaný 16. 10. spolu s „Moje cíle“ → Obrat se nevykreslil */
+function numSliderRow(label,val,min,max,step,fmtFn,on){
+  const vB=el("b",{},fmtFn(val));
+  const r=el("input",{type:"range",min:String(min),max:String(max),step:String(step),"aria-label":label});
+  r.value=Math.max(min,Math.min(max,val||0));sliderFill(r);
+  r.addEventListener("input",()=>{vB.textContent=fmtFn(+r.value);sliderFill(r)});
+  r.addEventListener("change",()=>on(+r.value));
+  return el("div",{class:"slider"},el("div",{class:"sl-head"},el("span",{},label),vB),r,el("div",{class:"sl-ticks"},el("span",{},fmtFn(min)),el("span",{},fmtFn(Math.round((min+max)/2))),el("span",{},fmtFn(max))));
+}
 
 /* ================= render ================= */
 function render(){
