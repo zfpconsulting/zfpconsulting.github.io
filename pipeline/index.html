@@ -260,6 +260,22 @@ dialog.sheet-closing::backdrop{animation:backdropOut .26s ease forwards}
   @keyframes sheetInM{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:none}}
   @keyframes sheetOutM{from{opacity:1;transform:none}to{opacity:.4;transform:translateY(100%)}}}
 @media (prefers-reduced-motion:reduce){dialog[open],dialog.sheet-closing,dialog[open]::backdrop,dialog.sheet-closing::backdrop{animation:none}}
+/* otevřený lead / klient: na širší obrazovce na šířku přes skoro celé okno, tři sloupce, každý se posouvá zvlášť (na mobilu na výšku jako dřív) */
+#dlg .lcol,#edDlg .ccol{display:contents}
+.lhead{display:none}
+@media (min-width:900px){
+  #dlg,#edDlg.wide{width:calc(100vw - 40px);max-width:1680px;height:calc(100vh - 40px);height:calc(100dvh - 40px);max-height:none;border-radius:18px}
+  #dlg>.sheet,#edDlg.wide>.sheet{height:100%;max-height:none}
+  #dlg .sbody.lsheet,#edDlg.wide .ebody{flex:1;min-height:0;overflow:hidden;display:grid;grid-template-columns:minmax(300px,1fr) minmax(380px,1.3fr) minmax(320px,1fr);grid-template-rows:minmax(0,1fr);grid-auto-rows:auto;gap:0;padding:0}
+  #dlg .lcol,#edDlg.wide .ccol{display:grid;align-content:start;grid-auto-rows:max-content;overflow:auto;overscroll-behavior:contain;min-height:0;min-width:0;padding:20px 20px 32px;border-right:.5px solid var(--sep)}
+  #dlg .lcol{gap:22px}#edDlg.wide .ccol{gap:14px}#edDlg.wide .ccol>.sechead:not(:first-child){margin-top:10px}
+  #dlg .lcol:last-child,#edDlg.wide .ccol:last-child{border-right:0}
+  #dlg .lc2,#edDlg.wide .cc2{background:color-mix(in srgb,var(--bg) 70%,var(--bg2,#fff))}
+  #dlg .lcol>*,#edDlg.wide .ccol>*{min-width:0}
+  .lhead{display:block;margin:0 4px}
+  #dlg #f_note{min-height:200px}
+  #dlg .sbar h2,#edDlg.wide .sbar h2{max-width:60vw;font-size:19px}
+}
 .sheet{display:flex;flex-direction:column;max-height:inherit}
 .sbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 16px;background:var(--bar-bg);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);position:sticky;top:0;z-index:2}
 .sbar h2{margin:0;font-size:17px;font-weight:600;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
@@ -1162,7 +1178,8 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
       <h2 id="fTitle">Nový lead</h2>
       <button type="submit" class="r" id="saveBtn">Uložit</button>
     </div>
-    <div class="sbody">
+    <div class="sbody lsheet">
+     <div class="lcol lc1">
       <div class="fg" id="fpLeadBox" hidden></div>
       <div class="fg">
         <div class="group">
@@ -1179,7 +1196,22 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
           <div class="frow"><label for="f_ref">Doporučil</label><input id="f_ref" placeholder="jméno klienta"></div>
         </div>
       </div>
-
+      <div class="fg lnext">
+        <h3 class="sechead">Další krok</h3>
+        <div class="group">
+          <div class="frow"><label for="f_next">Co</label><input id="f_next" placeholder="např. zavolat kvůli schůzce"></div>
+          <div class="frow"><label for="f_date">Kdy</label><input id="f_date" type="date"></div>
+        </div>
+        <div class="quick" id="quickDates"></div>
+        <p class="taskhint" id="taskHint"></p>
+      </div>
+      <div class="fg lnote">
+        <h3 class="sechead">Poznámky</h3>
+        <div class="group"><div class="frow col"><textarea id="f_note" aria-label="Poznámky" placeholder="Co o klientovi víš"></textarea></div></div>
+      </div>
+     </div>
+     <div class="lcol lc2">
+      <h3 class="sechead lhead">Produkty a body</h3>
       <div class="fg" id="dealBox" hidden></div>
       <div id="itemsList" style="display:grid;gap:22px"></div>
       <div id="addItemWrap">
@@ -1195,23 +1227,8 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
       </div>
 
       <div class="sum" id="calcSum"></div>
-
-      <div class="fg">
-        <h3 class="sechead">Další krok</h3>
-        <div class="group">
-          <div class="frow"><label for="f_next">Co</label><input id="f_next" placeholder="např. zavolat kvůli schůzce"></div>
-          <div class="frow"><label for="f_date">Kdy</label><input id="f_date" type="date"></div>
-        </div>
-        <div class="quick" id="quickDates"></div>
-        <p class="taskhint" id="taskHint"></p>
-      </div>
-
-      <div class="fg">
-        <h3 class="sechead">Poznámky</h3>
-        <div class="group"><div class="frow col"><textarea id="f_note" aria-label="Poznámky" placeholder="Co o klientovi víš"></textarea></div></div>
-      </div>
-
-      <div class="fg" id="docsBox" hidden></div>
+     </div>
+     <div class="lcol lc3">
 
       <div class="fg" id="logBox">
         <h3 class="sechead">Historie kontaktů</h3>
@@ -1227,6 +1244,8 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
         </div>
       </div>
 
+      <div class="fg" id="docsBox" hidden></div>
+
       <div class="group" id="delBox">
         <button type="button" class="danger-row" id="delBtn">Smazat lead</button>
         <div class="confirm" id="delConfirm" hidden>
@@ -1236,6 +1255,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
         </div>
       </div>
       <div class="err" id="fErr" hidden></div>
+     </div>
     </div>
   </form>
 </dialog>
@@ -1910,10 +1930,22 @@ function renderDb(){
   if(dbUI){dbUI.refresh();return}
   if(dbLoading)return;
   const go=()=>{dbLoading=false;if(!window.Databaze){$("dbBox").textContent="Databázi se nepodařilo načíst – zkontroluj připojení.";return}
-    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)}})};
+    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},addLeads:dbAddLead,
+      leadExists:id=>leads.some(x=>x.id===id),openLead:id=>{const l=leads.find(x=>x.id===id);if(l)openEdit(l);else toast("Lead už v pipeline není")},
+      findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
+        const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=3";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=4";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
+/* Databáze → pipeline: nový lead (fáze Nový lead) se všemi údaji smlouvy v poznámce a PDF v dokumentech; stejný člověk už v pipeline → doplní se k němu */
+async function dbAddLead(g){
+  const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;
+  if(l){const log=[...(l.log||[]),{d:now,t:"Smlouva z Databáze (NN Stela) přidána"}].slice(-100);
+    await db.doc("leads/"+l.id).update({note:(l.note?l.note+"\n\n":"")+g.note,log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{})})}
+  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email});
+    await db.doc("leads/"+l.id).update({note:g.note,log:[{d:now,t:"Založeno z Databáze smluv (NN Stela)"}],updatedAt:now})}
+  if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
+  return l.id}
 /* iniciály na začátku názvu schůzky z kalendáře: „VK: Novák“ → VK, „MB a VK: Novák“ / „MB+VK Novák“ / „VK a MB: Novák“ → VK+MB.
    Bere se jen název, který začíná iniciály a obsahuje tvoje (z prefixu, tedy VK); „Konzultace VK“, porady a cizí události se nepočítají. */
 function meetInitials(title,mine){
@@ -2127,8 +2159,10 @@ function card(l,i,cur){
         i<STAGES.findIndex(s=>s.k==="vyplaceno")?el("button",{type:"button","aria-label":"Posunout dál",title:"Posunout dál",onclick:e=>{e.stopPropagation();moveTo(l,STAGES[i+1].k)}},"›"):null)));
   if(l.shared){c.draggable=false;const sp=c.querySelector(".stepper");if(sp)sp.remove()}
   if(window.Docs)try{const ow=docOwnerLead(l);Docs.dropTarget(c,ow);const b=Docs.badge(ow),tg=c.querySelector(".tags");if(b&&tg)tg.append(b)}catch(err){console.warn("soubory",err)}
-  c.addEventListener("dragstart",e=>e.dataTransfer.setData("text/plain",l.id));
-  c.addEventListener("dblclick",()=>openEdit(l));
+  c.addEventListener("dragstart",e=>{card._drag=Date.now();e.dataTransfer.setData("text/plain",l.id)});c.addEventListener("dragend",()=>{card._drag=Date.now()});
+  /* klik kamkoli na kartu otevře lead (kromě tlačítek a odkazů); po přetažení ani při označování textu ne */
+  c.style.cursor="pointer";
+  c.addEventListener("click",e=>{if(e.defaultPrevented||e.target.closest("button,a,input,select,textarea,label,.tag a"))return;try{if(String(getSelection()||"").trim())return}catch(err){}if(Date.now()-(card._drag||0)<350)return;openEdit(l)});
   c.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target===c)openEdit(l)});
   return c;
 }
@@ -3212,14 +3246,15 @@ function openClient(e0){
   const meets=[...(e.cal?.meets||[]),...((e.lead?.meetings)||[])].map(m=>m.start).filter((v,i,a)=>a.indexOf(v)===i).sort().reverse();
   const log=(rec?.log||[]).slice().reverse();
   sheetEnter=true;
-  openSheet(e.name||"Klient",[
+  const col=(c,...k)=>el("div",{class:"ccol "+c},...k.flat().filter(Boolean));
+  openSheet(e.name||"Klient",[col("cc1",
     el("div",{class:"mhero"},el("span",{class:"avatar big",style:"background:"+BAND[e.band][0]},initials(e.name)),el("div",{},el("div",{class:"mh-v",style:"font-size:20px;color:"+BAND[e.band][0]},daysTxt(e)),el("div",{class:"mh-s"},(e.active.length?e.active.length+" "+plural(e.active.length,"aktivní smlouva","aktivní smlouvy","aktivních smluv"):"bez smluv")+(e.lead?" · z pipeline":e.calOnly?" · z kalendáře":"")))),
     fpHero(e,rec),
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),nm),el("div",{class:"frow"},el("label",{},"Telefon"),ph),el("div",{class:"frow"},el("label",{},"E-mail"),em),el("div",{class:"frow"},el("label",{},"Datum narození"),bd),el("div",{class:"frow"},el("label",{},"Poslední schůzka"),lm)),
-    el("div",{class:"group"},el("div",{class:"frow col"},nt)),
+    el("div",{class:"group"},el("div",{class:"frow col"},nt))),col("cc2",
     el("h3",{class:"sechead"},"Produkty"),pwrap,add,
     el("p",{class:"hint"},"Produkty tady nemají vliv na výdělek – slouží jako přehled smluv. Výjimka: když u ŽP z pipeline označíš zánik, spočítá se storno a odečte se v Obratu."),
-    docSection(e),
+    docSection(e)),col("cc3",
     meets.length?el("h3",{class:"sechead"},"Schůzky z kalendáře · "+meets.length):null,
     meets.length?el("div",{class:"group"},meets.slice(0,12).map(s=>el("div",{class:"row"},el("span",{class:"main"},fmtMeet(s)+" "+s.slice(0,4)),el("span",{class:"end"},s>new Date().toISOString()?"naplánováno":"")))):null,
     log.length?el("h3",{class:"sechead"},"Historie servisu"):null,
@@ -3227,8 +3262,8 @@ function openClient(e0){
     e.lead?el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(e.lead)}},"Otevřít lead v pipeline")):null,
     ...duchClientSection(e,rec),
     ...pfClientSection(e,rec),
-    el("div",{class:"group"},el("button",{type:"button",class:"danger-row",onclick:()=>hideClient(e)},"Není to klient – skrýt ze seznamu"))
-  ]);
+    el("div",{class:"group"},el("button",{type:"button",class:"danger-row",onclick:()=>hideClient(e)},"Není to klient – skrýt ze seznamu")))
+  ],{wide:true});
 }
 function prodEditor(p,onDel,onSave,rerender){
   const T=ptype(p), set=(k,v)=>{p[k]=v;onSave()};
@@ -4428,7 +4463,7 @@ async function weeklyDriveBackup(){try{
   for(const f of (r.files||[]).slice(8))await gfetch("https://www.googleapis.com/drive/v3/files/"+f.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})});
 }catch(e){console.warn("backup",e)}}
 let sheetEnter=false;
-function openSheet(title,nodes){if(sheetEnter)$("edDlg").dataset.enter="close";else delete $("edDlg").dataset.enter;sheetEnter=false;$("edTitle").textContent=title;$("edBody").replaceChildren(...nodes.flat().filter(Boolean));const d=$("edDlg");if(!d.open)d.showModal();$("edBody").scrollTop=0}
+function openSheet(title,nodes,opt){if(sheetEnter)$("edDlg").dataset.enter="close";else delete $("edDlg").dataset.enter;sheetEnter=false;$("edTitle").textContent=title;$("edBody").replaceChildren(...nodes.flat().filter(Boolean));const d=$("edDlg");d.classList.toggle("wide",!!(opt&&opt.wide));if(!d.open)d.showModal();$("edBody").scrollTop=0}
 /* animované zavírání <dialog> – funguje pro všechna stávající .close() volání beze změny */
 (function(){
   ["edDlg","dlg","dataDlg"].forEach(id=>{
@@ -6521,7 +6556,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=23#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=24#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -6529,8 +6564,10 @@ async function openFP(e,rec){
     try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now()})}catch(err){toast("Plán se nepodařilo uložit")}};
   const onMsg=ev=>{if(ev.origin!==location.origin||ev.source!==fr.contentWindow||!ev.data)return;const d=ev.data;
     if(d.type==="fp:ready"){let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
-      fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz},location.origin)}
-    else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()})}};
+      fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null},location.origin)}
+    else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()})}
+    /* produkty v automatickém návrhu: poslední změna = výchozí pro další plány (synchronizuje se s nastavením) */
+    else if(d.type==="fp:prodDef"&&d.prodDef&&typeof d.prodDef==="object"){clearTimeout(openFP._pd);openFP._pd=setTimeout(()=>{settings={...settings,fpProd:d.prodDef};db.doc("settings/main").set(settings).catch(()=>toast("Výchozí produkty se nepodařilo uložit"))},700)}};
   addEventListener("message",onMsg);
 }
 /* portfolio v kartě klienta (úplně dole) – stejný náhled jako v Portfoliích */

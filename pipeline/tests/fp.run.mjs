@@ -403,6 +403,65 @@ tests["NN Orange Risk: dospělí mají vždy TNÚ PREMIUM 1 mil., pojistné do k
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["pojistné za osobu: SOCKO, modelace i realizace jen za danou osobu; hlavní pojištěný = muž; FitSport i při ručním / nulovém pojistném"] = async function () {
+  const { ctx, page, errors } = await open();
+  const rodina = { klient: { jmeno: "Jana Dvořáková", narozen: "1990-03-03", zam: 40000, vydaje_osobni: 30000, vydaje_dom: 25000, inv1: 7000, inv2: 10000, inv3: 16000, vdovsky: 9000, sirotci: 7000, hruba: 52000, starobni: 18000 },
+    partner: { zapnuto: true, jmeno: "Karel Dvořák", narozen: "1988-05-05", zam: 62000, vydaje_osobni: 40000, vydaje_dom: 30000, inv1: 9000, inv2: 13000, inv3: 22000, vdovsky: 9000, sirotci: 7000, hruba: 85000, starobni: 24000 },
+    deti: [{ jmeno: "Ema", narozen: "2019-02-01" }], motivace: "x", majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 450000 }], uvery: [{ nazev: "Hypotéka", zustatek: 3000000, splatka: 18000 }], cile: [], renta: { mesicne: 0 }, pojisteni: { stavajici: 0, navrh: 0 } };
+  await setPlan(page, rodina);
+  const t = await page.evaluate(() => { compute(); const tx = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/\s+/g, " "); };
+    const soc = g => { const f = FR.filter(x => x.g === g); return tx(f[f.length - 1].h); };
+    return { hl: R.nn.hlavni, auto: R.pojAuto, po: R.pojOs, lbl: FR.map(f => f.lbl), soc0: soc("soc0"), soc1: soc("soc1"), real: tx(FR.find(f => f.lbl === "Realizace").h), zp1: tx(FR.find(f => f.lbl === "ŽP Karel").h),
+      smtv: R.nn.dospeli.map(o => o.rizika.some(r => r.tarif === "SMTV-P2R")) }; });
+  eq(t.hl, 1, "hlavní pojištěný je muž (partner Karel), i když klientkou je Jana"); eq(t.smtv, [false, true], "povinné minimum smrti jen u hlavního pojištěného");
+  assert(t.auto, "navržené pojistné 0 = automatický výpočet NN");
+  const i = t.lbl.indexOf("ŽP Karel"); eq(t.lbl[i + 1], "ŽP Karel – FitSport", "FitSport hned za modelací hlavního pojištěného"); assert(!t.lbl.includes("ŽP Jana – FitSport"), "FitSport jen u hlavního");
+  const k = v => v.toLocaleString("cs-CZ").replace(/\s/g, " ");
+  assert(t.soc0.includes(k(t.po.dosp[0]) + " Kč/měs") && !t.soc0.includes(k(t.po.celkem) + " Kč/měs"), "SOCKO Jany = jen její pojistné: " + k(t.po.dosp[0]) + " | " + t.soc0.replace(/\s+/g, " ").slice(150, 500));
+  assert(t.soc1.includes(k(t.po.dosp[1]) + " Kč/měs") && /jen Karel/.test(t.soc1), "SOCKO Karla = jen jeho pojistné");
+  assert(t.zp1.includes("Měsíční pojistné – Karel") && t.zp1.includes(k(t.po.dosp[1]) + ",–"), "modelace Karla = jeho pojistné");
+  assert(t.real.includes("Jana " + k(t.po.dosp[0])) && t.real.includes("Karel " + k(t.po.dosp[1])) && t.real.includes("děti " + k(t.po.detiCelkem)), "realizace po osobách");
+  /* ručně zadané pojistné: FitSport se ukáže taky a pojistné se rozdělí poměrem výpočtu NN */
+  await setPlan(page, Object.assign({}, rodina, { pojisteni: { zivotni: { stav: 0, navrh: 2600 } } }));
+  const m = await page.evaluate(() => { compute(); return { lbl: FR.map(f => f.lbl), po: R.pojOs, poj: R.pojNove }; });
+  assert(m.lbl.includes("ŽP Karel – FitSport"), "FitSport i s ručním pojistným"); eq(m.po.celkem, 2600, "celkem ručně");
+  assert(Math.abs(m.po.dosp[0] + m.po.dosp[1] + m.po.detiCelkem - 2600) <= 2, "rozdělení sedí na součet");
+  /* ruční volba hlavního pojištěného */
+  await setPlan(page, Object.assign({}, rodina, { pojisteni: { nn_hlavni: "klient", stavajici: 0, navrh: 0 } }));
+  eq(await page.evaluate(() => { compute(); return R.nn.hlavni; }), 0, "ručně klientka");
+  eq(await page.evaluate(() => [FPE.zena({ jmeno: "Jana Dvořáková" }), FPE.zena({ jmeno: "Karel Dvořák" }), FPE.zena({ jmeno: "Nikola Svoboda" }), FPE.zena({ jmeno: "Eva Malá" }), FPE.zena({ jmeno: "Ing. Lucie Nová" })]), [true, false, false, true, true], "odhad pohlaví ze jména");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["produkty v automatickém návrhu: poslední změna = výchozí pro další nové plány"] = async function () {
+  const { ctx, page, errors } = await open();
+  await page.evaluate(() => { localStorage.removeItem(PDK); goStep(5); });
+  await page.selectOption('[data-p="nastaveni.dip_prod"]', { index: 1 });
+  const zvoleno = await page.$eval('[data-p="nastaveni.dip_prod"]', s => s.value);
+  await page.click('[data-add="nastaveni.mixA"]');
+  const def = await page.evaluate(() => JSON.parse(localStorage.getItem(PDK)));
+  eq(def.dip_prod, zvoleno, "uložený výchozí DIP"); eq(def.mixA.length, 2, "uložená akciová složka (2 řádky)");
+  await page.click("#bNew");
+  const nove = await page.evaluate(() => ({ dip: inp().nastaveni.dip_prod, a: inp().nastaveni.mixA.length }));
+  eq(nove, { dip: zvoleno, a: 2 }, "nový plán převzal výchozí produkty");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["dotazník: klient vyplní u sebe, soubor se načte do plánu (prázdné nepřepisuje); v plánu se edituje rovnou"] = async function () {
+  const { ctx, page, errors } = await open();
+  await page.goto(FP.replace("fp.html", "dotaznik.html") + "?p=Vojt%C4%9Bch%20Kudli%C4%8Dka");
+  assert((await page.textContent("main")).includes("Vojtěch Kudlička"), "poradce z odkazu");
+  await page.fill('[data-p="klient.jmeno"]', "Petr Malý"); await page.fill('[data-p="klient.zam"]', "48000");
+  await page.click('[data-seg="klient.bez_partnera"][data-v="true"]');
+  await page.click('[data-add="cile"]'); await page.fill('[data-p="cile.0.nazev"]', "Auto"); await page.fill('[data-p="cile.0.castka"]', "350000"); await page.fill('[data-p="cile.0.za_let"]', "4");
+  await page.waitForTimeout(500);
+  const dl = await Promise.all([page.waitForEvent("download"), page.click("#bSend")]).then(([d]) => d.path());
+  const { readFileSync } = await import("node:fs"); const d = JSON.parse(readFileSync(dl, "utf8"));
+  eq([d.type, d.plan.klient.jmeno, d.plan.klient.zam, d.plan.cile[0].castka], ["fp-dotaznik", "Petr Malý", 48000, 350000], "soubor pro poradce");
+  await page.goto(FP); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
+  const r = await page.evaluate(D => { const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; const n = mergeDz(I, D.plan); return { n, j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, cile: I.cile, bez: I.klient.bez_partnera }; }, d);
+  eq([r.j, r.zam, r.inv3, r.bez, r.cile.length], ["Petr Malý", 48000, 20000, true, 1], "sloučení s plánem (IOLDP zůstává)");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();

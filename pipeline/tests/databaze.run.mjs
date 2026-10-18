@@ -209,6 +209,33 @@ const tests = {
     assert(!errors.length, "chyby: " + errors.join(" | "));
     await ctx.close();
   },
+  async "parseStelaFull: všechny údaje z PDF (kontakt, smlouva, pojištěná osoba, hodnoty) + poznámka k leadu"() {
+    const { ctx, page } = await open();
+    const t = TXT().replace("Datum narození Kontaktní adresa", "Datum narození 01.02.1980 Kontaktní adresa Jiná 5, Praha").replace("Údaje o pojištění", "Telefon 777 123 456 Email jana@example.cz\nÚdaje o pojištění");
+    const r = await page.evaluate(t => { const x = Databaze.math.parseStelaFull(t); return { i: x.info, note: Databaze.math.leadNote([{ ...x.rec, info: x.info }]) }; }, t);
+    eq([r.i.telefon, r.i.email, r.i.narozen, r.i.bydliste, r.i.adresa, r.i.produkt, r.i.frekvence, r.i.zpusob, r.i.pojistena, r.i.investice, r.i.sepsani],
+      ["777 123 456", "jana@example.cz", "1980-02-01", "Fiktivní 1, Brno", "Jiná 5, Praha", "ZFP DŮCHOD", "měsíčně", "bankovním převodem", "Petr Novák", 130000.5, "2008-12-01"], "pole");
+    assert(/Smlouva 9900000002 · ZFP DŮCHOD/.test(r.note) && /odkupné 123/.test(r.note) && /Pojištěná osoba: Petr Novák/.test(r.note), "poznámka: " + r.note);
+    await ctx.close();
+  },
+  async "do pipeline: ＋ u řádku i hromadně, stejný člověk = jeden lead se všemi PDF, potom „✓ lead“"() {
+    const { ctx, page } = await open();
+    await page.evaluate(() => { window.calls = []; ui = Databaze.mount(document.getElementById("box"), { toast: m => toasts.push(m), addLeads: async g => { calls.push({ name: g.name, files: g.files.map(f => f.name), note: g.note, n: g.rows.length }); return "L" + calls.length; }, leadExists: () => true, openLead: id => window.opened = id }); });
+    await upload(page, [file("a.pdf", await stelaPdf({ key: "9900000101", name: "Jana Nováková" })), file("b.pdf", await stelaPdf({ key: "9900000102", name: "Jana Nováková", premium: "700 Kč" })), file("c.pdf", await stelaPdf({ key: "9900000103", name: "Karel Dvořák" }))]);
+    await page.locator("tbody tr").nth(2).locator(".db-plus").click();
+    await page.waitForFunction(() => calls.length === 1);
+    eq(await page.evaluate(() => calls[0].files), ["c.pdf"], "PDF smlouvy jde k leadu");
+    await page.check("thead th.c input");
+    assert((await page.textContent(".db-top")).includes("Do pipeline (2)"), "výběr všech zbývajících");
+    await page.click("text=＋ Do pipeline (2)");
+    await page.waitForFunction(() => calls.length === 2);
+    const c = await page.evaluate(() => calls[1]);
+    eq([c.name, c.n, c.files.sort()], ["Jana Nováková", 2, ["a.pdf", "b.pdf"]], "dvě smlouvy jedné osoby = jeden lead");
+    assert(/9900000101/.test(c.note) && /9900000102/.test(c.note), "obě smlouvy v poznámce");
+    eq(await page.$$eval(".db-in", b => b.length), 3, "u všech řádků „✓ lead“");
+    eq((await stored(page)).map(r => r.leadId).sort(), ["L1", "L2", "L2"], "lead uložen u řádků");
+    await ctx.close();
+  },
   async "CSV export: BOM, středník, desetinná čárka a ochrana před vzorcem"() {
     const { ctx, page } = await open();
     const csv = await page.evaluate(() => Databaze.math.toCsv([

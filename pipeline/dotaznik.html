@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Vstupní dotazník – finanční plán</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* Vstupní dotazník k finančnímu plánu. Otázky odpovídají vstupům živé prezentace (fp.html) – co klient vyplní, jde 1:1 do plánu.
+   Samostatně (odkaz pro klienta): koncept se drží jen v tomto prohlížeči, na konci se stáhne / sdílí soubor pro poradce. Nic se nikam neposílá.
+   V plánu (#fp): otevře se nad prezentací a každá změna se rovnou propíše do plánu klienta. */
+:root{--bg:#f4f4f5;--panel:#fff;--line:#e2e2e6;--txt:#1c1c1f;--mut:#6b6b74;--acc:#E8722A;--acc-soft:rgba(232,114,42,.12);--inp:#fff;--chip:#f0f0f2;--ok:#3E9B7A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f0f10;--panel:#18181a;--line:#2b2b2f;--txt:#ececee;--mut:#9a9aa3;--inp:#121214;--chip:#222226;--acc-soft:rgba(232,114,42,.18)}}
+:root[data-theme="dark"]{--bg:#0f0f10;--panel:#18181a;--line:#2b2b2f;--txt:#ececee;--mut:#9a9aa3;--inp:#121214;--chip:#222226;--acc-soft:rgba(232,114,42,.18)}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.45 Lato,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:10;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top))}
+.top .in{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.brand{font-weight:900;font-size:15px;white-space:nowrap}.brand b{color:var(--acc)}
+.top .sp{flex:1}
+.prog{height:4px;background:var(--chip);border-radius:4px;overflow:hidden;max-width:760px;margin:8px auto 0}
+.prog i{display:block;height:100%;width:0;background:var(--acc);transition:width .3s}
+.btn{border:1px solid var(--line);background:var(--chip);border-radius:10px;padding:9px 14px;cursor:pointer;white-space:nowrap;font-size:14.5px}
+.btn:hover{border-color:var(--acc)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.btn.sm{padding:6px 10px;font-size:13px}
+main{max-width:760px;margin:0 auto;padding:18px 16px 120px}
+.hero h1{font-size:28px;line-height:1.15;margin:8px 0 6px;font-weight:900}
+.hero p{color:var(--mut);margin:0 0 6px}
+.adv{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:14px 0 4px;font-size:14px}
+.adv .av{width:38px;height:38px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;flex:none}
+.adv small{display:block;color:var(--mut)}
+section{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 16px 18px;margin:16px 0;scroll-margin-top:90px}
+section h2{display:flex;gap:10px;align-items:center;font-size:19px;margin:0 0 4px;font-weight:900}
+section h2 .n{display:inline-flex;width:28px;height:28px;border-radius:50%;background:var(--acc-soft);color:var(--acc);align-items:center;justify-content:center;font-size:14px;flex:none}
+section h2 .dn{margin-left:auto;font-size:12px;color:var(--ok);font-weight:700}
+.why{color:var(--mut);font-size:13.5px;margin:0 0 12px}
+h3{font-size:14px;margin:16px 0 6px;color:var(--acc);text-transform:uppercase;letter-spacing:.04em}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.g .full{grid-column:1/-1}
+@media (max-width:560px){.g{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13.5px;color:var(--mut);min-width:0}
+label.f .q{color:var(--txt);font-weight:700;font-size:14.5px}
+label.f input,label.f select,label.f textarea{background:var(--inp);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;min-width:0;font-size:16px;color:var(--txt)}
+label.f textarea{resize:vertical;min-height:90px}
+label.f input:focus,label.f select:focus,label.f textarea:focus{outline:2px solid var(--acc);outline-offset:-1px}
+.money{position:relative}.money input{padding-right:62px!important;text-align:right;font-variant-numeric:tabular-nums}
+.money span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:13px;pointer-events:none}
+.hint{font-size:12.5px;color:var(--mut)}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:15px;margin:6px 0;cursor:pointer}
+.chk input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--acc);flex:none}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:var(--inp);border-radius:999px;padding:9px 14px;cursor:pointer;font-size:14.5px}
+.seg button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{background:var(--chip);border-radius:12px;padding:12px;position:relative}
+.row .x{position:absolute;right:6px;top:6px;border:0;background:none;color:var(--mut);cursor:pointer;font-size:13px;padding:6px 8px;border-radius:8px}
+.row .x:hover{color:#DF6A6A}
+.row .g{margin-top:4px}
+.add{margin-top:10px;width:100%;border:1.5px dashed var(--line);background:none;border-radius:12px;padding:12px;color:var(--acc);font-weight:700;cursor:pointer}
+.add:hover{border-color:var(--acc)}
+.who{display:inline-block;background:var(--acc-soft);color:var(--acc);border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:700;margin:12px 0 2px}
+.bottom{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px;padding-bottom:max(10px,env(safe-area-inset-bottom));z-index:10}
+.bottom .in{max-width:760px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.bottom .st{flex:1;font-size:13px;color:var(--mut)}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.priv{font-size:12.5px;color:var(--mut);text-align:center;margin:26px 0 0}
+.lnk{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:12px 0}
+.lnk .g{margin-top:8px}
+body.emb .hero h1{font-size:22px}
+</style>
+</head>
+<body>
+<div class="top"><div class="in"><span class="brand">ZFP <b>Consulting</b> · dotazník</span><span class="sp"></span><span id="topBtns"></span></div><div class="prog"><i id="prog"></i></div></div>
+<main id="main"></main>
+<div class="bottom"><div class="in"><span class="st" id="st"></span><span id="botBtns"></span></div></div>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+const EMB=location.hash==="#fp"&&window.parent!==window;
+if(EMB)document.body.classList.add("emb");
+const DRAFT="fp_dotaznik_draft_v1",ADV="dz_poradce_v1";
+const Q=new URLSearchParams(location.search);
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const NBS=" ";
+const fmtIn=v=>{if(v===""||v==null||isNaN(+v))return v==null?"":String(v);const[a,b]=String(v).split(".");const s=a.replace(/\B(?=(\d{3})+(?!\d))/g,NBS);return b!=null?s+","+b:s};
+const parseIn=t=>{const c=String(t).replace(/[\s  ]/g,"").replace(",",".");if(c===""||c==="-")return "";const n=+c;return isFinite(n)?n:""};
+const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?a:a[k],o);
+const set=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach((k,i)=>{if(a[k]==null)a[k]=/^\d+$/.test(ks[i+1])?[]:{};a=a[k]});a[ks.at(-1)]=v};
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("on"),2600)}
+
+/* stejné číselníky jako v plánu (fp.html) */
+const TYPY=["Běžný účet","Spořicí účet","Termínovaný vklad","Stavební spoření","Penzijní připojištění (PP)","Doplňkové penzijní spoření (DPS)","Podílový fond (OPF)","ETF","Akcie / dluhopisy (přímé)","Životní pojištění (ŽP)","Jiné"];
+const NEFIN=["Nemovitost k bydlení","Investiční nemovitost","Pozemek","Rekreační objekt","Podíl ve firmě","Auto","Umění / sbírky","Jiné"];
+const STAV=[["","—"],["svobodny","svobodný / svobodná"],["zenaty","ženatý / vdaná"],["partner","žijeme s partnerem / partnerkou"],["rozvedeny","rozvedený / rozvedená"],["vdovec","vdovec / vdova"]];
+const blank=()=>({klient:{jmeno:"",narozen:"",zam:"",podnik:"",pasiv:"",pronajem:"",bonus:"",hruba:"",vydaje_osobni:"",vydaje_dom:"",povolani:"",sport:""},partner:{zapnuto:false},kontakt:{telefon:"",email:"",stav:""},
+  deti:[],motivace:"",docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:"",od_veku:""},pojisteni:{zivotni:{stav:""}},poznamka:""});
+let P=blank();
+const ma=()=>!!(P.partner&&P.partner.zapnuto);
+const pNm=k=>{const o=k==="klient"?P.klient:P.partner;return ((o&&o.jmeno)||"").split(" ")[0]||(k==="klient"?"Vy":"Partner/ka")};
+
+/* ---------- pole ---------- */
+const money=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}</span><span class="money"><input data-p="${p}" data-num="1" inputmode="numeric" autocomplete="off" value="${esc(fmtIn(get(P,p)))}" placeholder="${esc(o.ph||"")}"><span>${o.u||"Kč/měs"}</span></span>${o.h?`<span class="hint">${o.h}</span>`:""}</label>`;
+const num=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}</span><input data-p="${p}" data-num="1" inputmode="decimal" autocomplete="off" value="${esc(fmtIn(get(P,p)))}" placeholder="${esc(o.ph||"")}">${o.h?`<span class="hint">${o.h}</span>`:""}</label>`;
+const txt=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}</span><input data-p="${p}" type="${o.type||"text"}" ${o.ac?`autocomplete="${o.ac}"`:""} ${o.im?`inputmode="${o.im}"`:""} value="${esc(get(P,p)==null?"":get(P,p))}" placeholder="${esc(o.ph||"")}">${o.h?`<span class="hint">${o.h}</span>`:""}</label>`;
+const area=(q,p,o={})=>`<label class="f full"><span class="q">${q}</span><textarea data-p="${p}" rows="${o.rows||4}" placeholder="${esc(o.ph||"")}">${esc(get(P,p)||"")}</textarea>${o.h?`<span class="hint">${o.h}</span>`:""}</label>`;
+const sel=(q,p,opts,o={})=>{const v=get(P,p);return `<label class="f ${o.full?"full":""}"><span class="q">${q}</span><select data-p="${p}">${opts.map(x=>{const[val,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(val)}" ${val==v?"selected":""}>${esc(t)}</option>`}).join("")}</select></label>`};
+const chk=(t,p)=>`<label class="chk"><input type="checkbox" data-p="${p}" ${get(P,p)?"checked":""}><span>${t}</span></label>`;
+const seg=(q,p,opts)=>`<div class="f full"><span class="q" style="display:block;margin-bottom:6px;font-weight:700;font-size:14.5px">${q}</span><div class="seg">${opts.map(([v,t])=>`<button type="button" data-seg="${p}" data-v="${esc(JSON.stringify(v))}" class="${get(P,p)===v?"on":""}">${t}</button>`).join("")}</div></div>`;
+const TITLES={};
+function rows(path,blankRow,title,fields){const L=get(P,path)||[];TITLES[path]=title;
+  return `<div class="rows">${L.map((r,i)=>`<div class="row"><b style="font-size:14px" data-t="${path}" data-i="${i}">${esc(title(r,i))}</b><button type="button" class="x" data-del="${path}.${i}">✕ odebrat</button><div class="g">${fields(path+"."+i,r)}</div></div>`).join("")}</div>
+   <button type="button" class="add" data-add="${path}" data-blank='${esc(JSON.stringify(blankRow))}'>+ přidat</button>`}
+
+/* ---------- osoba: příjmy a výdaje ---------- */
+const prijmy=k=>`${money("Čistý příjem ze zaměstnání",k+".zam",{h:"„na ruku“, průměr za měsíc"})}${money("Hrubá mzda",k+".hruba",{h:"nepovinné – podle ní spočítáme nemocenskou"})}
+ ${money("Příjem z podnikání (čistý)",k+".podnik")}${money("Pasivní příjmy",k+".pasiv",{h:"dividendy, úroky, renty…"})}
+ ${money("Příjem z pronájmu",k+".pronajem")}${money("Bonusy / 13. plat za rok",k+".bonus",{u:"Kč/rok"})}`;
+const vydaje=k=>`${money("Měsíční výdaje celkem",k+".vydaje_osobni",{h:"bydlení, jídlo, doprava, děti, splátky, volný čas… <b>bez</b> spoření, investic a pojistného"})}
+ ${money("Z toho na společnou domácnost",k+".vydaje_dom",{h:"co by domácnost platila dál, i kdybyste tu nebyl/a (bydlení, jídlo, děti, splátky). Zbytek jsou vaše osobní výdaje."})}`;
+
+/* ---------- sekce ---------- */
+const SEC=[
+ {id:"o-vas",t:"O vás",why:"Základní údaje pro výpočet důchodového věku a délky plánu.",
+  ok:()=>!!(P.klient.jmeno&&P.klient.narozen),
+  h:()=>`<div class="g">${txt("Jméno a příjmení","klient.jmeno",{ac:"name"})}${txt("Datum narození","klient.narozen",{type:"date"})}
+   ${txt("Telefon","kontakt.telefon",{type:"tel",ac:"tel",im:"tel"})}${txt("E-mail","kontakt.email",{type:"email",ac:"email",im:"email"})}
+   ${sel("Rodinný stav","kontakt.stav",STAV)}</div>`},
+ {id:"rodina",t:"Partner a děti",why:"Podle rodiny počítáme, koho je potřeba zajistit (vdovský a sirotčí důchod, krytí úmrtí).",
+  ok:()=>P.klient.bez_partnera!=null||ma(),
+  h:()=>`<div class="g">${seg("Máte manžela / manželku nebo partnera / partnerku?","klient.bez_partnera",[[false,"Ano"],[true,"Ne"]])}</div>
+   ${P.klient.bez_partnera===false?`<div style="margin-top:10px">${chk("Plán chceme dělat <b>společně</b> (vyplním i jeho / její příjmy a výdaje)","partner.zapnuto")}</div>
+    ${ma()?`<div class="g" style="margin-top:6px">${txt("Jméno a příjmení partnera / partnerky","partner.jmeno")}${txt("Datum narození","partner.narozen",{type:"date"})}</div>`:""}`:""}
+   <h3>Děti</h3>${rows("deti",{jmeno:"",narozen:"",vs:false},(r,i)=>r.jmeno||"Dítě "+(i+1),(b,r)=>`${txt("Jméno",b+".jmeno")}${txt("Datum narození",b+".narozen",{type:"date"})}<div class="full">${chk("Plánuje vysokou školu",b+".vs")}</div>`)}`},
+ {id:"motivace",t:"Co je pro vás důležité",why:"Vaše slova dáme na začátek plánu – podle nich stavíme priority.",
+  ok:()=>!!P.motivace,
+  h:()=>`<div class="g">${area("Co je pro vás v životě nejdůležitější? Čeho chcete finančním plánem dosáhnout?","motivace",{ph:"Např. Chci, aby rodina měla jistotu, a jednou bydlet ve vlastním bez velké hypotéky."})}</div>`},
+ {id:"prijmy",t:"Příjmy",why:"Pravidelné měsíční příjmy po zdanění. Počítáme je za každého zvlášť – při výpadku příjmu jde vždy o konkrétního člověka.",
+  ok:()=>["klient"].concat(ma()?["partner"]:[]).every(k=>+get(P,k+".zam")||+get(P,k+".podnik")||+get(P,k+".pasiv")),
+  h:()=>["klient"].concat(ma()?["partner"]:[]).map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${prijmy(k)}</div>`).join("")+
+   `<h3>Dočasné příjmy</h3><p class="hint" style="margin:-2px 0 8px">Rodičovská, výživné, příjem, který brzy skončí… Do plánu je nepočítáme, ale ukážeme, kdy skončí.</p>
+   ${rows("docasne",{nazev:"",castka:"",do:""},(r,i)=>r.nazev||"Dočasný příjem "+(i+1),b=>`${txt("Co to je",b+".nazev",{ph:"Rodičovský příspěvek"})}${money("Kolik",b+".castka")}${txt("Do kdy",b+".do",{type:"month"})}`)}`},
+ {id:"vydaje",t:"Výdaje",why:"Kolik měsíčně utratíte. Spoření, investice a pojistné sem nepatří – ty v plánu nastavíme znovu.",
+  ok:()=>["klient"].concat(ma()?["partner"]:[]).every(k=>+get(P,k+".vydaje_osobni")),
+  h:()=>["klient"].concat(ma()?["partner"]:[]).map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${vydaje(k)}</div>`).join("")+
+   `<p class="hint" style="margin-top:10px">Nevíte přesně? Stačí odhad – vezměte průměr z výpisu za posledních pár měsíců.</p>`},
+ {id:"majetek",t:"Úspory a investice",why:"Účty, spoření a investice. Z nich postavíme rezervu a zbytek pošleme do vašich cílů.",
+  ok:()=>(P.majetek||[]).some(a=>+a.hodnota>0),
+  h:()=>rows("majetek",{nazev:"",typ:"Spořicí účet",hodnota:"",vklad:""},(r,i)=>r.nazev||r.typ||"Položka "+(i+1),b=>`${sel("Typ",b+".typ",TYPY)}${txt("Kde (banka / instituce)",b+".nazev",{ph:"Např. Moneta, Conseq…"})}${money("Aktuální hodnota",b+".hodnota",{u:"Kč"})}${money("Měsíčně si posílám",b+".vklad")}`)},
+ {id:"nefin",t:"Nemovitosti a jiný majetek",why:"Byt, dům, chata, auto, podíl ve firmě. Do investic ho nepřesouváme, ukáže se v čistém jmění.",
+  ok:()=>true,optional:1,
+  h:()=>rows("nefin",{nazev:"",typ:"Nemovitost k bydlení",hodnota:""},(r,i)=>r.nazev||r.typ||"Majetek "+(i+1),b=>`${sel("Typ",b+".typ",NEFIN)}${txt("Popis",b+".nazev",{ph:"Byt 3+1 Brno"})}${money("Odhadovaná hodnota",b+".hodnota",{u:"Kč"})}`)},
+ {id:"uvery",t:"Úvěry",why:"Hypotéky, spotřebitelské úvěry, leasingy. Zůstatek musí být při úmrtí krytý, aby rodina nezůstala s dluhem.",
+  ok:()=>(P.uvery||[]).every(u=>+u.zustatek>0),optional:1,
+  h:()=>rows("uvery",{nazev:"Hypotéka",zustatek:"",splatka:"",fixace_do:"",splatnost:""},(r,i)=>r.nazev||"Úvěr "+(i+1),b=>`${txt("Úvěr / banka",b+".nazev")}${money("Zbývá splatit",b+".zustatek",{u:"Kč"})}${money("Měsíční splátka",b+".splatka")}${txt("Konec fixace",b+".fixace_do",{type:"month",h:"u hypotéky"})}${txt("Doplaceno",b+".splatnost",{type:"month"})}`)},
+ {id:"cile",t:"Cíle",why:"Na co chcete spořit. Částky pište v dnešních cenách – inflaci v plánu započítáme sami.",
+  ok:()=>(P.cile||[]).length>0||+get(P,"renta.mesicne")>0,
+  h:()=>rows("cile",{nazev:"",castka:"",za_let:""},(r,i)=>r.nazev||"Cíl "+(i+1),b=>`${txt("Cíl",b+".nazev",{ph:"Vlastní bydlení, auto, studium dětí…",full:1})}${money("Kolik (dnešní ceny)",b+".castka",{u:"Kč"})}${num("Za kolik let",b+".za_let",{ph:"např. 5"})}`)+
+   `<h3>Renta – příjem bez práce</h3><div class="g">${money("Kolik měsíčně byste chtěli mít, až nebudete pracovat",'renta.mesicne',{h:"v dnešních cenách; státní důchod do toho započítáme"})}${num("Od kolika let",'renta.od_veku',{ph:"od důchodu"})}</div>`},
+ {id:"pojisteni",t:"Stávající pojištění",why:"Jen životní a úrazové pojištění. Pojištění domácnosti, nemovitosti ani auta nevyplňujte.",
+  ok:()=>true,optional:1,
+  h:()=>`<div class="g">${money("Kolik teď měsíčně platíte za životní pojištění (všichni dohromady)","pojisteni.zivotni.stav",{full:1})}</div>
+   ${["klient"].concat(ma()?["partner"]:[]).map(k=>`<span class="who" data-who="${k}">${esc(pNm(k))}</span><div class="g">${txt("Povolání – co přesně děláte",k+".povolani",{ph:"Např. účetní v kanceláři, elektrikář…"})}${txt("Sporty",k+".sport",{ph:"Např. běh, lyže, bojové sporty…"})}</div>
+     <p class="hint" style="margin:8px 0 4px">Pokud víte, z pojistné smlouvy (jinak nechte prázdné, dohledáme spolu):</p>
+     <div class="g">${money("Invalidita III. stupně",k+".zp_inv3",{u:"Kč"})}${money("Invalidita II. stupně",k+".zp_inv2",{u:"Kč"})}${money("Invalidita I. stupně",k+".zp_inv1",{u:"Kč"})}${money("Smrt",k+".zp_smrt",{u:"Kč"})}${money("Pracovní neschopnost",k+".zp_pn",{u:"Kč/den"})}</div>`).join("")}`},
+ {id:"cssz",t:"Důchod od státu",why:"Kolik by vám stát vyplatil při invaliditě, ve stáří nebo pozůstalým, zjistíme z výpisu IOLDP.",
+  ok:()=>!!get(P,"kontakt.ioldp"),optional:1,
+  h:()=>`<p style="margin:0 0 10px">Stáhněte si prosím <b>Informativní osobní list důchodového pojištění (IOLDP)</b> na <b>eportal.cssz.cz</b> (přihlášení přes bankovní identitu, zabere to 2 minuty) a pošlete ho svému poradci${ma()?" – za oba":""}.</p>
+   ${chk("IOLDP mám / pošlu poradci","kontakt.ioldp")}`},
+ {id:"pozn",t:"Něco dalšího?",why:"Cokoli, co bychom měli vědět – plánované změny v práci, dědictví, zdraví, péče o rodiče…",
+  ok:()=>true,optional:1,
+  h:()=>`<div class="g">${area("Doplňující poznámky","poznamka",{rows:4})}</div>`}
+];
+
+/* ---------- vykreslení ---------- */
+function adv(){let a={};try{a=JSON.parse(localStorage.getItem(ADV)||"{}")||{}}catch(e){}
+  return {n:Q.get("p")||a.n||"",t:Q.get("t")||a.t||"",e:Q.get("e")||a.e||""}}
+function render(){
+  const A=adv(),ini=A.n.split(" ").filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+  const sc=window.scrollY;
+  $("#main").innerHTML=`<div class="hero">${EMB?`<h1>Vstupní dotazník</h1><p>Co tady vyplníš, se rovnou propíše do plánu klienta.</p>`
+     :`<h1>Než se potkáme</h1><p>Vyplňte, co víte – zabere to 10–15 minut. Kde si nejste jistí, stačí odhad nebo pole nechte prázdné, doplníme spolu.</p>`}</div>
+   ${EMB?linkBox(A):A.n?`<div class="adv"><span class="av">${esc(ini)}</span><span><b>${esc(A.n)}</b><small>váš finanční poradce${A.t?" · "+esc(A.t):""}${A.e?" · "+esc(A.e):""}</small></span></div>`:""}
+   ${SEC.map((s,i)=>`<section id="${s.id}"><h2><span class="n">${i+1}</span>${s.t}${s.ok()&&!s.optional?'<span class="dn">✓ hotovo</span>':""}</h2><p class="why">${s.why}</p>${s.h()}</section>`).join("")}
+   ${EMB?"":`<p class="priv">Údaje zůstávají jen ve vašem zařízení. Nikam se neodesílají – tlačítkem dole si vytvoříte soubor a pošlete ho poradci sami.</p>`}`;
+  window.scrollTo(0,sc);status();
+}
+function linkBox(A){return `<div class="lnk"><b>Odkaz pro klienta</b><div class="hint">Klient vyplní dotazník u sebe a pošle ti soubor. V plánu ho nahraješ tlačítkem Import. Klientova data přes odkaz nikam neputují.</div>
+  <div class="g">${["n","t","e"].map((k,i)=>`<label class="f"><span class="q">${["Poradce","Telefon","E-mail"][i]}</span><input data-adv="${k}" value="${esc(A[k])}"></label>`).join("")}<span style="align-self:end"><button type="button" class="btn pri" id="copyLnk">Kopírovat odkaz</button></span></div></div>`}
+function status(){const req=SEC.filter(s=>!s.optional),done=req.filter(s=>s.ok()).length;
+  $("#prog").style.width=Math.round(done/req.length*100)+"%";
+  $("#st").textContent=done===req.length?"Hotovo – všechno podstatné je vyplněné.":`Vyplněno ${done} z ${req.length} částí`+(EMB?" · ukládá se rovnou do plánu":" · rozpracované se ukládá v tomhle zařízení");
+  document.querySelectorAll("[data-who]").forEach(w=>w.textContent=pNm(w.dataset.who));
+  document.querySelectorAll(".row > b[data-t]").forEach(b=>{const L=get(P,b.dataset.t)||[],i=+b.dataset.i,f=TITLES[b.dataset.t];if(L[i]&&f)b.textContent=f(L[i],i)});
+  document.querySelectorAll("section").forEach((el,i)=>{const s=SEC[i],h=el.querySelector("h2");let d=h.querySelector(".dn");const ok=s.ok()&&!s.optional;if(ok&&!d){d=document.createElement("span");d.className="dn";d.textContent="✓ hotovo";h.append(d)}else if(!ok&&d)d.remove()})}
+function buttons(){
+  if(EMB){$("#topBtns").innerHTML=`<button class="btn pri sm" id="bDone">Hotovo – zpět na plán</button>`;$("#botBtns").innerHTML=`<button class="btn pri" id="bDone2">Hotovo</button>`}
+  else{$("#topBtns").innerHTML=`<button class="btn sm" id="bClr">Začít znovu</button>`;$("#botBtns").innerHTML=`<button class="btn pri" id="bSend">Odeslat poradci</button>`}
+}
+
+/* ---------- ukládání ---------- */
+let saveT=null;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>{
+  if(EMB)parent.postMessage({type:"dz:change",plan:P},location.origin);
+  else try{localStorage.setItem(DRAFT,JSON.stringify({at:Date.now(),plan:P}))}catch(e){}},EMB?250:400)}
+const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera)$/.test(p);
+document.addEventListener("input",e=>{const t=e.target;
+  if(t.dataset.adv){const A=adv();A[t.dataset.adv]=t.value;try{localStorage.setItem(ADV,JSON.stringify(A))}catch(err){}return}
+  const p=t.dataset.p;if(!p)return;
+  let v=t.type==="checkbox"?t.checked:t.value;
+  if(t.dataset.num){v=parseIn(t.value);const pos=t.selectionStart||0,dig=t.value.slice(0,pos).replace(/[^\d,.-]/g,"").length,keep=/[,.]$/.test(t.value)?",":"";
+    const f=v===""?"":fmtIn(v)+keep;if(f!==t.value){t.value=f;let k=0,c=0;while(c<f.length&&k<dig){if(/[\d,.-]/.test(f[c]))k++;c++}try{t.setSelectionRange(c,c)}catch(err){}}}
+  set(P,p,v);
+  if(p==="kontakt.stav"&&v){if(v==="zenaty"||v==="partner"){if(P.klient.bez_partnera!==false){P.klient.bez_partnera=false;render()}}else if(P.klient.bez_partnera==null&&!ma()){P.klient.bez_partnera=true;render()}}
+  if(t.type==="checkbox"&&needsRender(p))render();else status();
+  save()});
+document.addEventListener("click",e=>{
+  const sg=e.target.closest("[data-seg]");if(sg){const p=sg.dataset.seg,v=JSON.parse(sg.dataset.v);set(P,p,v);if(p==="klient.bez_partnera"&&v===true)P.partner={...(P.partner||{}),zapnuto:false};render();save();return}
+  const a=e.target.closest("[data-add]");if(a){const p=a.dataset.add,L=get(P,p)||[];L.push(JSON.parse(a.dataset.blank));set(P,p,L);render();save();
+    setTimeout(()=>{const rs=a.previousElementSibling&&a.previousElementSibling.querySelectorAll(".row");const last=rs&&rs[rs.length-1];const i=last&&last.querySelector("input,select");if(i)i.focus()},0);return}
+  const d=e.target.closest("[data-del]");if(d){const ps=d.dataset.del.split("."),i=+ps.pop(),L=get(P,ps.join("."));L.splice(i,1);render();save();return}
+  if(e.target.id==="bDone"||e.target.id==="bDone2"){clearTimeout(saveT);parent.postMessage({type:"dz:change",plan:P,close:true},location.origin);return}
+  if(e.target.id==="bClr"){if(confirm("Smazat vyplněné odpovědi z tohoto zařízení?")){P=blank();try{localStorage.removeItem(DRAFT)}catch(err){}render()}return}
+  if(e.target.id==="bSend"){send();return}
+  if(e.target.id==="copyLnk"){const A=adv(),u=new URL(location.href.replace(/#.*$/,""));u.search="";["n","t","e"].forEach((k,i)=>{if(A[k])u.searchParams.set(["p","t","e"][i],A[k])});
+    const s=u.toString();(navigator.clipboard?navigator.clipboard.writeText(s):Promise.reject()).then(()=>toast("Odkaz zkopírovaný – pošli ho klientovi")).catch(()=>prompt("Zkopíruj odkaz:",s));return}
+});
+/* soubor pro poradce: sdílení (iPhone / Android) nebo stažení – nic se neposílá na žádný server */
+async function send(){
+  const nm=(P.klient.jmeno||"klient").trim().split(/\s+/).pop().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9_-]/g,"")||"klient";
+  const blob=new Blob([JSON.stringify({type:"fp-dotaznik",v:1,at:new Date().toISOString(),plan:P},null,1)],{type:"application/json"});
+  const file=new File([blob],"Dotaznik_"+nm+".json",{type:"application/json"});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Dotazník k finančnímu plánu"});toast("Odesláno");return}}catch(e){if(e&&e.name==="AbortError")return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+  const A=adv();toast("Soubor "+file.name+" je stažený – pošlete ho prosím poradci"+(A.e?" na "+A.e:"")+".");
+}
+
+/* ---------- start ---------- */
+function load(pl){const b=blank();P=Object.assign(b,JSON.parse(JSON.stringify(pl||{})));P.klient=Object.assign(blank().klient,P.klient||{});P.kontakt=Object.assign(blank().kontakt,P.kontakt||{});
+  P.partner=P.partner||{zapnuto:false};P.renta=P.renta||{mesicne:"",od_veku:""};P.pojisteni=P.pojisteni||{};P.pojisteni.zivotni=P.pojisteni.zivotni||{};
+  ["deti","docasne","majetek","nefin","uvery","cile"].forEach(k=>{if(!Array.isArray(P[k]))P[k]=[]});
+  if(P.partner.zapnuto)P.klient.bez_partnera=false;}
+buttons();
+if(EMB){addEventListener("message",e=>{if(e.origin!==location.origin||e.source!==parent||!e.data||e.data.type!=="dz:init")return;load(e.data.plan);render()});parent.postMessage({type:"dz:ready"},location.origin)}
+else{try{const d=JSON.parse(localStorage.getItem(DRAFT)||"null");if(d&&d.plan)load(d.plan)}catch(e){}render()}
+</script>
+</body>
+</html>
