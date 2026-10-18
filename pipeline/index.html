@@ -62,6 +62,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 /* ---------- nav bar ---------- */
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bar-bg);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep)}
+html{overflow-x:hidden}
+html,body{overscroll-behavior-x:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{touch-action:manipulation}
 .bar-in{max-width:1500px;margin:0 auto;padding-inline:16px;padding-block:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .seg{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--fill);border-radius:9px;padding:2px;min-width:min(330px,100%)}
 .seg button{font-size:13px;font-weight:500;padding:6px 14px;border-radius:7px;color:var(--label);transition:background .2s}
@@ -437,11 +440,12 @@ html.applocked body>*:not(#lockDlg){visibility:hidden!important}
 .syncbtn[data-s="error"]{background:var(--red-soft);color:var(--red)}
 .syncbtn[data-s="offline"]{color:var(--label2)}
 .syncbtn:active{opacity:.7}
-.dbody{padding:20px 16px 28px;display:grid;gap:14px}
+.dbody{padding:20px 16px 28px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
 .dbody p{margin:0;color:var(--label2);font-size:14px;line-height:1.4}
 .dbtn{display:block;width:100%;text-align:left;padding:13px 16px;background:var(--bg2);border-radius:var(--r);font-size:16px;color:var(--tint)}
 .dbtn.red{color:var(--red)}
-.dcfg{background:var(--bg2);border-radius:var(--r);padding:12px 16px;display:grid;gap:10px}
+.dcfg{background:var(--bg2);border-radius:var(--r);padding:12px 16px;display:grid;gap:10px;grid-template-columns:minmax(0,1fr);min-width:0}
+.dcfg select,.dcfg input{max-width:100%;min-width:0}
 .dcfg label{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:15px}
 .dcfg select,.dcfg input{font:inherit;font-size:15px;color:var(--label);background:var(--fill);border:none;border-radius:8px;padding:7px 10px;max-width:60%;min-width:0}
 .dcfg .hint{font-size:13px}
@@ -976,6 +980,16 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
   .tile{padding:12px 14px}
   .tile .v{font-size:24px}
   .board{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+  /* iPhone: nic nesmí přečnívat přes šířku displeje (jinak jde appku „oddálit“ a rozpadne se) */
+  .bar .histbtn{display:none!important}
+  .careerbar label{flex-wrap:wrap;min-width:0;max-width:100%}
+  .careerbar .cnext{white-space:normal;flex:1 1 100%}
+  .careerbar select{max-width:100%}
+  .mtop{flex-wrap:wrap;gap:8px}
+  .mtop .seg{overflow-x:auto;max-width:100%;grid-auto-columns:max-content;min-width:0;scrollbar-width:none}
+  .pfadd.pfsearch{flex-wrap:wrap}
+  .pfadd.pfsearch input{flex:1 1 100%;min-height:42px}
+  .pfadd.pfsearch .fpdzbtn,.pfadd.pfsearch .fpnewbtn{flex:1 1 auto;margin-right:0;min-height:40px}
   .cols{grid-auto-columns:86%;gap:10px}
   .col{scroll-snap-align:center}
 }
@@ -1370,8 +1384,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
       <div class="dcfg keepas">
         <label>Tapeta<select id="dWp"><option value="auto">Automaticky (podle měsíce)</option><option value="1">Leden – zima</option><option value="2">Únor – zima</option><option value="3">Březen – tání</option><option value="4">Duben – déšť a duha</option><option value="5">Květen – rozkvetlé stromy</option><option value="6">Červen – léto</option><option value="7">Červenec – léto</option><option value="8">Srpen – západ slunce</option><option value="9">Září – javorové listí</option><option value="10">Říjen – podzim</option><option value="11">Listopad – Halloween</option><option value="12">Prosinec – Vánoce</option></select></label>
       </div>
-      <div class="dcfg keepas" id="asCfg"></div>
-      <div class="dcfg" id="aiCfg"></div>
+      <div class="dcfg keepas" id="asCfg" hidden></div>
       <div class="dcfg" id="pushCfg"></div>
       <div class="dcfg">
         <label>Šablony zpráv</label>
@@ -2041,7 +2054,7 @@ async function dzLinkInfo(){if(DEMO)return null;const me=dzMe();if(!me)return nu
 const DZ_SHORT=[{c:"vk",k:"BLuX42kajBu-1zXVvdCDa89b2HToLwbBocLU7UY4cbvINbAiDzDXfmkCOG_GzuvH0tU98sQl72Z1rGj5jS7LSHI"}];
 /* odkaz pro klienta: only=true → jen rezervace termínu (bez dotazníku); krátký odkaz, pokud sedí veřejný klíč */
 function dzLinkSync(only){const k=settings&&settings.dzKey&&settings.dzKey.pub,me=dzMe();if(DEMO||!k||!me)return "";
-  const sh=DZ_SHORT.find(x=>x.k===k);if(sh&&/github\.io$/.test(location.hostname))return location.origin+(only?"/termin/":"/dotaznik/")+sh.c;
+  const sh=DZ_SHORT.find(x=>x.k===k);if(sh&&/github\.io$/.test(location.hostname))return location.origin+(only?"/termin/":"/dotaznik/")+sh.c+"/";
   const h=new URLSearchParams({v:"1",to:me,k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);if(only)h.set("m","r");
   return location.origin+location.pathname.replace(/[^/]*$/,"")+"dotaznik.html#"+h.toString()}
 async function dzClientLink(only){const z=await dzLinkInfo();if(!z)return null;return dzLinkSync(only)||null}
@@ -3219,7 +3232,7 @@ function renderTeam(cur,tid){
   const sub=(pid)=>{const kids=team.filter(m=>parentOf(m)===pid).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
     return kids.length?el("ul",{},...kids.map(m=>{const p=ov.per[m.id];return el("li",{},node({m,name:m.name||"Bez jména",ini:initials(m.name),col:POSCOL[m.pos]||POSCOL.P1,sub:(m.pos||"P1")+" · "+cz(teamRate(m))+" Kč/b",pts:fmt1(p.pts)+" b v "+qLabel(qk),kc:p.o,pid:m.id,open:()=>openMember(m)}),sub(m.id))})):null};
   const tree=el("ul",{class:"otree"},el("li",{},node({me:true,name:"Ty",ini:"Já",col:"var(--tint)",sub:career().stat+" · "+cz(rate)+" Kč/b",pts:"meziprovize "+qLabel(qk),kc:ov.total,pid:null,open:()=>openMe(ov,rate,qk)}),sub(null)));
-  $(tid).replaceChildren(...(typeof asstRowNode==="function"?[asstRowNode()]:[]),tree);
+  $(tid).replaceChildren(...(typeof asstRowNode==="function"&&!(typeof AS_OFF!=="undefined"&&AS_OFF)?[asstRowNode()]:[]),tree);
   const org=$(tid).parentElement;requestAnimationFrame(()=>{if(org.scrollWidth>org.clientWidth)org.scrollLeft=(org.scrollWidth-org.clientWidth)/2});
   if(!team.length)$(tid).append(el("p",{class:"org-empty"},"Zatím nikoho nemáš. Klikni na + pod sebou a přidej prvního člena."));
 }
@@ -6950,7 +6963,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=32#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=33#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -7438,17 +7451,6 @@ async function updateEurRate(){
   updateEurRate();
   /* soubory u klientů (docs.js se načítá odděleně a může naběhnout o chvilku později než tahle appka) */
   {let tries=0;const start=()=>{if(window.Docs){Docs.init({db,newId,toast,gfetch,token:()=>GAuth.token(),demo:DEMO});Docs.onChange(()=>{try{render()}catch(e){}})}else if(tries++<60)setTimeout(start,100)};start()}
-  /* AI asistent: hlas / chat → schůzka, fáze, zápis + automatické potvrzení (assistant.js; vypnutý, dokud ho v nastavení nezapneš) */
-  {let tries=0;const start=()=>{if(window.Assistant){Assistant.init({
-      settings:()=>settings,
-      saveSettings:async patch=>{settings={...settings,...patch};await db.doc("settings/main").set(settings)},
-      leads:()=>leads, calEvents:()=>calEvents||[],
-      hasScope:s=>GAuth.hasScope(s), requestScope:sc=>GAuth.login(false,sc), gfetch,
-      addLead:aiAddLead, saveMeeting, addNote:aiAddNote, moveTo,
-      tpls, fillTpl, ensureMeet, logLeadMsg, openMsg, openSms:(t,x)=>aiOpenSms(t,x),
-      facts:aiFacts, updateLead:aiUpdateLead, logCall:aiLogCall, tasks:aiTasks, addTask:aiAddTask, doneTask:aiDoneTask, people:aiPeople, navigate:aiNavigate, openLeadMessage:aiOpenMessage,
-      deleteLead:aiDeleteLead, moveMeeting:aiMoveMeeting, cancelMeeting:aiCancelMeeting, products:aiProducts, productPreview:aiProductPreview, addProducts:aiAddProducts,
-      openSheet, closeSheet:()=>$("edDlg").close(), toast, demo:DEMO})}else if(tries++<60)setTimeout(start,100)};start()}
   db.collection("leads").onSnapshot(snap=>{leads=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();render();scheduleSync();scheduleTasks();if(typeof Deals!=="undefined")Deals.tick()});
   db.collection("clients").onSnapshot(snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();stafleOv.clear();if(view==="cli"||view==="duch")render();pfSyncClientsSoon()});
   db.collection("duchod").onSnapshot(snap=>{duchod=snap.docs.map(d=>({id:d.id,...d.data()}))});
@@ -7460,7 +7462,7 @@ async function updateEurRate(){
   db.collection("recruits").onSnapshot(snap=>{recruits=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="net"||view==="akv")render()});
   db.collection("akvFirmy").onSnapshot(snap=>{akvFirmy=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="akv")render()});
   db.collection("akvLidi").onSnapshot(snap=>{akvLidi=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="akv")render()});
-  db.doc("settings/main").onSnapshot(d=>{settings=d.exists?{manual:{},...d.data()}:{manual:{}};clLoaded.settings=true;setTimeout(clMigrate,0);applyAppName();if(typeof applyAsMode==="function")applyAsMode();renderTabBar();if(!visibleTabs().includes(view))setView(visibleTabs()[0]);else render();scheduleTasks();if(window.Assistant)Assistant.refresh()});
+  db.doc("settings/main").onSnapshot(d=>{settings=d.exists?{manual:{},...d.data()}:{manual:{}};clLoaded.settings=true;setTimeout(clMigrate,0);applyAppName();if(typeof applyAsMode==="function")applyAsMode();renderTabBar();if(!visibleTabs().includes(view))setView(visibleTabs()[0]);else render();scheduleTasks()});
   $("todayBtn").onclick=openToday;maybeOpenToday();
   $("addRecruit").onclick=addRecruit;$("addMember2").onclick=()=>addMember(null);$("addMember3").onclick=()=>addMember(null);
   $("cbBtn").onclick=()=>openCallBlock(callBlockIds());
@@ -7484,7 +7486,7 @@ async function updateEurRate(){
       const a=document.activeElement;if(a&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))return;e.preventDefault();go(k==="y"||e.shiftKey?1:-1)})}
   const saveCal=async patch=>{try{await db.doc("settings/main").set({...settings,...patch});lsSet("cal_cache",null);lsSet("cal_hist",null);calHist=null;calEvents=null;calState="loading";render();refreshCalendar().then(()=>fetchCalHistory(true))}catch(e){toast("Nepodařilo se uložit")}};
   sb.addEventListener("click",async()=>{
-    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}if(typeof renderAsCfg==="function")renderAsCfg();if(window.Assistant)Assistant.renderSettings($("aiCfg"));{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
+    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}if(typeof renderAsCfg==="function")renderAsCfg();{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
     const me=lsGet("g_owner");$("dataInfo").textContent=(me&&!DEMO?"Účet "+me+" · ":"")+($("syncBtn").title||"");
     if(!GAuth.token()){sel.replaceChildren(new Option(c.name,c.id));return}
     try{const cals=await listCalendars();sel.replaceChildren(...cals.map(k=>new Option((k.primary?"★ ":"")+(k.summary||k.id),k.id)));sel.value=cals.some(k=>k.id===c.id)?c.id:(cals.find(k=>k.primary)?.id||"primary")}catch(e){sel.replaceChildren(new Option(c.name,c.id))}
@@ -7559,14 +7561,14 @@ function drawUsersInto(container,list){
       el("div",{class:"uhead"},el("div",{},el("div",{class:"t"},(u.name||u.email.split("@")[0])+(me?" (ty)":"")),el("div",{class:"s"},u.email)),s),
       el("div",{class:"ustats"},"dnes "+mins(u.today)+" · týden "+mins(u.week)+" · měsíc "+mins(u.month)+" · celkem "+mins(u.total)),
       el("div",{class:"ustats"},"naposledy "+fmtT(u.last)+" · od "+fmtT(u.first)+" · "+u.devices+" "+plural(u.devices,"zařízení","zařízení","zařízení")+" · "+u.logins+"× přihlášení"+(u.devices>2?" · ⚠ sdílí účet?":"")),
-      me?null:el("label",{class:"uasst"},asCb(u),"Asistentka"),
+      me||(typeof AS_OFF!=="undefined"&&AS_OFF)?null:el("label",{class:"uasst"},asCb(u),"Asistentka"),
       me?null:el("div",{class:"urow"},el("label",{},"Zaplaceno do",pd),nt),due&&!me?el("div",{class:"ustats warn"},"Předplatné vypršelo "+fmtDate(u.paid)):null)};
   const wk=list.reduce((a,u)=>a+u.week,0);
   container.replaceChildren(
     el("div",{class:"tiles utiles"},tile("Uživatelů",list.length),tile("Čeká",pend.length),tile("Aktivních",list.filter(u=>ACC_OK.includes(u.status)).length),tile("Tento týden",mins(wk))),
     ...(pend.length?[el("h3",{class:"sechead"},"Čeká na schválení")]:[]),
     ...pend.map(u=>el("div",{class:"ucard pend"},el("div",{class:"uhead"},el("div",{},el("div",{class:"t"},u.name||u.email.split("@")[0]),el("div",{class:"s"},u.email+" · přihlášen "+fmtT(u.first)))),
-      el("label",{class:"uasst"},asCb(u),"Asistentka"),
+      (typeof AS_OFF!=="undefined"&&AS_OFF)?null:el("label",{class:"uasst"},asCb(u),"Asistentka"),
       el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:()=>act({op:"set",email:u.email,status:"aktivní"},"Schváleno")},"Schválit"),
         el("button",{type:"button",class:"chipbtn",onclick:()=>act({op:"set",email:u.email,status:"zkušební"},"Zkušební přístup")},"Na zkoušku"),
         el("button",{type:"button",class:"chipbtn no",onclick:()=>act({op:"set",email:u.email,status:"blokován"},"Zamítnuto")},"Zamítnout")))),
@@ -7805,8 +7807,6 @@ const PP_ENC="v1.gl_MkFRAFqTjO4sq2hdS6w.ghGopD2PoO01XO38.MCDGRGTPkxSu6a6nh09Q2r4
 </script>
 <script src="photoedit.js?v=2" defer></script>
 <script src="docs.js?v=4" defer></script>
-<script src="assistant.js?v=7" defer></script>
-<script src="jarvis.js?v=4" defer></script>
 <script>
 /* ===== v35: Asistentka – propojení poradce ↔ asistentka, sdílené úkoly, asistentský režim ===== */
 /* ===== Síťová vrstva: Firestore – změny se doručují samy (bez dotazování), operace napodobují dřívější server ===== */
@@ -8000,16 +8000,19 @@ const asNameOf=(email,name)=>(name||"").trim()||String(email||"").split("@")[0];
 let myTasks=[];                                      // vlastní úkoly poradce (lokálně + Disk)
 let ASD=lsGet("as_adv")||{list:[],tasks:[],at:0};ASD.tasks=(ASD.tasks||[]).filter(t=>!asIsTmp(t)).map(asNT);    // poradce: asistentky (stav propojení) + jejich úkoly (ze serveru)
 let ASA=lsGet("as_asst")||{advisors:[],tasks:[],at:0};ASA.tasks=(ASA.tasks||[]).filter(t=>!asIsTmp(t)).map(asNT); // asistentka: poradci (klienti) + úkoly
-let asFlag=!!lsGet("as_flag");                       // admin mě označil jako asistentku
+/* režim asistentky je vypnutý (18. 10. 2026): žádné „→ asistentce“, úkoly asistentek, pozvánky ani nastavení. Vlastní úkoly a sdílení obchodů s kolegy běží dál.
+   Data na serveru se nemažou – zapnout zpět jde přepnutím AS_OFF na false. */
+const AS_OFF=true;
+let asFlag=AS_OFF?false:!!lsGet("as_flag");                       // admin mě označil jako asistentku
 let asInv=lsGet("as_invites")||[];
 let asFilter="all", asShowDone=false, asCliQ="", asCliShow=30, asCliAdv="all";
 const asMeMail=()=>Acc.me();
 function asMode(){ /* čistě asistentské rozhraní: výslovná volba v nastavení, jinak automaticky pro asistentku s prázdnou pipeline */
-  if(!asFlag)return false;
+  if(AS_OFF||!asFlag)return false;
   if(settings&&settings.asstMode!==undefined)return !!settings.asstMode;
   return lsGet("as_auto")===true}
 function asAutoMode(){ /* rozhodne se jednou, až po první synchronizaci s Diskem (aby nový přístroj nepřebil skutečné nastavení) */
-  if(!asFlag||lsGet("as_auto")!=null||(settings&&settings.asstMode!==undefined)||!lsGet("g_synced")||typeof leads==="undefined")return;
+  if(AS_OFF||!asFlag||lsGet("as_auto")!=null||(settings&&settings.asstMode!==undefined)||!lsGet("g_synced")||typeof leads==="undefined")return;
   const empty=!leads.some(l=>!l.example)&&!myTasks.length;
   lsSet("as_auto",empty);
   if(empty){applyAsMode();const vt=visibleTabs();setView(vt.includes(view)?view:vt[0]);asPull(true);toast("Zapnuto rozhraní asistentky – přepnout zpět jde v nastavení (✓)")}
@@ -8065,7 +8068,7 @@ function asAllTasks(){
   const mine=myTasks.map(t=>({id:"m:"+t.id,rid:t.id,own:true,text:t.text,client:t.client||"",due:t.due||"",st:t.done?"hotovo":"nový",done:t.done||"",at:t.createdAt||""}));
   const names={};asAssistants().forEach(a=>names[a.email]=a.name||"");
   (ASD.list||[]).forEach(a=>{if(!names[a.asst])names[a.asst]=asNameOf(a.asst,a.name)});
-  const theirs=(ASD.tasks||[]).map(t=>({...t,own:false,who:names[t.asst]||asNameOf(t.asst)}));
+  const theirs=AS_OFF?[]:(ASD.tasks||[]).map(t=>({...t,own:false,who:names[t.asst]||asNameOf(t.asst)}));
   return [...mine,...theirs];
 }
 function asPipeTasks(){ /* otevřené + čerstvě hotové (3 dny), seřazené podle termínu */
@@ -8085,7 +8088,7 @@ function asTaskRow(t){
 }
 /* vloží se do #todayList před volací seznam; vrací pole uzlů */
 function asInvNodes(){ /* čekající pozvánka – vždy viditelná v pipeline, ať se nedá přehlédnout */
-  if(!asFlag)return[];
+  if(AS_OFF||!asFlag)return[];
   const inv=asInv.filter(x=>x.status==="žádost");if(!inv.length)return[];
   return [el("button",{type:"button",class:"row row-btn tkrow asinv",onclick:()=>asAsk(inv[0])},el("span",{class:"tkst blue"},"Pozvánka"),
     el("span",{class:"main"},el("div",{class:"t"},(inv[0].name||inv[0].advisor)+" tě zve jako svou asistentku"),el("div",{class:"s"},"Klepni a schval sdílení úkolů a klientů")),chev())]}
@@ -8220,7 +8223,7 @@ function asSendPreset(p,after){
   const l=asAssistants();if(!l.length){toast("Nejdřív přidej asistentku v Rozvoji sítě");return}
   asNewTask({asst:l[0].email,text:p.text||"",client:p.client||"",due:p.due||"",after})}
 function asSendChip(p,after){
-  if(asMode()||!asHasAsst())return null;
+  if(AS_OFF||asMode()||!asHasAsst())return null;
   const go=e=>{e.stopPropagation();asSendPreset(p,after)};
   return el("span",{class:"tksend",role:"button",tabindex:"0","aria-label":"Poslat asistentce",title:"Poslat asistentce",onclick:go,onkeydown:e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go(e)}}},"→ asistentce")}
 function asNewTask(preset){
@@ -8427,7 +8430,7 @@ async function asCheckInv(force){
   lsSet("as_inv_at",Date.now());
   let j;try{j=await asPost({t:"as_inv",email:me})}catch(e){return}
   if(j.status!=="ok")return;
-  const was=asFlag,oldInv=JSON.stringify(asInv);asFlag=!!j.flag;lsSet("as_flag",asFlag);asInv=j.list;lsSet("as_invites",asInv);
+  const was=asFlag,oldInv=JSON.stringify(asInv);asFlag=AS_OFF?false:!!j.flag;lsSet("as_flag",!!j.flag);asInv=j.list;lsSet("as_invites",asInv);
   if(was!==asFlag){renderAsCfgIfOpen();applyAsMode()}
   asAutoMode();
   if(oldInv!==JSON.stringify(asInv)&&view==="pipe"&&!document.querySelector("dialog[open]"))render();
@@ -8555,7 +8558,7 @@ async function asRefreshAll(skipInv){
   await Promise.all(jobs);
 }
 async function asPoll(){
-  if(AsNet.enabled())return;   /* s databází se nic nedotazuje – změny přicházejí samy */
+  if(AS_OFF||AsNet.enabled())return;   /* s databází se nic nedotazuje – změny přicházejí samy */
   const me=asMeMail();if(!me||!Trk.on()||!Acc.ok())return;
   const vis=document.visibilityState==="visible",active=asFlag||asHasAsst();
   const every=vis?(active?(Date.now()-asAct>300000?15000:3000):20000):30000;
@@ -8723,7 +8726,7 @@ function renderAsClients(){
 /* =====================  NASTAVENÍ  ===================== */
 function renderAsCfgIfOpen(){if($("dataDlg")&&$("dataDlg").open)renderAsCfg()}
 function renderAsCfg(){
-  const box=$("asCfg");if(!box)return;
+  const box=$("asCfg");if(!box)return;if(AS_OFF){box.hidden=true;box.replaceChildren();return}
   const save=async patch=>{try{await db.doc("settings/main").set({...settings,...patch});toast("Uloženo")}catch(e){toast("Nepodařilo se uložit")}};
   const nodes=[];
   if(asFlag||asAssistants().length){
@@ -8754,7 +8757,7 @@ function renderAsCfg(){
 function asStart(){
   if(AsNet.enabled())AsNet.start();   /* připojení k databázi hned po startu (načtení knihovny trvá pár vteřin) */
   db.collection("mytasks").onSnapshot(snap=>{myTasks=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="pipe")render()});
-  const tick=()=>{if(AsNet.enabled()&&!AsNet.on)AsNet.start();if(document.visibilityState!=="visible")return;asAutoMode();if(asFlag)asPull();if(!asMode())asAdvSync()};
+  const tick=()=>{if(AsNet.enabled()&&!AsNet.on)AsNet.start();if(document.visibilityState!=="visible"||AS_OFF)return;asAutoMode();if(asFlag)asPull();if(!asMode())asAdvSync()};
   setTimeout(()=>{(AsNet.enabled()?AsNet.start():Promise.resolve()).then(()=>asCheckInv(true)).then(()=>{applyAsMode();if(asMode()){asPull(true);if(!["atasks","aclients"].includes(view))setView("atasks")}else{if(asFlag)asPull(true);asAdvSync(true)}})},3500);
   setInterval(tick,5000);
   setInterval(asPoll,1000);

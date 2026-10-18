@@ -29,8 +29,6 @@ jobs:
         run: node tests/databaze.run.mjs
       - name: Testy souborů u klientů (docs.js)
         run: node tests/docs.run.mjs
-      - name: Testy asistenta (jádro)
-        run: node tests/assistant.run.mjs
       - name: Testy finančního plánu a dotazníku
         run: node tests/fp.run.mjs
       - name: Testy v prohlížeči (celá appka – všechny záložky bez chyb, synchronizace dat)
