@@ -22,6 +22,18 @@ const NUM="(\\d{1,3}(?: \\d{3})+|\\d+)(?:[.,](\\d{1,2}))?";
 const toNum=(i,d)=>+(String(i).replace(/ /g,"")+(d?"."+d:""));
 const iso=(d,m,y)=>{d=+d;m=+m;y=+y;return y>1900&&m>=1&&m<=12&&d>=1&&d<=31?y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0"):""};
 
+/* jméno vždy „Jméno Příjmení“ bez kapitálek: Stela píše „NOVÁKOVÁ Jana“ → „Jana Nováková“ (tituly zůstávají vpředu, „Ph.D.“ vzadu) */
+const TIT=/^(ing|mgr|bc|mudr|mvdr|judr|phdr|rndr|paeddr|doc|prof|ingarch|dis|ph\.?d|csc|mba|bba|ll\.?m)\.?,?$/i;
+const cap1=w=>w.split(/([-'’])/).map(p=>/^[-'’]$/.test(p)?p:p.charAt(0).toLocaleUpperCase("cs")+p.slice(1).toLocaleLowerCase("cs")).join("");
+function niceName(raw){
+  const t=clean(raw).split(" ").filter(Boolean);if(!t.length)return "";
+  const isUp=w=>/\p{L}{2,}/u.test(w)&&w===w.toLocaleUpperCase("cs")&&w!==w.toLocaleLowerCase("cs");
+  const pre=[],post=[],sur=[],giv=[];
+  t.forEach((w,i)=>{if(TIT.test(w.replace(/\./g,"")+"")||TIT.test(w)){(/^(ph|csc|mba|bba|ll|dis)/i.test(w)&&i>0?post:pre).push(w);return}(isUp(w)?sur:giv).push(w)});
+  const words=sur.length&&giv.length?giv.concat(sur):sur.length?sur:giv;
+  const fixed=words.map(w=>isUp(w)||w===w.toLocaleLowerCase("cs")?cap1(w):w);
+  return pre.concat(fixed,post).join(" ").replace(/\s+,/g,",");
+}
 /* vstup: text po řádcích (levý i pravý sloupec Stely leží na jednom řádku). Výstup: {rec, found, missing, ok} */
 function parseStela(raw){
   const lines=String(raw||"").split(/\n/).map(clean).filter(Boolean);
@@ -34,7 +46,7 @@ function parseStela(raw){
   const iEnd=lines.findIndex((l,i)=>i>iSec&&new RegExp("^"+lab("Údaje o pojištění")+"$","i").test(l));
   const sec=iSec>=0?lines.slice(iSec+1,iEnd>iSec?iEnd:lines.length):lines;
   const reName=new RegExp("^"+lab("Jméno a příjmení")+"\\s*(.*?)\\s*(?:"+lab("Trvalé bydliště")+".*)?$","i");
-  for(const l of sec){const m=reName.exec(l);if(m){rec.name=clean(m[1]);break}}
+  for(const l of sec){const m=reName.exec(l);if(m){rec.name=niceName(m[1]);break}}
   rec.name?found.push("name"):missing.push("name");
 
   /* pojistné: „Pojistné 500 Kč“ (částka za platební frekvenci smlouvy) */
@@ -64,27 +76,28 @@ function parseStela(raw){
 /* ================= všechny údaje z PDF: vzorec „odkud → kam“ =================
    [klíč, sekce v PDF, popisek v PDF, kam v pipeline] – stejná tabulka se ukazuje v záložce („Odkud se co bere“). */
 const MAP=[
-  ["jmeno","Pojistník","Jméno a příjmení","Lead → Jméno"],
+  ["jmeno","Pojistník","Jméno a příjmení","Lead → Jméno (Jméno Příjmení)"],
+  ["zdroj","—","—","Lead → Zdroj: Databáze"],
   ["telefon","Pojistník","Telefon","Lead → Telefon"],
   ["email","Pojistník","Email / E-mail","Lead → E-mail"],
-  ["narozen","Pojistník","Datum narození","Lead → Poznámky"],
-  ["bydliste","Pojistník","Trvalé bydliště","Lead → Poznámky"],
-  ["adresa","Pojistník","Kontaktní adresa","Lead → Poznámky"],
-  ["produkt","Hlavička","„2010 - ZFP DŮCHOD - číslo“","Lead → Poznámky"],
-  ["cislo","Hlavička / odkaz","číslo smlouvy (cntID)","Lead → Poznámky · párování v Databázi"],
-  ["pojistne","Údaje o pojištění","Pojistné","Databáze · Lead → Poznámky"],
-  ["frekvence","Údaje o pojištění","Frekvence placení","Lead → Poznámky"],
-  ["zpusob","Údaje o pojištění","Způsob placení","Lead → Poznámky"],
-  ["indexace","Údaje o pojištění","Indexace","Lead → Poznámky"],
-  ["sepsani","Údaje o pojištění","Datum sepsání smlouvy","Lead → Poznámky"],
-  ["pocatek","Údaje o pojištění","Datum počátku pojištění","Lead → Poznámky"],
-  ["techPocatek","Údaje o pojištění","Datum technického počátku","Databáze · Lead → Poznámky"],
-  ["konec","Údaje o pojištění","Datum konce pojištění","Lead → Poznámky"],
-  ["pojistena","Pojištěná osoba","Jméno a příjmení","Lead → Poznámky"],
-  ["pojistenaNar","Pojištěná osoba","Datum narození","Lead → Poznámky"],
-  ["investice","Podílový účet","Hodnota investice","Lead → Poznámky"],
-  ["odkupne","Podílový účet","Hodnota odkupného","Databáze · Lead → Poznámky"],
-  ["asOf","Patička","Platnost dat","Lead → Poznámky (k datu)"],
+  ["narozen","Pojistník","Datum narození","jen v Databázi"],
+  ["bydliste","Pojistník","Trvalé bydliště","jen v Databázi"],
+  ["adresa","Pojistník","Kontaktní adresa","jen v Databázi"],
+  ["produkt","Hlavička","„2010 - ZFP DŮCHOD - číslo“","jen v Databázi"],
+  ["cislo","Hlavička / odkaz","číslo smlouvy (cntID)","párování v Databázi · historie leadu"],
+  ["pojistne","Údaje o pojištění","Pojistné","Databáze (tabulka)"],
+  ["frekvence","Údaje o pojištění","Frekvence placení","jen v Databázi"],
+  ["zpusob","Údaje o pojištění","Způsob placení","jen v Databázi"],
+  ["indexace","Údaje o pojištění","Indexace","jen v Databázi"],
+  ["sepsani","Údaje o pojištění","Datum sepsání smlouvy","jen v Databázi"],
+  ["pocatek","Údaje o pojištění","Datum počátku pojištění","jen v Databázi"],
+  ["techPocatek","Údaje o pojištění","Datum technického počátku","Databáze (tabulka)"],
+  ["konec","Údaje o pojištění","Datum konce pojištění","jen v Databázi"],
+  ["pojistena","Pojištěná osoba","Jméno a příjmení","jen v Databázi"],
+  ["pojistenaNar","Pojištěná osoba","Datum narození","jen v Databázi"],
+  ["investice","Podílový účet","Hodnota investice","jen v Databázi"],
+  ["odkupne","Podílový účet","Hodnota odkupného","Databáze (tabulka)"],
+  ["asOf","Patička","Platnost dat","jen v Databázi"],
   ["pdf","—","celé PDF smlouvy","Lead → Dokumenty"]];
 const L_POJ=["Jméno a příjmení","Trvalé bydliště","Datum narození","Kontaktní adresa","Telefon","Mobil","E-mail","Email","Rodné číslo","Číslo OP","Státní příslušnost"];
 const L_UDAJE=["Pojistné","Datum sepsání smlouvy","Frekvence placení","Datum počátku pojištění","Způsob placení","Datum technického počátku","Indexace","Datum zaevidování v systému","Datum konce pojištění","Stav smlouvy","Konec pojištění"];
@@ -232,7 +245,8 @@ function mount(root,opts={}){
   if(!document.getElementById("dbxCss")){const s=document.createElement("style");s.id="dbxCss";s.textContent=CSS;document.head.append(s)}
   const toast=opts.toast||(m=>console.log(m));
   const ls=opts.ls||{get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
-  let rows=(ls.get(LS)||[]).filter(r=>r&&typeof r==="object");
+  const load=()=>{const L=(ls.get(LS)||[]).filter(r=>r&&typeof r==="object");let ch=false;L.forEach(r=>{const n=niceName(r.name);if(r.name&&n!==r.name){r.name=n;ch=true}});if(ch)ls.set(LS,L);return L};
+  let rows=load();
   let q="",sortK="name",sortDir=1,msg=null;
   const persist=()=>{if(ls.set(LS,rows)===false)toast("Nepodařilo se uložit – plné úložiště prohlížeče")};
   const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
@@ -256,10 +270,10 @@ function mount(root,opts={}){
   search.addEventListener("input",()=>{q=search.value;drawTable()});
   const msgBox=h("div",{});
   const tblBox=h("div",{});
-  const note=h("p",{class:"db-note"},"PDF se čtou přímo v tomhle zařízení a nikam se neposílají (ani k AI). Řádky i PDF zůstávají jen v tomto prohlížeči (nesynchronizují se s Google Diskem); při odhlášení se smažou. Stejnou smlouvu stačí nahrát znovu – řádek se aktualizuje."+(canLead?" Teprve tlačítkem ＋ se kontakt přesune do pipeline jako „Nový lead“ (se všemi údaji v poznámce a PDF v dokumentech) a od té chvíle se synchronizuje jako každý jiný lead.":""));
+  const note=h("p",{class:"db-note"},"PDF se čtou přímo v tomhle zařízení a nikam se neposílají (ani k AI). Řádky i PDF zůstávají jen v tomto prohlížeči (nesynchronizují se s Google Diskem); při odhlášení se smažou. Stejnou smlouvu stačí nahrát znovu – řádek se aktualizuje."+(canLead?" Teprve tlačítkem ＋ se kontakt přesune do pipeline jako „Nový lead“ se zdrojem Databáze (jméno, telefon, e-mail a PDF smlouvy v dokumentech, poznámky se nepíšou) a od té chvíle se synchronizuje jako každý jiný lead.":""));
   const map=h("details",{class:"db-map"},h("summary",{},"Odkud se co bere (vzorec čtení PDF)"),
     h("div",{class:"db-mapg"},h("b",{},"Sekce v PDF"),h("b",{},"Popisek v PDF"),h("b",{},"Kam"),MAP.map(([,a,b,c])=>[h("span",{},a),h("span",{},b),h("span",{},c)])),
-    h("p",{class:"db-note"},"Hodnota se bere za popiskem až po další popisek na stejném řádku (Stela má dva sloupce vedle sebe). Jméno jen ze sekce Pojistník. Rodné číslo se záměrně nepřebírá. Víc smluv stejného člověka (stejné jméno + datum narození) = jeden lead."));
+    h("p",{class:"db-note"},"Jméno se vždy převede na „Jméno Příjmení“ (bez kapitálek). Hodnota se bere za popiskem až po další popisek na stejném řádku (Stela má dva sloupce vedle sebe). Jméno jen ze sekce Pojistník. Rodné číslo se záměrně nepřebírá. Víc smluv stejného člověka (stejné jméno + datum narození) = jeden lead."));
   box.append(top,search,msgBox,tblBox,note,map);
 
   const COLS=[["name","Jméno a příjmení",false],["premium","Pojistné",true],["surrender","Odkupné",true],["start","Datum technického počátku",false]];
@@ -341,9 +355,9 @@ function mount(root,opts={}){
     /* jméno už v pipeline je (stejný člověk) → přidat k němu, ne zakládat znovu: navázat přes řádek, který už lead má */
     const groups=[];for(const g of G.values()){const sib=rows.find(x=>x.leadId&&key(x)===key(g[0])&&(!opts.leadExists||opts.leadExists(x.leadId)));
       const I=g[0].info||{},files=[];for(const r of g){const b=await pdfStore.get(r.id);if(b)files.push(b instanceof File?b:new File([b],r.pdf||("Smlouva_"+(r.key||r.id)+".pdf"),{type:"application/pdf"}))}
-      groups.push({rows:g,name:clean(g[0].name),phone:I.telefon||"",email:I.email||"",note:leadNote(g),files,existing:sib?sib.leadId:(opts.findLead?opts.findLead(clean(g[0].name),I.telefon||""):null)||null})}
+      groups.push({rows:g,name:niceName(g[0].name),phone:I.telefon||"",email:I.email||"",contracts:g.map(r=>(r.info||{}).cislo||r.key||""),files,existing:sib?sib.leadId:(opts.findLead?opts.findLead(clean(g[0].name),I.telefon||""):null)||null})}
     const ex=groups.filter(g=>g.existing).length;
-    if(list.length>1&&!confirm("Založit v pipeline "+(groups.length-ex)+" "+(groups.length-ex===1?"nový lead":groups.length-ex<5?"nové leady":"nových leadů")+(ex?" a "+ex+"× doplnit smlouvu k existujícímu":"")+"? (fáze Nový lead, PDF smluv do dokumentů)"))return;
+    if(list.length>1&&!confirm("Založit v pipeline "+(groups.length-ex)+" "+(groups.length-ex===1?"nový lead":groups.length-ex<5?"nové leady":"nových leadů")+(ex?" a "+ex+"× doplnit smlouvu k existujícímu":"")+"? (fáze Nový lead, zdroj Databáze, PDF smluv do dokumentů)"))return;
     busy=true;bLead.disabled=true;bLead.textContent="Zakládám…";
     let ok=0,bad=0,files=0,miss=0;
     try{for(let i=0;i<groups.length;i++){const g=groups[i];
@@ -397,8 +411,8 @@ function mount(root,opts={}){
   box.addEventListener("drop",e=>{e.preventDefault();dragN=0;box.classList.remove("drop");if(e.dataTransfer&&e.dataTransfer.files.length)importFiles(e.dataTransfer.files)});
 
   draw();
-  return{refresh:()=>{if(busy)return;rows=(ls.get(LS)||[]).filter(r=>r&&typeof r==="object");draw()},importFiles,toPipeline,rows:()=>rows};
+  return{refresh:()=>{if(busy)return;rows=load();draw()},importFiles,toPipeline,rows:()=>rows};
 }
 
-window.Databaze={mount,math:{parseStela,parseStelaFull,leadNote,parseNum,toCsv,czDate,kc},MAP};
+window.Databaze={mount,math:{parseStela,parseStelaFull,leadNote,niceName,parseNum,toCsv,czDate,kc},MAP};
 })();

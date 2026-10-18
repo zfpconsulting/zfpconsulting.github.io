@@ -752,7 +752,7 @@ function compute0(inp, today, ext) {
   const prijmy = persons.reduce((s, p) => s + p.zam + p.podnik + p.pasiv + p.pronajem + p.bonus / 12, 0);
   /* výdaje = osobní výdaje osob BEZ investic a pojištění (ty se v plánu přenastavují) */
   const vydCelkem = persons.reduce((s, p) => s + p.vydaje, 0) || n0((inp.vydaje || {}).celkem) - n0((inp.vydaje || {}).pojistne) - n0((inp.vydaje || {}).sporeni);
-  const docasne = (inp.docasne || []).filter(d => n0(d.castka) > 0).map(d => ({ nazev: d.nazev, castka: n0(d.castka), do: parseDate(d.do) }));
+  const docasne = (inp.docasne || []).filter(d => n0(d.castka) > 0).map(d => ({ nazev: d.nazev || ({ materska: "Mateřská", rodicovska: "Rodičovská", vyzivne: "Výživné", jine: "Dočasný příjem" })[d.typ] || "Dočasný příjem", castka: n0(d.castka), do: parseDate(d.do) }));
   const cf = floorTo(prijmy - vydCelkem, 1000);
   docasne.forEach(d => flags.push(`Dočasný příjem „${d.nazev}“ ${d.castka} Kč/měs (do ${d.do ? MES[d.do.getMonth()] + " " + d.do.getFullYear() : "?"}) není v cash flow ani ve scénářích katastrof.`));
   if (cf <= 0) flags.push("Volné cash flow je nulové nebo záporné — plán jen z majetku.");
@@ -779,7 +779,7 @@ function compute0(inp, today, ext) {
   // nefinanční majetek a úvěry
   const nefin = (inp.nefin || []).filter(a => n0(a.hodnota) > 0).map(a => ({ nazev: a.nazev || a.typ || "Majetek", typ: a.typ || "Jiné", hodnota: n0(a.hodnota) }));
   const nefinCelkem = nefin.reduce((s, a) => s + a.hodnota, 0);
-  const uvery = (inp.uvery || []).filter(u => n0(u.zustatek) > 0 || n0(u.splatka) > 0).map(u => ({ nazev: u.nazev || "Úvěr", zustatek: n0(u.zustatek), splatka: n0(u.splatka), fixace: parseDate(u.fixace_do), splatnost: parseDate(u.splatnost) }));
+  const uvery = (inp.uvery || []).filter(u => n0(u.zustatek) > 0 || n0(u.splatka) > 0).map(u => ({ nazev: u.typ ? u.typ + (u.nazev && u.nazev !== u.typ ? " – " + u.nazev : "") : (u.nazev || "Úvěr"), typ: u.typ || "", zustatek: n0(u.zustatek), splatka: n0(u.splatka), fixace: parseDate(u.fixace_do), splatnost: parseDate(u.splatnost) }));
   const zavazky = uvery.reduce((s, u) => s + u.zustatek, 0);
   uvery.forEach(u => { if (!u.splatnost) flags.push(`Úvěr „${u.nazev}“: doplň splatnost.`); });
   // ---------- cíle (od nejkratšího), pak renta
@@ -1290,6 +1290,7 @@ const save=()=>{if(HOST){clearTimeout(saveT);saveT=setTimeout(()=>parent.postMes
   try{localStorage.setItem(LS,JSON.stringify(DB))}catch(e){}};
 const inp=()=>DB.clients[DB.cur];
 let SHOT={}; // screenshoty modelace ŽP (jen v paměti)
+let DZLINK=null; // {to, k} – schránka a veřejný klíč poradce pro odkaz na dotazník (posílá Pipeline)
 /* produkty v automatickém návrhu (akciová / dluhopisová složka, DIP): poslední změna = výchozí stav pro všechny další plány, dokud ji zase nezměníš.
    V Pipeline se ukládá do nastavení (synchronizuje se mezi zařízeními), samostatně do prohlížeče. */
 const PDK="fp_prod_default_v1";
@@ -1318,6 +1319,7 @@ function person(p,t){return `<div class="g">${fld("Titul",p+".titul","text")}${f
  <div class="g">${fld("Invalidní I. stupně",p+".inv1")}${fld("Invalidní II. stupně",p+".inv2")}${fld("Invalidní III. stupně",p+".inv3")}${fld("Starobní (odhad)",p+".starobni")}${fld("Hrubý příjem z IOLDP (OVZ)",p+".ovz")}${fld("Vdovský / vdovecký",p+".vdovsky")}${fld("Sirotčí (na 1 dítě)",p+".sirotci")}</div>
  ${t?"":`<label class="chk"><input type="checkbox" data-p="${p}.bez_partnera" ${get(inp(),p+".bez_partnera")?"checked":""}> Nemá manželku / partnera</label><p class="hint">Bez partnera, dětí a úvěrů = nejsou závazky pro zajištění pro případ smrti. S úvěrem jen na jeho zůstatek.</p>`}`}
 function rows(path,cols,blank){const L=get(inp(),path)||[];return `<div class="rows">${L.map((r,i)=>`<div class="row" style="grid-template-columns:1fr 1fr">${cols.map(([lbl,k,type,w,opts])=>type==="check"?`<label class="chk" style="grid-column:1/-1"><input type="checkbox" data-p="${path}.${i}.${k}" ${r[k]?"checked":""}> ${lbl}</label>`:opts?`<label class="f"${w==="full"?' style="grid-column:1/-1"':""}>${lbl}<select data-p="${path}.${i}.${k}">${opts.map(o=>{const[val,t]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${val==r[k]?"selected":""}>${esc(t)}</option>`}).join("")}</select></label>`:type==="number"?`<label class="f">${lbl}<input data-p="${path}.${i}.${k}" data-num="1" type="text" inputmode="decimal" autocomplete="off" value="${esc(fmtIn(r[k]))}"></label>`:`<label class="f">${lbl}<input data-p="${path}.${i}.${k}" type="${type}" value="${esc(r[k]==null?"":r[k])}"></label>`).join("")}<button class="x" data-del="${path}.${i}" title="Odebrat" style="grid-column:1/-1;justify-self:end;font-size:12px">✕ odebrat</button></div>`).join("")}<button class="add" data-add="${path}" data-blank='${esc(JSON.stringify(blank))}'>+ přidat</button></div>`}
+const UVERY=["Hypotéka","Úvěr ze stavebního spoření","Spotřebitelský úvěr","Leasing","Kreditní karta / kontokorent","Podnikatelský úvěr","Jiný"];
 const NEFIN=["Nemovitost k bydlení","Investiční nemovitost","Pozemek","Rekreační objekt","Podíl ve firmě","Auto","Umění / sbírky","Jiné"];
 let MARKET={models:[],hist:{}};
 const PRODSEL=()=>FPE.PRODUKTY.map(p=>[p.k,p.n]).concat(MARKET.models.map(m=>[m.id,"Conseq model – "+m.name]));
@@ -1364,7 +1366,7 @@ function mixInit(I){const N=I.nastaveni=I.nastaveni||{};
 const mixSum=(I,k)=>((I.nastaveni||{})[k]||[]).reduce((a,x)=>a+(+x.w||0),0);
 /* co klient napsal v dotazníku a do výpočtu nejde (kontakt, povolání, sporty, poznámka) */
 function dzInfo(I){const K=I.kontakt||{},ppl=[I.klient||{}].concat(I.partner&&I.partner.zapnuto?[I.partner]:[]);
-  const it=[K.telefon&&"tel. "+esc(K.telefon),K.email&&esc(K.email),K.stav&&({svobodny:"svobodný/á",zenaty:"ženatý / vdaná",partner:"s partnerem",rozvedeny:"rozvedený/á",vdovec:"vdovec / vdova"})[K.stav],K.ioldp&&"IOLDP pošle"].filter(Boolean);
+  const it=[K.telefon&&"tel. "+esc(K.telefon),K.email&&esc(K.email),K.stav&&({svobodny:"svobodný/á",zenaty:"ženatý / vdaná",partner:"s partnerem",rozvedeny:"rozvedený/á",vdovec:"vdovec / vdova"})[K.stav],K.ioldp&&"IOLDP pošle",...Object.entries(I.ioldp||{}).map(([k,v])=>v&&v.pozdeji?"IOLDP ("+(k==="partner"?"partner":"klient")+") pošle později":v&&v.name?"IOLDP ("+(k==="partner"?"partner":"klient")+") v dokumentech":"")].filter(Boolean);
   const pv=ppl.filter(p=>p.povolani||p.sport).map(p=>`<b>${esc((p.jmeno||"").split(" ")[0])}</b>: ${[p.povolani&&"povolání "+esc(p.povolani),p.sport&&"sport "+esc(p.sport)].filter(Boolean).join(" · ")}`);
   if(!it.length&&!pv.length&&!I.poznamka)return "";
   return `<div class="chkbox"><details open><summary>Z dotazníku</summary><div class="hint">${it.join(" · ")}</div>${pv.map(x=>`<div class="hint">${x}</div>`).join("")}${I.poznamka?`<div class="hint" style="white-space:pre-wrap"><b>Poznámka:</b> ${esc(I.poznamka)}</div>`:""}</details></div>`}
@@ -1383,7 +1385,7 @@ function renderEditor(){
    <p class="hint">Účty → rezerva, zbytek do cílů. Fondy, ETF a stavební spoření se převádějí do plánu. DPS zůstává a počítá se do renty.</p></details>
   <details open><summary>Nefinanční majetek</summary>${rows("nefin",[["Název","nazev","text"],["Typ","typ","text","",NEFIN],["Hodnota","hodnota","number"]],{nazev:"",typ:"Nemovitost k bydlení",hodnota:0})}
    <p class="hint">Nemovitosti, podíly, auta… Nejde do realokace, ukazuje se v čistém jmění.</p></details>
-  <details open><summary>Úvěry</summary>${rows("uvery",[["Název","nazev","text","1.3fr"],["Zůstatek","zustatek","number"],["Splátka","splatka","number"],["Konec fixace","fixace_do","month"],["Splatnost","splatnost","month"]],{nazev:"Hypotéka",zustatek:0,splatka:0,fixace_do:"",splatnost:""})}</details>`,
+  <details open><summary>Úvěry</summary>${rows("uvery",[["Typ úvěru","typ","text","full",[["","—"]].concat(UVERY)],["Banka / název","nazev","text","1.3fr"],["Zůstatek","zustatek","number"],["Splátka","splatka","number"],["Konec fixace","fixace_do","month"],["Splatnost","splatnost","month"]],{typ:"Hypotéka",nazev:"",zustatek:0,splatka:0,fixace_do:"",splatnost:""})}</details>`,
   ()=>`<details open><summary>Cíle</summary>${(migCile(I),rows("cile",[["Cíl","nazev","text","1.4fr"],["Částka (dnešní ceny)","castka","number"],["Za kolik let","za_let","number"]],{nazev:"",castka:0,za_let:""}))}</details>
    <details open><summary>Renta</summary><div class="g">${fld("Renta Kč/měs (dnešní ceny)","renta.mesicne")}${fld("Renta od věku (prázdné = důchod)","renta.od_veku")}</div>
    <p class="hint">Do starobního důchodu celá renta, potom jen dorovnání ke státnímu důchodu (odhad z IOLDP u klienta) až do věku ${esc(String(((I.nastaveni||{}).doziti)||FPE.DEFAULT_SET.doziti))} let.</p></details>`,
@@ -2039,17 +2041,17 @@ function mergeDz(I,D){let n=0;const val=v=>v!==""&&v!=null&&!(typeof v==="number
   const obj=(path)=>{const src=get(D,path);if(!src||typeof src!=="object")return;Object.entries(src).forEach(([k,v])=>{if(typeof v==="object"&&v!==null)return;if(typeof v==="boolean"){if(k==="zapnuto"&&!v)return;if(k==="vs")return}if(val(v)){set(I,path+"."+k,v);n++}})};
   ["klient","partner","kontakt","renta","pojisteni.zivotni"].forEach(obj);
   ["motivace","poznamka"].forEach(k=>{if(val(D[k])){I[k]=D[k];n++}});
-  const keep={deti:r=>r.jmeno||r.narozen,docasne:r=>r.nazev||+r.castka,majetek:r=>+r.hodnota||+r.vklad,nefin:r=>+r.hodnota||r.nazev,uvery:r=>+r.zustatek||+r.splatka,cile:r=>r.nazev||+r.castka};
+  const keep={deti:r=>r.jmeno||r.narozen,docasne:r=>r.nazev||r.typ||+r.castka,majetek:r=>+r.hodnota||+r.vklad,nefin:r=>+r.hodnota||r.nazev,uvery:r=>+r.zustatek||+r.splatka,cile:r=>r.nazev||+r.castka};
   Object.entries(keep).forEach(([k,f])=>{const L=(D[k]||[]).filter(f);if(L.length){I[k]=JSON.parse(JSON.stringify(L));n+=L.length}});
   if(I.partner&&I.partner.zapnuto&&I.klient)I.klient.bez_partnera=false;
   return n}
 $("#bDz").onclick=()=>{
   const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:200;background:var(--bg)";
-  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=1#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
+  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=2#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
   ov.append(fr);document.body.append(ov);
   const close=()=>{removeEventListener("message",on);ov.remove();renderClients();renderEditor();update()};
   const on=e=>{if(e.origin!==location.origin||e.source!==fr.contentWindow||!e.data)return;const d=e.data;
-    if(d.type==="dz:ready")fr.contentWindow.postMessage({type:"dz:init",plan:inp()},location.origin);
+    if(d.type==="dz:ready")fr.contentWindow.postMessage({type:"dz:init",plan:inp(),dz:DZLINK},location.origin);
     else if(d.type==="dz:change"&&d.plan&&d.plan.klient){DB.clients[DB.cur]=JSON.parse(JSON.stringify(d.plan));save();if(d.close)close()}};
   addEventListener("message",on)};
 function boot(){applyProdDef(inp());renderClients();renderEditor();update()}
@@ -2063,6 +2065,7 @@ if(HOST){
     if(d.kurz){pl.nastaveni=pl.nastaveni||{};if(pl.nastaveni.eur_kurz==null||pl.nastaveni.eur_kurz==="")pl.nastaveni.eur_kurz=d.kurz}
     if(d.market)MARKET={models:d.market.models||[],hist:d.market.hist||{}};
     if(d.prodDef&&typeof d.prodDef==="object")PRODDEF=d.prodDef;
+    if(d.dz&&d.dz.to&&d.dz.k)DZLINK={to:d.dz.to,k:d.dz.k};
     DB={cur:"h",clients:{h:pl}};boot()});
   parent.postMessage({type:"fp:ready"},location.origin);
 }else boot();

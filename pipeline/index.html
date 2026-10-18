@@ -26,6 +26,7 @@
   --thumb-shadow:0 0.5px 4px rgba(0,0,0,.12),0 6px 13px rgba(0,0,0,.12);
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
   --r-lg:16px; --r:12px; --r-sm:10px;
+  --zfp:#F37520; --zfp-soft:rgba(243,117,32,.10);   /* oranžová ZFP (z loga ZFP GROUP) */
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -276,6 +277,35 @@ dialog.sheet-closing::backdrop{animation:backdropOut .26s ease forwards}
   #dlg #f_note{min-height:200px}
   #dlg .sbar h2,#edDlg.wide .sbar h2{max-width:60vw;font-size:19px}
 }
+#tabBar button.tabdrag{opacity:.55;transform:scale(.96);box-shadow:0 0 0 1.5px var(--zfp) inset;cursor:grabbing}
+#tabBar.tabdragging,#tabBar.tabdragging button{cursor:grabbing;user-select:none;-webkit-user-select:none}
+#tabBar button{-webkit-touch-callout:none}
+/* otevřený lead / klient: jen ZFP oranžová, bílá a černá – bez modré, zelené, červené a žluté */
+#dlg,#edDlg.wide{--tint:var(--zfp);--tint-soft:var(--zfp-soft);--green:var(--zfp);--green-soft:var(--zfp-soft);--orange:var(--zfp);--orange-soft:var(--zfp-soft);--red:var(--zfp);--red-soft:var(--zfp-soft);
+  --indigo:var(--zfp);--purple:var(--zfp);--teal:var(--zfp);--yellow:var(--zfp);--bg:#F5F5F5;--bg2:#FFFFFF;--card-shadow:0 0 0 1px rgba(0,0,0,.06);--sep:rgba(0,0,0,.10)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) :is(#dlg,#edDlg.wide){--bg:#000;--bg2:#121212;--card-shadow:0 0 0 1px rgba(255,255,255,.07);--sep:rgba(255,255,255,.10)}}
+:root[data-theme="dark"] :is(#dlg,#edDlg.wide){--bg:#000;--bg2:#121212;--card-shadow:0 0 0 1px rgba(255,255,255,.07);--sep:rgba(255,255,255,.10)}
+:is(#dlg,#edDlg.wide) .group{box-shadow:var(--card-shadow)}
+:is(#dlg,#edDlg.wide) .sbar{background:var(--bg2)}
+:is(#dlg,#edDlg.wide) .sbar .l{color:var(--label2)}
+:is(#dlg,#edDlg.wide) .sbar .r{color:var(--zfp);font-weight:700}
+:is(#dlg,#edDlg.wide) .sechead{color:var(--label2);letter-spacing:.06em;font-weight:600}
+#dlg .calls button,#dlg #callNo,#dlg #callYes{background:transparent;color:var(--label);box-shadow:inset 0 0 0 1px var(--sep);font-weight:600}
+#dlg .calls button:hover{box-shadow:inset 0 0 0 1px var(--label)}
+#dlg .calls #msgBtn{background:transparent;color:var(--zfp);box-shadow:inset 0 0 0 1.5px var(--zfp)}
+#dlg .calls #msgBtn:hover{background:var(--zfp);color:#fff}
+:is(#dlg,#edDlg.wide) .quick button{color:var(--label);background:transparent;box-shadow:inset 0 0 0 1px var(--sep)}
+:is(#dlg,#edDlg.wide) .quick button:hover{box-shadow:inset 0 0 0 1px var(--zfp);color:var(--zfp)}
+:is(#dlg,#edDlg.wide) .chipbtn{color:var(--label);background:transparent;box-shadow:inset 0 0 0 1px var(--sep)}
+:is(#dlg,#edDlg.wide) .chipbtn:hover{color:var(--zfp);box-shadow:inset 0 0 0 1px var(--zfp)}
+:is(#dlg,#edDlg.wide) .del,:is(#dlg,#edDlg.wide) .danger-row{color:var(--label2)}
+:is(#dlg,#edDlg.wide) .del:hover,:is(#dlg,#edDlg.wide) .danger-row:hover{color:var(--zfp)}
+:is(#dlg,#edDlg.wide) .fphero{background:var(--zfp);box-shadow:none;border-radius:12px}
+:is(#dlg,#edDlg.wide) .sum{box-shadow:var(--card-shadow)}
+:is(#dlg,#edDlg.wide) .pdot{background:var(--zfp)}
+:is(#dlg,#edDlg.wide) .lc2{background:transparent}
+:is(#dlg,#edDlg.wide) .avatar{background:var(--label)!important;color:var(--bg2)}
+:is(#dlg,#edDlg.wide) .mh-v{color:var(--label)!important}
 .sheet{display:flex;flex-direction:column;max-height:inherit}
 .sbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 16px;background:var(--bar-bg);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);position:sticky;top:0;z-index:2}
 .sbar h2{margin:0;font-size:17px;font-weight:600;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
@@ -717,6 +747,8 @@ html.locked body{overflow:hidden}
 .fphero .fph-ic{flex:none;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center}
 .fphero .fph-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.fphero .fph-t b{font-size:17px}.fphero .fph-t small{font-size:13px;opacity:.9}
 .fphero .fph-go{flex:none;font-size:26px;line-height:1;opacity:.9}
+.fpdzbtn{flex:none;border:1px solid var(--sep);border-radius:12px;background:var(--bg2);color:var(--label);font:inherit;font-size:15px;font-weight:600;padding:0 14px;cursor:pointer;margin-right:8px}
+.fpdzbtn:hover{border-color:var(--zfp,#F37520)}
 .fpnewbtn{flex:none;border:none;border-radius:12px;background:var(--orange);color:#fff;font:inherit;font-size:15px;font-weight:600;padding:0 16px;cursor:pointer;box-shadow:0 3px 10px rgba(255,149,0,.25)}
 .fpnew{background:var(--bg2);border-radius:14px;box-shadow:var(--card-shadow);padding:14px;margin:0 0 16px}
 .fpnew input{width:100%;box-sizing:border-box;border:1px solid var(--sep);border-radius:10px;background:var(--fill2,transparent);padding:11px 12px;font:inherit;font-size:16px;color:var(--label);outline:none}
@@ -1147,7 +1179,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
     <p class="secfoot" id="ctFoot"></p>
   </section>
   <section id="view_fp" hidden>
-    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán…" autocomplete="off" aria-label="Hledat finanční plán"><button type="button" id="fpNewBtn" class="fpnewbtn">+ Vytvořit nový</button></div>
+    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán…" autocomplete="off" aria-label="Hledat finanční plán"><button type="button" id="fpDzBtn" class="fpdzbtn" title="Odkaz na vstupní dotazník – klient ho vyplní a odešle, přijde ti zašifrovaný sem">Dotazník pro klienta</button><button type="button" id="fpNewBtn" class="fpnewbtn">+ Vytvořit nový</button></div>
     <div id="fpBox"></div>
     <p class="secfoot">Živý finanční plán: upravíš vstupy a prezentace se okamžitě přepočítá. Plán se ukládá ke klientovi (nebo k leadu z pipeline).</p>
   </section>
@@ -1724,7 +1756,7 @@ const STAGES=[
   {k:"zamrzly",t:"Zamrzlý",c:"var(--red)",p:0},
   {k:"lost",t:"Lost",c:"#636366",p:0}
 ];
-const SOURCES=["Cold call","Placený lead","Doporučení","Vlastní kontakt"];
+const SOURCES=["Cold call","Placený lead","Doporučení","Vlastní kontakt","Databáze"];
 const STALE_DAYS=14;
 const SIGNED=s=>s==="podpis"||s==="vyplaceno";
 /* telefon pro zobrazení: CZ/SK čísla vždy „+420 123 456 789“ (ať už je v datech zapsané s mezerami, bez nich, s 00420 nebo bez předvolby); cizí a nestandardní čísla zůstanou beze změny */
@@ -1935,17 +1967,87 @@ function renderDb(){
       findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
         const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=4";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=5";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
-/* Databáze → pipeline: nový lead (fáze Nový lead) se všemi údaji smlouvy v poznámce a PDF v dokumentech; stejný člověk už v pipeline → doplní se k němu */
+/* Databáze → pipeline: nový lead (fáze Nový lead, zdroj „Databáze“) s telefonem a e-mailem ze smlouvy a PDF v dokumentech; poznámky se nepíšou.
+   Stejný člověk už v pipeline → PDF se přidá k němu (poznámky ani zdroj se nemění). */
 async function dbAddLead(g){
-  const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;
-  if(l){const log=[...(l.log||[]),{d:now,t:"Smlouva z Databáze (NN Stela) přidána"}].slice(-100);
-    await db.doc("leads/"+l.id).update({note:(l.note?l.note+"\n\n":"")+g.note,log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{})})}
-  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email});
-    await db.doc("leads/"+l.id).update({note:g.note,log:[{d:now,t:"Založeno z Databáze smluv (NN Stela)"}],updatedAt:now})}
+  const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;const sm=(g.contracts||[]).filter(Boolean).join(", ");
+  if(l){const log=[...(l.log||[]),{d:now,t:"Smlouva z Databáze (NN Stela) přidána"+(sm?" · "+sm:"")}].slice(-100);
+    await db.doc("leads/"+l.id).update({log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{})})}
+  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,source:"Databáze"});
+    await db.doc("leads/"+l.id).update({log:[{d:now,t:"Založeno z Databáze smluv (NN Stela)"+(sm?" · "+sm:"")}],updatedAt:now})}
   if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
   return l.id}
+/* ===== Vstupní dotazník od klienta: šifrovaná schránka → lead + finanční plán + IOLDP v dokumentech =====
+   Klíčový pár ECDH P-256 poradce: soukromý klíč jen v nastavení (settings.dzKey, synchronizuje se jen mezi tvými zařízeními),
+   veřejný jde v odkazu pro klienta (za #). Klient šifruje u sebe (dzcrypto.js), ve Firestore (dzinbox) leží jen šifrový text,
+   číst / mazat ho smí jen tvůj přihlášený Google účet (pravidla databáze). Po zpracování se ze schránky smaže. */
+const DZI={on:false,me:"",unsub:null,busy:new Set()};
+function dzLib(){return window.DzCrypto?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="dzcrypto.js?v=1";sc.onload=res;sc.onerror=rej;document.head.append(sc)})}
+async function dzKey(){if(settings.dzKey&&settings.dzKey.pub&&settings.dzKey.priv)return settings.dzKey;
+  await dzLib();const k=await DzCrypto.genKey();const v={...k,at:new Date().toISOString()};settings={...settings,dzKey:v};await db.doc("settings/main").set(settings);setTimeout(dzStart,300);return v}
+const dzMe=()=>String(lsGet("g_owner")||"").toLowerCase();
+async function dzLinkInfo(){if(DEMO)return null;const me=dzMe();if(!me)return null;try{const k=await dzKey();return {to:me,k:k.pub}}catch(e){console.warn(e);return null}}
+async function dzClientLink(){const z=await dzLinkInfo();if(!z)return null;const h=new URLSearchParams({v:"1",to:z.to,k:z.k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);
+  return location.origin+location.pathname.replace(/[^/]*$/,"")+"dotaznik.html#"+h.toString()}
+$("fpDzBtn")?.addEventListener("click",async()=>{const u=await dzClientLink();if(!u){toast(DEMO?"V ukázkovém režimu nejde":"Nejdřív se přihlas Googlem");return}
+  try{await navigator.clipboard.writeText(u);toast("Odkaz na dotazník zkopírovaný – pošli ho klientovi")}catch(e){prompt("Zkopíruj odkaz pro klienta:",u)}});
+function dzMerge(I,D){const val=v=>v!==""&&v!=null&&!(typeof v==="number"&&isNaN(v));const setp=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=="object")a[k]={};a=a[k]});a[ks.at(-1)]=v};
+  ["klient","partner","kontakt","renta","pojisteni.zivotni"].forEach(path=>{const src=path.split(".").reduce((a,k)=>a&&a[k],D);if(!src||typeof src!=="object")return;
+    Object.entries(src).forEach(([k,v])=>{if(typeof v==="object"&&v!==null)return;if(typeof v==="boolean"&&k==="zapnuto"&&!v)return;if(val(v))setp(I,path+"."+k,v)})});
+  ["motivace","poznamka"].forEach(k=>{if(val(D[k]))I[k]=D[k]});if(D.ioldp)I.ioldp=D.ioldp;
+  ["deti","docasne","majetek","nefin","uvery","cile"].forEach(k=>{const L=(D[k]||[]).filter(r=>r&&Object.values(r).some(val));if(L.length)I[k]=JSON.parse(JSON.stringify(L))});
+  if(I.partner&&I.partner.zapnuto&&I.klient)I.klient.bez_partnera=false;return I}
+async function dzImport(x){
+  const pl=x.plan||{},K=pl.klient||{},kt=pl.kontakt||{},name=String(K.jmeno||"").trim()||"Klient z dotazníku";
+  const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9),now=new Date().toISOString();
+  let l=leads.find(L=>(kt.email&&L.email&&L.email.toLowerCase()===String(kt.email).toLowerCase())||(d(kt.telefon).length===9&&d(L.phone)===d(kt.telefon)))||leads.find(L=>f(L.name)===f(name));
+  if(!l)l=await aiAddLead({name,phone:kt.telefon||"",email:kt.email||""});
+  const cur=leads.find(L=>L.id===l.id)||l;
+  await db.doc("leads/"+l.id).update({log:[...(cur.log||[]),{d:now,t:"Klient vyplnil a odeslal vstupní dotazník"}].slice(-100),updatedAt:now,...(!cur.phone&&kt.telefon?{phone:kt.telefon}:{}),...(!cur.email&&kt.email?{email:kt.email}:{})});
+  const t=fpLeadTarget(cur),key=fpKeyOf(t.rec),saved=fplans.find(p=>p.id===key);
+  const plan=saved&&saved.plan&&saved.plan.klient?dzMerge(JSON.parse(JSON.stringify(saved.plan)),pl):dzMerge({klient:{},partner:{zapnuto:false},deti:[],docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},pojisteni:{zivotni:{stav:0,navrh:""}},realokace:{rucne:false,polozky:[]}},pl);
+  await db.doc("fplan/"+key).set({clientId:key,name,plan,updatedAt:Date.now()});
+  const files=(x.files||[]).filter(z=>z&&z.data).map(z=>new File([DzCrypto.unb64u(z.data)],"IOLDP – "+(z.who==="partner"?((pl.partner||{}).jmeno||"partner"):name)+(/\.pdf$/i.test(z.name||"")||!z.name?".pdf":z.name.replace(/^.*(\.[a-z0-9]+)$/i,"$1")),{type:z.type||"application/pdf"}));
+  if(files.length&&window.Docs)try{await Docs.add(docOwnerLead(cur),files)}catch(e){console.warn("soubory",e)}
+  toast("Nový vyplněný dotazník: "+name+" – lead, plán"+(files.length?" a IOLDP":"")+" připravené");
+  try{if(typeof asChime==="function")asChime()}catch(e){}
+}
+async function dzHandle(docs){
+  const G=new Map();docs.forEach(x=>{if(!G.has(x.g))G.set(x.g,[]);G.get(x.g).push(x)});
+  for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
+    const F=DZI.F,fdb=DZI.fdb,del=async()=>{for(const p of parts)try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}};
+    try{parts.sort((a,b)=>a.i-b.i);await dzLib();let x;
+      try{x=await DzCrypto.open(settings.dzKey.priv,{epk:parts[0].epk,salt:parts[0].salt,iv:parts[0].iv,ct:parts.map(p=>p.ct).join("")});if(!x||x.type!=="fp-dotaznik")throw 0}
+      catch(e){console.warn("dotazník – nejde dešifrovat, mažu",e);await del();continue}
+      /* jen jedno zařízení: kdo smaže první část v transakci, ten dotazník zpracuje */
+      const r0=F.doc(fdb,"dzinbox",parts[0].id);
+      const mine=await F.runTransaction(fdb,async tx=>{const sn=await tx.get(r0);if(!sn.exists())return false;tx.delete(r0);return true});
+      if(!mine)continue;
+      for(const p of parts.slice(1))try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}
+      try{await dzImport(x)}catch(e){console.error(e);const L=lsGet("dz_failed",[]);L.push({at:Date.now(),x});lsSet("dz_failed",L.slice(-10));toast("Dotazník se nepodařilo založit – zkusím to znovu")}
+    }catch(e){console.warn("dotazník",e);DZI.busy.delete(g)}
+  }
+}
+async function dzStart(){
+  const me=dzMe(),tok=GAuth.token();
+  if(DEMO||!me||!tok||!settings.dzKey||!settings.dzKey.priv||typeof AS_FB==="undefined"||!AS_FB||(DZI.on&&DZI.me===me))return;
+  DZI.on=true;DZI.me=me;
+  try{
+    /* nevyřízené (dřív selhalo založení) */
+    const fl=lsGet("dz_failed",[]);if(fl.length){lsSet("dz_failed",[]);for(const z of fl)try{await dzLib();await dzImport(z.x)}catch(e){}}
+    const B="https://www.gstatic.com/firebasejs/12.19.0/";
+    const [A,Au,F]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]);
+    const app=A.getApps().find(a=>a.name==="dz")||A.initializeApp(AS_FB,"dz");
+    const fdb=F.getFirestore(app),au=Au.getAuth(app);
+    await au.authStateReady();
+    if(!au.currentUser||String(au.currentUser.email||"").toLowerCase()!==me)await Au.signInWithCredential(au,Au.GoogleAuthProvider.credential(null,tok));
+    DZI.F=F;DZI.fdb=fdb;
+    DZI.unsub=F.onSnapshot(F.query(F.collection(fdb,"dzinbox"),F.where("to","==",me)),sn=>dzHandle(sn.docs.map(x=>({id:x.id,...x.data()}))),e=>{console.warn("dotazník – schránka",e&&e.code);DZI.on=false;try{DZI.unsub&&DZI.unsub()}catch(x){}});
+  }catch(e){console.warn("dotazník – schránka",e);DZI.on=false}
+}
+setInterval(()=>{if(!DZI.on&&navigator.onLine!==false)dzStart()},60000);setTimeout(dzStart,4000);
 /* iniciály na začátku názvu schůzky z kalendáře: „VK: Novák“ → VK, „MB a VK: Novák“ / „MB+VK Novák“ / „VK a MB: Novák“ → VK+MB.
    Bere se jen název, který začíná iniciály a obsahuje tvoje (z prefixu, tedy VK); „Konzultace VK“, porady a cizí události se nepočítají. */
 function meetInitials(title,mine){
@@ -6556,7 +6658,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=24#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=25#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -6564,7 +6666,7 @@ async function openFP(e,rec){
     try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now()})}catch(err){toast("Plán se nepodařilo uložit")}};
   const onMsg=ev=>{if(ev.origin!==location.origin||ev.source!==fr.contentWindow||!ev.data)return;const d=ev.data;
     if(d.type==="fp:ready"){let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
-      fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null},location.origin)}
+      dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null,dz},location.origin))}
     else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()})}
     /* produkty v automatickém návrhu: poslední změna = výchozí pro další plány (synchronizuje se s nastavením) */
     else if(d.type==="fp:prodDef"&&d.prodDef&&typeof d.prodDef==="object"){clearTimeout(openFP._pd);openFP._pd=setTimeout(()=>{settings={...settings,fpProd:d.prodDef};db.doc("settings/main").set(settings).catch(()=>toast("Výchozí produkty se nepodařilo uložit"))},700)}};
@@ -6891,8 +6993,36 @@ function openMoreTabs(){
 function renderTabBar(){
   const bar=$("tabBar");if(!bar)return;
   bar.replaceChildren(...visibleTabs().map(k=>{const t=TABS.find(x=>x[0]===k)||({db:["db","Databáze"],users:["users","Uživatelé"],atasks:["atasks","Úkoly"],aclients:["aclients","Klienti"]})[k];if(!t)return null;
-    return el("button",{type:"button",role:"tab",id:"tab_"+k,"aria-selected":String(k===view),onclick:()=>setView(k)},t[1])}).filter(Boolean));
-  renderBottomTabs();
+    return el("button",{type:"button",role:"tab",id:"tab_"+k,"aria-selected":String(k===view),onclick:()=>setView(k),title:TABS.some(x=>x[0]===k)?"Přetažením změníš pořadí":null},t[1])}).filter(Boolean));
+  renderBottomTabs();tabDnd(bar);
+}
+/* pořadí záložek přetažením v horní liště: myš = táhni hned, dotyk = podrž a táhni. Ukládá se do nastavení (tabOrder) – stejně jako šipky v Data a synchronizace.
+   Speciální záložky na konci (Databáze, Uživatelé, Úkoly) se nepřesouvají. */
+function tabDnd(bar){
+  if(bar._dnd)return;bar._dnd=1;let st=null,justDragged=0;
+  const movable=b=>b&&b.id&&b.id.startsWith("tab_")&&TABS.some(t=>t[0]===b.id.slice(4));
+  const begin=()=>{if(!st||st.on)return;st.on=true;st.b.classList.add("tabdrag");bar.classList.add("tabdragging");try{st.b.setPointerCapture(st.id)}catch(e){}};
+  const end=async save=>{if(!st)return;const s0=st;st=null;clearTimeout(s0.t);if(!s0.on)return;
+    s0.b.classList.remove("tabdrag");bar.classList.remove("tabdragging");justDragged=Date.now();
+    if(!save){renderTabBar();return}
+    const vis=[...bar.querySelectorAll("button")].filter(movable).map(b=>b.id.slice(4));
+    const full=tabOrder(),visSet=new Set(vis);let j=0;const order=full.map(k=>visSet.has(k)?vis[j++]:k);
+    if(JSON.stringify(order)===JSON.stringify(full))return;
+    try{settings={...settings,tabOrder:order};await db.doc("settings/main").set(settings);renderBottomTabs();if(typeof renderTabsConfig==="function")renderTabsConfig()}catch(e){toast("Pořadí se nepodařilo uložit");renderTabBar()}};
+  bar.addEventListener("pointerdown",e=>{const b=e.target.closest("button");if(!movable(b)||e.button!==0)return;
+    st={b,id:e.pointerId,x0:e.clientX,y0:e.clientY,on:false,touch:e.pointerType!=="mouse",t:0};
+    if(st.touch)st.t=setTimeout(()=>{begin();try{navigator.vibrate&&navigator.vibrate(10)}catch(x){}},380)});
+  bar.addEventListener("pointermove",e=>{if(!st||e.pointerId!==st.id)return;const d=Math.hypot(e.clientX-st.x0,e.clientY-st.y0);
+    if(!st.on){if(st.touch){if(d>8){clearTimeout(st.t);st=null}}else if(d>6)begin();return}
+    e.preventDefault();
+    const over=document.elementFromPoint(e.clientX,e.clientY),tb=over&&over.closest&&over.closest("#tabBar button");
+    if(!movable(tb)||tb===st.b)return;
+    const r=tb.getBoundingClientRect(),after=e.clientX>r.left+r.width/2;
+    if(after){if(tb.nextSibling!==st.b)tb.after(st.b)}else if(tb.previousSibling!==st.b)tb.before(st.b)});
+  addEventListener("pointerup",e=>{if(st&&e.pointerId===st.id)end(true)});
+  bar.addEventListener("pointercancel",()=>end(false));
+  bar.addEventListener("click",e=>{if(Date.now()-justDragged<400){e.stopPropagation();e.preventDefault()}},true);
+  bar.addEventListener("contextmenu",e=>{if(st&&st.touch)e.preventDefault()});
 }
 /* editor pořadí a viditelnosti záložek – v Data a synchronizace; přepínač skryje, šipky posunou */
 function renderTabsConfig(){

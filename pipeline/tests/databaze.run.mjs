@@ -220,7 +220,7 @@ const tests = {
   },
   async "do pipeline: ＋ u řádku i hromadně, stejný člověk = jeden lead se všemi PDF, potom „✓ lead“"() {
     const { ctx, page } = await open();
-    await page.evaluate(() => { window.calls = []; ui = Databaze.mount(document.getElementById("box"), { toast: m => toasts.push(m), addLeads: async g => { calls.push({ name: g.name, files: g.files.map(f => f.name), note: g.note, n: g.rows.length }); return "L" + calls.length; }, leadExists: () => true, openLead: id => window.opened = id }); });
+    await page.evaluate(() => { window.calls = []; ui = Databaze.mount(document.getElementById("box"), { toast: m => toasts.push(m), addLeads: async g => { calls.push({ name: g.name, files: g.files.map(f => f.name), note: g.note, contracts: g.contracts, n: g.rows.length }); return "L" + calls.length; }, leadExists: () => true, openLead: id => window.opened = id }); });
     await upload(page, [file("a.pdf", await stelaPdf({ key: "9900000101", name: "Jana Nováková" })), file("b.pdf", await stelaPdf({ key: "9900000102", name: "Jana Nováková", premium: "700 Kč" })), file("c.pdf", await stelaPdf({ key: "9900000103", name: "Karel Dvořák" }))]);
     await page.locator("tbody tr").nth(2).locator(".db-plus").click();
     await page.waitForFunction(() => calls.length === 1);
@@ -231,9 +231,17 @@ const tests = {
     await page.waitForFunction(() => calls.length === 2);
     const c = await page.evaluate(() => calls[1]);
     eq([c.name, c.n, c.files.sort()], ["Jana Nováková", 2, ["a.pdf", "b.pdf"]], "dvě smlouvy jedné osoby = jeden lead");
-    assert(/9900000101/.test(c.note) && /9900000102/.test(c.note), "obě smlouvy v poznámce");
+    eq([c.note, c.contracts.sort()], [undefined, ["9900000101", "9900000102"]], "bez poznámky, jen čísla smluv (do historie leadu)");
     eq(await page.$$eval(".db-in", b => b.length), 3, "u všech řádků „✓ lead“");
     eq((await stored(page)).map(r => r.leadId).sort(), ["L1", "L2", "L2"], "lead uložen u řádků");
+    await ctx.close();
+  },
+  async "jméno vždy „Jméno Příjmení“ bez kapitálek (Stela: „NOVÁKOVÁ Jana“)"() {
+    const { ctx, page } = await open();
+    const r = await page.evaluate(() => ["NOVÁKOVÁ Jana", "Ing. NOVÁK Petr", "Jana NOVÁKOVÁ", "DVOŘÁK-NOVÁK Karel", "Jana Nováková"].map(Databaze.math.niceName));
+    eq(r, ["Jana Nováková", "Ing. Petr Novák", "Jana Nováková", "Karel Dvořák-Novák", "Jana Nováková"], "jména");
+    const p = await page.evaluate(t => Databaze.math.parseStela(t).rec.name, TXT({ name: "ČERMÁK Zdeněk" }));
+    eq(p, "Zdeněk Čermák", "ze Stely");
     await ctx.close();
   },
   async "CSV export: BOM, středník, desetinná čárka a ochrana před vzorcem"() {
