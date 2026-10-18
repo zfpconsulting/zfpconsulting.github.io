@@ -567,7 +567,7 @@ tr.click{cursor:pointer} tr.click:active td{background:var(--fill2)}
 .celebr{position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%);animation:cfade .25s ease-out}
 .celebr.out{animation:cfadeout .3s ease-in forwards}
 .c-box{width:min(420px,100%);background:var(--bg2);border-radius:28px;padding:30px 26px 24px;text-align:center;display:grid;justify-items:center;gap:6px;box-shadow:0 30px 80px rgba(0,0,0,.35);animation:cpop .55s cubic-bezier(.2,1.4,.4,1)}
-.c-icon{color:#FFB800;margin-bottom:6px;animation:cicon 1.1s cubic-bezier(.2,1.6,.4,1)}
+.c-icon{color:#F37520;margin-bottom:6px;animation:cicon 1.1s cubic-bezier(.2,1.6,.4,1)}
 .celebr.paid .c-icon{color:var(--teal)}
 .c-kicker{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--label2)}
 .c-box h2{margin:0;font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
@@ -1971,7 +1971,7 @@ function renderCalc(){
   if(calcUI||calcLoading)return;
   const go=()=>{calcLoading=false;if(!window.FinCalc){$("calcBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}calcUI=FinCalc.mount($("calcBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)}})};
   if(window.FinCalc)return go();
-  calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=3";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=4";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* záložka Důchodová kalkulačka – modul duchod.js se načte až při prvním otevření */
 let duchUI=null,duchLoading=false,duchPending=null;
@@ -1983,7 +1983,7 @@ function renderDuch(then){
   const go=()=>{duchLoading=false;if(!window.DuchodCalc){$("duchBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}
     duchUI=DuchodCalc.mount($("duchBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),ensure:ensureClient});fire()};
   if(window.DuchodCalc)return go();
-  duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=6";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=7";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* záložka Databáze (jen admin) – modul databaze.js se načte až při prvním otevření; data jen v localStorage tohoto zařízení */
 let dbUI=null,dbLoading=false;
@@ -2015,7 +2015,7 @@ async function dbAddLead(g){
 const DZI={on:false,me:"",unsub:null,busy:new Set()};
 function dzLib(){return window.DzCrypto?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="dzcrypto.js?v=2";sc.onload=res;sc.onerror=rej;document.head.append(sc)})}
 async function dzKey(){if(settings.dzKey&&settings.dzKey.pub&&settings.dzKey.priv)return settings.dzKey;
-  await dzLib();const k=await DzCrypto.genKey();const v={...k,at:new Date().toISOString()};settings={...settings,dzKey:v};await db.doc("settings/main").set(settings);setTimeout(dzStart,300);return v}
+  await dzLib();const k=await DzCrypto.genKey();const v={...k,at:new Date().toISOString()};settings={...settings,dzKey:v};await db.doc("settings/main").update({dzKey:v});setTimeout(dzStart,300);return v}
 const dzMe=()=>String(lsGet("g_owner")||"").toLowerCase();
 async function dzLinkInfo(){if(DEMO)return null;const me=dzMe();if(!me)return null;try{const k=await dzKey();return {to:me,k:k.pub}}catch(e){console.warn(e);return null}}
 async function dzClientLink(){const z=await dzLinkInfo();if(!z)return null;const h=new URLSearchParams({v:"1",to:z.to,k:z.k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);
@@ -2064,8 +2064,8 @@ const dzNotes=()=>(settings&&Array.isArray(settings.dzNotes)?settings.dzNotes:[]
 async function dzNotify(n){const L=[{id:newId(),at:Date.now(),...n},...dzNotes()].slice(0,15);settings={...settings,dzNotes:L};renderDzNotes();
   try{if(typeof asChime==="function")asChime()}catch(e){}
   try{if("Notification" in window&&Notification.permission==="granted")new Notification(n.t,{body:n.s||"",icon:"icon-192.png?v=2",tag:n.id})}catch(e){}
-  try{await db.doc("settings/main").set(settings)}catch(e){}}
-async function dzDismiss(id){settings={...settings,dzNotes:dzNotes().filter(n=>n.id!==id)};renderDzNotes();try{await db.doc("settings/main").set(settings)}catch(e){}}
+  try{await db.doc("settings/main").update({dzNotes:L})}catch(e){}}
+async function dzDismiss(id){const L=dzNotes().filter(n=>n.id!==id);settings={...settings,dzNotes:L};renderDzNotes();try{await db.doc("settings/main").update({dzNotes:L})}catch(e){}}
 const DZ_IC={dz:'<path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5"/><path d="M10 13l2 2 3.5-4"/>',cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M9 14.5l2 2 4-4"/>'};
 let dzNotesSig="";
 function renderDzNotes(){
@@ -2086,15 +2086,16 @@ setInterval(()=>{try{renderDzNotes()}catch(e){}},1500);
 /* ---------- volné bloky pro schůzky: všední dny 8:30–19:00, 45 min + 15 min rezerva; jen tvoje schůzky (prefix) a osobní kalendář blokují ---------- */
 const DZS={from:510,to:1140,len:45,buf:15,days:21,addr:()=>(settings.dzAddr||"Trnitá 500/9, 602 00 Brno")};
 function dzFreeSlots(dayKey,busy){const dow=new Date(dayKey+"T12:00:00").getDay();if(dow===0||dow===6)return[];
-  const B=busy.map(([a,b])=>[a-DZS.buf,b+DZS.buf]).sort((x,y)=>x[0]-y[0]),out=[];let t=DZS.from;
+  const B=busy.map(([a,b,after])=>[a-DZS.buf,b+(after??DZS.buf)]).sort((x,y)=>x[0]-y[0]),out=[];let t=DZS.from;
   while(t+DZS.len<=DZS.to){const c=B.find(([a,b])=>t<b&&t+DZS.len>a);if(!c){out.push(t);t+=DZS.len+DZS.buf}else t=Math.max(t+15,Math.ceil(c[1]/15)*15)}
   return out}
-const dzBlocks=ev=>!ev.allDay&&(ev.calId==="primary"||ev.calId===dzMe()||ctIsMine(ev));
+const dzBlocks=ev=>!ev.allDay&&(ev.school||ev.calId==="primary"||ev.calId===dzMe()||ctIsMine(ev));
+const dzBusyIv=e=>[ctMinutesOf(e.start),e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60,e.school?SCHOOL_AFTER:undefined];
 async function dzBusy(from,to){
-  const ids=[...new Set([calCfg().id,"primary"].filter(Boolean))],out=[];
+  const sch=await schoolIds().catch(()=>[]),ids=[...new Set([calCfg().id,"primary",...sch].filter(Boolean))],out=[];
   for(const id of ids){try{const p=new URLSearchParams({timeMin:from.toISOString(),timeMax:to.toISOString(),singleEvents:"true",orderBy:"startTime",maxResults:"500"});
     const r=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(id)+"/events?"+p)).json();
-    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={calId:id,title:(e.summary||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};if(id==="primary"||ctIsMine(ev))out.push(ev)})}catch(e){}}
+    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={calId:id,school:sch.includes(id),title:(e.summary||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};if(ev.school||id==="primary"||ctIsMine(ev))out.push(ev)})}catch(e){}}
   return out}
 /* volné termíny pro klienty (rezervace 2. konzultace po dotazníku): jen časy, žádná jména – veřejně čitelné v dzslots/{tvůj e-mail} */
 let dzPubAt=0;
@@ -2104,7 +2105,7 @@ async function dzPublishSlots(force){
   try{const now=new Date(),from=new Date(now.getTime()+18*3600e3),to=new Date(now.getFullYear(),now.getMonth(),now.getDate()+DZS.days);
     const busy=await dzBusy(new Date(now.getFullYear(),now.getMonth(),now.getDate()),to),slots=[];
     for(let i=1;i<=DZS.days;i++){const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i),k=ymd(day);
-      const b=busy.filter(e=>ymd(new Date(e.start))===k).map(e=>[ctMinutesOf(e.start),ymd(new Date(e.end))===k?ctMinutesOf(e.end):1440]);
+      const b=busy.filter(e=>ymd(new Date(e.start))===k).map(e=>[ctMinutesOf(e.start),ymd(new Date(e.end))===k?ctMinutesOf(e.end):1440,e.school?SCHOOL_AFTER:undefined]);
       dzFreeSlots(k,b).forEach(m=>{const s=new Date(day.getFullYear(),day.getMonth(),day.getDate(),Math.floor(m/60),m%60);if(s>from)slots.push(s.toISOString())})}
     await DZI.F.setDoc(DZI.F.doc(DZI.fdb,"dzslots",dzMe()),{slots:slots.slice(0,300),upd:new Date().toISOString(),len:DZS.len,addr:DZS.addr()});
   }catch(e){console.warn("volné termíny",e)}}
@@ -2726,7 +2727,7 @@ function clTeamOurs(id,ym,C){C=C||settings.closings||{};return [1,2].some(h=>C[y
 /* poměr zdrojů příjmu za aktuální měsíc – vlastní produkce / tým / udržovačky / ostatní */
 let mixSpinPending=false;
 /* skutečné iOS systémové barvy jako základ, prstenec pak dostane skutečný 3D nádech (viz shade()) */
-const MIX_HEX={own:"#0A84FF",team:"#FF9F0A",udr:"#30D158",reg:"#40C8E0",ost:"#BF5AF2"};
+const MIX_HEX={own:"#F37520",team:"#F9A86F",udr:"#8E8E93",reg:"#C7C7CC",ost:"#5A5A5E"};
 /* zesvětlí (amt>0) nebo ztmaví (amt<0) hex barvu o podíl amt (0..1) směrem k bílé/černé */
 function shade(hex,amt){
   const n=parseInt(hex.slice(1),16), r=n>>16&255, g=n>>8&255, b=n&255;
@@ -4955,6 +4956,18 @@ const CT_COL=["var(--tint)","var(--orange)","var(--green)","var(--purple)","var(
 let ctEvents=null, ctState="off", ctMsg="", ctBusy=false, ctAgain=false, ctViewYm=null, ctWeekA=null, ctSel=null, ctMode="week";
 function ctIds(){return (settings.calTabIds&&settings.calTabIds.length)?settings.calTabIds:(calCfg().id?[calCfg().id]:[])}
 async function saveCalTabIds(ids){try{await db.doc("settings/main").set({...settings,calTabIds:ids});toast("Uloženo");fetchCalTab(true)}catch(e){toast("Nepodařilo se uložit")}}
+/* rozvrh ze školy (odběr z IS MUNI přidaný v Google Kalendáři „Z URL“): najde se sám mezi odebíranými kalendáři
+   (…@import.calendar.google.com s názvem MU/MUNI/IS/rozvrh/škola), nebo ručně settings.schoolCalIds. Škola vždy blokuje volné bloky
+   a po jejím konci je další schůzka až za 50 min (konec v hh:40 → nejdřív v (hh+1):30). */
+let calSchool=null,calSchoolAt=0;
+async function schoolIds(){
+  if(Array.isArray(settings.schoolCalIds)&&settings.schoolCalIds.length)return settings.schoolCalIds;
+  if(calSchool&&Date.now()-calSchoolAt<30*60000)return calSchool;
+  if(!GAuth.token())return calSchool||[];
+  try{const r=await(await gfetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250")).json();
+    calSchool=(r.items||[]).filter(c=>/@import\.calendar\.google\.com$/.test(c.id)&&/\b(mu|muni|is mu|rozvrh|škola|skola|fakulta|esf)\b/i.test((c.summaryOverride||c.summary||"")+" "+(c.description||""))).map(c=>c.id);calSchoolAt=Date.now()}catch(e){calSchool=calSchool||[]}
+  return calSchool}
+const SCHOOL_AFTER=50;
 async function openCalTabPicker(){
   if(!GAuth.token()){toast("Nejdřív se přihlas Googlem (tlačítko nahoře)");return}
   openSheet("Vybrat kalendáře",[el("p",{class:"hint"},"Vyber jeden nebo víc kalendářů, které se mají zobrazit v záložce Kalendář.")]);
@@ -4979,7 +4992,7 @@ function ctWeekLabel(a){const b=addDaysFrom(a,6),da=new Date(a+"T00:00:00"),db=n
 function ctIsMine(ev){const re=prefixRe();if(!re)return true;if(!re.test(ev.title))return false;
   const rest=ev.title.replace(re,"").trim();return !!rest&&!/^úkoly?$/i.test(rest)}
 /* barva události v kalendáři – tvoje (podle prefixu) vždy modře, ostatní šedě, bez ohledu na to, ze kterého vybraného kalendáře pochází */
-function evColor(ev){return "var(--orange)"}
+function evColor(ev){return ev&&ev.school?"#5A5A5E":"var(--orange)"}
 /* klíč klienta z názvu události (příjmení za prefixem), pro rozpoznání „poprvé v kalendáři“ */
 function ctClientKey(ev){if(!ctIsMine(ev))return null;const re=prefixRe();const rest=ev.title.replace(re,"").trim();
   const w=rest.split(/\s+/)[0];return w?norm(w):null}
@@ -4998,7 +5011,7 @@ async function fetchCalTab(force){
   if(!ctWeekA)ctWeekA=weekStart(todayStr(),0);
   if(!ctSel)ctSel=todayStr();
   if(!GAuth.token()||!navigator.onLine){if(!GAuth.token()){ctState="error";ctMsg="Přihlas se Googlem (tlačítko nahoře) a načtu vybrané kalendáře.";render()}return}
-  const ids=ctIds();
+  const sch=await schoolIds().catch(()=>[]),ids=[...new Set([...ctIds(),...sch])];
   if(!ids.length){ctEvents=[];ctState="ok";ctMsg="";render();return}
   ctBusy=true;if(!ctEvents||force)ctState="loading";render();
   try{
@@ -5019,7 +5032,7 @@ async function fetchCalTab(force){
           end:e.end?.dateTime||(e.end?.date?e.end.date+"T00:00:00":null),
           allDay:!e.start?.dateTime, place:(e.location||"").trim(),
           online:/online|teams|zoom|meet/i.test((e.summary||"")+" "+(e.location||"")),
-          calId:id,calCol:CT_COL[i%CT_COL.length]}));
+          calId:id,calCol:CT_COL[i%CT_COL.length],school:sch.includes(id)}));
       }catch(e){return []}
     }));
     ctEvents=results.flat().filter(e=>e.start).sort((a,b)=>a.start.localeCompare(b.start));
@@ -5253,7 +5266,7 @@ function renderCalWeek(){
   const canWrite=ctCanWrite();
   /* volné bloky 8:30–19:00 (45 min) – klepnutím je zaplníš klientem */
   const nowD=new Date();
-  days.forEach((k,i)=>{const busy=(byDay[k]||[]).filter(dzBlocks).map(e=>[ctMinutesOf(e.start),e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60]);
+  days.forEach((k,i)=>{const busy=(byDay[k]||[]).filter(dzBlocks).map(dzBusyIv);
     dzFreeSlots(k,busy).forEach(m=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);if(s<nowD)return;
       const hm=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
       cols[i].append(el("button",{type:"button",class:"cwslot",style:"top:"+((m/60-hStart)*HH)+"px;height:"+(DZS.len/60*HH-2)+"px",title:"Volný blok "+hm+" – klepni a zaplň ho klientem",
@@ -6772,7 +6785,7 @@ async function openFP(e,rec){
       dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null,dz},location.origin))}
     else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()})}
     /* produkty v automatickém návrhu: poslední změna = výchozí pro další plány (synchronizuje se s nastavením) */
-    else if(d.type==="fp:prodDef"&&d.prodDef&&typeof d.prodDef==="object"){clearTimeout(openFP._pd);openFP._pd=setTimeout(()=>{settings={...settings,fpProd:d.prodDef};db.doc("settings/main").set(settings).catch(()=>toast("Výchozí produkty se nepodařilo uložit"))},700)}};
+    else if(d.type==="fp:prodDef"&&d.prodDef&&typeof d.prodDef==="object"){clearTimeout(openFP._pd);openFP._pd=setTimeout(()=>{settings={...settings,fpProd:d.prodDef};db.doc("settings/main").update({fpProd:d.prodDef}).catch(()=>toast("Výchozí produkty se nepodařilo uložit"))},700)}};
   addEventListener("message",onMsg);
 }
 /* portfolio v kartě klienta (úplně dole) – stejný náhled jako v Portfoliích */
@@ -7129,7 +7142,7 @@ function tabDnd(bar){
     const vis=btns().filter(movable).map(b=>b.id.slice(4));
     const full=tabOrder(),visSet=new Set(vis);let j=0;const order=full.map(k=>visSet.has(k)?vis[j++]:k);
     if(JSON.stringify(order)===JSON.stringify(full))return;
-    try{settings={...settings,tabOrder:order};await db.doc("settings/main").set(settings);renderBottomTabs();if(typeof renderTabsConfig==="function")renderTabsConfig()}catch(e){toast("Pořadí se nepodařilo uložit");renderTabBar()}};
+    try{settings={...settings,tabOrder:order};await db.doc("settings/main").update({tabOrder:order});renderBottomTabs();if(typeof renderTabsConfig==="function")renderTabsConfig()}catch(e){toast("Pořadí se nepodařilo uložit");renderTabBar()}};
   bar.addEventListener("pointerdown",e=>{const b=e.target.closest("button");if(!movable(b)||e.button!==0)return;
     st={b,id:e.pointerId,x0:e.clientX,y0:e.clientY,x:px(e),grab:px(e)-b.offsetLeft,on:false,touch:e.pointerType!=="mouse",t:0};
     if(st.touch)st.t=setTimeout(begin,320)});
@@ -7615,7 +7628,7 @@ const PP_ENC="v1.gl_MkFRAFqTjO4sq2hdS6w.ghGopD2PoO01XO38.MCDGRGTPkxSu6a6nh09Q2r4
 })();
 </script>
 <script src="photoedit.js?v=2" defer></script>
-<script src="docs.js?v=3" defer></script>
+<script src="docs.js?v=4" defer></script>
 <script src="assistant.js?v=7" defer></script>
 <script src="jarvis.js?v=4" defer></script>
 <script>

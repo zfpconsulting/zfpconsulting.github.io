@@ -127,8 +127,8 @@ function pick(owner){const i=h("input",{type:"file",multiple:true,hidden:true});
 
 /* ---------- styly ---------- */
 const CSS=`
-.dc-over{outline:2.5px dashed var(--tint,#007aff)!important;outline-offset:-2px;background-image:linear-gradient(var(--tint-soft,rgba(243,117,32,.12)),var(--tint-soft,rgba(243,117,32,.12)))!important}
-.card.dc-over::after,.crow.dc-over::after,.scard.dc-over::after{content:"Pustit sem – přidá se ke klientovi";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:5px 12px;border-radius:999px;background:var(--tint,#007aff);color:#fff;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:3}
+.dc-over{outline:2.5px dashed var(--tint,#F37520)!important;outline-offset:-2px;background-image:linear-gradient(var(--tint-soft,rgba(243,117,32,.12)),var(--tint-soft,rgba(243,117,32,.12)))!important}
+.card.dc-over::after,.crow.dc-over::after,.scard.dc-over::after{content:"Pustit sem – přidá se ke klientovi";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:5px 12px;border-radius:999px;background:var(--tint,#F37520);color:#fff;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:3}
 .card.dc-over,.crow.dc-over,.scard.dc-over{position:relative}
 .dc-tag{display:inline-flex;align-items:center;gap:3px}
 .dc-tag svg{width:11px;height:11px}
@@ -145,7 +145,7 @@ const CSS=`
 .dv-bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:10px 14px;background:var(--bar-bg,rgba(242,242,247,.8));border-bottom:.5px solid var(--sep,rgba(60,60,67,.18));flex:none}
 .dv-bar h2{margin:0;font-size:16px;font-weight:600;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dv-bar h2 small{display:block;font-size:12px;font-weight:400;color:var(--label2)}
-.dv-bar button{color:var(--tint,#007aff);font-size:16px;padding:6px 4px;white-space:nowrap}
+.dv-bar button{color:var(--tint,#F37520);font-size:16px;padding:6px 4px;white-space:nowrap}
 .dv-bar button:disabled{opacity:.3}
 .dv-bar .dv-nav{display:flex;gap:4px;align-items:center}
 .dv-bar .dv-r{display:flex;gap:10px;align-items:center;justify-content:flex-end}
@@ -160,7 +160,7 @@ const CSS=`
 .dv-txt{align-self:stretch;margin:0;padding:12px 14px;background:var(--bg2,#fff);border-radius:10px;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 .dv-tabs{display:flex;gap:6px;flex-wrap:wrap;align-self:stretch}
 .dv-tabs button{background:var(--bg2,#fff);border-radius:999px;padding:5px 12px;font-size:13px;box-shadow:var(--card-shadow)}
-.dv-tabs button[aria-selected="true"]{background:var(--tint,#007aff);color:#fff}
+.dv-tabs button[aria-selected="true"]{background:var(--tint,#F37520);color:#fff}
 .dv-tbl{align-self:stretch;overflow-x:auto;background:var(--bg2,#fff);border-radius:10px;flex:none}
 .dv-tbl table{border-collapse:collapse;font-size:13px;min-width:100%}
 .dv-tbl td,.dv-tbl th{padding:5px 9px;border:.5px solid var(--sep,rgba(60,60,67,.18));white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis;text-align:left}
@@ -267,7 +267,7 @@ function loadScript(src){if(!scripts.has(src))scripts.set(src,new Promise((res,r
 async function showDocx(c,blob,put){
   await loadScript("vendor/mammoth.browser.min.js");
   const r=await window.mammoth.convertToHtml({arrayBuffer:await blob.arrayBuffer()});
-  const doc=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:15px/1.5 -apple-system,Calibri,Arial,sans-serif;color:#111;margin:0;padding:18px 20px;max-width:820px;margin:auto;overflow-wrap:anywhere}table{border-collapse:collapse}td,th{border:1px solid #bbb;padding:4px 8px}img{max-width:100%}a{color:#0a58ca}</style><base target="_blank">${r.value||"<p>(prázdný dokument)</p>"}`;
+  const doc=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:15px/1.5 -apple-system,Calibri,Arial,sans-serif;color:#111;margin:0;padding:18px 20px;max-width:820px;margin:auto;overflow-wrap:anywhere}table{border-collapse:collapse}td,th{border:1px solid #bbb;padding:4px 8px}img{max-width:100%}a{color:#F37520}</style><base target="_blank">${r.value||"<p>(prázdný dokument)</p>"}`;
   put(h("iframe",{class:"dv-frame",sandbox:"",srcdoc:doc,title:c.f.name}))}
 
 /* --- tabulky (.xlsx přes read-excel-file, .csv vlastním čtením) --- */

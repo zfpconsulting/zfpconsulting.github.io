@@ -114,7 +114,7 @@ const ICON={
 };
 /* logo ZFP Consulting (vodoznak i hlavička) – proporce podle oficiálního loga: „ZFP“ tmavě šedé, vlajka s vykrojenou
    špičkou vyšší než písmena, „CONSULTING“ světleji šedé přes celou šířku; textLength drží přesné šířky v každém písmu */
-function zfpLogo({x=0,y=0,s=1,gray="#4f5052",gray2="#7d8183",orange="#db6b33",op=1}={}){
+function zfpLogo({x=0,y=0,s=1,gray="#4f5052",gray2="#7d8183",orange="#F37520",op=1}={}){
   return `<g transform="translate(${x} ${y}) scale(${s})" opacity="${op}">
   <text x="0" y="79" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="80" textLength="152" lengthAdjust="spacingAndGlyphs" style="fill:${gray}">ZFP</text>
   <path d="M165 0H222V94L193.5 64L165 94Z" style="fill:${orange}"/>
@@ -166,10 +166,10 @@ function chartSVG(pts,{w=900,h=440,c,labelA,labelB,wm=true}){
 
 /* ================= CSS ================= */
 const CSS=`
-.fc{--fc-navy:#0b2341;--fc-orange:#ff4f00;--fc-green:#5cb800;--fc-area:#e4e6e9;--fc-tile:#f0f2f5;--fc-line:#d5d9df;--fc-calc:#e3e8ef;--fc-flagc:#4a90e2;--fc-txt:#6b7280;--fc-grid:#e9ebee;--fc-logo1:#4f5052;--fc-logo2:#7d8183;
+.fc{--fc-navy:#111111;--fc-orange:#F37520;--fc-green:#F37520;--fc-area:#e4e6e9;--fc-tile:#f0f2f5;--fc-line:#d5d9df;--fc-calc:#e3e8ef;--fc-flagc:#F37520;--fc-txt:#6b7280;--fc-grid:#e9ebee;--fc-logo1:#4f5052;--fc-logo2:#7d8183;
   font-family:Roboto,var(--font,-apple-system,system-ui,sans-serif);color:var(--fc-navy);background:var(--bg2,#fff);border-radius:16px;box-shadow:var(--card-shadow);overflow:hidden;margin-bottom:28px;letter-spacing:0}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#6fd10f;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}}
-:root[data-theme="dark"] .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#6fd10f;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#F37520;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}}
+:root[data-theme="dark"] .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#F37520;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}
 :where(.fc) button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
 .fc-head{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--fc-line)}
 .fc-logo svg{display:block;height:36px;width:auto}
@@ -201,9 +201,9 @@ const CSS=`
 .fc-in input{flex:1;min-width:0;border:none;background:transparent;text-align:center;font:inherit;font-size:16px;color:var(--fc-navy);outline:none;height:100%}
 .fc-f.calc .fc-in{background:var(--fc-calc);border-color:var(--fc-calc)}
 .fc-f.calc .fc-in button{color:var(--fc-txt);opacity:.6;cursor:default}
-.fc-f.err .fc-in{border-color:var(--red,#ff3b30)}
+.fc-f.err .fc-in{border-color:var(--red,#F37520)}
 .fc-sel{width:100%;height:50px;border:1px solid var(--fc-line);border-radius:6px;background:var(--bg2,#fff);color:var(--fc-navy);font:inherit;font-size:16px;padding:0 14px;appearance:auto}
-.fc-errm{color:var(--red,#ff3b30);font-size:13.5px;line-height:1.4;margin:4px 0 0}
+.fc-errm{color:var(--red,#F37520);font-size:13.5px;line-height:1.4;margin:4px 0 0}
 .fc-main{flex:1;min-width:0;padding:22px 26px 26px;container-type:inline-size}
 .fc-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:22px}
 .fc-tile{background:var(--fc-tile);border-radius:10px;padding:12px 14px;min-width:0}
@@ -228,7 +228,7 @@ const CSS=`
 .fc-mi .t{flex:1;min-width:0}
 .fc-mi .t b{display:block;font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fc-mi .t small{color:var(--fc-txt);font-size:12.5px}
-.fc-mi .del{color:var(--red,#ff3b30);font-size:13px}
+.fc-mi .del{color:var(--red,#F37520);font-size:13px}
 .fc-mi.cur b{color:var(--fc-orange)}
 .fc-wm{padding:2px 14px 12px;display:grid;gap:10px;border-top:1px solid var(--fc-line);margin-top:6px}
 .fc-wm h4{margin:10px 0 0!important}
@@ -241,7 +241,7 @@ const CSS=`
 .fc-wrow input[type=text]{flex:1;min-width:0;height:34px;border:1px solid var(--fc-line);border-radius:6px;padding:0 10px;font:inherit;font-size:14px;background:var(--bg2,#fff);color:var(--fc-navy)}
 .fc-wimg{display:flex;align-items:center;gap:10px}
 .fc-wimg img{width:56px;height:40px;object-fit:contain;background:var(--fc-tile);border-radius:6px}
-.fc-wimg button{color:var(--tint,#007aff);font-size:14px!important;font-weight:500}
+.fc-wimg button{color:var(--tint,#F37520);font-size:14px!important;font-weight:500}
 .fc-wnote{font-size:12px;color:var(--fc-txt);margin:0}
 .fc-wrapH{position:relative}
 @media (max-width:860px){
@@ -332,7 +332,7 @@ function mount(root,opts={}){
     const tl=root.querySelector(".fc-tiles");if(tl)tl.innerHTML=tilesHTML();
     drawChart();
   }
-  const scrColors=()=>({a:"var(--fc-green)",b:"var(--fc-area)",grid:"var(--fc-grid)",txt:"var(--fc-txt)",ring:"var(--bg2,#fff)",wmGray:"var(--fc-logo1)",wmGray2:"var(--fc-logo2)",wmOrange:"#db6b33",wmOp:.3});
+  const scrColors=()=>({a:"var(--fc-green)",b:"var(--fc-area)",grid:"var(--fc-grid)",txt:"var(--fc-txt)",ring:"var(--bg2,#fff)",wmGray:"var(--fc-logo1)",wmGray2:"var(--fc-logo2)",wmOrange:"#F37520",wmOp:.3});
   let anim=0,lastSig="";
   function drawChart(){
     const box=root.querySelector("#fcChart");if(!box)return;
@@ -430,16 +430,16 @@ function mount(root,opts={}){
     const res=lastRes;if(!res.ok){toast("Nejdřív oprav zadání – "+res.err);return}
     const M=MODES[st.mode],v=res.v,c=cur();
     const pts=series(st.mode,v);
-    const ch=chartSVG(pts,{w:900,h:430,c:{a:"#5cb800",b:"#e4e6e9",grid:"#e9ebee",txt:"#6b7280",ring:"#fff",wmGray:"#4f5052",wmGray2:"#7d8183",wmOrange:"#db6b33",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
+    const ch=chartSVG(pts,{w:900,h:430,c:{a:"#F37520",b:"#e4e6e9",grid:"#e9ebee",txt:"#6b7280",ring:"#fff",wmGray:"#4f5052",wmGray2:"#7d8183",wmOrange:"#F37520",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
     const params=FIELDS[st.mode].map(k=>[M.f[k].l.replace(/ \((CZK|%|počet let)\)/,""),k==="rate"?fmtPct(v[k]):k==="years"?yrsTxt(v[k]):fmtKc(v[k]),k===c.calc]);
     params.push(["Frekvence připisování úroku",(FREQ.find(f=>f[0]===v.freq)||FREQ[0])[1],false]);
     const d=new Date().toLocaleDateString("cs-CZ");
     const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${esc(M.t)} – ${esc(st.name||"Koncept")} – ${d}</title><style>
-      @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#0b2341;margin:0;padding:24px}
-      .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #ff4f00;padding-bottom:12px;margin-bottom:18px}
+      @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#111111;margin:0;padding:24px}
+      .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #F37520;padding-bottom:12px;margin-bottom:18px}
       .hd h1{font-size:20px;margin:0}.hd small{color:#6b7280}
       .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#f0f2f5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px}.t .v{font-size:17px;font-weight:700}
-      table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}tr.c td{color:#1d6fd6}
+      table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}tr.c td{color:#F37520}
       h2{font-size:16px;margin:18px 0 8px}.leg{display:flex;gap:22px;font-size:12px;color:#6b7280;margin-top:6px}.leg i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
       .ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}
       @media print{body{padding:0}}</style></head><body>
@@ -447,7 +447,7 @@ function mount(root,opts={}){
       <div class="tiles">${M.tiles(v).map(([k,x])=>`<div class="t"><div class="k">${esc(k)}</div><div class="v">${esc(x)}</div></div>`).join("")}</div>
       <h2>Parametry</h2><table>${params.map(([k,x,isC])=>`<tr${isC?' class="c"':""}><td>${esc(k)}${isC?" (dopočteno)":""}</td><td>${esc(x)}</td></tr>`).join("")}</table>
       <h2>${esc(st.titles[st.mode]||M.chart)}</h2>${ch.svg}
-      <div class="leg"><span><i style="background:#5cb800"></i>${esc(M.sa)}</span><span><i style="background:#d9dce0"></i>${esc(M.sb)}</span></div>
+      <div class="leg"><span><i style="background:#F37520"></i>${esc(M.sa)}</span><span><i style="background:#d9dce0"></i>${esc(M.sb)}</span></div>
       <div class="ft">Výpočet je orientační a slouží pouze pro informaci. ${st.mode==="loan"?"Skutečné splátky závisí na podmínkách věřitele.":"Výnosy nejsou zaručeny, hodnota investice může kolísat."} Vklady, splátky a výplaty se počítají na konci každého měsíce. © ZFP Consulting</div>
       <script>onload=()=>setTimeout(()=>print(),300)<\/script></body></html>`;
     const w=window.open("","_blank");if(!w){toast("Prohlížeč zablokoval nové okno – povol vyskakovací okna");return}

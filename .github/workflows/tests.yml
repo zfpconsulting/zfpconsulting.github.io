@@ -6,7 +6,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: pipeline
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,7 +31,9 @@ jobs:
         run: node tests/docs.run.mjs
       - name: Testy asistenta (jádro)
         run: node tests/assistant.run.mjs
-      - name: Testy v prohlížeči
+      - name: Testy finančního plánu a dotazníku
+        run: node tests/fp.run.mjs
+      - name: Testy v prohlížeči (celá appka – všechny záložky bez chyb, synchronizace dat)
         run: node tests/run.mjs
         env:
           PP_KEY: ${{ secrets.PP_KEY }}

@@ -124,7 +124,7 @@ const CSS=`
 .dk .dk-cl{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:320px;overflow:auto;background:var(--bg2,#fff);border:1px solid var(--sep);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
 .dk .dk-cl button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:0;background:none;color:var(--label);font:inherit;font-size:15px;padding:9px 10px;border-radius:7px;cursor:pointer}
 .dk .dk-cl button.on,.dk .dk-cl button:hover{background:var(--fill,rgba(120,120,128,.14))}
-.dk .dk-cl .dk-none{color:var(--label2)}.dk .dk-cl .dk-ok{color:var(--green,#34c759);font-weight:700}
+.dk .dk-cl .dk-none{color:var(--label2)}.dk .dk-cl .dk-ok{color:var(--green,#F37520);font-weight:700}
 .dk .dk-cl .dk-empty{padding:10px;color:var(--label2);font-size:14px}
 .dk .dk-acts{display:flex;gap:8px;flex-wrap:wrap}
 .dk .dk-btn{height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--sep);background:var(--bg2,#fff);color:var(--label);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;white-space:nowrap}
@@ -302,8 +302,8 @@ function mount(root,opts={}){
     const nm=st.cid?nameOf(st.cid):"",d=new Date().toLocaleDateString("cs-CZ");
     const row=(a,b)=>`<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`;
     const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Důchodová kalkulace – ${esc(nm||"Koncept")} – ${d}</title><style>
-      @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#0b2341;margin:0;padding:24px}
-      .hd{border-bottom:2px solid #ff4f00;padding-bottom:12px;margin-bottom:18px}.hd h1{font-size:20px;margin:0}.hd small{color:#6b7280}
+      @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#111111;margin:0;padding:24px}
+      .hd{border-bottom:2px solid #F37520;padding-bottom:12px;margin-bottom:18px}.hd h1{font-size:20px;margin:0}.hd small{color:#6b7280}
       .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#f0f2f5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px}.t .v{font-size:17px;font-weight:700}.t .s{font-size:11px;color:#6b7280}
       table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}
       h2{font-size:16px;margin:18px 0 8px}.ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}@media print{body{padding:0}}</style></head><body>
