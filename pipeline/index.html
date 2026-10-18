@@ -298,6 +298,8 @@ dialog.sheet-closing::backdrop{animation:backdropOut .26s ease forwards}
 .cwev.oth{color:var(--label);box-shadow:inset 0 0 0 1px rgba(243,117,32,.55)}
 .cwev.sch,.calchip.sch,.cwad-ev.sch{color:var(--sch-t)}
 .calchip.oth,.cwad-ev.oth{color:var(--label)}
+.calchip.fre{color:var(--zfp);font-weight:700;box-shadow:inset 0 0 0 1px rgba(243,117,32,.5)}
+#ctFreeBtn.on{background:var(--zfp);color:#fff}
 .cwslot:hover{opacity:1;background:rgba(243,117,32,.2)}
 .cwev{z-index:1}
 #tabBar button.tabdrag{position:relative;z-index:3;background:var(--bg2);box-shadow:0 0 0 1.5px var(--zfp) inset,0 8px 22px rgba(0,0,0,.25);cursor:grabbing;will-change:transform}
@@ -1186,6 +1188,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
           <button type="button" class="chipbtn" id="ctTodayBtn">Dnes</button>
           <button type="button" class="chipbtn" id="ctNextBtn" aria-label="Další období">›</button>
         </div>
+        <button type="button" class="chipbtn" id="ctFreeBtn" aria-pressed="false" title="Skryje události a ukáže jen volné bloky pro schůzky">Jen volné termíny</button>
         <button type="button" class="chipbtn" id="ctPickBtn">Vybrat kalendáře</button>
         <button type="button" class="chipbtn" id="ctNewBtn" hidden>+ Nová událost</button>
       </div>
@@ -2067,12 +2070,31 @@ async function dzBooking(x){
   const near=await dzBusy(start,new Date(start.getTime()+DZS.len*60000)).catch(()=>[]),busy=near.filter(dzBlocks),offBusy=!online&&near.some(dzOffice);
   const r=await saveMeeting(cur,start,online);
   if(online&&r&&r.evId)ensureMeet(r.evId).catch(()=>{});
+  if(!(r&&r.evId))dzQueue({lead:l.id,name,start:start.toISOString(),online});
+  try{if(view==="cal")fetchCalTab(true);Promise.resolve(refreshCalendar()).catch(()=>{})}catch(e){}
   const kdy=start.toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})+" "+fmtHM(start.toISOString());
   const c2=leads.find(L=>L.id===l.id)||cur;
   await db.doc("leads/"+l.id).update({log:[...(c2.log||[]),{d:now,t:(x.only?"Klient si zarezervoval schůzku: ":"Klient si zarezervoval 2. konzultaci: ")+kdy+(online?" · online":" · osobně")}].slice(-100),updatedAt:now});
-  dzNotify({ic:"cal",t:x.only?"Rezervace schůzky":"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(offBusy?" · POZOR: kancelář je v tu dobu obsazená – domluv online nebo jinou místnost":"")+(r&&r.canWrite?"":" · do kalendáře se nezapsalo (přihlas Google kalendář)"),lead:l.id,cal:start.toISOString()});
+  dzNotify({ic:"cal",t:x.only?"Rezervace schůzky":"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(offBusy?" · POZOR: kancelář je v tu dobu obsazená – domluv online nebo jinou místnost":"")+(r&&r.evId?"":" · do kalendáře se zatím NEZAPSALO"+(r&&r.canWrite?" (chyba Google "+(r.evErr||"")+")":" (nejsi přihlášený ke Google kalendáři)")+" – zapíšu to sám, jakmile to půjde"),lead:l.id,cal:start.toISOString()});
   setTimeout(()=>dzPublishSlots(true),1500);
 }
+/* rezervace, které se nepovedlo zapsat do kalendáře: drží se v nastavení (vidí je všechna zařízení) a zkouší se znovu každou minutu */
+const dzQ=()=>(settings&&Array.isArray(settings.dzBkQ)?settings.dzBkQ:[]);
+async function dzQueue(it){const L=[...dzQ().filter(q=>!(q.lead===it.lead&&q.start===it.start)),{...it,at:Date.now()}].slice(-20);settings={...settings,dzBkQ:L};try{await db.doc("settings/main").update({dzBkQ:L})}catch(e){}}
+let dzQBusy=false;
+async function dzRetryQueue(){
+  if(dzQBusy||DEMO||!dzQ().length||!GAuth.token()||!GAuth.hasScope("calendar.events")||!calCfg().prefix)return;dzQBusy=true;
+  try{for(const q of dzQ()){const l=leads.find(L=>L.id===q.lead);
+      if(!l||new Date(q.start)<new Date(Date.now()-864e5)){await dzQueue0(q);continue}
+      if((l.meetings||[]).some(m=>m.start===q.start&&!String(m.id).startsWith("local:"))){await dzQueue0(q);continue}
+      const keep=(l.meetings||[]).filter(m=>!(m.start===q.start&&String(m.id).startsWith("local:")));l.meetings=keep;
+      const r=await saveMeeting(l,new Date(q.start),q.online,{moveStage:false});
+      if(r&&r.evId){if(q.online)ensureMeet(r.evId).catch(()=>{});await dzQueue0(q);
+        dzNotify({ic:"cal",t:"Rezervace zapsaná do kalendáře",s:q.name+" · "+fmtMeet(q.start)+(q.online?" · online":""),lead:q.lead,cal:q.start});
+        try{if(view==="cal")fetchCalTab(true);Promise.resolve(refreshCalendar()).catch(()=>{})}catch(e){}}}}
+  finally{dzQBusy=false}}
+async function dzQueue0(q){const L=dzQ().filter(x=>!(x.lead===q.lead&&x.start===q.start));settings={...settings,dzBkQ:L};try{await db.doc("settings/main").update({dzBkQ:L})}catch(e){}}
+setInterval(()=>{dzRetryQueue().catch(()=>{})},60000);setTimeout(()=>dzRetryQueue().catch(()=>{}),8000);
 /* ---------- upozornění v appce (dotazník, rezervace): drží se v nastavení, takže je vidíš na všech zařízeních, dokud je neodklikneš ---------- */
 const dzNotes=()=>(settings&&Array.isArray(settings.dzNotes)?settings.dzNotes:[]);
 async function dzNotify(n){const L=[{id:newId(),at:Date.now(),...n},...dzNotes()].slice(0,15);settings={...settings,dzNotes:L};renderDzNotes();
@@ -2134,7 +2156,8 @@ async function dzBusy(from,to){
   const sch=await schoolIds().catch(()=>[]),ids=[...new Set([calCfg().id,"primary",...sch].filter(Boolean))],out=[];
   for(const id of ids){try{const p=new URLSearchParams({timeMin:from.toISOString(),timeMax:to.toISOString(),singleEvents:"true",orderBy:"startTime",maxResults:"500"});
     const r=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(id)+"/events?"+p)).json();
-    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={calId:id,school:sch.includes(id),title:(e.summary||"").trim(),place:(e.location||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};ev.kind=ctKind(ev);if(ev.kind!=="hide")out.push(ev)})}catch(e){}}
+    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={calId:id,school:sch.includes(id),title:(e.summary||"").trim(),place:(e.location||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};ev.kind=ctKind(ev);if(ev.kind!=="hide")out.push(ev)})}
+    catch(e){if(id===calCfg().id||id==="primary")throw e}}
   return out}
 /* volné termíny pro klienty (rezervace 2. konzultace po dotazníku): jen časy, žádná jména – veřejně čitelné v dzslots/{tvůj e-mail} */
 let dzPubAt=0;
@@ -3698,22 +3721,22 @@ function openToday(preserve){
    opt.moveStage:false = fázi nesahat (jinak se lead přesune do „Schůzka domluvena“) */
 async function saveMeeting(l,start,online,opt={}){
   const cfg=calCfg(), canWrite=!!(GAuth.token()&&GAuth.hasScope("calendar.events")&&cfg.prefix), startISO=start.toISOString();
-  let evId=null;
+  let evId=null,evErr=null;
   if(canWrite){
     try{
       const end=new Date(start.getTime()+45*60000);
       const title=(cfg.prefix?cfg.prefix+" ":"")+(l.name||"Schůzka")+(online?" (online)":"");
       const base="https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events";
       const r=await gfetch(base,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({summary:title,start:{dateTime:startISO},end:{dateTime:end.toISOString()}})});
-      const j=await r.json();evId=j.id;
-    }catch(e){toast("Nepodařilo se zapsat do kalendáře, ukládám aspoň do leadu")}
+      const j=await r.json();evId=j.id||null;if(!evId)throw new Error("bez id");
+    }catch(e){evErr=e&&e.code||e&&e.message||"chyba";toast("Nepodařilo se zapsat do kalendáře, ukládám aspoň do leadu")}
   }
   const meeting={id:evId||("local:"+Date.now()),start:startISO,title:l.name||"",online};
   const meetings=[...(l.meetings||[]).filter(m=>m.id!==meeting.id),meeting].sort((a,b)=>a.start.localeCompare(b.start));
   try{await db.doc("leads/"+l.id).update({meetings})}catch(e){}
   l.meetings=meetings;
   if(opt.moveStage!==false&&l.stage!=="schuzka")await moveTo(l,"schuzka");
-  return {evId,startISO,canWrite,cfg};
+  return {evId,startISO,canWrite,cfg,evErr};
 }
 /* pomocné zápisy pro asistenta (assistant.js) */
 /* data pro odpovědi asistenta na dotazy (úkoly, schůzky, výsledky) – jen čtení, nic se tu nemění */
@@ -4994,6 +5017,7 @@ function startCalendar0(){
 
 /* ================= záložka „Kalendář“ – týdenní pohled (jako Apple Kalendář) s přepnutím na měsíční ================= */
 const CT_COL=["var(--tint)","var(--orange)","var(--green)","var(--purple)","var(--red)","var(--teal)","var(--indigo)","var(--yellow)"];
+let ctFreeOnly=!!lsGet("ct_free_only");
 let ctEvents=null, ctState="off", ctMsg="", ctBusy=false, ctAgain=false, ctViewYm=null, ctWeekA=null, ctSel=null, ctMode="week";
 function ctIds(){return (settings.calTabIds&&settings.calTabIds.length)?settings.calTabIds:(calCfg().id?[calCfg().id]:[])}
 async function saveCalTabIds(ids){try{await db.doc("settings/main").set({...settings,calTabIds:ids});toast("Uloženo");fetchCalTab(true)}catch(e){toast("Nepodařilo se uložit")}}
@@ -5033,8 +5057,8 @@ function ctWeekLabel(a){const b=addDaysFrom(a,6),da=new Date(a+"T00:00:00"),db=n
 function ctIsMine(ev){const re=prefixRe();if(!re)return true;if(!re.test(ev.title))return false;
   const rest=ev.title.replace(re,"").trim();return !!rest&&!/^úkoly?$/i.test(rest)}
 /* barva události v kalendáři – tvoje (podle prefixu) vždy modře, ostatní šedě, bez ohledu na to, ze kterého vybraného kalendáře pochází */
-function evColor(ev){const k=ev&&(ev.kind||ctKind(ev));return k==="sem"?"var(--sch)":k==="off"?"rgba(243,117,32,.30)":"var(--orange)"}
-function evCls(ev){const k=ev&&(ev.kind||ctKind(ev));return k==="sem"?" sch":k==="off"?" oth":""}
+function evColor(ev){const k=ev&&(ev.kind||ctKind(ev));if(k==="free")return ev.online?"var(--fill)":"var(--zfp-soft)";return k==="sem"?"var(--sch)":k==="off"?"rgba(243,117,32,.30)":"var(--orange)"}
+function evCls(ev){const k=ev&&(ev.kind||ctKind(ev));return k==="free"?" fre":k==="sem"?" sch":k==="off"?" oth":""}
 /* klíč klienta z názvu události (příjmení za prefixem), pro rozpoznání „poprvé v kalendáři“ */
 function ctClientKey(ev){if(!ctIsMine(ev))return null;const re=prefixRe();const rest=ev.title.replace(re,"").trim();
   const w=rest.split(/\s+/)[0];return w?norm(w):null}
@@ -5267,12 +5291,15 @@ function renderCalTiles(){
       tile("Nové kontakty",firstN,"poprvé v kalendáři"+(hasPfx?"":" · vše"),"var(--green)")];
   })());
 }
+/* volné bloky dne jako „události“ pro měsíční mřížku a seznam (režim Jen volné termíny) */
+function ctFreeOf(k,byDay){const now=new Date();return dzDaySlots(k,(byDay[k]||[]).filter(e=>!e.allDay)).map(({m,e,online})=>{const a=new Date(k+"T00:00:00");a.setMinutes(m);const b=new Date(k+"T00:00:00");b.setMinutes(e);
+  return {id:"free:"+k+m,title:online?"volno · online":"volno",start:a.toISOString(),end:b.toISOString(),allDay:false,kind:"free",online}}).filter(x=>new Date(x.start)>=now)}
 function renderCalMonth(){
   $("ctWd").replaceChildren(...["po","út","st","čt","pá","so","ne"].map(w=>el("span",{},w)));
   const t=todayStr(), byDay=ctByDay(), placeholder=ctPlaceholder();
   if(placeholder){$("ctCells").replaceChildren();$("ctList").replaceChildren(placeholder);return}
   $("ctCells").replaceChildren(...ctGridDays(ctViewYm).map(k=>{
-    const inMonth=k.slice(0,7)===ctViewYm, evs=(byDay[k]||[]).slice().sort((a,b)=>a.start.localeCompare(b.start));
+    const inMonth=k.slice(0,7)===ctViewYm, evs=ctFreeOnly?ctFreeOf(k,byDay):(byDay[k]||[]).slice().sort((a,b)=>a.start.localeCompare(b.start));
     const cls="calcell"+(inMonth?"":" out")+(k===t?" today":"")+(k===ctSel?" sel":"");
     const shown=evs.slice(0,3), rest=evs.length-shown.length;
     return el("button",{type:"button",class:cls,onclick:()=>{ctSel=k;renderCalTab()}},
@@ -5280,6 +5307,8 @@ function renderCalMonth(){
       el("span",{class:"chips"},...shown.map(e=>el("span",{class:"calchip"+evCls(e),style:"background:"+evColor(e)},(e.allDay?"":fmtHM(e.start)+" ")+e.title)),
         rest>0?el("span",{class:"calmore"},"+"+rest+" další"):null));
   }));
+  if(ctFreeOnly){const fr=ctFreeOf(ctSel,byDay);$("ctList").replaceChildren(...tdSection(ctDayLabel(ctSel)+" · volné termíny",fr.map(e=>tdRow(fmtHM(e.start)+" – "+fmtHM(e.end),e.online?"jen online (kancelář obsazená)":"osobně i online",null,null,
+    ctCanWrite()?()=>ctEventSheet(null,{date:ctSel,time:fmtHM(e.start),len:DZS.len}):undefined)),"V tento den žádné volné termíny."));return}
   const dayEvs=(byDay[ctSel]||[]).slice().sort((a,b)=>a.start.localeCompare(b.start));
   $("ctList").replaceChildren(...tdSection(ctDayLabel(ctSel),dayEvs.map(e=>tdRow(e.title,
     (e.allDay?"celý den":fmtHM(e.start))+(e.place?" · "+e.place:"")+(e.online?" · online":""),null,null,
@@ -5293,8 +5322,8 @@ function renderCalWeek(){
   $("cwDays").replaceChildren(...days.map((k,i)=>{const d=new Date(k+"T00:00:00");
     return el("div",{class:"cwday"+(k===t?" today":"")},el("div",{class:"dow"},DOWL[i]),el("div",{class:"dn"},String(d.getDate())));}));
   const allEvs=days.flatMap(k=>byDay[k]||[]), timed=allEvs.filter(e=>!e.allDay), hasAllDay=allEvs.some(e=>e.allDay);
-  $("cwAllDayWrap").hidden=!hasAllDay;
-  if(hasAllDay)$("cwAllDay").replaceChildren(...days.map(k=>el("div",{},...(byDay[k]||[]).filter(e=>e.allDay).map(e=>el("div",{class:"cwad-ev"+evCls(e),style:"background:"+evColor(e),title:e.title},e.title)))));
+  $("cwAllDayWrap").hidden=!hasAllDay||ctFreeOnly;
+  if(hasAllDay&&!ctFreeOnly)$("cwAllDay").replaceChildren(...days.map(k=>el("div",{},...(byDay[k]||[]).filter(e=>e.allDay).map(e=>el("div",{class:"cwad-ev"+evCls(e),style:"background:"+evColor(e),title:e.title},e.title)))));
   /* rozsah hodin – pevný rámec 7–20 h, rozšířený, pokud nějaká událost zasahuje mimo něj */
   let hStart=7,hEnd=20;
   timed.forEach(e=>{const s=ctMinutesOf(e.start)/60, en=(e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60)/60;hStart=Math.min(hStart,Math.floor(s));hEnd=Math.max(hEnd,Math.ceil(en))});
@@ -5312,7 +5341,7 @@ function renderCalWeek(){
   days.forEach((k,i)=>{
     const dayEvs=(byDay[k]||[]).filter(e=>!e.allDay);
     const slots=dzDaySlots(k,dayEvs).filter(({m})=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);return s>=nowD}).map(({m,e,online})=>({_slot:true,online,_sMin:m,_eMin:e}));
-    const items=ctLayoutDay([...dayEvs.map(e=>({...e,_sMin:ctMinutesOf(e.start),_eMin:e.end?Math.max(ctMinutesOf(e.start)+15,ctMinutesOf(e.end)):ctMinutesOf(e.start)+60})),...slots]);
+    const items=ctLayoutDay([...(ctFreeOnly?[]:dayEvs).map(e=>({...e,_sMin:ctMinutesOf(e.start),_eMin:e.end?Math.max(ctMinutesOf(e.start)+15,ctMinutesOf(e.end)):ctMinutesOf(e.start)+60})),...slots]);
     items.forEach(e=>{
       const top=(e._sMin/60-hStart)*HH, h=Math.max(16,(e._eMin-e._sMin)/60*HH-2), w=100/e._cols, left=e._col*w;
       const pos="top:"+top+"px;height:"+h+"px;left:calc("+left+"% + 1px);width:calc("+w+"% - 3px);";
@@ -5334,6 +5363,8 @@ function renderCalTab(){
   if(!ctWeekA)ctWeekA=weekStart(todayStr(),0);
   if(!ctSel)ctSel=todayStr();
   $("ctNewBtn").hidden=!ctCanWrite();
+  {const fb=$("ctFreeBtn");if(fb){fb.setAttribute("aria-pressed",String(ctFreeOnly));fb.classList.toggle("on",ctFreeOnly);fb.textContent=ctFreeOnly?"✓ Jen volné termíny":"Jen volné termíny";
+    fb.onclick=()=>{ctFreeOnly=!ctFreeOnly;lsSet("ct_free_only",ctFreeOnly);renderCalTab()}}}
   renderCalTiles();
   $("ctModeSeg").replaceChildren(...[["week","Týden"],["month","Měsíc"]].map(([m,t])=>el("button",{type:"button","aria-selected":String(ctMode===m),onclick:()=>{if(ctMode!==m){ctMode=m;fetchCalTab()}}},t)));
   $("ctWeekWrap").hidden=ctMode!=="week";$("ctMonthWrap").hidden=ctMode!=="month";
