@@ -4757,6 +4757,13 @@ function openMsg(ctx,tplId,onSent){
       el("button",{type:"button",class:"sec",onclick:async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Zkopírováno");sent("zkopírováno")}catch(e){ta.select();toast("Označeno – zkopíruj")}}},"Kopírovat")),
     el("p",{class:"hint"},"Šablony a podpis upravíš v nastavení (tlačítko ✓ vpravo nahoře)."))]);
 }
+/* jednorázově: ve vzoru „Rezervace schůzky“ dát odkaz na konec – Zprávy na iPhonu ukážou náhled (logo, obrázek) jen u odkazu na konci */
+async function tplMigrate(){
+  if(!settings||settings.tplRezV2||!Array.isArray(settings.tpls))return;
+  const OLD="Termín konzultace si můžete vybrat přímo zde: {rezervace}\nStačí zvolit den a čas, který Vám vyhovuje, a zda se potkáme",NEW="Termín konzultace si můžete vybrat sami – stačí zvolit den a čas, který Vám vyhovuje, a zda se potkáme";
+  let ch=false;const L=settings.tpls.map(t=>{if(t.id!=="rezervace"||!String(t.text||"").includes(OLD))return t;ch=true;return {...t,text:t.text.replace(OLD,NEW).replace(/\s*$/,"")+"\n\n{rezervace}"}});
+  settings={...settings,tplRezV2:true,...(ch?{tpls:L}:{})};
+  try{await db.doc("settings/main").update(ch?{tpls:L,tplRezV2:true}:{tplRezV2:true})}catch(e){}}
 function renderTpls(){const box=$("tplList");if(!box)return;const list=tpls().map(t=>({...t}));
   const save=async()=>{try{await db.doc("settings/main").set({...settings,tpls:list});toast("Šablony uloženy")}catch(e){toast("Nepodařilo se uložit")}};
   box.replaceChildren(...list.map((t,i)=>{const n=el("input",{value:t.name,"aria-label":"Název šablony"});n.value=t.name;n.onchange=()=>{t.name=n.value.trim()||"Šablona";save()};
@@ -7462,7 +7469,7 @@ async function updateEurRate(){
   db.collection("recruits").onSnapshot(snap=>{recruits=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="net"||view==="akv")render()});
   db.collection("akvFirmy").onSnapshot(snap=>{akvFirmy=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="akv")render()});
   db.collection("akvLidi").onSnapshot(snap=>{akvLidi=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="akv")render()});
-  db.doc("settings/main").onSnapshot(d=>{settings=d.exists?{manual:{},...d.data()}:{manual:{}};clLoaded.settings=true;setTimeout(clMigrate,0);applyAppName();if(typeof applyAsMode==="function")applyAsMode();renderTabBar();if(!visibleTabs().includes(view))setView(visibleTabs()[0]);else render();scheduleTasks()});
+  db.doc("settings/main").onSnapshot(d=>{settings=d.exists?{manual:{},...d.data()}:{manual:{}};clLoaded.settings=true;setTimeout(clMigrate,0);setTimeout(tplMigrate,0);applyAppName();if(typeof applyAsMode==="function")applyAsMode();renderTabBar();if(!visibleTabs().includes(view))setView(visibleTabs()[0]);else render();scheduleTasks()});
   $("todayBtn").onclick=openToday;maybeOpenToday();
   $("addRecruit").onclick=addRecruit;$("addMember2").onclick=()=>addMember(null);$("addMember3").onclick=()=>addMember(null);
   $("cbBtn").onclick=()=>openCallBlock(callBlockIds());
