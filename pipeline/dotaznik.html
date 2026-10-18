@@ -287,7 +287,7 @@ const BK={slots:null,addr:"Trnitá 500/9, 602 00 Brno",day:"",time:"",mode:"",er
 const FSDOC="https://firestore.googleapis.com/v1/projects/zfp-pipeline/databases/(default)/documents/dzslots/";
 async function loadSlots(){try{const r=await fetch(FSDOC+encodeURIComponent(LINK.to)+"?key=AIzaSyDfS0FJx1EtbgqJSUUOK722PB_5Zo6hCuI",{credentials:"omit",referrerPolicy:"strict-origin",cache:"no-store"});
     if(!r.ok)throw 0;const j=await r.json(),F=j.fields||{};BK.addr=(F.addr&&F.addr.stringValue)||BK.addr;
-    const min=Date.now()+12*3600e3;BK.slots=((F.slots&&F.slots.arrayValue&&F.slots.arrayValue.values)||[]).map(v=>v.stringValue).filter(x=>x&&Date.parse(x)>min).sort()}
+    const min=Date.now()+12*3600e3;BK.slots=((F.slots&&F.slots.arrayValue&&F.slots.arrayValue.values)||[]).map(v=>String(v.stringValue||"").split("|")).map(([t,f])=>({t,o:f==="o"})).filter(x=>x.t&&Date.parse(x.t)>min).sort((a,b)=>a.t.localeCompare(b.t))}
   catch(e){BK.slots=[]}renderSent()}
 const DNY=["ne","po","út","st","čt","pá","so"];
 const dk=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -300,13 +300,13 @@ function renderSent(){
   const head=`<div class="done" style="padding:40px 10px 20px">${OK_IC}<h1>Odesláno</h1><p>Dotazník dorazil vašemu poradci – zašifrovaný, přečíst ho může jen on. Z tohoto zařízení jsme odpovědi smazali.</p></div>`;
   if(BK.slots===null){$("#main").innerHTML=head+`<p class="hint" style="text-align:center">Načítám volné termíny…</p>`;return}
   if(!BK.slots.length){$("#main").innerHTML=head+`<div class="book"><div class="note">Termín druhé konzultace si domluvíme – poradce se vám ozve.</div></div>`;return}
-  const days=[...new Set(BK.slots.map(dk))];if(!BK.day||!days.includes(BK.day))BK.day=days[0];
-  const times=BK.slots.filter(x=>dk(x)===BK.day);
+  const days=[...new Set(BK.slots.map(x=>dk(x.t)))];if(!BK.day||!days.includes(BK.day))BK.day=days[0];
+  const times=BK.slots.filter(x=>dk(x.t)===BK.day),cur=BK.slots.find(x=>x.t===BK.time),onlyOn=!!(cur&&cur.o);if(onlyOn&&BK.mode==="osobne")BK.mode="online";
   $("#main").innerHTML=head+`<div class="book"><h2>Zarezervujte si druhou konzultaci</h2><p class="hint" style="margin:0 0 14px">Na ní spolu projdeme finanční plán připravený z vašich odpovědí. Trvá zhruba 45 minut.</p>
    <span class="qq" style="display:block;margin:4px 0 8px">Den</span><div class="days">${days.map(d=>{const x=new Date(d+"T12:00:00");return `<button type="button" data-day="${d}" class="${d===BK.day?"on":""}">${DNY[x.getDay()]}<b>${x.getDate()}. ${x.getMonth()+1}.</b></button>`}).join("")}</div>
-   <span class="qq" style="display:block;margin:6px 0 4px">Čas</span><div class="times">${times.map(t=>`<button type="button" data-time="${t}" class="${t===BK.time?"on":""}">${hm(t)}</button>`).join("")}</div>
-   <div class="ask"><span class="qq">Jak se potkáme?</span><div class="seg"><button type="button" data-mode="osobne" class="${BK.mode==="osobne"?"on":""}">Osobně</button><button type="button" data-mode="online" class="${BK.mode==="online"?"on":""}">Online</button></div></div>
-   ${BK.mode==="osobne"?`<div class="note"><b>Kancelář ZFP</b><br>${esc(BK.addr)}</div>${mapBox()}`:BK.mode==="online"?`<div class="note">Odkaz na online schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.</div>`:""}
+   <span class="qq" style="display:block;margin:6px 0 4px">Čas</span><div class="times">${times.map(x=>`<button type="button" data-time="${x.t}" class="${x.t===BK.time?"on":""}">${hm(x.t)}${x.o?'<small style="display:block;font-size:10px;font-weight:600;opacity:.75">jen online</small>':""}</button>`).join("")}</div>
+   <div class="ask"><span class="qq">Jak se potkáme?</span><div class="seg"><button type="button" data-mode="osobne" class="${BK.mode==="osobne"?"on":""}"${onlyOn?" disabled style=\"opacity:.4;cursor:not-allowed\" title=\"V tomto čase je kancelář obsazená – jen online\"":""}>Osobně</button><button type="button" data-mode="online" class="${BK.mode==="online"?"on":""}">Online</button></div></div>
+   ${onlyOn?`<p class="hint" style="margin:6px 0 0">V tomto čase je kancelář obsazená, konzultace proběhne online.</p>`:""}${BK.mode==="osobne"?`<div class="note"><b>Kancelář ZFP</b><br>${esc(BK.addr)}</div>${mapBox()}`:BK.mode==="online"?`<div class="note">Odkaz na online schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.</div>`:""}
    ${BK.err?`<p class="emsg">${esc(BK.err)}</p>`:""}
    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button type="button" class="btn pri" id="bBook"${BK.busy?" disabled":""}>${BK.busy?"Rezervuji…":"Potvrdit termín"}</button><button type="button" class="btn" id="bSkip">Teď ne, domluvíme se</button></div></div>`;
 }
@@ -319,8 +319,8 @@ async function book(){
   catch(e){BK.err="Rezervace se nepodařila – zkuste to prosím znovu.";console.error(e)}
   BK.busy=false;renderSent()}
 document.addEventListener("click",e=>{if(!sent)return;const t=e.target.closest("button");if(!t)return;
-  if(t.dataset.day){BK.day=t.dataset.day;BK.time="";renderSent()}else if(t.dataset.time){BK.time=t.dataset.time;BK.err="";renderSent()}
-  else if(t.dataset.mode){BK.mode=t.dataset.mode;BK.err="";renderSent()}else if(t.id==="bBook")book();
+  if(t.dataset.day){BK.day=t.dataset.day;BK.time="";renderSent()}else if(t.dataset.time){BK.time=t.dataset.time;BK.err="";const c=BK.slots.find(x=>x.t===BK.time);if(c&&c.o)BK.mode="online";renderSent()}
+  else if(t.dataset.mode&&!t.disabled){BK.mode=t.dataset.mode;BK.err="";renderSent()}else if(t.id==="bBook")book();
   else if(t.id==="bSkip"){BK.slots=[];SENT=null;renderSent()}});
 let SENT=null;
 function linkBox(A){return `<div class="lnk"><b>Odkaz pro klienta</b><div class="hint">Klient dotazník vyplní u sebe a odešle – přijde ti zašifrovaný rovnou do Pipeline (nový lead + plán + IOLDP v dokumentech).</div>

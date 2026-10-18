@@ -27,7 +27,7 @@
   --thumb-shadow:0 0.5px 4px rgba(0,0,0,.12),0 6px 13px rgba(0,0,0,.12);
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
   --r-lg:16px; --r:12px; --r-sm:10px;
-  --zfp:#F37520; --zfp-soft:rgba(243,117,32,.10);   /* oranžová ZFP (z loga ZFP GROUP) */
+  --zfp:#F37520; --zfp-soft:rgba(243,117,32,.10); --sch:#1D1D1B; --sch-t:#FFFFFF;   /* oranžová ZFP (z loga ZFP GROUP) */
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -37,7 +37,7 @@
     --tint:#F37520; --tint-soft:rgba(243,117,32,.2); --green:#F37520; --green-soft:rgba(243,117,32,.18);
     --orange:#F37520; --orange-soft:rgba(243,117,32,.18); --red:#F37520; --red-soft:rgba(243,117,32,.18);
     --purple:#F37520; --yellow:#F37520; --gray:#8E8E93; --indigo:#F37520; --teal:#F37520; --teal-soft:rgba(243,117,32,.18);
-    --bar-bg:rgba(10,10,10,.94); --card-shadow:none; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
+    --bar-bg:rgba(10,10,10,.94); --card-shadow:none; --sch:#E5E5EA; --sch-t:#000000; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
   }
 }
 :root[data-theme="dark"]{
@@ -47,7 +47,7 @@
   --tint:#F37520; --tint-soft:rgba(243,117,32,.2); --green:#F37520; --green-soft:rgba(243,117,32,.18);
   --orange:#F37520; --orange-soft:rgba(243,117,32,.18); --red:#F37520; --red-soft:rgba(243,117,32,.18);
   --purple:#F37520; --yellow:#F37520; --gray:#8E8E93; --indigo:#F37520; --teal:#F37520; --teal-soft:rgba(243,117,32,.18);
-  --bar-bg:rgba(10,10,10,.94); --card-shadow:none; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
+  --bar-bg:rgba(10,10,10,.94); --card-shadow:none; --sch:#E5E5EA; --sch-t:#000000; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -291,7 +291,13 @@ dialog.sheet-closing::backdrop{animation:backdropOut .26s ease forwards}
 .dznote .dza button.ok{background:var(--zfp);color:#fff;box-shadow:none}
 .dznote .dzx{position:absolute;right:8px;top:6px;font-size:20px;color:var(--label2);padding:4px 8px}
 .dzmore{font-size:12.5px;color:var(--label2);text-align:right;padding-right:6px}
-.cwslot{position:absolute;left:2px;right:2px;border-radius:8px;border:1.5px dashed var(--zfp);background:var(--zfp-soft);color:var(--zfp);font:inherit;font-size:11.5px;font-weight:700;text-align:left;padding:3px 6px;cursor:pointer;overflow:hidden;z-index:0;opacity:.85;transition:opacity .15s,background .15s}
+.cwslot{position:absolute;border-radius:8px;border:1.5px dashed var(--zfp);background:var(--zfp-soft);color:var(--zfp);font:inherit;font-size:11.5px;font-weight:700;text-align:left;padding:3px 6px;cursor:pointer;overflow:hidden;z-index:0;opacity:.85;transition:opacity .15s,background .15s;line-height:1.2}
+.cwslot span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cwslot small{display:block;font-size:9.5px;font-weight:600;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cwslot.onl{border-style:dotted;border-color:var(--label2);color:var(--label2);background:var(--fill2)}
+.cwev.oth{color:var(--label);box-shadow:inset 0 0 0 1px rgba(243,117,32,.55)}
+.cwev.sch,.calchip.sch,.cwad-ev.sch{color:var(--sch-t)}
+.calchip.oth,.cwad-ev.oth{color:var(--label)}
 .cwslot:hover{opacity:1;background:rgba(243,117,32,.2)}
 .cwev{z-index:1}
 #tabBar button.tabdrag{position:relative;z-index:3;background:var(--bg2);box-shadow:0 0 0 1.5px var(--zfp) inset,0 8px 22px rgba(0,0,0,.25);cursor:grabbing;will-change:transform}
@@ -2050,13 +2056,13 @@ async function dzBooking(x){
   let l=leads.find(L=>(x.email&&L.email&&L.email.toLowerCase()===String(x.email).toLowerCase())||(d(x.phone).length===9&&d(L.phone)===d(x.phone)))||leads.find(L=>f(L.name)===f(name));
   if(!l)l=await aiAddLead({name,phone:x.phone||"",email:x.email||""});
   const cur=leads.find(L=>L.id===l.id)||l;
-  const busy=await dzBusy(start,new Date(start.getTime()+DZS.len*60000)).catch(()=>[]);
+  const near=await dzBusy(start,new Date(start.getTime()+DZS.len*60000)).catch(()=>[]),busy=near.filter(dzBlocks),offBusy=!online&&near.some(dzOffice);
   const r=await saveMeeting(cur,start,online);
   if(online&&r&&r.evId)ensureMeet(r.evId).catch(()=>{});
   const kdy=start.toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})+" "+fmtHM(start.toISOString());
   const c2=leads.find(L=>L.id===l.id)||cur;
   await db.doc("leads/"+l.id).update({log:[...(c2.log||[]),{d:now,t:"Klient si zarezervoval 2. konzultaci: "+kdy+(online?" · online":" · osobně")}].slice(-100),updatedAt:now});
-  dzNotify({ic:"cal",t:"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(r&&r.canWrite?"":" · do kalendáře se nezapsalo (přihlas Google kalendář)"),lead:l.id,cal:start.toISOString()});
+  dzNotify({ic:"cal",t:"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(offBusy?" · POZOR: kancelář je v tu dobu obsazená – domluv online nebo jinou místnost":"")+(r&&r.canWrite?"":" · do kalendáře se nezapsalo (přihlas Google kalendář)"),lead:l.id,cal:start.toISOString()});
   setTimeout(()=>dzPublishSlots(true),1500);
 }
 /* ---------- upozornění v appce (dotazník, rezervace): drží se v nastavení, takže je vidíš na všech zařízeních, dokud je neodklikneš ---------- */
@@ -2089,13 +2095,30 @@ function dzFreeSlots(dayKey,busy){const dow=new Date(dayKey+"T12:00:00").getDay(
   const B=busy.map(([a,b,after])=>[a-DZS.buf,b+(after??DZS.buf)]).sort((x,y)=>x[0]-y[0]),out=[];let t=DZS.from;
   while(t+DZS.len<=DZS.to){const c=B.find(([a,b])=>t<b&&t+DZS.len>a);if(!c){out.push(t);t+=DZS.len+DZS.buf}else t=Math.max(t+15,Math.ceil(c[1]/15)*15)}
   return out}
-const dzBlocks=ev=>!ev.allDay&&(ev.school||ev.calId==="primary"||ev.calId===dzMe()||ctIsMine(ev));
-const dzBusyIv=e=>[ctMinutesOf(e.start),e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60,e.school?SCHOOL_AFTER:undefined];
+/* druh události: mine = tvoje schůzka, sem = seminář/cvičení ze školy, hide = přednáška a ostatní školní (nezobrazuje se, neblokuje),
+   own = tvůj osobní kalendář, off = kolegové v kanclu (JT:, PV:, porada…) → v tu dobu kancelář obsazená = jen online */
+function ctKind(ev){
+  const t=ev.title||"",pl=ev.place||"";
+  const sch=ev.school||/\b[A-Z]{2,5}_[A-Z0-9]{2,8}\b/.test(t)||/\((přednáška|seminář|cvičení)\b/i.test(t)||/^odpovědník/i.test(t);
+  if(sch){if(/přednášk/i.test(t))return "hide";if(/seminář|cvičení/i.test(t))return ev.allDay?"hide":"sem";
+    if(/^P\d/i.test(pl))return "hide";if(!ev.allDay&&(/\/\d{1,3}\b/.test(t)||/^(S|VT)\d/i.test(pl)))return "sem";return "hide"}
+  if(ctIsMine(ev))return "mine";
+  if(ev.calId==="primary"||ev.calId===dzMe())return "own";
+  return "off"}
+const dzBlocks=ev=>!ev.allDay&&["mine","sem","own"].includes(ev.kind||ctKind(ev));
+const dzOffice=ev=>!ev.allDay&&(ev.kind||ctKind(ev))==="off";
+const dzBusyIv=e=>[ctMinutesOf(e.start),e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60,(e.kind||ctKind(e))==="sem"?SCHOOL_AFTER:undefined];
+/* volné bloky dne + příznak „jen online“ (kancelář v tu dobu obsazená kolegou) */
+function dzDaySlots(dayKey,evs){
+  const iv=e=>{const a=ctMinutesOf(e.start),b=e.end&&ymd(new Date(e.end))===dayKey?ctMinutesOf(e.end):(e.end?1440:a+60);return [a,b]};
+  const busy=evs.filter(dzBlocks).map(e=>{const[a,b]=iv(e);return [a,b,(e.kind||ctKind(e))==="sem"?SCHOOL_AFTER:undefined]});
+  const off=evs.filter(dzOffice).map(iv);
+  return dzFreeSlots(dayKey,busy).map(m=>({m,online:off.some(([a,b])=>m<b&&m+DZS.len>a)}))}
 async function dzBusy(from,to){
   const sch=await schoolIds().catch(()=>[]),ids=[...new Set([calCfg().id,"primary",...sch].filter(Boolean))],out=[];
   for(const id of ids){try{const p=new URLSearchParams({timeMin:from.toISOString(),timeMax:to.toISOString(),singleEvents:"true",orderBy:"startTime",maxResults:"500"});
     const r=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(id)+"/events?"+p)).json();
-    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={calId:id,school:sch.includes(id),title:(e.summary||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};if(ev.school||id==="primary"||ctIsMine(ev))out.push(ev)})}catch(e){}}
+    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={calId:id,school:sch.includes(id),title:(e.summary||"").trim(),place:(e.location||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};ev.kind=ctKind(ev);if(ev.kind!=="hide")out.push(ev)})}catch(e){}}
   return out}
 /* volné termíny pro klienty (rezervace 2. konzultace po dotazníku): jen časy, žádná jména – veřejně čitelné v dzslots/{tvůj e-mail} */
 let dzPubAt=0;
@@ -2105,8 +2128,8 @@ async function dzPublishSlots(force){
   try{const now=new Date(),from=new Date(now.getTime()+18*3600e3),to=new Date(now.getFullYear(),now.getMonth(),now.getDate()+DZS.days);
     const busy=await dzBusy(new Date(now.getFullYear(),now.getMonth(),now.getDate()),to),slots=[];
     for(let i=1;i<=DZS.days;i++){const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i),k=ymd(day);
-      const b=busy.filter(e=>ymd(new Date(e.start))===k).map(e=>[ctMinutesOf(e.start),ymd(new Date(e.end))===k?ctMinutesOf(e.end):1440,e.school?SCHOOL_AFTER:undefined]);
-      dzFreeSlots(k,b).forEach(m=>{const s=new Date(day.getFullYear(),day.getMonth(),day.getDate(),Math.floor(m/60),m%60);if(s>from)slots.push(s.toISOString())})}
+      /* „|o“ za časem = v tu dobu je kancelář obsazená → klient si může vybrat jen online */
+      dzDaySlots(k,busy.filter(e=>ymd(new Date(e.start))===k)).forEach(({m,online})=>{const s=new Date(day.getFullYear(),day.getMonth(),day.getDate(),Math.floor(m/60),m%60);if(s>from)slots.push(s.toISOString()+(online?"|o":""))})}
     await DZI.F.setDoc(DZI.F.doc(DZI.fdb,"dzslots",dzMe()),{slots:slots.slice(0,300),upd:new Date().toISOString(),len:DZS.len,addr:DZS.addr()});
   }catch(e){console.warn("volné termíny",e)}}
 setInterval(()=>dzPublishSlots(false),5*60000);
@@ -4992,7 +5015,8 @@ function ctWeekLabel(a){const b=addDaysFrom(a,6),da=new Date(a+"T00:00:00"),db=n
 function ctIsMine(ev){const re=prefixRe();if(!re)return true;if(!re.test(ev.title))return false;
   const rest=ev.title.replace(re,"").trim();return !!rest&&!/^úkoly?$/i.test(rest)}
 /* barva události v kalendáři – tvoje (podle prefixu) vždy modře, ostatní šedě, bez ohledu na to, ze kterého vybraného kalendáře pochází */
-function evColor(ev){return ev&&ev.school?"#5A5A5E":"var(--orange)"}
+function evColor(ev){const k=ev&&(ev.kind||ctKind(ev));return k==="sem"?"var(--sch)":k==="off"?"rgba(243,117,32,.30)":"var(--orange)"}
+function evCls(ev){const k=ev&&(ev.kind||ctKind(ev));return k==="sem"?" sch":k==="off"?" oth":""}
 /* klíč klienta z názvu události (příjmení za prefixem), pro rozpoznání „poprvé v kalendáři“ */
 function ctClientKey(ev){if(!ctIsMine(ev))return null;const re=prefixRe();const rest=ev.title.replace(re,"").trim();
   const w=rest.split(/\s+/)[0];return w?norm(w):null}
@@ -5035,7 +5059,7 @@ async function fetchCalTab(force){
           calId:id,calCol:CT_COL[i%CT_COL.length],school:sch.includes(id)}));
       }catch(e){return []}
     }));
-    ctEvents=results.flat().filter(e=>e.start).sort((a,b)=>a.start.localeCompare(b.start));
+    ctEvents=results.flat().filter(e=>e.start).map(e=>({...e,kind:ctKind(e)})).filter(e=>e.kind!=="hide").sort((a,b)=>a.start.localeCompare(b.start));
     ctState="ok";ctMsg="";
   }catch(e){if(!ctEvents){ctState="error";ctMsg=e.code===401?"Přihlášení ke Googlu vypršelo – klepni nahoře na Obnovit.":"Kalendář se nenačetl."}}
   finally{ctBusy=false;render();if(ctAgain){ctAgain=false;fetchCalTab(true)}}
@@ -5235,7 +5259,7 @@ function renderCalMonth(){
     const shown=evs.slice(0,3), rest=evs.length-shown.length;
     return el("button",{type:"button",class:cls,onclick:()=>{ctSel=k;renderCalTab()}},
       el("span",{class:"n"},String(+k.slice(8,10))),
-      el("span",{class:"chips"},...shown.map(e=>el("span",{class:"calchip",style:"background:"+evColor(e)},(e.allDay?"":fmtHM(e.start)+" ")+e.title)),
+      el("span",{class:"chips"},...shown.map(e=>el("span",{class:"calchip"+evCls(e),style:"background:"+evColor(e)},(e.allDay?"":fmtHM(e.start)+" ")+e.title)),
         rest>0?el("span",{class:"calmore"},"+"+rest+" další"):null));
   }));
   const dayEvs=(byDay[ctSel]||[]).slice().sort((a,b)=>a.start.localeCompare(b.start));
@@ -5252,7 +5276,7 @@ function renderCalWeek(){
     return el("div",{class:"cwday"+(k===t?" today":"")},el("div",{class:"dow"},DOWL[i]),el("div",{class:"dn"},String(d.getDate())));}));
   const allEvs=days.flatMap(k=>byDay[k]||[]), timed=allEvs.filter(e=>!e.allDay), hasAllDay=allEvs.some(e=>e.allDay);
   $("cwAllDayWrap").hidden=!hasAllDay;
-  if(hasAllDay)$("cwAllDay").replaceChildren(...days.map(k=>el("div",{},...(byDay[k]||[]).filter(e=>e.allDay).map(e=>el("div",{class:"cwad-ev",style:"background:"+evColor(e),title:e.title},e.title)))));
+  if(hasAllDay)$("cwAllDay").replaceChildren(...days.map(k=>el("div",{},...(byDay[k]||[]).filter(e=>e.allDay).map(e=>el("div",{class:"cwad-ev"+evCls(e),style:"background:"+evColor(e),title:e.title},e.title)))));
   /* rozsah hodin – pevný rámec 7–20 h, rozšířený, pokud nějaká událost zasahuje mimo něj */
   let hStart=7,hEnd=20;
   timed.forEach(e=>{const s=ctMinutesOf(e.start)/60, en=(e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60)/60;hStart=Math.min(hStart,Math.floor(s));hEnd=Math.max(hEnd,Math.ceil(en))});
@@ -5264,22 +5288,25 @@ function renderCalWeek(){
   const gridEl=$("cwGrid");
   gridEl.replaceChildren(...cols);gridEl.style.height=totalH+"px";
   const canWrite=ctCanWrite();
-  /* volné bloky 8:30–19:00 (45 min) – klepnutím je zaplníš klientem */
+  /* volné bloky 8:30–19:00 (45 min) – klepnutím je zaplníš klientem. Bloky a události se rozloží do sloupců vedle sebe,
+     takže se nic nepřekrývá; blok v čase, kdy má kancl obsazený kolega, je „jen online“ */
   const nowD=new Date();
-  days.forEach((k,i)=>{const busy=(byDay[k]||[]).filter(dzBlocks).map(dzBusyIv);
-    dzFreeSlots(k,busy).forEach(m=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);if(s<nowD)return;
-      const hm=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
-      cols[i].append(el("button",{type:"button",class:"cwslot",style:"top:"+((m/60-hStart)*HH)+"px;height:"+(DZS.len/60*HH-2)+"px",title:"Volný blok "+hm+" – klepni a zaplň ho klientem",
-        onclick:()=>{if(!canWrite){toast("Pro zápis do kalendáře se přihlas Googlem");return}ctEventSheet(null,{date:k,time:hm,len:DZS.len})}},"Volno "+hm))})});
   days.forEach((k,i)=>{
-    const evs=ctLayoutDay((byDay[k]||[]).filter(e=>!e.allDay).map(e=>({...e,_sMin:ctMinutesOf(e.start),_eMin:e.end?Math.max(ctMinutesOf(e.start)+15,ctMinutesOf(e.end)):ctMinutesOf(e.start)+60})));
-    evs.forEach(e=>{
-      const editable=canWrite&&ctIsMine(e);
+    const dayEvs=(byDay[k]||[]).filter(e=>!e.allDay);
+    const slots=dzDaySlots(k,dayEvs).filter(({m})=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);return s>=nowD}).map(({m,online})=>({_slot:true,online,_sMin:m,_eMin:m+DZS.len}));
+    const items=ctLayoutDay([...dayEvs.map(e=>({...e,_sMin:ctMinutesOf(e.start),_eMin:e.end?Math.max(ctMinutesOf(e.start)+15,ctMinutesOf(e.end)):ctMinutesOf(e.start)+60})),...slots]);
+    items.forEach(e=>{
       const top=(e._sMin/60-hStart)*HH, h=Math.max(16,(e._eMin-e._sMin)/60*HH-2), w=100/e._cols, left=e._col*w;
-      const btn=el("button",{type:"button",class:"cwev"+(editable?" draggable":""),style:"top:"+top+"px;height:"+h+"px;left:"+left+"%;width:calc("+w+"% - 2px);background:"+evColor(e),title:e.title+(editable?" · přetažením přesuneš, klepnutím upravíš":"")},
+      const pos="top:"+top+"px;height:"+h+"px;left:calc("+left+"% + 1px);width:calc("+w+"% - 3px);";
+      if(e._slot){const m=e._sMin,hm=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+        cols[i].append(el("button",{type:"button",class:"cwslot"+(e.online?" onl":""),style:pos,title:(e.online?"Volný blok "+hm+" – kancelář obsazená, jen online":"Volný blok "+hm+" – osobně i online")+" · klepni a zaplň ho klientem",
+          onclick:()=>{if(!canWrite){toast("Pro zápis do kalendáře se přihlas Googlem");return}ctEventSheet(null,{date:k,time:hm,len:DZS.len})}},
+          el("span",{},(e._cols>1?"":"Volno ")+hm),el("small",{},e.online?"jen online":"osobně i online")));return}
+      const editable=canWrite&&e.kind==="mine";
+      const btn=el("button",{type:"button",class:"cwev"+evCls(e)+(editable?" draggable":""),style:pos+"background:"+evColor(e),title:e.title+(editable?" · přetažením přesuneš, klepnutím upravíš":"")},
         el("b",{},e.title),h>30?(e.allDay?"celý den":fmtHM(e.start))+(e.place?" · "+e.place:""):null);
       if(editable)ctSetupDrag(btn,e,i,{days,hStart,hEnd,HH,gridEl});
-      else btn.onclick=()=>toast(e.title+" · "+(e.allDay?"celý den":fmtHM(e.start))+(e.place?" · "+e.place:""));
+      else btn.onclick=()=>toast(e.title+" · "+(e.allDay?"celý den":fmtHM(e.start))+(e.place?" · "+e.place:"")+(e.kind==="off"?" · kancelář obsazená → v tu dobu jen online":""));
       cols[i].append(btn);
     });
   });
@@ -6774,7 +6801,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=27#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=28#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
