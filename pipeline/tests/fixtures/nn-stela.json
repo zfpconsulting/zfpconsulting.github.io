@@ -1,0 +1,2368 @@
+{
+ "1 jednotlivec 30 (klesající)": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Jan",
+    "vek": 30,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      1000000,
+      2000000
+     ],
+     "invKonec": 65,
+     "pnDen": 300
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 597,
+   "sleva": 0,
+   "rozhodne": 597,
+   "rows": [
+    [
+     "Jan",
+     "SMTV-P2R",
+     30000,
+     65,
+     4
+    ],
+    [
+     "Jan",
+     "SMTV-K2R",
+     2000000,
+     65,
+     152
+    ],
+    [
+     "Jan",
+     "INV3-K2R",
+     2000000,
+     65,
+     142
+    ],
+    [
+     "Jan",
+     "INV2-K2R",
+     1000000,
+     65,
+     43
+    ],
+    [
+     "Jan",
+     "INV1-K2R",
+     500000,
+     65,
+     52
+    ],
+    [
+     "Jan",
+     "PN29-P3R",
+     300,
+     65,
+     204
+    ]
+   ]
+  }
+ },
+ "1b jednotlivec 41, konstantní PČ, invalidita do 60": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Petr",
+    "vek": 41,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 3000000,
+     "smrtKonec": 65,
+     "inv": [
+      400000,
+      800000,
+      2500000
+     ],
+     "invKonec": 60,
+     "pnDen": 500
+    },
+    "opt": {
+     "smrt": "konstantni",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1813,
+   "sleva": 20,
+   "rozhodne": 2267,
+   "rows": [
+    [
+     "Petr",
+     "SMTV-P2R",
+     3000000,
+     65,
+     722
+    ],
+    [
+     "Petr",
+     "INV3-P2R",
+     2500000,
+     60,
+     516
+    ],
+    [
+     "Petr",
+     "INV2-P2R",
+     800000,
+     60,
+     83
+    ],
+    [
+     "Petr",
+     "INV1-P2R",
+     400000,
+     60,
+     120
+    ],
+    [
+     "Petr",
+     "PN29-P3R",
+     500,
+     60,
+     372
+    ]
+   ]
+  }
+ },
+ "1c jednotlivec 33, smrt na kratší dobu do 50, invalidita do 62": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Eva",
+    "vek": 33,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 2500000,
+     "smrtKonec": 50,
+     "inv": [
+      300000,
+      600000,
+      1800000
+     ],
+     "invKonec": 62,
+     "pnDen": 0
+    },
+    "opt": {
+     "smrt": "kratsi"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 554,
+   "sleva": 0,
+   "rozhodne": 554,
+   "rows": [
+    [
+     "Eva",
+     "SMTV-P2R",
+     30000,
+     65,
+     5
+    ],
+    [
+     "Eva",
+     "SMTK-P2R",
+     2500000,
+     50,
+     333
+    ],
+    [
+     "Eva",
+     "INV3-K2R",
+     1800000,
+     62,
+     149
+    ],
+    [
+     "Eva",
+     "INV2-K2R",
+     600000,
+     62,
+     29
+    ],
+    [
+     "Eva",
+     "INV1-K2R",
+     300000,
+     62,
+     38
+    ]
+   ]
+  }
+ },
+ "2 rodina 37 + 35, dvě děti": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Otec",
+    "vek": 37,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 4000000,
+     "smrtKonec": 65,
+     "inv": [
+      600000,
+      1000000,
+      3000000
+     ],
+     "invKonec": 65,
+     "pnDen": 600
+    },
+    "opt": {}
+   },
+   {
+    "jmeno": "Matka",
+    "vek": 35,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": false,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      300000,
+      600000,
+      1500000
+     ],
+     "invKonec": 65,
+     "pnDen": 0,
+     "maxKonec": 63
+    },
+    "opt": {}
+   },
+   {
+    "jmeno": "Ema",
+    "vek": 8,
+    "dite": true,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "maxKonec": 36
+   },
+   {
+    "jmeno": "Ondra",
+    "vek": 3,
+    "dite": true,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "maxKonec": 31
+   }
+  ],
+  "stela": {
+   "celkem": 2229,
+   "sleva": 20,
+   "rozhodne": 2785,
+   "rows": [
+    [
+     "Otec",
+     "SMTV-P2R",
+     30000,
+     65,
+     5
+    ],
+    [
+     "Otec",
+     "SMTV-K2R",
+     4000000,
+     65,
+     390
+    ],
+    [
+     "Otec",
+     "INV3-K2R",
+     3000000,
+     65,
+     271
+    ],
+    [
+     "Otec",
+     "INV2-K2R",
+     1000000,
+     65,
+     54
+    ],
+    [
+     "Otec",
+     "INV1-K2R",
+     600000,
+     65,
+     88
+    ],
+    [
+     "Otec",
+     "PN29-P3R",
+     600,
+     65,
+     402
+    ],
+    [
+     "Matka",
+     "SMTV-K2R",
+     2000000,
+     63,
+     154
+    ],
+    [
+     "Matka",
+     "INV3-K2R",
+     1500000,
+     63,
+     112
+    ],
+    [
+     "Matka",
+     "INV2-K2R",
+     600000,
+     63,
+     26
+    ],
+    [
+     "Matka",
+     "INV1-K2R",
+     300000,
+     63,
+     35
+    ],
+    [
+     "Ema",
+     "JTX1-P1R",
+     1000000,
+     26,
+     96
+    ],
+    [
+     "Ema",
+     "JZON-P2R",
+     500000,
+     26,
+     64
+    ],
+    [
+     "Ema",
+     "JDO3-P1R",
+     400,
+     26,
+     186
+    ],
+    [
+     "Ondra",
+     "JTX1-P1R",
+     1000000,
+     26,
+     96
+    ],
+    [
+     "Ondra",
+     "JZON-P2R",
+     500000,
+     26,
+     64
+    ],
+    [
+     "Ondra",
+     "JDO3-P1R",
+     400,
+     26,
+     186
+    ]
+   ]
+  }
+ },
+ "3 rizikové povolání RS 3 + sport RS 4": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Hasič",
+    "vek": 32,
+    "dite": false,
+    "rsPovolani": 3,
+    "rsSport": 4,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      1000000,
+      2000000
+     ],
+     "invKonec": 65,
+     "pnDen": 400
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 1028,
+   "sleva": 0,
+   "rozhodne": 1028,
+   "rows": [
+    [
+     "Hasič",
+     "SMTV-P2R",
+     30000,
+     65,
+     7
+    ],
+    [
+     "Hasič",
+     "SMTV-K2R",
+     2000000,
+     65,
+     241
+    ],
+    [
+     "Hasič",
+     "INV3-K2R",
+     2000000,
+     65,
+     227
+    ],
+    [
+     "Hasič",
+     "INV2-K2R",
+     1000000,
+     65,
+     67
+    ],
+    [
+     "Hasič",
+     "INV1-K2R",
+     500000,
+     65,
+     87
+    ],
+    [
+     "Hasič",
+     "PN29-P3R",
+     400,
+     65,
+     399
+    ]
+   ]
+  }
+ },
+ "3b jen rizikový sport RS 4": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Lezec",
+    "vek": 32,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 4,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      1000000,
+      2000000
+     ],
+     "invKonec": 65,
+     "pnDen": 400
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 734,
+   "sleva": 0,
+   "rozhodne": 734,
+   "rows": [
+    [
+     "Lezec",
+     "SMTV-P2R",
+     30000,
+     65,
+     5
+    ],
+    [
+     "Lezec",
+     "SMTV-K2R",
+     2000000,
+     65,
+     172
+    ],
+    [
+     "Lezec",
+     "INV3-K2R",
+     2000000,
+     65,
+     162
+    ],
+    [
+     "Lezec",
+     "INV2-K2R",
+     1000000,
+     65,
+     48
+    ],
+    [
+     "Lezec",
+     "INV1-K2R",
+     500000,
+     65,
+     62
+    ],
+    [
+     "Lezec",
+     "PN29-P3R",
+     400,
+     65,
+     285
+    ]
+   ]
+  }
+ },
+ "3c dítě 16 let s rizikovým sportem RS 3 (úrazová rizika s přirážkou)": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Táta",
+    "vek": 44,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 1000000,
+     "smrtKonec": 65,
+     "inv": [
+      300000,
+      500000,
+      1000000
+     ],
+     "invKonec": 65,
+     "pnDen": 0
+    },
+    "opt": {}
+   },
+   {
+    "jmeno": "Jezdec",
+    "vek": 16,
+    "dite": true,
+    "rsPovolani": 1,
+    "rsSport": 3,
+    "fit": "",
+    "maxKonec": 37
+   }
+  ],
+  "stela": {
+   "celkem": 1659,
+   "sleva": 15,
+   "rozhodne": 1951,
+   "rows": [
+    [
+     "Táta",
+     "SMTV-P2R",
+     30000,
+     65,
+     11
+    ],
+    [
+     "Táta",
+     "SMTV-K2R",
+     1000000,
+     65,
+     195
+    ],
+    [
+     "Táta",
+     "INV3-K2R",
+     1000000,
+     65,
+     161
+    ],
+    [
+     "Táta",
+     "INV2-K2R",
+     500000,
+     65,
+     46
+    ],
+    [
+     "Táta",
+     "INV1-K2R",
+     300000,
+     65,
+     73
+    ],
+    [
+     "Jezdec",
+     "TNX1-P1R",
+     1000000,
+     37,
+     561
+    ],
+    [
+     "Jezdec",
+     "DOU3-P1R",
+     400,
+     37,
+     612
+    ]
+   ]
+  }
+ },
+ "4 FitSport": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Sportovec",
+    "vek": 34,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "sport",
+    "plan": {
+     "hlavni": true,
+     "smrt": 3000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      1000000,
+      2500000
+     ],
+     "invKonec": 65,
+     "pnDen": 400
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 842,
+   "sleva": 0,
+   "rozhodne": 939,
+   "rows": [
+    [
+     "Sportovec",
+     "SMTV-P2R",
+     30000,
+     65,
+     4
+    ],
+    [
+     "Sportovec",
+     "SMTV-K2R",
+     3000000,
+     65,
+     245
+    ],
+    [
+     "Sportovec",
+     "INV3-K2R",
+     2500000,
+     65,
+     191
+    ],
+    [
+     "Sportovec",
+     "INV2-K2R",
+     1000000,
+     65,
+     46
+    ],
+    [
+     "Sportovec",
+     "INV1-K2R",
+     500000,
+     65,
+     61
+    ],
+    [
+     "Sportovec",
+     "PN29-P3R",
+     400,
+     65,
+     295
+    ]
+   ]
+  }
+ },
+ "4b FitSport + povolání RS 2 + sleva": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Kombi",
+    "vek": 45,
+    "dite": false,
+    "rsPovolani": 2,
+    "rsSport": 1,
+    "fit": "sport",
+    "plan": {
+     "hlavni": true,
+     "smrt": 4000000,
+     "smrtKonec": 65,
+     "inv": [
+      1000000,
+      1000000,
+      3000000
+     ],
+     "invKonec": 65,
+     "pnDen": 800
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 2823,
+   "sleva": 20,
+   "rozhodne": 3951,
+   "rows": [
+    [
+     "Kombi",
+     "SMTV-P2R",
+     30000,
+     65,
+     13
+    ],
+    [
+     "Kombi",
+     "SMTV-K2R",
+     4000000,
+     65,
+     941
+    ],
+    [
+     "Kombi",
+     "INV3-K2R",
+     3000000,
+     65,
+     571
+    ],
+    [
+     "Kombi",
+     "INV2-K2R",
+     1000000,
+     65,
+     109
+    ],
+    [
+     "Kombi",
+     "INV1-K2R",
+     1000000,
+     65,
+     285
+    ],
+    [
+     "Kombi",
+     "PN29-P3R",
+     800,
+     65,
+     904
+    ]
+   ]
+  }
+ },
+ "4c Fit Prevence": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Prevence",
+    "vek": 29,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "prevence",
+    "plan": {
+     "hlavni": true,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      800000,
+      2000000
+     ],
+     "invKonec": 65,
+     "pnDen": 0
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 356,
+   "sleva": 0,
+   "rozhodne": 375,
+   "rows": [
+    [
+     "Prevence",
+     "SMTV-P2R",
+     30000,
+     65,
+     4
+    ],
+    [
+     "Prevence",
+     "SMTV-K2R",
+     2000000,
+     65,
+     143
+    ],
+    [
+     "Prevence",
+     "INV3-K2R",
+     2000000,
+     65,
+     131
+    ],
+    [
+     "Prevence",
+     "INV2-K2R",
+     800000,
+     65,
+     32
+    ],
+    [
+     "Prevence",
+     "INV1-K2R",
+     500000,
+     65,
+     46
+    ]
+   ]
+  }
+ },
+ "5 sleva za výši pojistného (propojištěnost) 20 %": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Velký",
+    "vek": 44,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 5000000,
+     "smrtKonec": 65,
+     "inv": [
+      1000000,
+      1000000,
+      4000000
+     ],
+     "invKonec": 65,
+     "pnDen": 1000
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 2645,
+   "sleva": 20,
+   "rozhodne": 3307,
+   "rows": [
+    [
+     "Velký",
+     "SMTV-P2R",
+     30000,
+     65,
+     10
+    ],
+    [
+     "Velký",
+     "SMTV-K2R",
+     5000000,
+     65,
+     916
+    ],
+    [
+     "Velký",
+     "INV3-K2R",
+     4000000,
+     65,
+     605
+    ],
+    [
+     "Velký",
+     "INV2-K2R",
+     1000000,
+     65,
+     86
+    ],
+    [
+     "Velký",
+     "INV1-K2R",
+     1000000,
+     65,
+     228
+    ],
+    [
+     "Velký",
+     "PN29-P3R",
+     1000,
+     65,
+     800
+    ]
+   ]
+  }
+ },
+ "5b totéž s kampaní Hypotéka (25 %)": {
+  "hypo": true,
+  "osoby": [
+   {
+    "jmeno": "Velký",
+    "vek": 44,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 5000000,
+     "smrtKonec": 65,
+     "inv": [
+      1000000,
+      1000000,
+      4000000
+     ],
+     "invKonec": 65,
+     "pnDen": 1000
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 2480,
+   "sleva": 25,
+   "rozhodne": 3307,
+   "rows": [
+    [
+     "Velký",
+     "SMTV-P2R",
+     30000,
+     65,
+     9
+    ],
+    [
+     "Velký",
+     "SMTV-K2R",
+     5000000,
+     65,
+     859
+    ],
+    [
+     "Velký",
+     "INV3-K2R",
+     4000000,
+     65,
+     567
+    ],
+    [
+     "Velký",
+     "INV2-K2R",
+     1000000,
+     65,
+     81
+    ],
+    [
+     "Velký",
+     "INV1-K2R",
+     1000000,
+     65,
+     214
+    ],
+    [
+     "Velký",
+     "PN29-P3R",
+     1000,
+     65,
+     750
+    ]
+   ]
+  }
+ },
+ "5c sleva 10 % (rozhodné 1 300–1 699 Kč)": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Střed",
+    "vek": 39,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 3000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      1000000,
+      3000000
+     ],
+     "invKonec": 65,
+     "pnDen": 700
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 1475,
+   "sleva": 10,
+   "rozhodne": 1639,
+   "rows": [
+    [
+     "Střed",
+     "SMTV-P2R",
+     30000,
+     65,
+     7
+    ],
+    [
+     "Střed",
+     "SMTV-K2R",
+     3000000,
+     65,
+     386
+    ],
+    [
+     "Střed",
+     "INV3-K2R",
+     3000000,
+     65,
+     351
+    ],
+    [
+     "Střed",
+     "INV2-K2R",
+     1000000,
+     65,
+     68
+    ],
+    [
+     "Střed",
+     "INV1-K2R",
+     500000,
+     65,
+     93
+    ],
+    [
+     "Střed",
+     "PN29-P3R",
+     700,
+     65,
+     570
+    ]
+   ]
+  }
+ },
+ "5d věk 57 – rizika na méně než 10 let se do slevy nepočítají": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Starší",
+    "vek": 57,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      1000000,
+      2000000
+     ],
+     "invKonec": 65,
+     "pnDen": 400
+    },
+    "opt": {}
+   }
+  ],
+  "stela": {
+   "celkem": 3637,
+   "sleva": 0,
+   "rozhodne": 0,
+   "rows": [
+    [
+     "Starší",
+     "SMTV-P2R",
+     30000,
+     65,
+     40
+    ],
+    [
+     "Starší",
+     "SMTV-K2R",
+     2000000,
+     65,
+     1790
+    ],
+    [
+     "Starší",
+     "INV3-K2R",
+     2000000,
+     65,
+     730
+    ],
+    [
+     "Starší",
+     "INV2-K2R",
+     1000000,
+     65,
+     194
+    ],
+    [
+     "Starší",
+     "INV1-K2R",
+     500000,
+     65,
+     239
+    ],
+    [
+     "Starší",
+     "PN29-P3R",
+     400,
+     65,
+     644
+    ]
+   ]
+  }
+ },
+ "6 děti: rodič + dítě 5 let + dítě 16 let": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "Máma",
+    "vek": 40,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      1000000,
+      2000000
+     ],
+     "invKonec": 65,
+     "pnDen": 0
+    },
+    "opt": {}
+   },
+   {
+    "jmeno": "Malý",
+    "vek": 5,
+    "dite": true,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "maxKonec": 30
+   },
+   {
+    "jmeno": "Teen",
+    "vek": 16,
+    "dite": true,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "maxKonec": 41
+   }
+  ],
+  "stela": {
+   "celkem": 1501,
+   "sleva": 10,
+   "rozhodne": 1668,
+   "rows": [
+    [
+     "Máma",
+     "SMTV-P2R",
+     30000,
+     65,
+     7
+    ],
+    [
+     "Máma",
+     "SMTV-K2R",
+     2000000,
+     65,
+     274
+    ],
+    [
+     "Máma",
+     "INV3-K2R",
+     2000000,
+     65,
+     248
+    ],
+    [
+     "Máma",
+     "INV2-K2R",
+     1000000,
+     65,
+     73
+    ],
+    [
+     "Máma",
+     "INV1-K2R",
+     500000,
+     65,
+     96
+    ],
+    [
+     "Malý",
+     "JTX1-P1R",
+     1000000,
+     26,
+     108
+    ],
+    [
+     "Malý",
+     "JZON-P2R",
+     500000,
+     26,
+     72
+    ],
+    [
+     "Malý",
+     "JDO3-P1R",
+     400,
+     26,
+     209
+    ],
+    [
+     "Teen",
+     "TNX1-P1R",
+     1000000,
+     41,
+     198
+    ],
+    [
+     "Teen",
+     "DOU3-P1R",
+     400,
+     41,
+     216
+    ]
+   ]
+  }
+ },
+ "6b rodina s Hypotékou a Fit u partnerky": {
+  "hypo": true,
+  "osoby": [
+   {
+    "jmeno": "Tomáš",
+    "vek": 36,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 3500000,
+     "smrtKonec": 65,
+     "inv": [
+      700000,
+      1000000,
+      2800000
+     ],
+     "invKonec": 65,
+     "pnDen": 500
+    },
+    "opt": {}
+   },
+   {
+    "jmeno": "Jana",
+    "vek": 33,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "sport",
+    "plan": {
+     "hlavni": false,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      400000,
+      700000,
+      1600000
+     ],
+     "invKonec": 65,
+     "pnDen": 0,
+     "maxKonec": 62
+    },
+    "opt": {}
+   },
+   {
+    "jmeno": "Adam",
+    "vek": 6,
+    "dite": true,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "maxKonec": 35
+   }
+  ],
+  "stela": {
+   "celkem": 1565,
+   "sleva": 25,
+   "rozhodne": 2086,
+   "rows": [
+    [
+     "Tomáš",
+     "SMTV-P2R",
+     30000,
+     65,
+     4
+    ],
+    [
+     "Tomáš",
+     "SMTV-K2R",
+     3500000,
+     65,
+     291
+    ],
+    [
+     "Tomáš",
+     "INV3-K2R",
+     2800000,
+     65,
+     221
+    ],
+    [
+     "Tomáš",
+     "INV2-K2R",
+     1000000,
+     65,
+     47
+    ],
+    [
+     "Tomáš",
+     "INV1-K2R",
+     700000,
+     65,
+     89
+    ],
+    [
+     "Tomáš",
+     "PN29-P3R",
+     500,
+     65,
+     298
+    ],
+    [
+     "Jana",
+     "SMTV-K2R",
+     2000000,
+     62,
+     128
+    ],
+    [
+     "Jana",
+     "INV3-K2R",
+     1600000,
+     62,
+     100
+    ],
+    [
+     "Jana",
+     "INV2-K2R",
+     700000,
+     62,
+     25
+    ],
+    [
+     "Jana",
+     "INV1-K2R",
+     400000,
+     62,
+     38
+    ],
+    [
+     "Adam",
+     "JTX1-P1R",
+     1000000,
+     26,
+     90
+    ],
+    [
+     "Adam",
+     "JZON-P2R",
+     500000,
+     26,
+     60
+    ],
+    [
+     "Adam",
+     "JDO3-P1R",
+     400,
+     26,
+     174
+    ]
+   ]
+  }
+ },
+ "R1 náhodný profil 20 let": {
+  "hypo": true,
+  "osoby": [
+   {
+    "jmeno": "R1",
+    "vek": 20,
+    "dite": false,
+    "rsPovolani": 2,
+    "rsSport": 4,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 3000000,
+     "smrtKonec": 40,
+     "inv": [
+      300000,
+      1000000,
+      4000000
+     ],
+     "invKonec": 65,
+     "pnDen": 800
+    },
+    "opt": {
+     "smrt": "konstantni",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1413,
+   "sleva": 20,
+   "rozhodne": 1766,
+   "rows": [
+    [
+     "R1",
+     "SMTV-P2R",
+     3000000,
+     65,
+     403
+    ],
+    [
+     "R1",
+     "INV3-P2R",
+     4000000,
+     65,
+     363
+    ],
+    [
+     "R1",
+     "INV2-P2R",
+     1000000,
+     65,
+     43
+    ],
+    [
+     "R1",
+     "INV1-P2R",
+     300000,
+     65,
+     35
+    ],
+    [
+     "R1",
+     "PN29-P3R",
+     800,
+     65,
+     569
+    ]
+   ]
+  }
+ },
+ "R2 náhodný profil 34 let": {
+  "hypo": true,
+  "osoby": [
+   {
+    "jmeno": "R2",
+    "vek": 34,
+    "dite": false,
+    "rsPovolani": 2,
+    "rsSport": 2,
+    "fit": "sport",
+    "plan": {
+     "hlavni": true,
+     "smrt": 3000000,
+     "smrtKonec": 49,
+     "inv": [
+      1000000,
+      1000000,
+      3000000
+     ],
+     "invKonec": 58,
+     "pnDen": 0
+    },
+    "opt": {
+     "smrt": "konstantni",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1238,
+   "sleva": 20,
+   "rozhodne": 1822,
+   "rows": [
+    [
+     "R2",
+     "SMTV-P2R",
+     3000000,
+     65,
+     500
+    ],
+    [
+     "R2",
+     "INV3-P2R",
+     3000000,
+     58,
+     451
+    ],
+    [
+     "R2",
+     "INV2-P2R",
+     1000000,
+     58,
+     70
+    ],
+    [
+     "R2",
+     "INV1-P2R",
+     1000000,
+     58,
+     217
+    ]
+   ]
+  }
+ },
+ "R4 náhodný profil 33 let": {
+  "hypo": true,
+  "osoby": [
+   {
+    "jmeno": "R4",
+    "vek": 33,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "sport",
+    "plan": {
+     "hlavni": true,
+     "smrt": 1000000,
+     "smrtKonec": 48,
+     "inv": [
+      300000,
+      1000000,
+      4000000
+     ],
+     "invKonec": 65,
+     "pnDen": 400
+    },
+    "opt": {
+     "smrt": "kratsi",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1067,
+   "sleva": 0,
+   "rozhodne": 1205,
+   "rows": [
+    [
+     "R4",
+     "SMTV-P2R",
+     30000,
+     65,
+     4
+    ],
+    [
+     "R4",
+     "SMTK-P2R",
+     1000000,
+     48,
+     111
+    ],
+    [
+     "R4",
+     "INV3-P2R",
+     4000000,
+     65,
+     541
+    ],
+    [
+     "R4",
+     "INV2-P2R",
+     1000000,
+     65,
+     64
+    ],
+    [
+     "R4",
+     "INV1-P2R",
+     300000,
+     65,
+     57
+    ],
+    [
+     "R4",
+     "PN29-P3R",
+     400,
+     65,
+     290
+    ]
+   ]
+  }
+ },
+ "R5 náhodný profil 40 let": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "R5",
+    "vek": 40,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 0,
+     "smrtKonec": 55,
+     "inv": [
+      300000,
+      800000,
+      2000000
+     ],
+     "invKonec": 65,
+     "pnDen": 1500
+    },
+    "opt": {
+     "smrt": "konstantni",
+     "inv": "klesajici"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1539,
+   "sleva": 15,
+   "rozhodne": 1810,
+   "rows": [
+    [
+     "R5",
+     "SMTV-P2R",
+     30000,
+     65,
+     7
+    ],
+    [
+     "R5",
+     "INV3-K2R",
+     2000000,
+     65,
+     235
+    ],
+    [
+     "R5",
+     "INV2-K2R",
+     800000,
+     65,
+     55
+    ],
+    [
+     "R5",
+     "INV1-K2R",
+     300000,
+     65,
+     55
+    ],
+    [
+     "R5",
+     "PN29-P3R",
+     1500,
+     65,
+     1187
+    ]
+   ]
+  }
+ },
+ "R6 náhodný profil 36 let": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "R6",
+    "vek": 36,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 2,
+    "fit": "prevence",
+    "plan": {
+     "hlavni": true,
+     "smrt": 1000000,
+     "smrtKonec": 61,
+     "inv": [
+      300000,
+      1000000,
+      1500000
+     ],
+     "invKonec": 62,
+     "pnDen": 400
+    },
+    "opt": {
+     "smrt": "konstantni",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 933,
+   "sleva": 0,
+   "rozhodne": 966,
+   "rows": [
+    [
+     "R6",
+     "SMTV-P2R",
+     1000000,
+     65,
+     188
+    ],
+    [
+     "R6",
+     "INV3-P2R",
+     1500000,
+     62,
+     271
+    ],
+    [
+     "R6",
+     "INV2-P2R",
+     1000000,
+     62,
+     86
+    ],
+    [
+     "R6",
+     "INV1-P2R",
+     300000,
+     62,
+     78
+    ],
+    [
+     "R6",
+     "PN29-P3R",
+     400,
+     62,
+     310
+    ]
+   ]
+  }
+ },
+ "R7 náhodný profil 35 let": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "R7",
+    "vek": 35,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 1000000,
+     "smrtKonec": 50,
+     "inv": [
+      300000,
+      1000000,
+      3000000
+     ],
+     "invKonec": 65,
+     "pnDen": 1500
+    },
+    "opt": {
+     "smrt": "klesajici",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1643,
+   "sleva": 15,
+   "rozhodne": 1932,
+   "rows": [
+    [
+     "R7",
+     "SMTV-P2R",
+     30000,
+     65,
+     5
+    ],
+    [
+     "R7",
+     "SMTV-K2R",
+     1000000,
+     65,
+     85
+    ],
+    [
+     "R7",
+     "INV3-P2R",
+     3000000,
+     65,
+     462
+    ],
+    [
+     "R7",
+     "INV2-P2R",
+     1000000,
+     65,
+     73
+    ],
+    [
+     "R7",
+     "INV1-P2R",
+     300000,
+     65,
+     66
+    ],
+    [
+     "R7",
+     "PN29-P3R",
+     1500,
+     65,
+     952
+    ]
+   ]
+  }
+ },
+ "R8 náhodný profil 23 let": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "R8",
+    "vek": 23,
+    "dite": false,
+    "rsPovolani": 3,
+    "rsSport": 4,
+    "fit": "darce",
+    "plan": {
+     "hlavni": true,
+     "smrt": 0,
+     "smrtKonec": 38,
+     "inv": [
+      500000,
+      500000,
+      4000000
+     ],
+     "invKonec": 65,
+     "pnDen": 1500
+    },
+    "opt": {
+     "smrt": "kratsi",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1607,
+   "sleva": 15,
+   "rozhodne": 1984,
+   "rows": [
+    [
+     "R8",
+     "SMTV-P2R",
+     30000,
+     65,
+     4
+    ],
+    [
+     "R8",
+     "INV3-P2R",
+     4000000,
+     65,
+     364
+    ],
+    [
+     "R8",
+     "INV2-P2R",
+     500000,
+     65,
+     21
+    ],
+    [
+     "R8",
+     "INV1-P2R",
+     500000,
+     65,
+     60
+    ],
+    [
+     "R8",
+     "PN29-P3R",
+     1500,
+     65,
+     1158
+    ]
+   ]
+  }
+ },
+ "R9 náhodný profil 31 let": {
+  "hypo": true,
+  "osoby": [
+   {
+    "jmeno": "R9",
+    "vek": 31,
+    "dite": false,
+    "rsPovolani": 3,
+    "rsSport": 1,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 0,
+     "smrtKonec": 51,
+     "inv": [
+      0,
+      1000000,
+      1000000
+     ],
+     "invKonec": 65,
+     "pnDen": 200
+    },
+    "opt": {
+     "smrt": "kratsi",
+     "inv": "klesajici"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 371,
+   "sleva": 0,
+   "rozhodne": 371,
+   "rows": [
+    [
+     "R9",
+     "SMTV-P2R",
+     30000,
+     65,
+     6
+    ],
+    [
+     "R9",
+     "INV3-K2R",
+     1000000,
+     65,
+     106
+    ],
+    [
+     "R9",
+     "INV2-K2R",
+     1000000,
+     65,
+     64
+    ],
+    [
+     "R9",
+     "PN29-P3R",
+     200,
+     65,
+     195
+    ]
+   ]
+  }
+ },
+ "R10 náhodný profil 55 let": {
+  "hypo": true,
+  "osoby": [
+   {
+    "jmeno": "R10",
+    "vek": 55,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 2,
+    "fit": "",
+    "plan": {
+     "hlavni": true,
+     "smrt": 5000000,
+     "smrtKonec": 65,
+     "inv": [
+      1000000,
+      500000,
+      1000000
+     ],
+     "invKonec": 60,
+     "pnDen": 1500
+    },
+    "opt": {
+     "smrt": "klesajici",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 5402,
+   "sleva": 25,
+   "rozhodne": 3599,
+   "rows": [
+    [
+     "R10",
+     "SMTV-P2R",
+     30000,
+     65,
+     26
+    ],
+    [
+     "R10",
+     "SMTV-K2R",
+     5000000,
+     65,
+     2674
+    ],
+    [
+     "R10",
+     "INV3-P2R",
+     1000000,
+     60,
+     385
+    ],
+    [
+     "R10",
+     "INV2-P2R",
+     500000,
+     60,
+     93
+    ],
+    [
+     "R10",
+     "INV1-P2R",
+     1000000,
+     60,
+     499
+    ],
+    [
+     "R10",
+     "PN29-P3R",
+     1500,
+     60,
+     1725
+    ]
+   ]
+  }
+ },
+ "R11 náhodný profil 28 let": {
+  "hypo": true,
+  "osoby": [
+   {
+    "jmeno": "R11",
+    "vek": 28,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 2,
+    "fit": "prevence",
+    "plan": {
+     "hlavni": true,
+     "smrt": 3000000,
+     "smrtKonec": 48,
+     "inv": [
+      500000,
+      800000,
+      1500000
+     ],
+     "invKonec": 62,
+     "pnDen": 0
+    },
+    "opt": {
+     "smrt": "klesajici",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 477,
+   "sleva": 0,
+   "rozhodne": 503,
+   "rows": [
+    [
+     "R11",
+     "SMTV-P2R",
+     30000,
+     65,
+     4
+    ],
+    [
+     "R11",
+     "SMTV-K2R",
+     3000000,
+     65,
+     205
+    ],
+    [
+     "R11",
+     "INV3-P2R",
+     1500000,
+     62,
+     155
+    ],
+    [
+     "R11",
+     "INV2-P2R",
+     800000,
+     62,
+     39
+    ],
+    [
+     "R11",
+     "INV1-P2R",
+     500000,
+     62,
+     74
+    ]
+   ]
+  }
+ },
+ "R12 náhodný profil 21 let": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "R12",
+    "vek": 21,
+    "dite": false,
+    "rsPovolani": 1,
+    "rsSport": 1,
+    "fit": "prevence",
+    "plan": {
+     "hlavni": true,
+     "smrt": 5000000,
+     "smrtKonec": 46,
+     "inv": [
+      300000,
+      500000,
+      4000000
+     ],
+     "invKonec": 55,
+     "pnDen": 800
+    },
+    "opt": {
+     "smrt": "kratsi",
+     "inv": "klesajici"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1170,
+   "sleva": 10,
+   "rozhodne": 1344,
+   "rows": [
+    [
+     "R12",
+     "SMTV-P2R",
+     30000,
+     65,
+     3
+    ],
+    [
+     "R12",
+     "SMTK-P2R",
+     5000000,
+     46,
+     513
+    ],
+    [
+     "R12",
+     "INV3-K2R",
+     4000000,
+     55,
+     178
+    ],
+    [
+     "R12",
+     "INV2-K2R",
+     500000,
+     55,
+     12
+    ],
+    [
+     "R12",
+     "INV1-K2R",
+     300000,
+     55,
+     13
+    ],
+    [
+     "R12",
+     "PN29-P3R",
+     800,
+     55,
+     451
+    ]
+   ]
+  }
+ },
+ "R13 náhodný profil 42 let": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "R13",
+    "vek": 42,
+    "dite": false,
+    "rsPovolani": 2,
+    "rsSport": 4,
+    "fit": "prevence",
+    "plan": {
+     "hlavni": true,
+     "smrt": 1000000,
+     "smrtKonec": 62,
+     "inv": [
+      300000,
+      500000,
+      2000000
+     ],
+     "invKonec": 62,
+     "pnDen": 0
+    },
+    "opt": {
+     "smrt": "kratsi",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 1331,
+   "sleva": 10,
+   "rozhodne": 1556,
+   "rows": [
+    [
+     "R13",
+     "SMTV-P2R",
+     30000,
+     65,
+     12
+    ],
+    [
+     "R13",
+     "SMTK-P2R",
+     1000000,
+     62,
+     396
+    ],
+    [
+     "R13",
+     "INV3-P2R",
+     2000000,
+     62,
+     687
+    ],
+    [
+     "R13",
+     "INV2-P2R",
+     500000,
+     62,
+     86
+    ],
+    [
+     "R13",
+     "INV1-P2R",
+     300000,
+     62,
+     150
+    ]
+   ]
+  }
+ },
+ "R14 náhodný profil 27 let": {
+  "hypo": false,
+  "osoby": [
+   {
+    "jmeno": "R14",
+    "vek": 27,
+    "dite": false,
+    "rsPovolani": 2,
+    "rsSport": 2,
+    "fit": "sport",
+    "plan": {
+     "hlavni": true,
+     "smrt": 2000000,
+     "smrtKonec": 52,
+     "inv": [
+      1000000,
+      800000,
+      2500000
+     ],
+     "invKonec": 65,
+     "pnDen": 0
+    },
+    "opt": {
+     "smrt": "konstantni",
+     "inv": "klesajici"
+    }
+   }
+  ],
+  "stela": {
+   "celkem": 653,
+   "sleva": 0,
+   "rozhodne": 769,
+   "rows": [
+    [
+     "R14",
+     "SMTV-P2R",
+     2000000,
+     65,
+     319
+    ],
+    [
+     "R14",
+     "INV3-K2R",
+     2500000,
+     65,
+     196
+    ],
+    [
+     "R14",
+     "INV2-K2R",
+     800000,
+     65,
+     36
+    ],
+    [
+     "R14",
+     "INV1-K2R",
+     1000000,
+     65,
+     102
+    ]
+   ]
+  }
+ }
+}

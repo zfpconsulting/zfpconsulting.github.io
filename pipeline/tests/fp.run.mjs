@@ -338,6 +338,48 @@ tests["slide ŽP: tabulka z výpočtu NN má jen rizika s pojistnou částkou, P
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+/* NN Orange Risk: pojistné z pipeline = pojistné, které spočítala Stela 2.0 (fixture nn-stela.json = vstupy a výsledky přímo ze Stely 10/2026) */
+tests["NN Orange Risk: testové případy sedí na korunu se Stelou (jednotlivec, rodina, rizikové povolání/sport, Fit, sleva za výši pojistného, Hypotéka, děti)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const fx = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./fixtures/nn-stela.json", import.meta.url), "utf8"));
+  const res = await page.evaluate(F => Object.entries(F).map(([nazev, c]) => {
+    const fl = [], osoby = c.osoby.map(o => ({ jmeno: o.jmeno, vek: o.vek, dite: !!o.dite, rsPovolani: o.rsPovolani, rsSport: o.rsSport, fit: o.fit,
+      rizika: o.dite ? FPE.nnRizikaDitete({ jmeno: o.jmeno, vek: o.vek }, fl).map(r => Object.assign(r, { konec: Math.min(r.konec, o.maxKonec || 99), doba: Math.min(r.konec, o.maxKonec || 99) - o.vek }))
+        : FPE.nnRizikaOsoby(Object.assign({ jmeno: o.jmeno, vstup: o.vek }, o.plan), o.opt || {}, fl) }));
+    const R = FPE.nnOcen(osoby, c.hypo, fl);
+    const rows = R.osoby.flatMap(o => o.rizika.map(r => [o.jmeno, r.tarif, r.pc, r.konec, r.mes]));
+    return { nazev, celkem: R.celkem, sleva: R.sleva, rows, ocek: c.stela };
+  }), fx);
+  for (const r of res) {
+    eq(r.rows, r.ocek.rows, r.nazev + " – rizika, PČ, konec a pojistné");
+    eq([r.celkem, r.sleva], [r.ocek.celkem, r.ocek.sleva], r.nazev + " – celkem a sleva");
+  }
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["NN Orange Risk: navržené pojistné se doplní samo, slide modelace ukazuje jen rizika, která plánu vyšla, s PČ a pojistným"] = async function () {
+  const { ctx, page, errors } = await open();
+  const rodina = { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 52000, vydaje_dom: 44000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 75000, nn_fit: "sport" },
+    partner: { zapnuto: true, jmeno: "Eva Nováková", narozen: "1991-02-02", zam: 38000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 52000 },
+    deti: [{ jmeno: "Anička", narozen: "2018-04-01", vs: false }], motivace: "x", majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }],
+    cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" } } };
+  await setPlan(page, rodina);
+  const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[\u00a0\u202f]/g, " "); };
+    const zp = FR.filter(f => /^zp\d$/.test(f.g)), deti = FR.find(f => f.g === "deti");
+    return { auto: R.pojAuto, poj: R.pojNove, nn: R.nn.celkem, sumRows: R.nn.osoby.reduce((a, x) => a + x.rizika.reduce((b, r) => b + r.mes, 0), 0), sleva: R.nn.sleva,
+      zp: zp.map(f => t(f.h)), deti: deti && t(deti.h), rows0: R.nn.dospeli[0].rizika.filter(r => r.pc > 0).map(r => [r.nazev, r.pc, r.mes]),
+      bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; });
+  assert(o.auto, "prázdné navržené pojistné → spočítá se z NN"); eq(o.poj, o.nn, "pojistné v plánu = výpočet NN"); eq(o.nn, o.sumRows, "celkem = součet řádků");
+  eq(o.zp.length, 2, "slide modelace pro oba partnery");
+  o.rows0.forEach(([n, pc, mes]) => { assert(o.zp[0].includes(n), "řádek " + n + " na slidu"); assert(o.zp[0].includes(mes.toLocaleString("cs-CZ").replace(/\s/g, " ") + " Kč"), "pojistné " + n + " na slidu"); });
+  assert(!/Hospitalizace|Závažná onemocnění ZO4/.test(o.zp[0]), "na slidu nejsou rizika, která plán nedoporučil");
+  assert(/Program Fit/.test(o.zp[0]) && !/Program Fit/.test(o.zp[1]), "Fit je jen u 1. pojištěného"); assert(/Pojistné/.test(o.deti), "slide dětí ukazuje pojistné");
+  eq(o.bad, [], "bez Infinity / NaN / undefined");
+  await setPlan(page, Object.assign({}, rodina, { pojisteni: { zivotni: { stav: 0, navrh: 2500 } } }));
+  const m = await page.evaluate(() => { compute(); return { auto: !!R.pojAuto, poj: R.pojNove }; });
+  eq(m, { auto: false, poj: 2500 }, "ručně zadané pojistné má přednost");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
