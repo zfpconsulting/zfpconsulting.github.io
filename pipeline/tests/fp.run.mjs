@@ -449,7 +449,7 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   const { ctx, page, errors } = await open();
   const DZ = FP.replace("fp.html", "dotaznik.html");
   await page.goto(DZ); const key = await page.evaluate(() => DzCrypto.genKey());
-  const posts = []; await ctx.route(/firestore\.googleapis\.com/, async r => { posts.push(JSON.parse(r.request().postData())); await r.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+  const posts = []; await ctx.route(/firestore\.googleapis\.com/, async r => { if (r.request().method() === "GET") return r.fulfill({ status: 404, body: "{}" }); posts.push(JSON.parse(r.request().postData())); await r.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
   await page.goto(DZ + "#v=1&to=poradce%40example.cz&k=" + key.pub + "&p=Vojt%C4%9Bch%20Kudli%C4%8Dka"); await page.reload();
   assert((await page.textContent("main")).includes("Vojtěch Kudlička"), "poradce z odkazu");
   await page.click("#bSend"); await page.waitForTimeout(400);

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
 <title>Vstupní dotazník – finanční plán</title>
 <style>
 /* Vstupní dotazník k finančnímu plánu. Otázky odpovídají vstupům živé prezentace (fp.html) – co klient vyplní, jde 1:1 do plánu.
@@ -21,8 +21,8 @@ body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 -apple-system,
 button,input,select,textarea{font:inherit;color:inherit}
 .top{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px 0;padding-top:max(12px,env(safe-area-inset-top))}
 .top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px}
-.brand{font-weight:800;font-size:15px;letter-spacing:.02em;white-space:nowrap}.brand b{color:var(--acc);font-weight:800}
-.brand span{color:var(--mut);font-weight:500;margin-left:6px}
+.brand{display:flex;align-items:center;gap:12px;white-space:nowrap}.brand .logo{height:30px;width:auto;display:block}
+.brand>span{color:var(--mut);font-weight:500;font-size:14px;border-left:1px solid var(--line2);padding-left:12px}
 .top .sp{flex:1}
 .prog{height:2px;background:var(--line);max-width:720px;margin:12px auto 0}
 .prog i{display:block;height:100%;width:0;background:var(--acc);transition:width .3s}
@@ -101,10 +101,22 @@ label.f input:focus,label.f select:focus,label.f textarea:focus{outline:none;bor
 .done h1{font-size:26px;margin:0 0 8px}
 .done p{color:var(--mut);max-width:440px;margin:0 auto}
 body.emb .hero h1{font-size:22px}
+.book{max-width:640px;margin:8px auto 0;text-align:left}
+.book h2{font-size:22px;margin:0 0 6px;font-weight:800}
+.days{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:thin}
+.days button{flex:none;border:1px solid var(--line2);background:var(--inp);border-radius:10px;padding:9px 12px;cursor:pointer;text-align:center;min-width:72px;font-size:13px;line-height:1.3}
+.days button b{display:block;font-size:16px}
+.days button.on{background:var(--txt);color:var(--bg);border-color:var(--txt)}
+.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin:6px 0 16px}
+.times button{border:1px solid var(--line2);background:var(--inp);border-radius:8px;padding:10px 0;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
+.times button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.map{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:10px 0 6px}
+.map iframe{display:block;width:100%;height:240px;border:0}
+.note{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;font-size:14.5px}
 </style>
 </head>
 <body>
-<div class="top"><div class="in"><span class="brand"><b>ZFP</b> CONSULTING<span>Vstupní dotazník</span></span><span class="sp"></span><span id="topBtns"></span></div><div class="prog"><i id="prog"></i></div></div>
+<div class="top"><div class="in"><span class="brand"><picture><source srcset="zfp-logo-white.svg" media="(prefers-color-scheme: dark)"><img src="zfp-logo.svg" alt="ZFP GROUP" class="logo"></picture><span>Vstupní dotazník</span></span><span class="sp"></span><span id="topBtns"></span></div><div class="prog"><i id="prog"></i></div></div>
 <main id="main"></main>
 <div class="bottom" id="bottom"><div class="in"><span class="st" id="st"></span><span id="botBtns"></span></div></div>
 <div class="toast" id="toast"></div>
@@ -269,9 +281,48 @@ function render(){
    ${EMB?"":`<p class="priv">Rozpracované odpovědi se drží jen v tomto prohlížeči (bez příloh) a po odeslání se smažou. Data se šifrují standardem AES-256 klíčem, který má jen váš poradce.</p>`}`;
   window.scrollTo(0,sc);status(per);
 }
-function renderSent(){$("#main").innerHTML=`<div class="done"><span class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
-  <h1>Odesláno</h1><p>Dotazník dorazil vašemu poradci – zašifrovaný, přečíst ho může jen on. Z tohoto zařízení jsme odpovědi smazali. Děkujeme a těšíme se na schůzku.</p></div>`;
-  $("#bottom").hidden=true;$("#topBtns").innerHTML="";$("#prog").style.width="100%";window.scrollTo(0,0)}
+const OK_IC='<span class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>';
+/* po odeslání: rezervace termínu 2. konzultace (volné bloky publikuje Pipeline poradce – jen časy, nic o klientech) */
+const BK={slots:null,addr:"Trnitá 500/9, 602 00 Brno",day:"",time:"",mode:"",err:"",busy:false,done:null};
+const FSDOC="https://firestore.googleapis.com/v1/projects/zfp-pipeline/databases/(default)/documents/dzslots/";
+async function loadSlots(){try{const r=await fetch(FSDOC+encodeURIComponent(LINK.to)+"?key=AIzaSyDfS0FJx1EtbgqJSUUOK722PB_5Zo6hCuI",{credentials:"omit",referrerPolicy:"strict-origin",cache:"no-store"});
+    if(!r.ok)throw 0;const j=await r.json(),F=j.fields||{};BK.addr=(F.addr&&F.addr.stringValue)||BK.addr;
+    const min=Date.now()+12*3600e3;BK.slots=((F.slots&&F.slots.arrayValue&&F.slots.arrayValue.values)||[]).map(v=>v.stringValue).filter(x=>x&&Date.parse(x)>min).sort()}
+  catch(e){BK.slots=[]}renderSent()}
+const DNY=["ne","po","út","st","čt","pá","so"];
+const dk=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const hm=iso=>{const d=new Date(iso);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")};
+const dayTxt=iso=>{const d=new Date(iso);return ["neděle","pondělí","úterý","středa","čtvrtek","pátek","sobota"][d.getDay()]+" "+d.getDate()+". "+(d.getMonth()+1)+"."};
+function renderSent(){
+  $("#bottom").hidden=true;$("#topBtns").innerHTML="";$("#prog").style.width="100%";
+  const K0=(SENT&&SENT.kontakt)||{},mail=K0.email||"váš e-mail";
+  if(BK.done){$("#main").innerHTML=`<div class="done">${OK_IC}<h1>Termín je zarezervovaný</h1><p><b>${esc(dayTxt(BK.done.start))} v ${esc(hm(BK.done.start))}</b> – ${BK.done.online?`online. Odkaz na schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.`:`osobně, ${esc(BK.addr)}.`}</p></div>${BK.done.online?"":mapBox()}`;return}
+  const head=`<div class="done" style="padding:40px 10px 20px">${OK_IC}<h1>Odesláno</h1><p>Dotazník dorazil vašemu poradci – zašifrovaný, přečíst ho může jen on. Z tohoto zařízení jsme odpovědi smazali.</p></div>`;
+  if(BK.slots===null){$("#main").innerHTML=head+`<p class="hint" style="text-align:center">Načítám volné termíny…</p>`;return}
+  if(!BK.slots.length){$("#main").innerHTML=head+`<div class="book"><div class="note">Termín druhé konzultace si domluvíme – poradce se vám ozve.</div></div>`;return}
+  const days=[...new Set(BK.slots.map(dk))];if(!BK.day||!days.includes(BK.day))BK.day=days[0];
+  const times=BK.slots.filter(x=>dk(x)===BK.day);
+  $("#main").innerHTML=head+`<div class="book"><h2>Zarezervujte si druhou konzultaci</h2><p class="hint" style="margin:0 0 14px">Na ní spolu projdeme finanční plán připravený z vašich odpovědí. Trvá zhruba 45 minut.</p>
+   <span class="qq" style="display:block;margin:4px 0 8px">Den</span><div class="days">${days.map(d=>{const x=new Date(d+"T12:00:00");return `<button type="button" data-day="${d}" class="${d===BK.day?"on":""}">${DNY[x.getDay()]}<b>${x.getDate()}. ${x.getMonth()+1}.</b></button>`}).join("")}</div>
+   <span class="qq" style="display:block;margin:6px 0 4px">Čas</span><div class="times">${times.map(t=>`<button type="button" data-time="${t}" class="${t===BK.time?"on":""}">${hm(t)}</button>`).join("")}</div>
+   <div class="ask"><span class="qq">Jak se potkáme?</span><div class="seg"><button type="button" data-mode="osobne" class="${BK.mode==="osobne"?"on":""}">Osobně</button><button type="button" data-mode="online" class="${BK.mode==="online"?"on":""}">Online</button></div></div>
+   ${BK.mode==="osobne"?`<div class="note"><b>Kancelář ZFP</b><br>${esc(BK.addr)}</div>${mapBox()}`:BK.mode==="online"?`<div class="note">Odkaz na online schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.</div>`:""}
+   ${BK.err?`<p class="emsg">${esc(BK.err)}</p>`:""}
+   <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button type="button" class="btn pri" id="bBook"${BK.busy?" disabled":""}>${BK.busy?"Rezervuji…":"Potvrdit termín"}</button><button type="button" class="btn" id="bSkip">Teď ne, domluvíme se</button></div></div>`;
+}
+const mapBox=()=>`<div class="map"><iframe title="Mapa – ${esc(BK.addr)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.google.com/maps?q=${encodeURIComponent(BK.addr)}&output=embed"></iframe></div><p class="hint"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(BK.addr)}" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">Otevřít v Google Maps</a></p>`;
+async function book(){
+  if(!BK.time){BK.err="Vyberte čas.";return renderSent()}if(!BK.mode){BK.err="Vyberte, jestli osobně, nebo online.";return renderSent()}
+  BK.err="";BK.busy=true;renderSent();
+  try{const K0=SENT.kontakt||{};const box=await DzCrypto.seal(LINK.k,{type:"fp-booking",v:1,at:new Date().toISOString(),start:BK.time,online:BK.mode==="online",name:(SENT.klient||{}).jmeno||"",email:K0.email||"",phone:K0.telefon||""});
+    await DzCrypto.post(LINK.to,box);BK.done={start:BK.time,online:BK.mode==="online"};SENT=null}
+  catch(e){BK.err="Rezervace se nepodařila – zkuste to prosím znovu.";console.error(e)}
+  BK.busy=false;renderSent()}
+document.addEventListener("click",e=>{if(!sent)return;const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.day){BK.day=t.dataset.day;BK.time="";renderSent()}else if(t.dataset.time){BK.time=t.dataset.time;BK.err="";renderSent()}
+  else if(t.dataset.mode){BK.mode=t.dataset.mode;BK.err="";renderSent()}else if(t.id==="bBook")book();
+  else if(t.id==="bSkip"){BK.slots=[];SENT=null;renderSent()}});
+let SENT=null;
 function linkBox(A){return `<div class="lnk"><b>Odkaz pro klienta</b><div class="hint">Klient dotazník vyplní u sebe a odešle – přijde ti zašifrovaný rovnou do Pipeline (nový lead + plán + IOLDP v dokumentech).</div>
   <div class="g">${["n","t","e"].map((k,i)=>`<label class="f"><span class="q">${["Poradce","Telefon","E-mail"][i]}</span><input data-adv="${k}" value="${esc(A[k])}"></label>`).join("")}<span style="align-self:end"><button type="button" class="btn pri" id="copyLnk"${DZ?"":" disabled"}>Kopírovat odkaz</button></span></div>${DZ?"":`<p class="hint">Odkaz jde vytvořit jen v plánu otevřeném z Pipeline (je v něm tvůj šifrovací klíč).</p>`}</div>`}
 function status(per){per=per||check();const req=SEC.filter(s=>!s.optional),done=SEC.filter((s,i)=>!s.optional&&!per[i].length).length;
@@ -344,7 +395,8 @@ async function send(){
     const plan=JSON.parse(JSON.stringify(P));
     const box=await DzCrypto.seal(LINK.k,{type:"fp-dotaznik",v:2,at:new Date().toISOString(),plan,files,adv:adv().n||""});
     await DzCrypto.post(LINK.to,box,(i,n)=>{b.textContent=n>1?`Odesílám ${i}/${n}…`:"Odesílám…"});
-    sent=true;try{localStorage.removeItem(DRAFT)}catch(e){}Object.keys(FILES).forEach(k=>delete FILES[k]);renderSent();
+    SENT={klient:{jmeno:P.klient.jmeno},kontakt:{email:K().email,telefon:K().telefon}};
+    sent=true;try{localStorage.removeItem(DRAFT)}catch(e){}Object.keys(FILES).forEach(k=>delete FILES[k]);renderSent();loadSlots();
   }catch(e){console.error(e);const c=e&&e.code;
     toast(c==="big"?"Přílohy jsou moc velké – vložte prosím menší PDF.":c===403||c===401?"Schránka poradce teď odpověď nepřijala – dejte prosím vědět poradci. Vyplněné odpovědi zůstávají uložené.":typeof c==="number"?"Odeslání se nepovedlo (chyba "+c+") – zkuste to prosím za chvíli znovu.":"Odeslání se nepovedlo – zkontrolujte připojení k internetu a zkuste to znovu.");
     b.disabled=false;b.textContent="Odeslat poradci"}

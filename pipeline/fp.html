@@ -2051,7 +2051,7 @@ function mergeDz(I,D){let n=0;const val=v=>v!==""&&v!=null&&!(typeof v==="number
   return n}
 $("#bDz").onclick=()=>{
   const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:200;background:var(--bg)";
-  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=3#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
+  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=4#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
   ov.append(fr);document.body.append(ov);
   const close=()=>{removeEventListener("message",on);ov.remove();renderClients();renderEditor();update()};
   const on=e=>{if(e.origin!==location.origin||e.source!==fr.contentWindow||!e.data)return;const d=e.data;

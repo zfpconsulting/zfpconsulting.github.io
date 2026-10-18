@@ -23,7 +23,7 @@
   --tint:#F37520; --tint-soft:rgba(243,117,32,.12); --green:#F37520; --green-soft:rgba(243,117,32,.12);
   --orange:#F37520; --orange-soft:rgba(243,117,32,.12); --red:#F37520; --red-soft:rgba(243,117,32,.12);
   --purple:#F37520; --yellow:#F37520; --gray:#8E8E93; --indigo:#F37520; --teal:#F37520; --teal-soft:rgba(243,117,32,.12);
-  --bar-bg:rgba(242,242,247,.8); --card-shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
+  --bar-bg:rgba(242,242,247,.96); --card-shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
   --thumb-shadow:0 0.5px 4px rgba(0,0,0,.12),0 6px 13px rgba(0,0,0,.12);
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
   --r-lg:16px; --r:12px; --r-sm:10px;
@@ -37,7 +37,7 @@
     --tint:#F37520; --tint-soft:rgba(243,117,32,.2); --green:#F37520; --green-soft:rgba(243,117,32,.18);
     --orange:#F37520; --orange-soft:rgba(243,117,32,.18); --red:#F37520; --red-soft:rgba(243,117,32,.18);
     --purple:#F37520; --yellow:#F37520; --gray:#8E8E93; --indigo:#F37520; --teal:#F37520; --teal-soft:rgba(243,117,32,.18);
-    --bar-bg:rgba(0,0,0,.72); --card-shadow:none; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
+    --bar-bg:rgba(10,10,10,.94); --card-shadow:none; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
   }
 }
 :root[data-theme="dark"]{
@@ -47,7 +47,7 @@
   --tint:#F37520; --tint-soft:rgba(243,117,32,.2); --green:#F37520; --green-soft:rgba(243,117,32,.18);
   --orange:#F37520; --orange-soft:rgba(243,117,32,.18); --red:#F37520; --red-soft:rgba(243,117,32,.18);
   --purple:#F37520; --yellow:#F37520; --gray:#8E8E93; --indigo:#F37520; --teal:#F37520; --teal-soft:rgba(243,117,32,.18);
-  --bar-bg:rgba(0,0,0,.72); --card-shadow:none; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
+  --bar-bg:rgba(10,10,10,.94); --card-shadow:none; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -280,7 +280,22 @@ dialog.sheet-closing::backdrop{animation:backdropOut .26s ease forwards}
 }
 .card .foot button.open[style]{color:var(--label2)!important}
 .card .foot button.open[style]:hover{color:var(--zfp)!important}
-#tabBar button.tabdrag{opacity:.55;transform:scale(.96);box-shadow:0 0 0 1.5px var(--zfp) inset;cursor:grabbing}
+.dznotes{position:fixed;right:16px;top:calc(env(safe-area-inset-top,0px) + 86px);z-index:9000;display:grid;gap:10px;width:min(380px,calc(100vw - 32px))}
+.dznote{position:relative;display:flex;gap:12px;background:var(--bg2);color:var(--label);border-radius:14px;padding:14px 40px 12px 14px;box-shadow:0 12px 34px rgba(0,0,0,.28),inset 3px 0 0 var(--zfp);animation:dzIn .35s cubic-bezier(.2,.9,.24,1)}
+@keyframes dzIn{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
+.dznote .dzic{width:26px;height:26px;flex:none;fill:none;stroke:var(--zfp);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-top:1px}
+.dznote .dzt{display:grid;gap:3px;min-width:0;font-size:14px;line-height:1.35}.dznote .dzt b{font-size:15px}
+.dznote .dzt small{color:var(--label2);font-size:12px}
+.dznote .dza{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.dznote .dza button{font:inherit;font-size:13px;font-weight:600;border-radius:8px;padding:6px 10px;color:var(--label);box-shadow:inset 0 0 0 1px var(--sep)}
+.dznote .dza button.ok{background:var(--zfp);color:#fff;box-shadow:none}
+.dznote .dzx{position:absolute;right:8px;top:6px;font-size:20px;color:var(--label2);padding:4px 8px}
+.dzmore{font-size:12.5px;color:var(--label2);text-align:right;padding-right:6px}
+.cwslot{position:absolute;left:2px;right:2px;border-radius:8px;border:1.5px dashed var(--zfp);background:var(--zfp-soft);color:var(--zfp);font:inherit;font-size:11.5px;font-weight:700;text-align:left;padding:3px 6px;cursor:pointer;overflow:hidden;z-index:0;opacity:.85;transition:opacity .15s,background .15s}
+.cwslot:hover{opacity:1;background:rgba(243,117,32,.2)}
+.cwev{z-index:1}
+#tabBar button.tabdrag{position:relative;z-index:3;background:var(--bg2);box-shadow:0 0 0 1.5px var(--zfp) inset,0 8px 22px rgba(0,0,0,.25);cursor:grabbing;will-change:transform}
+#tabBar.tabdragging{touch-action:none}
 #tabBar.tabdragging,#tabBar.tabdragging button{cursor:grabbing;user-select:none;-webkit-user-select:none}
 #tabBar button{-webkit-touch-callout:none}
 /* otevřený lead / klient: jen ZFP oranžová, bílá a černá – bez modré, zelené, červené a žluté */
@@ -1154,7 +1169,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
     <div id="calcBox"></div>
     <p class="secfoot">Vlajkou u parametru zvolíš, kterou hodnotu kalkulačka dopočítá. Vklady, splátky a výplaty se počítají na konci každého měsíce; výpočet je orientační.</p>
   </section>
-  <section id="view_cal" hidden><!-- záložka Kalendář zrušena; prvky zůstávají kvůli navázanému kódu -->
+  <section id="view_cal" hidden>
     <div class="tiles" id="ctTiles"></div>
     <div class="calhead">
       <h3 class="sechead" id="ctMonthLabel"></h3>
@@ -1927,6 +1942,7 @@ function render(){
   if(view==="pipe"){queueMicrotask(runFlip);$("bigTitle").textContent=appName();$("sub").textContent=pper&&!q?pmLabel(pper)+" · archiv":leads.length?`${act} ${plural(act,"rozjednaný lead","rozjednané leady","rozjednaných leadů")} · ${pmLabel(null)}`:"Zatím prázdno. Přidej první lead tlačítkem +.";renderCareer(cur);renderPipe(cur)}
   else if(view==="money"){$("bigTitle").textContent="Obrat";$("sub").textContent="Body, provize, pasivní příjem a tým";renderMoney(cq,cur)}
   else if(view==="cli"){$("bigTitle").textContent="Klienti";renderClients()}
+  else if(view==="cal"){$("bigTitle").textContent="Kalendář";$("sub").textContent="Schůzky z vybraných kalendářů · oranžově volné bloky 8:30–19:00";renderCalTab()}
   else if(view==="fp"){$("bigTitle").textContent="Finanční plán";$("sub").textContent="Živé finanční plány klientů";renderFpTab()}
   else if(view==="net"){$("bigTitle").textContent="Rozvoj sítě";renderNet()}
   else if(view==="tax"){$("bigTitle").textContent="Daně";renderTax()}
@@ -1995,7 +2011,7 @@ const dzMe=()=>String(lsGet("g_owner")||"").toLowerCase();
 async function dzLinkInfo(){if(DEMO)return null;const me=dzMe();if(!me)return null;try{const k=await dzKey();return {to:me,k:k.pub}}catch(e){console.warn(e);return null}}
 async function dzClientLink(){const z=await dzLinkInfo();if(!z)return null;const h=new URLSearchParams({v:"1",to:z.to,k:z.k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);
   return location.origin+location.pathname.replace(/[^/]*$/,"")+"dotaznik.html#"+h.toString()}
-$("fpDzBtn")?.addEventListener("click",async()=>{const u=await dzClientLink();if(!u){toast(DEMO?"V ukázkovém režimu nejde":"Nejdřív se přihlas Googlem");return}
+$("fpDzBtn")?.addEventListener("click",async()=>{try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission()}catch(e){}const u=await dzClientLink();if(!u){toast(DEMO?"V ukázkovém režimu nejde":"Nejdřív se přihlas Googlem");return}
   try{await navigator.clipboard.writeText(u);toast("Odkaz na dotazník zkopírovaný – pošli ho klientovi")}catch(e){prompt("Zkopíruj odkaz pro klienta:",u)}});
 function dzMerge(I,D){const val=v=>v!==""&&v!=null&&!(typeof v==="number"&&isNaN(v));const setp=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=="object")a[k]={};a=a[k]});a[ks.at(-1)]=v};
   ["klient","partner","kontakt","renta","pojisteni.zivotni"].forEach(path=>{const src=path.split(".").reduce((a,k)=>a&&a[k],D);if(!src||typeof src!=="object")return;
@@ -2015,22 +2031,88 @@ async function dzImport(x){
   await db.doc("fplan/"+key).set({clientId:key,name,plan,updatedAt:Date.now()});
   const files=(x.files||[]).filter(z=>z&&z.data).map(z=>new File([DzCrypto.unb64u(z.data)],"IOLDP – "+(z.who==="partner"?((pl.partner||{}).jmeno||"partner"):name)+(/\.pdf$/i.test(z.name||"")||!z.name?".pdf":z.name.replace(/^.*(\.[a-z0-9]+)$/i,"$1")),{type:z.type||"application/pdf"}));
   if(files.length&&window.Docs)try{await Docs.add(docOwnerLead(cur),files)}catch(e){console.warn("soubory",e)}
-  toast("Nový vyplněný dotazník: "+name+" – lead, plán"+(files.length?" a IOLDP":"")+" připravené");
-  try{if(typeof asChime==="function")asChime()}catch(e){}
+  dzNotify({ic:"dz",t:"Nový vyplněný dotazník",s:name+" – lead, finanční plán"+(files.length?" a IOLDP":"")+" jsou připravené",lead:l.id,plan:1});
 }
+/* klient si po odeslání dotazníku zarezervoval 2. konzultaci → schůzka do kalendáře „VK: Jméno (online)“ + lead ve fázi Schůzka */
+async function dzBooking(x){
+  const name=String(x.name||"").trim()||"Klient z dotazníku",start=new Date(x.start),online=!!x.online,now=new Date().toISOString();
+  if(isNaN(start))throw new Error("termín");
+  const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
+  let l=leads.find(L=>(x.email&&L.email&&L.email.toLowerCase()===String(x.email).toLowerCase())||(d(x.phone).length===9&&d(L.phone)===d(x.phone)))||leads.find(L=>f(L.name)===f(name));
+  if(!l)l=await aiAddLead({name,phone:x.phone||"",email:x.email||""});
+  const cur=leads.find(L=>L.id===l.id)||l;
+  const busy=await dzBusy(start,new Date(start.getTime()+DZS.len*60000)).catch(()=>[]);
+  const r=await saveMeeting(cur,start,online);
+  if(online&&r&&r.evId)ensureMeet(r.evId).catch(()=>{});
+  const kdy=start.toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})+" "+fmtHM(start.toISOString());
+  const c2=leads.find(L=>L.id===l.id)||cur;
+  await db.doc("leads/"+l.id).update({log:[...(c2.log||[]),{d:now,t:"Klient si zarezervoval 2. konzultaci: "+kdy+(online?" · online":" · osobně")}].slice(-100),updatedAt:now});
+  dzNotify({ic:"cal",t:"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(r&&r.canWrite?"":" · do kalendáře se nezapsalo (přihlas Google kalendář)"),lead:l.id,cal:start.toISOString()});
+  setTimeout(()=>dzPublishSlots(true),1500);
+}
+/* ---------- upozornění v appce (dotazník, rezervace): drží se v nastavení, takže je vidíš na všech zařízeních, dokud je neodklikneš ---------- */
+const dzNotes=()=>(settings&&Array.isArray(settings.dzNotes)?settings.dzNotes:[]);
+async function dzNotify(n){const L=[{id:newId(),at:Date.now(),...n},...dzNotes()].slice(0,15);settings={...settings,dzNotes:L};renderDzNotes();
+  try{if(typeof asChime==="function")asChime()}catch(e){}
+  try{if("Notification" in window&&Notification.permission==="granted")new Notification(n.t,{body:n.s||"",icon:"icon-192.png?v=2",tag:n.id})}catch(e){}
+  try{await db.doc("settings/main").set(settings)}catch(e){}}
+async function dzDismiss(id){settings={...settings,dzNotes:dzNotes().filter(n=>n.id!==id)};renderDzNotes();try{await db.doc("settings/main").set(settings)}catch(e){}}
+const DZ_IC={dz:'<path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5"/><path d="M10 13l2 2 3.5-4"/>',cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M9 14.5l2 2 4-4"/>'};
+let dzNotesSig="";
+function renderDzNotes(){
+  const L=dzNotes(),sig=JSON.stringify(L.map(n=>n.id));if(sig===dzNotesSig&&$("dzNotes"))return;dzNotesSig=sig;
+  let box=$("dzNotes");if(!box){box=el("div",{id:"dzNotes",class:"dznotes",role:"status","aria-live":"polite"});document.body.append(box)}
+  box.replaceChildren(...L.slice(0,4).map(n=>{const ic=document.createElementNS("http://www.w3.org/2000/svg","svg");ic.setAttribute("viewBox","0 0 24 24");ic.setAttribute("class","dzic");ic.innerHTML=DZ_IC[n.ic]||DZ_IC.dz;
+    const lead=n.lead&&leads.find(x=>x.id===n.lead);
+    return el("div",{class:"dznote"},ic,el("div",{class:"dzt"},el("b",{},n.t),el("span",{},n.s||""),el("small",{},fmtDT(new Date(n.at).toISOString())),
+      el("div",{class:"dza"},lead?el("button",{type:"button",onclick:()=>{openEdit(lead)}},"Otevřít lead"):null,
+        n.plan&&lead?el("button",{type:"button",onclick:()=>{const t=fpLeadTarget(lead);openFP(t.e,t.rec)}},"Finanční plán"):null,
+        n.cal?el("button",{type:"button",onclick:()=>{ctWeekA=weekStart(n.cal.slice(0,10),0);setView("cal")}},"Kalendář"):null,
+        el("button",{type:"button",class:"ok",onclick:()=>dzDismiss(n.id)},"Beru na vědomí"))),
+      el("button",{type:"button",class:"dzx","aria-label":"Zavřít",onclick:()=>dzDismiss(n.id)},"×"))}),
+    L.length>4?el("div",{class:"dzmore"},"+ "+(L.length-4)+" další"):"");
+}
+setInterval(()=>{try{renderDzNotes()}catch(e){}},1500);
+
+/* ---------- volné bloky pro schůzky: všední dny 8:30–19:00, 45 min + 15 min rezerva; jen tvoje schůzky (prefix) a osobní kalendář blokují ---------- */
+const DZS={from:510,to:1140,len:45,buf:15,days:21,addr:()=>(settings.dzAddr||"Trnitá 500/9, 602 00 Brno")};
+function dzFreeSlots(dayKey,busy){const dow=new Date(dayKey+"T12:00:00").getDay();if(dow===0||dow===6)return[];
+  const B=busy.map(([a,b])=>[a-DZS.buf,b+DZS.buf]).sort((x,y)=>x[0]-y[0]),out=[];let t=DZS.from;
+  while(t+DZS.len<=DZS.to){const c=B.find(([a,b])=>t<b&&t+DZS.len>a);if(!c){out.push(t);t+=DZS.len+DZS.buf}else t=Math.max(t+15,Math.ceil(c[1]/15)*15)}
+  return out}
+const dzBlocks=ev=>!ev.allDay&&(ev.calId==="primary"||ev.calId===dzMe()||ctIsMine(ev));
+async function dzBusy(from,to){
+  const ids=[...new Set([calCfg().id,"primary"].filter(Boolean))],out=[];
+  for(const id of ids){try{const p=new URLSearchParams({timeMin:from.toISOString(),timeMax:to.toISOString(),singleEvents:"true",orderBy:"startTime",maxResults:"500"});
+    const r=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(id)+"/events?"+p)).json();
+    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={calId:id,title:(e.summary||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};if(id==="primary"||ctIsMine(ev))out.push(ev)})}catch(e){}}
+  return out}
+/* volné termíny pro klienty (rezervace 2. konzultace po dotazníku): jen časy, žádná jména – veřejně čitelné v dzslots/{tvůj e-mail} */
+let dzPubAt=0;
+async function dzPublishSlots(force){
+  if(DEMO||!DZI.on||!DZI.fdb||!GAuth.token()||!GAuth.hasScope("calendar"))return;
+  if(!force&&Date.now()-dzPubAt<20*60000)return;dzPubAt=Date.now();
+  try{const now=new Date(),from=new Date(now.getTime()+18*3600e3),to=new Date(now.getFullYear(),now.getMonth(),now.getDate()+DZS.days);
+    const busy=await dzBusy(new Date(now.getFullYear(),now.getMonth(),now.getDate()),to),slots=[];
+    for(let i=1;i<=DZS.days;i++){const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i),k=ymd(day);
+      const b=busy.filter(e=>ymd(new Date(e.start))===k).map(e=>[ctMinutesOf(e.start),ymd(new Date(e.end))===k?ctMinutesOf(e.end):1440]);
+      dzFreeSlots(k,b).forEach(m=>{const s=new Date(day.getFullYear(),day.getMonth(),day.getDate(),Math.floor(m/60),m%60);if(s>from)slots.push(s.toISOString())})}
+    await DZI.F.setDoc(DZI.F.doc(DZI.fdb,"dzslots",dzMe()),{slots:slots.slice(0,300),upd:new Date().toISOString(),len:DZS.len,addr:DZS.addr()});
+  }catch(e){console.warn("volné termíny",e)}}
+setInterval(()=>dzPublishSlots(false),5*60000);
 async function dzHandle(docs){
   const G=new Map();docs.forEach(x=>{if(!G.has(x.g))G.set(x.g,[]);G.get(x.g).push(x)});
   for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
     const F=DZI.F,fdb=DZI.fdb,del=async()=>{for(const p of parts)try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}};
     try{parts.sort((a,b)=>a.i-b.i);await dzLib();let x;
-      try{x=await DzCrypto.open(settings.dzKey.priv,{epk:parts[0].epk,salt:parts[0].salt,iv:parts[0].iv,ct:parts.map(p=>p.ct).join("")});if(!x||x.type!=="fp-dotaznik")throw 0}
+      try{x=await DzCrypto.open(settings.dzKey.priv,{epk:parts[0].epk,salt:parts[0].salt,iv:parts[0].iv,ct:parts.map(p=>p.ct).join("")});if(!x||(x.type!=="fp-dotaznik"&&x.type!=="fp-booking"))throw 0}
       catch(e){console.warn("dotazník – nejde dešifrovat, mažu",e);await del();continue}
       /* jen jedno zařízení: kdo smaže první část v transakci, ten dotazník zpracuje */
       const r0=F.doc(fdb,"dzinbox",parts[0].id);
       const mine=await F.runTransaction(fdb,async tx=>{const sn=await tx.get(r0);if(!sn.exists())return false;tx.delete(r0);return true});
       if(!mine)continue;
       for(const p of parts.slice(1))try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}
-      try{await dzImport(x)}catch(e){console.error(e);const L=lsGet("dz_failed",[]);L.push({at:Date.now(),x});lsSet("dz_failed",L.slice(-10));toast("Dotazník se nepodařilo založit – zkusím to znovu")}
+      try{if(x.type==="fp-booking")await dzBooking(x);else await dzImport(x)}catch(e){console.error(e);const L=lsGet("dz_failed",[]);L.push({at:Date.now(),x});lsSet("dz_failed",L.slice(-10));toast("Dotazník se nepodařilo založit – zkusím to znovu")}
     }catch(e){console.warn("dotazník",e);DZI.busy.delete(g)}
   }
 }
@@ -2040,7 +2122,7 @@ async function dzStart(){
   DZI.on=true;DZI.me=me;
   try{
     /* nevyřízené (dřív selhalo založení) */
-    const fl=lsGet("dz_failed",[]);if(fl.length){lsSet("dz_failed",[]);for(const z of fl)try{await dzLib();await dzImport(z.x)}catch(e){}}
+    const fl=lsGet("dz_failed",[]);if(fl.length){lsSet("dz_failed",[]);for(const z of fl)try{await dzLib();if(z.x&&z.x.type==="fp-booking")await dzBooking(z.x);else await dzImport(z.x)}catch(e){}}
     const B="https://www.gstatic.com/firebasejs/12.19.0/";
     const [A,Au,F]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]);
     const app=A.getApps().find(a=>a.name==="dz")||A.initializeApp(AS_FB,"dz");
@@ -2048,6 +2130,7 @@ async function dzStart(){
     await au.authStateReady();
     if(!au.currentUser||String(au.currentUser.email||"").toLowerCase()!==me)await Au.signInWithCredential(au,Au.GoogleAuthProvider.credential(null,tok));
     DZI.F=F;DZI.fdb=fdb;
+    setTimeout(()=>dzPublishSlots(true),2000);
     DZI.unsub=F.onSnapshot(F.query(F.collection(fdb,"dzinbox"),F.where("to","==",me)),sn=>dzHandle(sn.docs.map(x=>({id:x.id,...x.data()}))),e=>{console.warn("dotazník – schránka",e&&e.code);DZI.on=false;try{DZI.unsub&&DZI.unsub()}catch(x){}});
   }catch(e){console.warn("dotazník – schránka",e);DZI.on=false}
 }
@@ -4970,7 +5053,7 @@ function ctEventSheet(ev,prefill){
     date:isNew?(prefill?.date||todayStr()):ctDayKey(ev.start),
     allDay:isNew?false:!!ev.allDay,
     start:isNew?(prefill?.time||"09:00"):fmtHM(ev.start),
-    end:isNew?ctAddMin(prefill?.time||"09:00",30):(ev.end?fmtHM(ev.end):ctAddMin(fmtHM(ev.start),30)),
+    end:isNew?ctAddMin(prefill?.time||"09:00",prefill?.len||30):(ev.end?fmtHM(ev.end):ctAddMin(fmtHM(ev.start),30)),
     place:isNew?"":(ev.place||""), online:isNew?false:!!ev.online};
   const body=()=>{
     const nameInp=el("input",{type:"text",placeholder:"Jméno klienta","aria-label":"Klient / název"});nameInp.value=draft.title;
@@ -5159,6 +5242,13 @@ function renderCalWeek(){
   const gridEl=$("cwGrid");
   gridEl.replaceChildren(...cols);gridEl.style.height=totalH+"px";
   const canWrite=ctCanWrite();
+  /* volné bloky 8:30–19:00 (45 min) – klepnutím je zaplníš klientem */
+  const nowD=new Date();
+  days.forEach((k,i)=>{const busy=(byDay[k]||[]).filter(dzBlocks).map(e=>[ctMinutesOf(e.start),e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60]);
+    dzFreeSlots(k,busy).forEach(m=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);if(s<nowD)return;
+      const hm=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+      cols[i].append(el("button",{type:"button",class:"cwslot",style:"top:"+((m/60-hStart)*HH)+"px;height:"+(DZS.len/60*HH-2)+"px",title:"Volný blok "+hm+" – klepni a zaplň ho klientem",
+        onclick:()=>{if(!canWrite){toast("Pro zápis do kalendáře se přihlas Googlem");return}ctEventSheet(null,{date:k,time:hm,len:DZS.len})}},"Volno "+hm))})});
   days.forEach((k,i)=>{
     const evs=ctLayoutDay((byDay[k]||[]).filter(e=>!e.allDay).map(e=>({...e,_sMin:ctMinutesOf(e.start),_eMin:e.end?Math.max(ctMinutesOf(e.start)+15,ctMinutesOf(e.end)):ctMinutesOf(e.start)+60})));
     evs.forEach(e=>{
@@ -6662,7 +6752,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=26#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=27#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -6683,7 +6773,7 @@ function pfClientSection(e,rec){
   return [el("h3",{class:"sechead"},"Portfolio"),has?pfClientCard(rec.id,{back}):el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>pfInvEdit(null,rec?{client:rec.id}:{cid:e.id},back)},"+ Sledovat investici v Portfoliích"))];
 }
 
-const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačka"],["duch","Důchodová kalkulačka"],["fp","Finanční plán"],["net","Rozvoj sítě"],["tax","Daně"],["akv","Akvizice"],["pf","Portfolia"],["pp","Sazebník"]];
+const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačka"],["duch","Důchodová kalkulačka"],["cal","Kalendář"],["fp","Finanční plán"],["net","Rozvoj sítě"],["tax","Daně"],["akv","Akvizice"],["pf","Portfolia"],["pp","Sazebník"]];
 /* „Uživatelé“ je speciální záložka jen pro admina – vždy úplně na konci, nejde skrýt ani přeřadit
    (proto stojí mimo TABS/nastavení pořadí), zjišťuje se přímo z uloženého přihlášeného e-mailu. */
 /* ===== prezentační režim: fiktivní poradce (jen admin) ===== */
@@ -6951,9 +7041,10 @@ function tabOrder(){const out=(settings.tabOrder||[]).filter(k=>TABS.some(t=>t[0
   const ci=out.indexOf("calc");if(ci>0&&out[ci-1]==="pf"&&out.includes("cli")){out.splice(ci,1);out.splice(out.indexOf("cli")+1,0,"calc")}
   return out}
 function tabHiddenSet(){return new Set(settings.tabHidden!==undefined?settings.tabHidden:["pp"])}
-function visibleTabs(){if(typeof asMode==="function"&&asMode())return ["atasks","aclients"];const hidden=tabHiddenSet();const vis0=tabOrder().filter(k=>!hidden.has(k));const vis=vis0.length?vis0:["pipe"];const ex=(typeof asFlag!=="undefined"&&asFlag)?["atasks"]:[];return isAdminUser()&&!DEMO?[...vis,...ex,"db","users"]:[...vis,...ex]}
+function visibleTabs(){if(typeof asMode==="function"&&asMode())return ["atasks","aclients"];const hidden=tabHiddenSet();const vis0=tabOrder().filter(k=>!hidden.has(k));const vis=vis0.length?vis0:["pipe"];const ex=(typeof asFlag!=="undefined"&&asFlag)?["atasks"]:[];return isAdminUser()&&!DEMO?[...vis,...ex,"db"]:[...vis,...ex]}
 /* ---------- spodní lišta na telefonu: první 4 záložky + „Další“ (zbytek v listu), pořadí z nastavení ---------- */
 const TAB_ICON={
+  cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M7.5 13h3M13.5 13h3M7.5 16.5h3"/>',
   pipe:'<rect x="3.5" y="4" width="4.5" height="16" rx="1.5"/><rect x="9.75" y="4" width="4.5" height="11" rx="1.5"/><rect x="16" y="4" width="4.5" height="7" rx="1.5"/>',
   money:'<path d="M4 19V5"/><path d="M4 19h16"/><path d="M7.5 15l3.5-4 3 2.5L19.5 7"/><path d="M15.5 7h4v4"/>',
   cli:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.8 14.6c2.4-.2 4.2 1.4 4.7 4.4"/>',
@@ -7000,29 +7091,44 @@ function renderTabBar(){
     return el("button",{type:"button",role:"tab",id:"tab_"+k,"aria-selected":String(k===view),onclick:()=>setView(k),title:TABS.some(x=>x[0]===k)?"Přetažením změníš pořadí":null},t[1])}).filter(Boolean));
   renderBottomTabs();tabDnd(bar);
 }
-/* pořadí záložek přetažením v horní liště: myš = táhni hned, dotyk = podrž a táhni. Ukládá se do nastavení (tabOrder) – stejně jako šipky v Data a synchronizace.
-   Speciální záložky na konci (Databáze, Uživatelé, Úkoly) se nepřesouvají. */
+/* pořadí záložek přetažením v horní liště: myš = táhni hned, dotyk = podrž a táhni. Tažená záložka jede plynule s kurzorem
+   (jen CSS transform v requestAnimationFrame), ostatní se odsouvají animací (FLIP). Ukládá se do nastavení (tabOrder).
+   Speciální záložky na konci (Databáze, Úkoly) se nepřesouvají. */
 function tabDnd(bar){
-  if(bar._dnd)return;bar._dnd=1;let st=null,justDragged=0;
+  if(bar._dnd)return;bar._dnd=1;let st=null,justDragged=0,raf=0;
   const movable=b=>b&&b.id&&b.id.startsWith("tab_")&&TABS.some(t=>t[0]===b.id.slice(4));
-  const begin=()=>{if(!st||st.on)return;st.on=true;st.b.classList.add("tabdrag");bar.classList.add("tabdragging");try{st.b.setPointerCapture(st.id)}catch(e){}};
+  const btns=()=>[...bar.querySelectorAll("button")];
+  const EASE="transform .2s cubic-bezier(.2,.8,.2,1)";
+  /* ostatní záložky: zapamatovat polohu, přesunout v DOM, animovat z původního místa na nové */
+  const flip=fn=>{const others=btns().filter(b=>b!==st.b),r0=new Map(others.map(b=>[b,b.offsetLeft]));fn();
+    others.forEach(b=>{const dx=r0.get(b)-b.offsetLeft;if(!dx)return;b.style.transition="none";b.style.transform="translateX("+dx+"px)";
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{b.style.transition=EASE;b.style.transform=""}))})};
+  const px=e=>e.clientX-bar.getBoundingClientRect().left+bar.scrollLeft;
+  const tick=()=>{raf=0;if(!st||!st.on)return;const x=st.x;
+    const list=btns().filter(b=>b!==st.b&&movable(b));
+    let before=list.find(b=>b.offsetLeft+b.offsetWidth/2>x-st.grab+st.b.offsetWidth/2)||null;
+    if(!before){const fixed=btns().find(b=>!movable(b));before=fixed||null}
+    if(st.b.nextElementSibling!==before)flip(()=>bar.insertBefore(st.b,before));
+    st.b.style.transform="translateX("+(x-st.grab-st.b.offsetLeft)+"px) scale(1.04)"};
+  const begin=()=>{if(!st||st.on)return;st.on=true;st.b.classList.add("tabdrag");bar.classList.add("tabdragging");st.b.style.transition="none";
+    try{bar.setPointerCapture(st.id)}catch(e){}try{navigator.vibrate&&st.touch&&navigator.vibrate(10)}catch(e){}if(!raf)raf=requestAnimationFrame(tick)};
   const end=async save=>{if(!st)return;const s0=st;st=null;clearTimeout(s0.t);if(!s0.on)return;
-    s0.b.classList.remove("tabdrag");bar.classList.remove("tabdragging");justDragged=Date.now();
+    try{bar.releasePointerCapture(s0.id)}catch(e){}
+    s0.b.style.transition=EASE;s0.b.style.transform="";bar.classList.remove("tabdragging");justDragged=Date.now();
+    setTimeout(()=>{s0.b.classList.remove("tabdrag");btns().forEach(b=>{b.style.transition="";b.style.transform=""})},220);
     if(!save){renderTabBar();return}
-    const vis=[...bar.querySelectorAll("button")].filter(movable).map(b=>b.id.slice(4));
+    const vis=btns().filter(movable).map(b=>b.id.slice(4));
     const full=tabOrder(),visSet=new Set(vis);let j=0;const order=full.map(k=>visSet.has(k)?vis[j++]:k);
     if(JSON.stringify(order)===JSON.stringify(full))return;
     try{settings={...settings,tabOrder:order};await db.doc("settings/main").set(settings);renderBottomTabs();if(typeof renderTabsConfig==="function")renderTabsConfig()}catch(e){toast("Pořadí se nepodařilo uložit");renderTabBar()}};
   bar.addEventListener("pointerdown",e=>{const b=e.target.closest("button");if(!movable(b)||e.button!==0)return;
-    st={b,id:e.pointerId,x0:e.clientX,y0:e.clientY,on:false,touch:e.pointerType!=="mouse",t:0};
-    if(st.touch)st.t=setTimeout(()=>{begin();try{navigator.vibrate&&navigator.vibrate(10)}catch(x){}},380)});
+    st={b,id:e.pointerId,x0:e.clientX,y0:e.clientY,x:px(e),grab:px(e)-b.offsetLeft,on:false,touch:e.pointerType!=="mouse",t:0};
+    if(st.touch)st.t=setTimeout(begin,320)});
   bar.addEventListener("pointermove",e=>{if(!st||e.pointerId!==st.id)return;const d=Math.hypot(e.clientX-st.x0,e.clientY-st.y0);
-    if(!st.on){if(st.touch){if(d>8){clearTimeout(st.t);st=null}}else if(d>6)begin();return}
-    e.preventDefault();
-    const over=document.elementFromPoint(e.clientX,e.clientY),tb=over&&over.closest&&over.closest("#tabBar button");
-    if(!movable(tb)||tb===st.b)return;
-    const r=tb.getBoundingClientRect(),after=e.clientX>r.left+r.width/2;
-    if(after){if(tb.nextSibling!==st.b)tb.after(st.b)}else if(tb.previousSibling!==st.b)tb.before(st.b)});
+    st.x=px(e);
+    if(!st.on){if(st.touch){if(d>8){clearTimeout(st.t);st=null}}else if(d>4)begin();return}
+    e.preventDefault();if(!raf)raf=requestAnimationFrame(tick)});
+  bar.addEventListener("pointerup",e=>{if(st&&e.pointerId===st.id)end(true)});
   addEventListener("pointerup",e=>{if(st&&e.pointerId===st.id)end(true)});
   bar.addEventListener("pointercancel",()=>end(false));
   bar.addEventListener("click",e=>{if(Date.now()-justDragged<400){e.stopPropagation();e.preventDefault()}},true);
@@ -7056,6 +7162,7 @@ function setView(v){
   $("searchBox").hidden=v!=="pipe";
   try{renderBottomTabs()}catch(e){}
   if(v==="cli")fetchCalHistory();
+  if(v==="cal")fetchCalTab();
   if(v==="pf")pfRefreshAll();
   if(v==="users"&&typeof fetchUsersTab==="function")fetchUsersTab();
   try{localStorage.setItem("pipe_view",v)}catch(e){}
@@ -8765,6 +8872,6 @@ const dealAskPending=()=>Deals.askPending(false);
 const dealTags=l=>Deals.tags(l);
 
 </script>
-<script src="wallpaper.js?v=4" defer></script>
+<script src="wallpaper.js?v=5" defer></script>
 </body>
 </html>

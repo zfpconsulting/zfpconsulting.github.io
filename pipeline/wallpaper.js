@@ -17,9 +17,9 @@ st.textContent=`html.wp,html.wp body{background:transparent!important}html.wp{ba
 html.wp.wpn #wpS{opacity:.14}
 #wpM{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;pointer-events:none;font:600 13px/1 var(--font,system-ui);color:#fff;background:rgba(0,0,0,.38);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:7px 12px;border-radius:999px;opacity:0;transition:opacity .6s}
 #wpM.on{opacity:1}
-:root{--wp-glass:rgba(255,255,255,.8)}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--wp-glass:rgba(28,28,30,.76)}}
-:root[data-theme="dark"]{--wp-glass:rgba(28,28,30,.76)}
+:root{--wp-glass:rgba(255,255,255,.94)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--wp-glass:rgba(22,22,24,.93)}}
+:root[data-theme="dark"]{--wp-glass:rgba(22,22,24,.93)}
 html.wp .panel,html.wp .group,html.wp .tile:not(.pstack .tile){background:var(--wp-glass)!important;-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%)}
 html.wp .card{background:var(--wp-glass)!important}`;
 document.head.append(st);
