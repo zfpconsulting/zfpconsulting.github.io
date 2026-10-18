@@ -891,6 +891,15 @@ html.locked body{overflow:hidden}
 .tkchk.on{background:var(--green);border-color:var(--green)}.tkchk.on::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
 .tkst{font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap;flex:none;background:var(--fill);color:var(--label2);text-transform:uppercase;letter-spacing:.02em}
 .tkst.blue{background:var(--tint-soft);color:var(--tint)}.tkst.orange{background:var(--orange-soft);color:var(--orange)}.tkst.green{background:var(--green-soft);color:var(--green)}.tkst.big{font-size:13px;padding:6px 12px}
+.ctsug{display:grid;border-top:1px solid var(--sep);max-height:300px;overflow:auto}
+.ctsug[hidden]{display:none}
+.ctsug-i{display:flex;align-items:center;gap:10px;padding:8px 16px;background:none;border:none;border-bottom:1px solid var(--sep);color:var(--label);font:inherit;text-align:left;cursor:pointer}
+.ctsug-i:hover,.ctsug-i:focus{background:var(--fill2)}
+.ctsug-i .avatar{width:28px;height:28px;font-size:11px;flex:none}
+.ctsug-i .t{font-size:15px;font-weight:500}.ctsug-i .s{font-size:12px;color:var(--label2)}
+.todaygrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.todaygrid>.group{margin:0;min-width:0}
+@media (max-width:860px){.todaygrid{grid-template-columns:minmax(0,1fr)}}
 .tksub{padding:10px 16px 4px;font-size:12px;font-weight:600;color:var(--label2);text-transform:uppercase;letter-spacing:.04em;background:var(--fill2)}
 .cppick{display:grid;gap:8px}.cppick input{font:inherit;font-size:16px;background:var(--bg2);border:none;border-radius:10px;padding:10px 12px;color:var(--label);width:100%;box-sizing:border-box}
 .cpres{display:grid;gap:4px}.cpit{display:flex;justify-content:space-between;gap:10px;align-items:center;text-align:left;background:var(--bg2);border-radius:10px;padding:10px 12px;font-size:15px;color:var(--label);border:none;width:100%;cursor:pointer}
@@ -2189,6 +2198,7 @@ function renderDzNotes(){
 setInterval(()=>{try{renderDzNotes()}catch(e){}},1500);
 
 /* ---------- volné bloky pro schůzky: všední dny 8:30–19:00, 45 min + 15 min rezerva; jen tvoje schůzky (prefix) a osobní kalendář blokují ---------- */
+const OFFICE_PLACE="Brno, Trnitá 500/9";
 const DZS={from:510,to:1140,len:45,buf:15,block:90,grid:[510,600,690,780,870,960,1050],days:21,addr:()=>(settings.dzAddr||"Trnitá 500/9, 602 00 Brno")};
 /* pevná mřížka bloků po 90 min (každý týden stejné časy): 8:30, 10:00, 11:30, 13:00, 14:30, 16:00, 17:30.
    Tvoje schůzka / osobní událost v okně bloku → blok je obsazený. Škola v okně → začátek se posune na 50 min po konci výuky
@@ -2427,7 +2437,7 @@ function renderPipe(cur){
   const hot=active.filter(l=>["late","today","none"].includes(dueState(l))||isCold(l)||String(l.nextStep||"").trim()).sort((a,b)=>(a.nextDate||"0").localeCompare(b.nextDate||"0"));
   const showAll=window.__todayAll, shown=showAll?hot:hot.slice(0,6);
   const tkNodes=typeof asPipeNodes==="function"?asPipeNodes():[];
-  $("todayList").replaceChildren(...tkNodes,...(hot.length?[...shown.map(l=>{
+  const callNodes=(hot.length?[...shown.map(l=>{
     const s=dueState(l);
     const stp=String(l.nextStep||"").trim(), dd=l.nextDate?dDiff(l.nextDate,todayStr()):null;
     const why=s==="none"?(stp?"Bez termínu · "+stp:"Chybí další krok"):s==="late"?"Po termínu od "+fmtDate(l.nextDate)+(stp?" · "+stp:""):s==="today"?"Dnes"+(stp?" · "+stp:""):stp&&dd!=null&&dd>0?(dd===1?"Zítra":"Za "+dd+" "+plural(dd,"den","dny","dní"))+" · "+stp:daysSince(lastTouch(l))+" dní bez kontaktu";
@@ -2435,7 +2445,11 @@ function renderPipe(cur){
       el("span",{class:"avatar",style:"background:"+ST(l.stage).c},initials(l.name)),
       el("span",{class:"main"},el("div",{class:"t"},l.name),el("div",{class:"s"+(s==="today"||(s===""&&stp&&dd!=null&&dd>0)?"":" bad")},why)),
       el("span",{class:"end"},l.phone?fmtPhone(l.phone):ST(l.stage).t),(typeof asSendChip==="function"?asSendChip({text:l.nextStep||"",client:l.name,due:l.nextDate&&l.nextDate>=todayStr()?l.nextDate:""}):null),chev());
-  }),hot.length>6?el("button",{class:"row row-btn",type:"button",style:"color:var(--tint);font-weight:500;justify-content:center",onclick:()=>{window.__todayAll=!showAll;render()}},showAll?"Zobrazit méně":"Zobrazit všech "+hot.length):null].filter(Boolean):[el("div",{class:"row"},el("span",{class:"empty"},"Nic nehoří. Každý rozjednaný lead má naplánovaný další krok."))]));
+  }),hot.length>6?el("button",{class:"row row-btn",type:"button",style:"color:var(--tint);font-weight:500;justify-content:center",onclick:()=>{window.__todayAll=!showAll;render()}},showAll?"Zobrazit méně":"Zobrazit všech "+hot.length):null].filter(Boolean):[el("div",{class:"row"},el("span",{class:"empty"},"Nic nehoří. Každý rozjednaný lead má naplánovaný další krok."))]);
+  /* úkoly vlevo, komu zavolat vpravo (na úzkém displeji pod sebou) */
+  const TL=$("todayList");
+  if(tkNodes.length){TL.className="todaygrid";TL.replaceChildren(el("div",{class:"group tdcol"},el("div",{class:"tksub"},"Moje úkoly"),...tkNodes),el("div",{class:"group tdcol"},el("div",{class:"tksub"},"Komu zavolat"),...callNodes))}
+  else{TL.className="group";TL.replaceChildren(...callNodes)}
 
   renderCal();
   $("cols").replaceChildren(...STAGES.map((st,i)=>{
@@ -3796,7 +3810,7 @@ async function saveMeeting(l,start,online,opt={}){
       const end=new Date(start.getTime()+45*60000);
       const title=(cfg.prefix?cfg.prefix+" ":"")+(l.name||"Schůzka")+(online?" (online)":"");
       const base="https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events";
-      const r=await gfetch(base,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({summary:title,start:{dateTime:startISO},end:{dateTime:end.toISOString()}})});
+      const r=await gfetch(base,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({summary:title,location:online?"":OFFICE_PLACE,start:{dateTime:startISO},end:{dateTime:end.toISOString()}})});
       const j=await r.json();evId=j.id||null;if(!evId)throw new Error("bez id");
     }catch(e){evErr=e&&e.code||e&&e.message||"chyba";toast("Nepodařilo se zapsat do kalendáře, ukládám aspoň do leadu")}
   }
@@ -5203,23 +5217,38 @@ function ctAddMin(hm,min){const[h,m]=hm.split(":").map(Number);const d=new Date(
 /* vytvoření/úprava/smazání vlastní události – jen tvoje (VK: …), zapisuje se přímo do Google Kalendáře.
    Nová událost jde vždy do hlavního synchronizačního kalendáře a dostane tvůj prefix, ať se počítá
    jako tvoje i ve statistikách. */
+/* lidé z pipeline (leady + klienti) pro vyhledávání v nové události – bez diakritiky, podle začátku jména i příjmení */
+function ctPeopleSearch(q){const n=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();const Q=n(q);if(Q.length<2)return[];
+  const seen=new Set(),out=[],words=Q.split(/\s+/);
+  const hit=name=>{const w=n(name).split(/[\s,.]+/);return words.every(x=>w.some(y=>y.startsWith(x)))};
+  for(const l of (leads||[])){if(!l.name||!hit(l.name))continue;const k=n(l.name);if(seen.has(k))continue;seen.add(k);out.push({name:l.name,sub:"Pipeline · "+ST(l.stage).t+(l.phone?" · "+fmtPhone(l.phone):""),c:ST(l.stage).c,r:ACTIVE(l.stage)?0:1})}
+  for(const c of (typeof clients!=="undefined"&&clients||[])){if(c.hidden||!c.name||!hit(c.name))continue;const k=n(c.name);if(seen.has(k))continue;seen.add(k);out.push({name:c.name,sub:"Klient"+(c.phone?" · "+fmtPhone(c.phone):""),c:"var(--gray)",r:2})}
+  return out.sort((a,b)=>a.r-b.r||a.name.localeCompare(b.name,"cs")).slice(0,7)}
 function ctEventSheet(ev,prefill){
   const isNew=!ev, re=prefixRe(), pfx=calCfg().prefix?calCfg().prefix.replace(/:?\s*$/,"")+": ":"";
   const draft={
-    title:isNew?"":ev.title.replace(re||/^$/,""),
+    title:isNew?(prefill?.title||""):ev.title.replace(re||/^$/,"").replace(/\s*\(?online\)?\s*$/i,""),
     date:isNew?(prefill?.date||todayStr()):ctDayKey(ev.start),
     allDay:isNew?false:!!ev.allDay,
     start:isNew?(prefill?.time||"09:00"):fmtHM(ev.start),
     end:isNew?ctAddMin(prefill?.time||"09:00",prefill?.len||30):(ev.end?fmtHM(ev.end):ctAddMin(fmtHM(ev.start),30)),
-    place:isNew?"":(ev.place||""), online:isNew?false:!!ev.online};
+    place:isNew?OFFICE_PLACE:(ev.place||""), online:isNew?false:!!ev.online};
   const body=()=>{
-    const nameInp=el("input",{type:"text",placeholder:"Jméno klienta","aria-label":"Klient / název"});nameInp.value=draft.title;
-    nameInp.addEventListener("input",()=>draft.title=nameInp.value);
+    const nameInp=el("input",{type:"search",placeholder:"Hledat v pipeline nebo napsat jméno","aria-label":"Klient / název",autocomplete:"off",enterkeyhint:"search"});nameInp.value=draft.title;
+    const sug=el("div",{class:"ctsug",role:"listbox"});sug.hidden=true;
+    const pick=n=>{draft.title=n;nameInp.value=n;sug.hidden=true;sug.replaceChildren()};
+    const showSug=()=>{const L=ctPeopleSearch(nameInp.value);sug.hidden=!L.length;
+      sug.replaceChildren(...L.map(x=>el("button",{type:"button",role:"option",class:"ctsug-i",onmousedown:e=>e.preventDefault(),onclick:()=>pick(x.name)},
+        el("span",{class:"avatar",style:"background:"+x.c},initials(x.name)),el("span",{class:"main"},el("div",{class:"t"},x.name),el("div",{class:"s"},x.sub)))))};
+    nameInp.addEventListener("input",()=>{draft.title=nameInp.value;showSug()});
+    nameInp.addEventListener("focus",()=>{if(nameInp.value.trim())showSug()});
+    nameInp.addEventListener("blur",()=>setTimeout(()=>{sug.hidden=true},150));
+    nameInp.addEventListener("keydown",e=>{if(e.key==="Enter"){const f=sug.querySelector("button");if(f&&!sug.hidden){e.preventDefault();f.click()}}else if(e.key==="Escape")sug.hidden=true});
     const dateInp=el("input",{type:"date","aria-label":"Datum"});dateInp.value=draft.date;
     dateInp.addEventListener("change",()=>draft.date=dateInp.value);
     const adSw=el("input",{type:"checkbox",role:"switch",class:"switch"});adSw.checked=draft.allDay;
     adSw.addEventListener("change",()=>{draft.allDay=adSw.checked;refresh()});
-    const rows=[el("div",{class:"frow"},el("label",{},"Klient / název",pfx?el("div",{class:"xh"},"uloží se jako „"+pfx+"…“"):null),nameInp),
+    const rows=[el("div",{class:"frow"},el("label",{},"Klient / název",pfx?el("div",{class:"xh"},"uloží se jako „"+pfx+"…“"):null),nameInp),sug,
       el("div",{class:"frow"},el("label",{},"Datum"),dateInp),
       el("div",{class:"frow"},el("label",{},"Celý den"),el("span",{style:"flex:1"}),adSw)];
     if(!draft.allDay){
@@ -5232,7 +5261,9 @@ function ctEventSheet(ev,prefill){
     const placeInp=el("input",{type:"text",placeholder:"Místo","aria-label":"Místo"});placeInp.value=draft.place;
     placeInp.addEventListener("input",()=>draft.place=placeInp.value);
     const onlineSw=el("input",{type:"checkbox",role:"switch",class:"switch"});onlineSw.checked=draft.online;
-    onlineSw.addEventListener("change",()=>draft.online=onlineSw.checked);
+    onlineSw.addEventListener("change",()=>{draft.online=onlineSw.checked;
+      /* osobně = vždy kancelář, online = bez místa */
+      if(draft.online){if(draft.place===OFFICE_PLACE)draft.place=""}else if(!draft.place.trim())draft.place=OFFICE_PLACE;placeInp.value=draft.place});
     rows.push(el("div",{class:"frow"},el("label",{},"Místo"),placeInp),el("div",{class:"frow"},el("label",{},"Online"),el("span",{style:"flex:1"}),onlineSw));
     return rows;
   };
@@ -5240,7 +5271,7 @@ function ctEventSheet(ev,prefill){
   const refresh=()=>wrap.replaceChildren(...body());
   const save=async()=>{
     if(!draft.title.trim()){toast("Zadej jméno klienta");return}
-    const payload={summary:pfx+draft.title.trim(),location:draft.place||""};
+    const payload={summary:pfx+draft.title.trim()+(draft.online?" (online)":""),location:draft.online?"":(draft.place.trim()||OFFICE_PLACE)};
     if(draft.allDay){payload.start={date:draft.date};payload.end={date:addDaysFrom(draft.date,1)}}
     else{const s=new Date(draft.date+"T"+draft.start+":00"),en=new Date(draft.date+"T"+draft.end+":00");payload.start={dateTime:s.toISOString()};payload.end={dateTime:en.toISOString()}}
     try{
@@ -8062,8 +8093,7 @@ function asPipeNodes(){
   const L=asPipeTasks(),inv=[...asInvNodes(),...(typeof dealInvNodes==="function"?dealInvNodes():[])];if(!L.length&&!inv.length)return[];
   const shown=L.slice(0,asPipeShow);
   return [...inv,...shown.map(asTaskRow),
-    L.length>asPipeShow?el("button",{type:"button",class:"row row-btn",style:"color:var(--tint);font-weight:500;justify-content:center",onclick:()=>{asPipeShow+=5;render()}},"Další úkoly ("+(L.length-asPipeShow)+")"):null,
-    el("div",{class:"tksub"},"Komu zavolat")].filter(Boolean);
+    L.length>asPipeShow?el("button",{type:"button",class:"row row-btn",style:"color:var(--tint);font-weight:500;justify-content:center",onclick:()=>{asPipeShow+=5;render()}},"Další úkoly ("+(L.length-asPipeShow)+")"):null].filter(Boolean);
 }
 async function asMyDone(t){try{await db.doc("mytasks/"+t.rid).update({done:t.st==="hotovo"?"":new Date().toISOString()})}catch(e){toast("Nepodařilo se uložit")}}
 
