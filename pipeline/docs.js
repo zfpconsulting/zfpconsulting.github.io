@@ -127,7 +127,7 @@ function pick(owner){const i=h("input",{type:"file",multiple:true,hidden:true});
 
 /* ---------- styly ---------- */
 const CSS=`
-.dc-over{outline:2.5px dashed var(--tint,#007aff)!important;outline-offset:-2px;background-image:linear-gradient(var(--tint-soft,rgba(0,122,255,.12)),var(--tint-soft,rgba(0,122,255,.12)))!important}
+.dc-over{outline:2.5px dashed var(--tint,#007aff)!important;outline-offset:-2px;background-image:linear-gradient(var(--tint-soft,rgba(243,117,32,.12)),var(--tint-soft,rgba(243,117,32,.12)))!important}
 .card.dc-over::after,.crow.dc-over::after,.scard.dc-over::after{content:"Pustit sem – přidá se ke klientovi";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:5px 12px;border-radius:999px;background:var(--tint,#007aff);color:#fff;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:3}
 .card.dc-over,.crow.dc-over,.scard.dc-over{position:relative}
 .dc-tag{display:inline-flex;align-items:center;gap:3px}

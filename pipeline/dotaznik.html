@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="referrer" content="no-referrer">
+<meta name="referrer" content="strict-origin">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com; form-action 'none'; base-uri 'none'">
 <title>Vstupní dotazník – finanční plán</title>
 <style>
@@ -108,7 +108,7 @@ body.emb .hero h1{font-size:22px}
 <main id="main"></main>
 <div class="bottom" id="bottom"><div class="in"><span class="st" id="st"></span><span id="botBtns"></span></div></div>
 <div class="toast" id="toast"></div>
-<script src="dzcrypto.js?v=1"></script>
+<script src="dzcrypto.js?v=2"></script>
 <script>
 "use strict";
 const EMB=location.hash==="#fp"&&window.parent!==window;
@@ -132,7 +132,7 @@ const NEFIN=["Nemovitost k bydlení","Investiční nemovitost","Pozemek","Rekrea
 const UVERY=["Hypotéka","Úvěr ze stavebního spoření","Spotřebitelský úvěr","Leasing","Kreditní karta / kontokorent","Podnikatelský úvěr","Jiný"];
 const DOC=[["materska","Peněžitá pomoc v mateřství (mateřská)"],["rodicovska","Rodičovský příspěvek (rodičovská)"],["vyzivne","Výživné"],["jine","Jiný příjem, který skončí"]];
 const STAV=[["","Vyberte…"],["svobodny","svobodný / svobodná"],["zenaty","ženatý / vdaná"],["partner","žijeme s partnerem / partnerkou"],["rozvedeny","rozvedený / rozvedená"],["vdovec","vdovec / vdova"]];
-const ESSZ="https://eportal.cssz.cz/web/portal/sluzby";
+const ESSZ="https://eportal.cssz.cz/web/portal/-/sluzby/informativni-duchodova-aplikace";
 const blank=()=>({klient:{jmeno:"",narozen:"",zam:"",podnik:"",pasiv:"",pronajem:"",bonus:"",hruba:"",vydaje_osobni:"",vydaje_dom:"",povolani:"",sport:""},partner:{zapnuto:false},kontakt:{telefon:"",email:"",stav:""},
   deti:[],motivace:"",docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:"",od_veku:""},pojisteni:{zivotni:{stav:""}},poznamka:""});
 let P=blank();
@@ -150,10 +150,10 @@ const pd=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s||"");return m?new Date(+m
 function docasneDo(r){
   const d=(P.deti||[])[+r.dite];const nar=d&&pd(d.narozen);if(!nar)return null;
   const konecPPM=new Date(nar.getTime()+22*7*864e5);
-  if(r.typ==="materska")return {do:ym(konecPPM),why:"mateřská 28 týdnů – do "+konecPPM.getDate()+". "+(konecPPM.getMonth()+1)+". "+konecPPM.getFullYear()};
+  if(r.typ==="materska")return {do:ym(konecPPM),why:"mateřská trvá 28 týdnů (od 6. týdne před porodem) – do "+konecPPM.getDate()+". "+(konecPPM.getMonth()+1)+". "+konecPPM.getFullYear()+"; potom obvykle navazuje rodičovská"};
   if(r.typ==="rodicovska"){const lim=new Date(nar);lim.setFullYear(lim.getFullYear()+(nar.getFullYear()>=2024?3:4));
-    let end=lim;const c=+r.castka;if(c>0){const m=Math.ceil(350000/c);const e=new Date(konecPPM);e.setMonth(e.getMonth()+m);if(e<end)end=e}
-    return {do:ym(end),why:(c>0&&end<lim?"350 000 Kč / "+fmtIn(c)+" Kč měsíčně":"nejdéle do "+(nar.getFullYear()>=2024?3:4)+" let dítěte")+" – do "+(end.getMonth()+1)+"/"+end.getFullYear()}}
+    let end=lim;const c=+r.castka;if(!(c>0))return {do:"",why:"zadejte, kolik vám chodí měsíčně"};if(c>0){const m=Math.ceil(350000/c);const e=new Date(konecPPM);e.setMonth(e.getMonth()+m);if(e<end)end=e}
+    return {do:ym(end),why:c>0?(end<lim?"350 000 Kč při "+fmtIn(c)+" Kč měsíčně vystačí do "+(end.getMonth()+1)+"/"+end.getFullYear():"při "+fmtIn(c)+" Kč měsíčně až do "+(nar.getFullYear()>=2024?3:4)+" let dítěte ("+(end.getMonth()+1)+"/"+end.getFullYear()+")"):"zadejte, kolik vám chodí měsíčně"}}
   return null;
 }
 
@@ -211,9 +211,10 @@ const SEC=[
   h:()=>ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${prijmy(k)}</div>${chk("Teď nemám žádný příjem",k+".bez_prijmu")}${em(k+".prijem")}`).join("")+
    `<h3>Dočasné příjmy</h3><div class="g">${ask("Máte příjem, který brzy skončí? (mateřská, rodičovská, výživné…)","kontakt.docasne_ma")}</div>
    ${yes("docasne_ma")?rows("docasne",{typ:"",dite:"",castka:"",do:""},(r,i)=>(DOC.find(x=>x[0]===r.typ)||[,"Dočasný příjem "+(i+1)])[1],(b,r)=>{const c=docasneDo(r);const deti=(P.deti||[]).map((d,j)=>[String(j),d.jmeno||"Dítě "+(j+1)]);
-     return `${sel("Co to je",b+".typ",[["","Vyberte…"],...DOC])}${money("Kolik",b+".castka")}
+     return `${sel("Co to je",b+".typ",[["","Vyberte…"],...DOC])}${money("Kolik vám chodí měsíčně",b+".castka")}
      ${r.typ==="materska"||r.typ==="rodicovska"?(deti.length?sel("Na které dítě",b+".dite",[["","Vyberte…"],...deti]):`<span class="hint full">Nejdřív přidejte dítě v části Rodina – podle jeho věku spočítáme, do kdy dávka bude.</span>`):""}
-     ${txt("Do kdy",b+".do",{type:"month",h:c?`<span class="calc">Spočítáno: ${esc(c.why)}</span>`:""})}`}):""}`,
+     ${r.typ==="materska"||r.typ==="rodicovska"?`<label class="f"><span class="q">Do kdy</span><input class="${ec(b+".do")}" data-p="${b}.do" type="month" readonly tabindex="-1" value="${esc(r.do||"")}" placeholder="spočítá se" style="background:var(--chip)"><span class="hint">${c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte"}</span>${em(b+".do")}</label>`
+       :txt("Do kdy",b+".do",{type:"month"})}`}):""}`,
   miss:M=>{ppl().forEach(k=>{const o=k==="klient"?P.klient:P.partner;if(!(+o.zam>0||+o.podnik>0||+o.pasiv>0||+o.pronajem>0)&&!o.bez_prijmu)M(k+".prijem","Vyplňte příjem, nebo zaškrtněte, že žádný nemáte");if(+o.zam>0&&!(+o.hruba>0))M(k+".hruba","Hrubá mzda")});
     if(K().docasne_ma==null)M("kontakt.docasne_ma","Odpovězte prosím");
     if(yes("docasne_ma")){if(!(P.docasne||[]).length)M("docasne","Přidejte příjem");(P.docasne||[]).forEach((r,i)=>{const b=`docasne.${i}`;if(!r.typ)M(b+".typ","Vyberte");if(!(+r.castka>0))M(b+".castka","Částka");if((r.typ==="materska"||r.typ==="rodicovska")&&r.dite==="")M(b+".dite","Vyberte dítě");if(!r.do)M(b+".do","Do kdy")})}}},
@@ -295,7 +296,8 @@ function save(){clearTimeout(saveT);saveT=setTimeout(()=>{
   if(EMB)parent.postMessage({type:"dz:change",plan:P},location.origin);
   else if(!sent)try{localStorage.setItem(DRAFT,JSON.stringify({at:Date.now(),plan:P}))}catch(e){}},EMB?250:400)}
 const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|kontakt\.stav)$/.test(p);
-function autoDo(p){const m=/^docasne\.(\d+)\.(typ|dite|castka)$/.exec(p);if(!m)return false;const r=P.docasne[+m[1]],c=docasneDo(r);if(c&&!r.doRucne){r.do=c.do;return true}return false}
+function autoDo(p){const m=/^docasne\.(\d+)\.(typ|dite|castka)$/.exec(p);if(!m)return false;const r=P.docasne[+m[1]];if(r.typ!=="materska"&&r.typ!=="rodicovska")return false;const c=docasneDo(r);r.do=c?c.do:"";
+  const h=document.querySelector(`[data-p="docasne.${m[1]}.do"]`),hint=h&&h.parentElement.querySelector(".hint");if(hint)hint.innerHTML=c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte";return true}
 document.addEventListener("input",e=>{const t=e.target;
   if(t.dataset.adv){const A=adv();A[t.dataset.adv]=t.value;try{localStorage.setItem(ADV,JSON.stringify(A))}catch(err){}return}
   const p=t.dataset.p;if(!p)return;
@@ -303,7 +305,6 @@ document.addEventListener("input",e=>{const t=e.target;
   if(t.dataset.num){v=parseIn(t.value);const pos=t.selectionStart||0,dig=t.value.slice(0,pos).replace(/[^\d,.-]/g,"").length,keep=/[,.]$/.test(t.value)?",":"";
     const f=v===""?"":fmtIn(v)+keep;if(f!==t.value){t.value=f;let k=0,c=0;while(c<f.length&&k<dig){if(/[\d,.-]/.test(f[c]))k++;c++}try{t.setSelectionRange(c,c)}catch(err){}}}
   set(P,p,v);
-  if(/^docasne\.\d+\.do$/.test(p))P.docasne[+p.split(".")[1]].doRucne=true;
   if(p==="kontakt.stav"&&v){if(v==="zenaty"||v==="partner")P.klient.bez_partnera=false;else if(P.klient.bez_partnera==null&&!ma())P.klient.bez_partnera=true}
   const ad=autoDo(p);
   if(needsRender(p)||ad&&t.tagName==="SELECT")render();
@@ -344,7 +345,9 @@ async function send(){
     const box=await DzCrypto.seal(LINK.k,{type:"fp-dotaznik",v:2,at:new Date().toISOString(),plan,files,adv:adv().n||""});
     await DzCrypto.post(LINK.to,box,(i,n)=>{b.textContent=n>1?`Odesílám ${i}/${n}…`:"Odesílám…"});
     sent=true;try{localStorage.removeItem(DRAFT)}catch(e){}Object.keys(FILES).forEach(k=>delete FILES[k]);renderSent();
-  }catch(e){console.error(e);toast(e&&e.code==="big"?"Přílohy jsou moc velké – vložte prosím menší PDF.":"Odeslání se nepovedlo – zkontrolujte připojení a zkuste to znovu.");b.disabled=false;b.textContent="Odeslat poradci"}
+  }catch(e){console.error(e);const c=e&&e.code;
+    toast(c==="big"?"Přílohy jsou moc velké – vložte prosím menší PDF.":c===403||c===401?"Schránka poradce teď odpověď nepřijala – dejte prosím vědět poradci. Vyplněné odpovědi zůstávají uložené.":typeof c==="number"?"Odeslání se nepovedlo (chyba "+c+") – zkuste to prosím za chvíli znovu.":"Odeslání se nepovedlo – zkontrolujte připojení k internetu a zkuste to znovu.");
+    b.disabled=false;b.textContent="Odeslat poradci"}
   finally{sending=false}
 }
 

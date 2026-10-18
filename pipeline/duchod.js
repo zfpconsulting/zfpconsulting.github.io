@@ -142,7 +142,7 @@ const CSS=`
 .dk .dk-tile .k{font-size:13px;color:var(--label2);margin-bottom:4px;line-height:1.25}
 .dk .dk-tile .v{font-size:21px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .dk .dk-tile .s{font-size:12px;color:var(--label2);margin-top:3px;line-height:1.3}
-.dk .dk-tile.big{outline:2px solid var(--orange-soft,rgba(255,149,0,.2))}
+.dk .dk-tile.big{outline:2px solid var(--orange-soft,rgba(243,117,32,.2))}
 .dk .dk-tile .min{display:inline-block;margin-left:4px;color:var(--orange);font-weight:600}
 .dk table{border-collapse:collapse;width:100%;font-size:14px}
 .dk td{padding:7px 4px;border-bottom:1px solid var(--sep)}

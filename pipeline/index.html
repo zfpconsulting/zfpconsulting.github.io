@@ -19,9 +19,10 @@
 :root{
   --bg:#F2F2F7; --bg2:#FFFFFF; --bg3:#F2F2F7; --fill:rgba(120,120,128,.12); --fill2:rgba(120,120,128,.08);
   --label:#000000; --label2:rgba(60,60,67,.6); --label3:rgba(60,60,67,.3); --sep:rgba(60,60,67,.18);
-  --tint:#007AFF; --tint-soft:rgba(0,122,255,.12); --green:#34C759; --green-soft:rgba(52,199,89,.14);
-  --orange:#FF9500; --orange-soft:rgba(255,149,0,.14); --red:#FF3B30; --red-soft:rgba(255,59,48,.12);
-  --purple:#AF52DE; --yellow:#FFCC00; --gray:#8E8E93; --indigo:#5856D6; --teal:#30B0C7; --teal-soft:rgba(48,176,199,.14);
+  /* celá appka jen v ZFP oranžové (#F37520 z loga ZFP GROUP), bílé a černé – všechny „barevné“ proměnné ukazují na ni */
+  --tint:#F37520; --tint-soft:rgba(243,117,32,.12); --green:#F37520; --green-soft:rgba(243,117,32,.12);
+  --orange:#F37520; --orange-soft:rgba(243,117,32,.12); --red:#F37520; --red-soft:rgba(243,117,32,.12);
+  --purple:#F37520; --yellow:#F37520; --gray:#8E8E93; --indigo:#F37520; --teal:#F37520; --teal-soft:rgba(243,117,32,.12);
   --bar-bg:rgba(242,242,247,.8); --card-shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
   --thumb-shadow:0 0.5px 4px rgba(0,0,0,.12),0 6px 13px rgba(0,0,0,.12);
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -33,9 +34,9 @@
     color-scheme:dark;
     --bg:#000000; --bg2:#1C1C1E; --bg3:#2C2C2E; --fill:rgba(120,120,128,.24); --fill2:rgba(120,120,128,.16);
     --label:#FFFFFF; --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3); --sep:rgba(84,84,88,.6);
-    --tint:#0A84FF; --tint-soft:rgba(10,132,255,.2); --green:#30D158; --green-soft:rgba(48,209,88,.18);
-    --orange:#FF9F0A; --orange-soft:rgba(255,159,10,.18); --red:#FF453A; --red-soft:rgba(255,69,58,.18);
-    --purple:#BF5AF2; --yellow:#FFD60A; --gray:#8E8E93; --indigo:#5E5CE6; --teal:#40C8E0; --teal-soft:rgba(64,200,224,.18);
+    --tint:#F37520; --tint-soft:rgba(243,117,32,.2); --green:#F37520; --green-soft:rgba(243,117,32,.18);
+    --orange:#F37520; --orange-soft:rgba(243,117,32,.18); --red:#F37520; --red-soft:rgba(243,117,32,.18);
+    --purple:#F37520; --yellow:#F37520; --gray:#8E8E93; --indigo:#F37520; --teal:#F37520; --teal-soft:rgba(243,117,32,.18);
     --bar-bg:rgba(0,0,0,.72); --card-shadow:none; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
   }
 }
@@ -43,9 +44,9 @@
   color-scheme:dark;
   --bg:#000000; --bg2:#1C1C1E; --bg3:#2C2C2E; --fill:rgba(120,120,128,.24); --fill2:rgba(120,120,128,.16);
   --label:#FFFFFF; --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3); --sep:rgba(84,84,88,.6);
-  --tint:#0A84FF; --tint-soft:rgba(10,132,255,.2); --green:#30D158; --green-soft:rgba(48,209,88,.18);
-  --orange:#FF9F0A; --orange-soft:rgba(255,159,10,.18); --red:#FF453A; --red-soft:rgba(255,69,58,.18);
-  --purple:#BF5AF2; --yellow:#FFD60A; --gray:#8E8E93; --indigo:#5E5CE6; --teal:#40C8E0; --teal-soft:rgba(64,200,224,.18);
+  --tint:#F37520; --tint-soft:rgba(243,117,32,.2); --green:#F37520; --green-soft:rgba(243,117,32,.18);
+  --orange:#F37520; --orange-soft:rgba(243,117,32,.18); --red:#F37520; --red-soft:rgba(243,117,32,.18);
+  --purple:#F37520; --yellow:#F37520; --gray:#8E8E93; --indigo:#F37520; --teal:#F37520; --teal-soft:rgba(243,117,32,.18);
   --bar-bg:rgba(0,0,0,.72); --card-shadow:none; --thumb-shadow:0 0.5px 4px rgba(0,0,0,.3),0 6px 13px rgba(0,0,0,.3);
 }
 *{box-sizing:border-box}
@@ -170,7 +171,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 @keyframes colglow{0%{background:var(--tint-soft)}100%{background:transparent}}
 .col.landed.podpis{animation:colglowg 1.2s ease-out}
 @keyframes colglowg{0%{background:var(--green-soft)}100%{background:transparent}}
-.floatkc{position:fixed;z-index:60;pointer-events:none;font-weight:800;font-size:26px;color:#fff;background:var(--green);padding:10px 18px;border-radius:999px;box-shadow:0 12px 30px rgba(52,199,89,.45);transform:translate(-50%,-50%);font-variant-numeric:tabular-nums;white-space:nowrap;display:grid;justify-items:center;line-height:1.1}
+.floatkc{position:fixed;z-index:60;pointer-events:none;font-weight:800;font-size:26px;color:#fff;background:var(--green);padding:10px 18px;border-radius:999px;box-shadow:0 12px 30px rgba(243,117,32,.45);transform:translate(-50%,-50%);font-variant-numeric:tabular-nums;white-space:nowrap;display:grid;justify-items:center;line-height:1.1}
 .floatkc small{font-size:12px;font-weight:600;opacity:.9}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:50}
 .card.frozen{filter:grayscale(1)}
@@ -277,6 +278,8 @@ dialog.sheet-closing::backdrop{animation:backdropOut .26s ease forwards}
   #dlg #f_note{min-height:200px}
   #dlg .sbar h2,#edDlg.wide .sbar h2{max-width:60vw;font-size:19px}
 }
+.card .foot button.open[style]{color:var(--label2)!important}
+.card .foot button.open[style]:hover{color:var(--zfp)!important}
 #tabBar button.tabdrag{opacity:.55;transform:scale(.96);box-shadow:0 0 0 1.5px var(--zfp) inset;cursor:grabbing}
 #tabBar.tabdragging,#tabBar.tabdragging button{cursor:grabbing;user-select:none;-webkit-user-select:none}
 #tabBar button{-webkit-touch-callout:none}
@@ -553,8 +556,8 @@ tr.click{cursor:pointer} tr.click:active td{background:var(--fill2)}
 .celebr.paid .c-icon{color:var(--teal)}
 .c-kicker{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--label2)}
 .c-box h2{margin:0;font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
-.c-big{font-size:40px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.15;margin:4px 0;background:linear-gradient(90deg,#34C759,#30B0C7,#007AFF);-webkit-background-clip:text;background-clip:text;color:transparent}
-.celebr.level .c-big{background:linear-gradient(90deg,#FF9500,#FFCC00,#FF9500);-webkit-background-clip:text;background-clip:text}
+.c-big{font-size:40px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.15;margin:4px 0;background:linear-gradient(90deg,#F37520,#F9A86F);-webkit-background-clip:text;background-clip:text;color:transparent}
+.celebr.level .c-big{background:linear-gradient(90deg,#F37520,#F9A86F,#F37520);-webkit-background-clip:text;background-clip:text}
 .c-box p{margin:0;color:var(--label2);font-size:15px;line-height:1.4}
 .c-line{font-size:14px;color:var(--label);background:var(--fill2);border-radius:10px;padding:8px 12px;width:100%;line-height:1.35}
 .c-btn{margin-top:14px;background:var(--tint);color:#fff;font-weight:600;font-size:17px;border-radius:14px;padding:13px 0;width:100%}
@@ -570,7 +573,7 @@ tr.click{cursor:pointer} tr.click:active td{background:var(--fill2)}
 .pstack .tile{background:var(--fill2);box-shadow:none;padding:7px 12px;gap:0}
 .pstack .tile .v{font-size:18px!important;line-height:1.2}
 .pstack .tile .h,.pstack .tile .k{font-size:12px}
-.pstack .tile.ptot{background:var(--green-soft,rgba(52,199,89,.15))}
+.pstack .tile.ptot{background:var(--green-soft,rgba(243,117,32,.12))}
 .pstack .tile.ptot .v{color:var(--green)}
 .mpanel{padding-bottom:12px}
 .mtop .seg.mini button{white-space:nowrap}
@@ -742,14 +745,14 @@ html.locked body{overflow:hidden}
 .pfinv{border:1.5px solid var(--green-soft)}
 .pfsearch{margin:0 0 12px}
 /* výrazné tlačítko finančního plánu v kartě klienta / leadu */
-.fphero{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:none;border-radius:14px;background:var(--orange);color:#fff;font:inherit;text-align:left;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 14px rgba(255,149,0,.28);transition:transform .15s ease,box-shadow .15s ease}
-.fphero:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(255,149,0,.36)}.fphero:active{transform:scale(.99)}
+.fphero{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:none;border-radius:14px;background:var(--orange);color:#fff;font:inherit;text-align:left;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 14px rgba(243,117,32,.28);transition:transform .15s ease,box-shadow .15s ease}
+.fphero:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(243,117,32,.36)}.fphero:active{transform:scale(.99)}
 .fphero .fph-ic{flex:none;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center}
 .fphero .fph-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.fphero .fph-t b{font-size:17px}.fphero .fph-t small{font-size:13px;opacity:.9}
 .fphero .fph-go{flex:none;font-size:26px;line-height:1;opacity:.9}
 .fpdzbtn{flex:none;border:1px solid var(--sep);border-radius:12px;background:var(--bg2);color:var(--label);font:inherit;font-size:15px;font-weight:600;padding:0 14px;cursor:pointer;margin-right:8px}
 .fpdzbtn:hover{border-color:var(--zfp,#F37520)}
-.fpnewbtn{flex:none;border:none;border-radius:12px;background:var(--orange);color:#fff;font:inherit;font-size:15px;font-weight:600;padding:0 16px;cursor:pointer;box-shadow:0 3px 10px rgba(255,149,0,.25)}
+.fpnewbtn{flex:none;border:none;border-radius:12px;background:var(--orange);color:#fff;font:inherit;font-size:15px;font-weight:600;padding:0 16px;cursor:pointer;box-shadow:0 3px 10px rgba(243,117,32,.25)}
 .fpnew{background:var(--bg2);border-radius:14px;box-shadow:var(--card-shadow);padding:14px;margin:0 0 16px}
 .fpnew input{width:100%;box-sizing:border-box;border:1px solid var(--sep);border-radius:10px;background:var(--fill2,transparent);padding:11px 12px;font:inherit;font-size:16px;color:var(--label);outline:none}
 .fpnew .fpnew-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:700}
@@ -1746,14 +1749,15 @@ AppLock.init();
 <script type="text/plain" id="appMain">
 /* ================= model ================= */
 const STAGES=[
+  /* fáze: odstíny ZFP oranžové podle toho, jak blízko je podpis (žádné jiné barvy) */
   {k:"novy",t:"Nový lead",c:"var(--gray)",p:.05},
-  {k:"kontaktovan",t:"Kontaktován",c:"var(--tint)",p:.10},
-  {k:"schuzka",t:"Schůzka domluvena",c:"var(--indigo)",p:.25},
-  {k:"probehla",t:"Schůzka proběhla",c:"var(--orange)",p:.40},
-  {k:"nabidka",t:"Nabídka odeslána",c:"var(--purple)",p:.65},
-  {k:"podpis",t:"Podpis",c:"var(--green)",p:1},
-  {k:"vyplaceno",t:"Provize vyplacena",c:"var(--teal)",p:1},
-  {k:"zamrzly",t:"Zamrzlý",c:"var(--red)",p:0},
+  {k:"kontaktovan",t:"Kontaktován",c:"rgba(243,117,32,.40)",p:.10},
+  {k:"schuzka",t:"Schůzka domluvena",c:"rgba(243,117,32,.58)",p:.25},
+  {k:"probehla",t:"Schůzka proběhla",c:"rgba(243,117,32,.74)",p:.40},
+  {k:"nabidka",t:"Nabídka odeslána",c:"rgba(243,117,32,.88)",p:.65},
+  {k:"podpis",t:"Podpis",c:"#F37520",p:1},
+  {k:"vyplaceno",t:"Provize vyplacena",c:"var(--label)",p:1},
+  {k:"zamrzly",t:"Zamrzlý",c:"var(--label3)",p:0},
   {k:"lost",t:"Lost",c:"#636366",p:0}
 ];
 const SOURCES=["Cold call","Placený lead","Doporučení","Vlastní kontakt","Databáze"];
@@ -1954,7 +1958,7 @@ function renderDuch(then){
   const go=()=>{duchLoading=false;if(!window.DuchodCalc){$("duchBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}
     duchUI=DuchodCalc.mount($("duchBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),ensure:ensureClient});fire()};
   if(window.DuchodCalc)return go();
-  duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=5";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=6";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* záložka Databáze (jen admin) – modul databaze.js se načte až při prvním otevření; data jen v localStorage tohoto zařízení */
 let dbUI=null,dbLoading=false;
@@ -1967,7 +1971,7 @@ function renderDb(){
       findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
         const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=5";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=6";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* Databáze → pipeline: nový lead (fáze Nový lead, zdroj „Databáze“) s telefonem a e-mailem ze smlouvy a PDF v dokumentech; poznámky se nepíšou.
    Stejný člověk už v pipeline → PDF se přidá k němu (poznámky ani zdroj se nemění). */
@@ -1984,7 +1988,7 @@ async function dbAddLead(g){
    veřejný jde v odkazu pro klienta (za #). Klient šifruje u sebe (dzcrypto.js), ve Firestore (dzinbox) leží jen šifrový text,
    číst / mazat ho smí jen tvůj přihlášený Google účet (pravidla databáze). Po zpracování se ze schránky smaže. */
 const DZI={on:false,me:"",unsub:null,busy:new Set()};
-function dzLib(){return window.DzCrypto?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="dzcrypto.js?v=1";sc.onload=res;sc.onerror=rej;document.head.append(sc)})}
+function dzLib(){return window.DzCrypto?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="dzcrypto.js?v=2";sc.onload=res;sc.onerror=rej;document.head.append(sc)})}
 async function dzKey(){if(settings.dzKey&&settings.dzKey.pub&&settings.dzKey.priv)return settings.dzKey;
   await dzLib();const k=await DzCrypto.genKey();const v={...k,at:new Date().toISOString()};settings={...settings,dzKey:v};await db.doc("settings/main").set(settings);setTimeout(dzStart,300);return v}
 const dzMe=()=>String(lsGet("g_owner")||"").toLowerCase();
@@ -2819,8 +2823,8 @@ function drawMonthly(rows,k,label){
      prohlížeč bral 3D stín z koláče místo fade přechodu, takže u všech sérií kromě "tot" (ten
      v koláči žádné ID nemá) fade nefungoval */
   const P=rows.map((r,i)=>[x(i),y(vals[i])]), line=smoothPath(P), up=k!=="udr"||vals[vals.length-1]>=vals[0], gid="mfade_"+k;
-  const SERIES_COLOR={own:["var(--tint)","#007AFF"],team:["var(--orange)","#FF9500"],udr:["var(--green)","#34C759"],reg:["var(--teal)","#30B0C7"],ost:["var(--purple)","#AF52DE"]};
-  const col=SERIES_COLOR[k]?SERIES_COLOR[k][0]:(up?"var(--green)":"var(--red)"), hex=SERIES_COLOR[k]?SERIES_COLOR[k][1]:(up?"#34C759":"#FF3B30");
+  const SERIES_COLOR={own:["#F37520","#F37520"],team:["var(--label)","#8E8E93"],udr:["#8E8E93","#8E8E93"],reg:["rgba(243,117,32,.55)","#F9A86F"],ost:["var(--label3)","#C7C7CC"]};
+  const col=SERIES_COLOR[k]?SERIES_COLOR[k][0]:(up?"#F37520":"var(--label2)"), hex=SERIES_COLOR[k]?SERIES_COLOR[k][1]:(up?"#F37520":"#8E8E93");
   let g="";for(let j=1;j<=3;j++){const v=maxV/1.12*j/3;g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--sep)" stroke-width=".5" stroke-dasharray="2 4"/><text x="${L-8}" y="${y(v)+3}" text-anchor="end" font-size="10" fill="var(--label2)">${shortKc(v)}</text>`}
   if(minV<0)g+=`<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--label3)" stroke-width="1"/><text x="${L-8}" y="${y(0)+3}" text-anchor="end" font-size="10" fill="var(--label2)">0</text><text x="${L-8}" y="${y(minV/1.12)+3}" text-anchor="end" font-size="10" fill="var(--label2)">${shortKc(minV/1.12)}</text>`;
   if(bench!=null)g+=`<line x1="${L}" x2="${W-R}" y1="${y(bench)}" y2="${y(bench)}" stroke="var(--label3)" stroke-width="1.2" stroke-dasharray="5 3"/><text x="${W-R}" y="${y(bench)-4}" text-anchor="end" font-size="10" fill="var(--label2)">benchmark ${shortKc(bench)}</text>`;
@@ -2886,8 +2890,8 @@ function drawPassive(ser,rate){
   const yrs=n/12;let xl="";for(let yv=0;yv<=yrs;yv+=yrs>5?2:1)xl+=`<text x="${x(yv*12)}" y="${H-7}" text-anchor="middle" font-size="11" fill="var(--label2)">${yv?"+"+yv+" "+plural(yv,"rok","roky","let"):"dnes"}</text>`;
   const last=ser[ser.length-1];
   wrap.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Pasivní příjem v čase"><defs>
-      <linearGradient id="pgTot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#007AFF" stop-opacity=".32"/><stop offset="1" stop-color="#007AFF" stop-opacity="0"/></linearGradient>
-      <linearGradient id="pgUdr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34C759" stop-opacity=".32"/><stop offset="1" stop-color="#34C759" stop-opacity="0"/></linearGradient>
+      <linearGradient id="pgTot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F37520" stop-opacity=".32"/><stop offset="1" stop-color="#F37520" stop-opacity="0"/></linearGradient>
+      <linearGradient id="pgUdr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8E8E93" stop-opacity=".32"/><stop offset="1" stop-color="#8E8E93" stop-opacity="0"/></linearGradient>
     </defs>${g}${xl}
     <polygon points="${L},${y(0)} ${pts("udr")} ${x(n)},${y(0)}" fill="url(#pgUdr)"/>
     <polygon points="${L},${y(0)} ${pts("tot")} ${x(n)},${y(0)}" fill="url(#pgTot)"/>
@@ -2938,7 +2942,7 @@ function openRegSheet(){
 
 /* ---------- tým – organigram ---------- */
 let team=[];
-const POSCOL={P1:"#8E8E93",P2:"#5AC8FA",P3:"#34C759",P4:"#30B0C7",P5:"#007AFF",P6:"#5856D6",P7:"#AF52DE",P8:"#FF9500"};
+const POSCOL={P1:"#8E8E93",P2:"#6E6E73",P3:"#48484A",P4:"#FBD3B6",P5:"#F9B98B",P6:"#F79F5F",P7:"#F58A3F",P8:"#F37520"};
 function memberObratRate(m,qk){const o=m.obrat||"none";if(o==="none")return 0;if(o==="auto"){const lv=obratLevelFor(memberQPts(m,qShift(qk||CURQ(),-1)));return lv?lv.r:0}const lv=PROFI.find(p=>p.k===o);return lv?lv.r:0}
 function teamRate(m,qk){if(m.rate!=null&&m.rate!=="")return +m.rate;qk=qk||CURQ();if(m.srate&&m.srateQ===qk)return +m.srate;return Math.max(statRate(m.pos||"P1"),memberObratRate(m,qk))}
 function teamRateSrc(m){if(m.rate!=null&&m.rate!=="")return "vlastní tarif";const qk=CURQ();if(m.srate&&m.srateQ===qk)return "z jeho Pipeline";const o=memberObratRate(m,qk);return o>statRate(m.pos||"P1")?(PROFI.find(p=>p.r===o)||{t:"obratová"}).t:(m.pos||"P1")+" statická"}
@@ -4681,7 +4685,7 @@ function landFx(c,f){
     sparkle(x,r.top,ST(f.stage).c);
   }
 }
-const FXC=[["#34C759","#30D158"],["#007AFF","#0A84FF"],["#FF9500"],["#AF52DE"],["#FFCC00"],["#FF2D55"],["#5AC8FA"]];
+const FXC=[["#F37520"],["#F37520"],["#F9A86F"],["#FFFFFF","#1C1C1E"],["#8E8E93"],["#F37520"],["#FBD3B6"]];
 let fxParts=[],fxRun=false;
 function fxLoop(){
   const cv=$("fx"),ctx=cv.getContext("2d"),dpr=window.devicePixelRatio||1;
@@ -4703,7 +4707,7 @@ function confetti(x,y){
   burst(out);
 }
 function sparkle(x,y,cssColor){
-  const c=getComputedStyle(document.documentElement).getPropertyValue(cssColor.replace(/var\((--[^)]+)\)/,"$1")).trim()||"#007AFF";
+  const c=getComputedStyle(document.documentElement).getPropertyValue(cssColor.replace(/var\((--[^)]+)\)/,"$1")).trim()||"#F37520";
   const out=[];for(let i=0;i<22;i++){const a=-Math.PI/2+(Math.random()-.5)*Math.PI*1.2, v=2+Math.random()*4;
     out.push({x:x+(Math.random()-.5)*60,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,g:.12,rot:0,vr:0,s:4+Math.random()*4,c,shape:1,life:40+Math.random()*25})}
   burst(out);
@@ -6658,7 +6662,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=25#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=26#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -7494,9 +7498,9 @@ const PP_ENC="v1.gl_MkFRAFqTjO4sq2hdS6w.ghGopD2PoO01XO38.MCDGRGTPkxSu6a6nh09Q2r4
     dec(code).then(pp=>{save(code);run(pp)},()=>ask("Přístupový kód se změnil nebo nesedí – zadej aktuální kód od správce."))})();
 })();
 </script>
-<script src="photoedit.js?v=1" defer></script>
-<script src="docs.js?v=2" defer></script>
-<script src="assistant.js?v=6" defer></script>
+<script src="photoedit.js?v=2" defer></script>
+<script src="docs.js?v=3" defer></script>
+<script src="assistant.js?v=7" defer></script>
 <script src="jarvis.js?v=4" defer></script>
 <script>
 /* ===== v35: Asistentka – propojení poradce ↔ asistentka, sdílené úkoly, asistentský režim ===== */

@@ -9,7 +9,7 @@ const CSS=`
 .pe{display:grid;gap:16px;justify-items:center}
 .pe-view{position:relative;width:min(${V}px,100%);aspect-ratio:1;overflow:hidden;border-radius:16px;background:#111;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .pe-view:active{cursor:grabbing}
-.pe-view:focus-visible{outline:3px solid var(--tint-soft,rgba(0,122,255,.3));outline-offset:2px}
+.pe-view:focus-visible{outline:3px solid var(--tint-soft,rgba(243,117,32,.3));outline-offset:2px}
 .pe-img{position:absolute;left:50%;top:50%;max-width:none;pointer-events:none;-webkit-user-drag:none}
 .pe-mask{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);pointer-events:none;border:2px solid rgba(255,255,255,.85)}
 .pe-zoom{display:flex;align-items:center;gap:10px;width:min(${V}px,100%)}

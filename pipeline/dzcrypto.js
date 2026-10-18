@@ -56,7 +56,7 @@ async function post(to,box,progress){
     if(progress)progress(i+1,parts.length);
     const fields={to:{stringValue:String(to).toLowerCase()},v:{integerValue:"1"},g:{stringValue:g},i:{integerValue:String(i)},n:{integerValue:String(parts.length)},
       epk:{stringValue:box.epk},salt:{stringValue:box.salt},iv:{stringValue:box.iv},ct:{stringValue:parts[i]}};
-    const r=await fetch(FS,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fields}),credentials:"omit",referrerPolicy:"no-referrer",cache:"no-store"});
+    const r=await fetch(FS,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fields}),credentials:"omit",referrerPolicy:"strict-origin",cache:"no-store"});
     if(!r.ok){let m="";try{m=(await r.json()).error.status}catch(e){}throw Object.assign(new Error("Odeslání se nepovedlo ("+r.status+(m?" "+m:"")+")."),{code:r.status})}
   }
   return {g,n:parts.length};

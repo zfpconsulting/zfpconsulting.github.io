@@ -294,7 +294,7 @@ const tests = {
     const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     for (const [re, what] of [
       [/<script src="docs\.js\?v=\d+" defer><\/script>/, "načtení docs.js"], [/id="docsBox"/, "kontejner v detailu leadu"],
-      [/Docs\.mount\(b,docOwnerLead\(l\)\)/, "sekce v detailu leadu"], [/Docs\.section\(docOwnerClient\(e,true\)\)/, "sekce v detailu klienta"], [/\n    docSection\(e\),/, "sekce zapojená v detailu klienta"],
+      [/Docs\.mount\(b,docOwnerLead\(l\)\)/, "sekce v detailu leadu"], [/Docs\.section\(docOwnerClient\(e,true\)\)/, "sekce v detailu klienta"], [/\n    docSection\(e\)[,)]/, "sekce zapojená v detailu klienta"],
       [/Docs\.dropTarget\(c,ow\)/, "karta v pipeline"], [/docDecor\(e,el\("button",\{type:"button",class:"row row-btn crow"/, "řádek v seznamu klientů"],
       [/return docDecor\(e,el\("article",\{class:"scard"/, "karta servisu"], [/Docs\.init\(\{db,newId,toast,gfetch,token/, "start modulu"],
       [/status\("ok"\);try\{window\.Docs&&Docs\.sync\(\)/, "nahrání souborů po synchronizaci"], [/Docs\.isFileDrag\(e\)\)return;e\.preventDefault\(\);col\.classList\.add\("drop"\)/, "sloupce pipeline soubory přeskakují"],

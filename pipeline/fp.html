@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f4f4f5;--panel:#ffffff;--line:#e2e2e6;--txt:#1c1c1f;--mut:#6b6b74;--acc:#E8722A;--inp:#fff;--chip:#f0f0f2}
+:root{--bg:#f4f4f5;--panel:#ffffff;--line:#e2e2e6;--txt:#1c1c1f;--mut:#6b6b74;--acc:#F37520;--inp:#fff;--chip:#f0f0f2}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f0f10;--panel:#18181a;--line:#2b2b2f;--txt:#ececee;--mut:#9a9aa3;--inp:#121214;--chip:#222226}}
 :root[data-theme="dark"]{--bg:#0f0f10;--panel:#18181a;--line:#2b2b2f;--txt:#ececee;--mut:#9a9aa3;--inp:#121214;--chip:#222226}
 *{box-sizing:border-box}
@@ -75,16 +75,16 @@ label.f input:focus,label.f select:focus,label.f textarea:focus{outline:2px soli
 .sl{position:absolute;inset:0;background:#161616;color:#efefef;font-family:Lato,system-ui,sans-serif;overflow:hidden;transition:opacity .55s ease, transform .7s cubic-bezier(.2,.8,.2,1)}
 .sl.enter{opacity:0}
 .sl.leave{opacity:0}
-.sl .bar{position:absolute;left:0;top:0;width:100%;height:13px;background:#E8722A}
+.sl .bar{position:absolute;left:0;top:0;width:100%;height:13px;background:#F37520}
 .sl .logo{position:absolute;right:72px;top:62px;width:110px}
 .sl h2{position:absolute;left:80px;top:40px;margin:0;font-size:46px;font-weight:900;letter-spacing:-.5px}
 .sl .sub{position:absolute;left:80px;top:122px;font-size:20px;color:#b4b4b4}
-.o{color:#E8722A}.mut{color:#b4b4b4}.grn{color:#4FB389}.red{color:#DF6A6A}
+.o{color:#F37520}.mut{color:#b4b4b4}.grn{color:#4FB389}.red{color:#DF6A6A}
 .card{position:absolute;background:#202020;border:1px solid #2e2e2e;border-radius:10px}
 .k{transition:all .9s cubic-bezier(.2,.8,.2,1)}
 @property --p1{syntax:'<percentage>';inherits:false;initial-value:0%}
 @property --p2{syntax:'<percentage>';inherits:false;initial-value:0%}
-.dn{border-radius:50%;background:conic-gradient(#E8722A 0 var(--p1),#5b8dd6 0 var(--p2),#8a8a8a 0);-webkit-mask:radial-gradient(circle,transparent 57%,#000 57.5%);mask:radial-gradient(circle,transparent 57%,#000 57.5%);transition:--p1 1.3s cubic-bezier(.2,.8,.2,1),--p2 1.3s cubic-bezier(.2,.8,.2,1)}
+.dn{border-radius:50%;background:conic-gradient(#F37520 0 var(--p1),#5b8dd6 0 var(--p2),#8a8a8a 0);-webkit-mask:radial-gradient(circle,transparent 57%,#000 57.5%);mask:radial-gradient(circle,transparent 57%,#000 57.5%);transition:--p1 1.3s cubic-bezier(.2,.8,.2,1),--p2 1.3s cubic-bezier(.2,.8,.2,1)}
 table.t{position:absolute;border-collapse:collapse;font-size:17px}
 table.t th{background:#2a2a2a;color:#cfcfcf;font-weight:700;text-align:right;padding:10px 12px;font-size:14px;text-transform:uppercase;letter-spacing:.3px}
 table.t th:first-child,table.t td:first-child{text-align:left;padding-left:20px}
@@ -159,6 +159,7 @@ const mr = r => Math.pow(1 + r, 1 / 12) - 1;
 function parseDate(s) { if (!s) return null; if (s instanceof Date) return s; const m = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/.exec(String(s)); if (!m) return null; return new Date(+m[1], +m[2] - 1, +(m[3] || 1)); }
 const monthsBetween = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
 const yearsBetween = (a, b) => (b - a) / (365.25 * 864e5);
+const dpsStatni = v => { v = +v || 0; return v >= 500 ? Math.round(Math.min(v, 1700) * 0.2) : 0; };
 function pvAnn(m, years, r) { const n = Math.round(years * 12); if (n <= 0 || m <= 0) return 0; const q = mr(r); return m * (1 - Math.pow(1 + q, -n)) / q; }
 function duchVek(rocnik) { if (rocnik <= 1965) return 65; if (rocnik >= 1971) return 67; return 65 + (rocnik - 1965) / 3; }
 /* nemocenská 2026 (zák. 187/2006, redukční hranice 2026), čistá → hrubá odhadem */
@@ -772,6 +773,9 @@ function compute0(inp, today, ext) {
   const other = maj.filter(a => !CASH.includes(a.typ) && !MOVE.includes(a.typ) && a.typ !== DPS && a.typ !== PP);
   const otherTot = other.reduce((s, a) => s + a.hodnota, 0);
   const dpsVal = dps.reduce((s, a) => s + a.hodnota, 0), dpsMes = dps.reduce((s, a) => s + a.vklad, 0), dpsOdpocet = dps.reduce((s, a) => s + n0(a.odpocet), 0);
+  /* státní příspěvek (DPS i PP): 20 % z vlastního příspěvku od 500 Kč, počítá se nejvýš z 1 700 Kč měsíčně (max. 340 Kč) – připisuje se ke každé smlouvě */
+  const dpsPrisp = dps.reduce((s, a) => s + dpsStatni(a.vklad), 0), dpsMesFv = dpsMes + dpsPrisp;
+  if (dps.some(a => a.vklad > 0 && a.vklad < 500)) flags.push("DPS: vlastní příspěvek pod 500 Kč měsíčně nemá nárok na státní příspěvek – zvaž navýšení na 500 Kč.");
   const rezVklad = Math.min(cash, rezCil), rezChybi = rezCil - rezVklad;
   let volne = cash - rezVklad + movedTot;
   if (rezChybi > 0) flags.push(`Rezerva: chybí ${rezChybi} Kč — doplnit z cash flow přednostně.`);
@@ -825,7 +829,7 @@ function compute0(inp, today, ext) {
     else {
     const vklad = volne; volne = 0;
     const dr = S.dps_nom - S.inflace, dm = mr(dr);
-    const dpsFv = dpsVal * Math.pow(1 + dr, months / 12) + dpsMes * (Math.abs(dm) < 1e-12 ? months : (Math.pow(1 + dm, months) - 1) / dm);
+    const dpsFv = dpsVal * Math.pow(1 + dr, months / 12) + dpsMesFv * (Math.abs(dm) < 1e-12 ? months : (Math.pow(1 + dm, months) - 1) / dm);
     const pmt = pmtFor(Math.max(0, kap - dpsFv), vklad, r, months, fee);
     const vysledek = fvOf(vklad, pmt, r, months, fee) + dpsFv;
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
@@ -1067,17 +1071,17 @@ function compute0(inp, today, ext) {
   udalosti.forEach(u => u.hodnota = u.typ === "start" ? rezVklad + (majCelkem - rezVklad - dpsVal) * (1 - fee0) + dpsVal : hodnota(u.m));
   /* měsíční vývoj finančního majetku v plánu (dnešní ceny): rezerva + cíle + renta + DPS; při výběru na cíl hodnota spadne */
   const drD = S.dps_nom - S.inflace, dmD = mr(drD);
-  const dpsAt = m => dpsVal * Math.pow(1 + drD, m / 12) + dpsMes * (Math.abs(dmD) < 1e-12 ? m : (Math.pow(1 + dmD, m) - 1) / dmD);
+  const dpsAt = m => dpsVal * Math.pow(1 + drD, m / 12) + dpsMesFv * (Math.abs(dmD) < 1e-12 ? m : (Math.pow(1 + dmD, m) - 1) / dmD);
   const mEnd = Math.max(12, renta ? renta.months : 0, ...cile.map(c => c.months));
   const vyvoj = []; for (let m = 0; m <= mEnd; m++) vyvoj.push(Math.max(0, hodnota(m) + (renta ? dpsAt(Math.min(m, renta.months)) : dpsAt(m))));
   udalosti.forEach(u => { u.v = vyvoj[Math.min(mEnd, Math.max(0, u.m))]; u.vPred = u.m > 0 ? vyvoj[Math.min(mEnd, u.m - 1)] : u.v; });
   return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { cil: rezCil, vklad: rezVklad, chybi: rezChybi, pravidlo: rezPravidlo },
     maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
-    cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
+    cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, dpsPrisp, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
     portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, toky, vyvoj, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
 }
-return { NN_T, NN_DEF, NN_SLEVA, nnSazba, nnOcen, nnHlavniIdx, zena, pojPoOsobach, nnRizikaOsoby, nnRizikaDitete, POJ_TYPY, PP, DPS, compute, alok, bezHot, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
+return { dpsStatni, NN_T, NN_DEF, NN_SLEVA, nnSazba, nnOcen, nnHlavniIdx, zena, pojPoOsobach, nnRizikaOsoby, nnRizikaDitete, POJ_TYPY, PP, DPS, compute, alok, bezHot, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
 });
 </script>
 <script>/* Export živé prezentace do PowerPointu (.pptx) – nativní tvary a texty, přechod Morph mezi snímky stejné skupiny.
@@ -1118,7 +1122,7 @@ const PPTX = (() => {
   }
   async function imgPng(img, w, h) { const im = await loadImg(img.src); return toPng(g => g.drawImage(im, 0, 0, w, h), w, h, 3); }
   async function donutPng(el, w, h, cs) {
-    const p1 = parseFloat(cs.getPropertyValue("--p1")) || 0, p2 = parseFloat(cs.getPropertyValue("--p2")) || 0, cols = ["#E8722A", "#5b8dd6", "#8a8a8a"], seg = [[0, p1], [p1, p2], [p2, 100]];
+    const p1 = parseFloat(cs.getPropertyValue("--p1")) || 0, p2 = parseFloat(cs.getPropertyValue("--p2")) || 0, cols = ["#F37520", "#5b8dd6", "#8a8a8a"], seg = [[0, p1], [p1, p2], [p2, 100]];
     return toPng(g => { const R = w / 2, r = R * 0.575; seg.forEach(([a, b], i) => { if (b - a <= 0) return; g.beginPath(); const A = -Math.PI / 2 + a / 100 * 2 * Math.PI, B = -Math.PI / 2 + b / 100 * 2 * Math.PI; g.arc(R, R, R, A, B); g.arc(R, R, r, B, A, true); g.closePath(); g.fillStyle = cols[i]; g.fill(); }); }, w, h, 2);
   }
   /* ---------- DOM → tvary ---------- */
@@ -1382,7 +1386,7 @@ function renderEditor(){
    <label class="chk"><input type="checkbox" data-p="hodnoty_vlastni" ${I.hodnoty_vlastni?"checked":""}> Vlastní popisky místo automatických</label>
    ${I.hodnoty_vlastni?[0,1,2].map(i=>`<div class="g">${fld("Hodnota "+(i+1),`hodnoty.${i}.t`,"text")}${fld("Popis",`hodnoty.${i}.d`,"text")}</div>`).join(""):""}</details>`,
   ()=>`<details open><summary>Finanční majetek</summary><div data-p="majetek"></div>${rows("majetek",[["Název","nazev","text","1.3fr"],["Typ","typ","text","1.3fr",TYPY],["Hodnota","hodnota","number"],["Měs. vklad","vklad","number"],["Daňový odpočet/měs (DPS, ŽP)","odpocet","number"]],{nazev:"",typ:"Spořicí účet",hodnota:0,vklad:0,odpocet:0})}
-   <p class="hint">Účty → rezerva, zbytek do cílů. Fondy, ETF a stavební spoření se převádějí do plánu. DPS zůstává a počítá se do renty.</p></details>
+   <p class="hint">Účty → rezerva, zbytek do cílů. Fondy, ETF a stavební spoření se převádějí do plánu. DPS zůstává a počítá se do renty – i se státním příspěvkem 20 % z vlastního vkladu od 500 Kč (počítá se nejvýš z 1 700 Kč, tj. max. 340 Kč měsíčně).</p></details>
   <details open><summary>Nefinanční majetek</summary>${rows("nefin",[["Název","nazev","text"],["Typ","typ","text","",NEFIN],["Hodnota","hodnota","number"]],{nazev:"",typ:"Nemovitost k bydlení",hodnota:0})}
    <p class="hint">Nemovitosti, podíly, auta… Nejde do realokace, ukazuje se v čistém jmění.</p></details>
   <details open><summary>Úvěry</summary>${rows("uvery",[["Typ úvěru","typ","text","full",[["","—"]].concat(UVERY)],["Banka / název","nazev","text","1.3fr"],["Zůstatek","zustatek","number"],["Splátka","splatka","number"],["Konec fixace","fixace_do","month"],["Splatnost","splatnost","month"]],{typ:"Hypotéka",nazev:"",zustatek:0,splatka:0,fixace_do:"",splatnost:""})}</details>`,
@@ -1457,7 +1461,7 @@ function loadAuto(){const I=inp();const rc=I.realokace?I.realokace.rucne:false;I
 function keepOpen(fn){const op=[...document.querySelectorAll("#ed details")].map(x=>x.open);const st=$("#ed").scrollTop;fn();document.querySelectorAll("#ed details").forEach((x,i)=>{if(op[i]!=null)x.open=op[i]});$("#ed").scrollTop=st}
 
 /* ---------------- slidy ---------------- */
-const C={inv:"#E8722A",smrt:"#C2508D",pn:"#3D7FD1",ok:"#3E9B7A",bar:"#9AA7B5"};
+const C={inv:"#F37520",smrt:"#C2508D",pn:"#3D7FD1",ok:"#3E9B7A",bar:"#9AA7B5"};
 const H=(h)=>h;
 function chrome(title,sub){return `<div class="bar"></div><img class="logo" src="${LOGO}" alt=""><h2>${title}</h2>${sub?`<div class="sub">${sub}</div>`:""}`}
 /* popisky dílů vždy jako celá čísla se součtem 100 (stejná funkce jako legenda a tabulky), ne zaokrouhlené každý zvlášť */
@@ -1480,7 +1484,7 @@ const ICON={shield:svg("M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm0 
  podnikani:svg("M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 4h6V5H9v2z"),
  zdravi:svg("M12 21s-8-4.9-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.1-8 11-8 11z"),
  rust:svg("M3 20h18v2H3v-2zm2-2v-6h3v6H5zm5 0V8h3v10h-3zm5 0V4h3v14h-3z"),
- check:'<svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="11" fill="#E8722A"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'};
+ check:'<svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="11" fill="#F37520"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'};
 ICON.car=ICON.auto;ICON.sun=ICON.duchod;
 
 /* DIP – dlouhodobý investiční produkt (od 2024): vklady do 48 000 Kč ročně (společný limit s DPS a ŽP) se odečtou ze základu daně */
@@ -1505,24 +1509,24 @@ function buildFrames(I,R){
   const nm=K.jmeno.split(" ");
   // 1 titul
   F.push({g:"t",h:`<div style="position:absolute;left:0;top:0;width:880px;height:900px;background:#232323"></div><div class="bar"></div>
-   <div style="position:absolute;left:96px;top:64px;color:#E8722A;font-weight:900;font-size:20px;letter-spacing:1px">FINANČNÍ PLÁN</div>
+   <div style="position:absolute;left:96px;top:64px;color:#F37520;font-weight:900;font-size:20px;letter-spacing:1px">FINANČNÍ PLÁN</div>
    <div style="position:absolute;left:96px;top:150px;font-size:76px;font-weight:900;line-height:1.15">${esc(ttl+nm.slice(0,-1).join(" "))}<br>${esc(nm.at(-1)||"")}</div>
    <div style="position:absolute;left:96px;top:420px;font-size:24px;font-style:italic;color:#b4b4b4">Komplexní strategie pro Vaše finanční cíle</div>
    <div style="position:absolute;left:96px;top:810px;font-size:16px;color:#9a9a9a">ZFP Group  |  ${new Date().getFullYear()}</div>
    <img src="${LOGO}" style="position:absolute;left:1095px;top:150px;width:260px" alt="">
-   <svg style="position:absolute;left:1120px;top:420px" width="210" height="210" viewBox="0 0 100 100" fill="none" stroke="#E8722A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8v82h82"/><path d="M26 68l20-20 14 12 28-30"/><path d="M70 28h20v20"/></svg>`,lbl:"Úvod"});
+   <svg style="position:absolute;left:1120px;top:420px" width="210" height="210" viewBox="0 0 100 100" fill="none" stroke="#F37520" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8v82h82"/><path d="M26 68l20-20 14 12 28-30"/><path d="M70 28h20v20"/></svg>`,lbl:"Úvod"});
   // 2 hodnoty
   const hv=I.hodnoty_vlastni?(I.hodnoty||[]).concat([{},{},{}]).slice(0,3).map((v,i)=>({t:v.t||R.motivace[i].t,d:v.d||R.motivace[i].d,ic:R.motivace[i].ic})):R.motivace,ic=hv.map(v=>ICON[v.ic]||ICON.shield);
   F.push({g:"h",h:chrome("Co jsou pro vás peníze?","Vaše odpovědi z první schůzky")+`<div class="card" style="left:80px;top:190px;width:1440px;height:220px"></div>
-   <div style="position:absolute;left:112px;top:196px;font-size:70px;color:#E8722A;font-weight:900">„</div>
+   <div style="position:absolute;left:112px;top:196px;font-size:70px;color:#F37520;font-weight:900">„</div>
    <div style="position:absolute;left:160px;top:240px;width:1300px;font-size:26px;font-style:italic;line-height:1.45">${esc(I.motivace||"")}</div>
-   ${hv.map((v,i)=>`<div class="card" style="left:${80+i*496}px;top:470px;width:448px;height:340px"></div><div style="position:absolute;left:${80+i*496+164}px;top:505px;width:120px;height:120px;border-radius:50%;background:#E8722A;display:flex;align-items:center;justify-content:center">${ic[i]}</div>
+   ${hv.map((v,i)=>`<div class="card" style="left:${80+i*496}px;top:470px;width:448px;height:340px"></div><div style="position:absolute;left:${80+i*496+164}px;top:505px;width:120px;height:120px;border-radius:50%;background:#F37520;display:flex;align-items:center;justify-content:center">${ic[i]}</div>
    <div style="position:absolute;left:${80+i*496}px;top:660px;width:448px;text-align:center;font-size:24px;font-weight:900">${esc(v.t||"")}</div><div style="position:absolute;left:${80+i*496+30}px;top:705px;width:388px;text-align:center;font-size:17px;color:#b4b4b4">${esc(v.d||"")}</div>`).join("")}`,lbl:"Hodnoty"});
   // 3 alokace
   const yrs=[0,1,3,5,7,10,15,20,25,30],tr=[[47,40,13],[49,40,12],[51,39,10],[54,38,8],[58,35,7],[63,32,5],[74,23,3],[84,14,2],[90,9,1],[92,7,1]];
-  const tab=(rows,top)=>`<table class="t" style="left:80px;top:${top}px;width:1440px;font-size:15px"><tr><th></th>${yrs.map(y=>`<th style="text-align:center">${y}</th>`).join("")}</tr>${["Akcie","Dluhopisy","Hotovost"].slice(0,R.S.bez_hotovosti?2:3).map((n,j)=>`<tr><td style="color:${["#E8722A","#5b8dd6","#cfcfcf"][j]};font-weight:700">${n}</td>${rows.map(r=>`<td style="text-align:center">${r[j]} %</td>`).join("")}</tr>`).join("")}</table>`;
-  F.push({g:"a",h:chrome("Doporučená alokace portfolia","Jak vybíráme správné rozložení aktiv pro každý cíl")+`<div style="position:absolute;left:80px;top:180px;color:#E8722A;font-weight:900;font-size:20px">Pro dosažení cíle</div>${tab(yrs.map(y=>FPE.bezHot(FPE.alok(y),R.S)),215)}
-   <div style="position:absolute;left:80px;top:440px;color:#E8722A;font-weight:900;font-size:20px">Pro čerpání renty</div>${tab(tr.map(a=>FPE.bezHot(a,R.S)),475)}
+  const tab=(rows,top)=>`<table class="t" style="left:80px;top:${top}px;width:1440px;font-size:15px"><tr><th></th>${yrs.map(y=>`<th style="text-align:center">${y}</th>`).join("")}</tr>${["Akcie","Dluhopisy","Hotovost"].slice(0,R.S.bez_hotovosti?2:3).map((n,j)=>`<tr><td style="color:${["#F37520","#5b8dd6","#cfcfcf"][j]};font-weight:700">${n}</td>${rows.map(r=>`<td style="text-align:center">${r[j]} %</td>`).join("")}</tr>`).join("")}</table>`;
+  F.push({g:"a",h:chrome("Doporučená alokace portfolia","Jak vybíráme správné rozložení aktiv pro každý cíl")+`<div style="position:absolute;left:80px;top:180px;color:#F37520;font-weight:900;font-size:20px">Pro dosažení cíle</div>${tab(yrs.map(y=>FPE.bezHot(FPE.alok(y),R.S)),215)}
+   <div style="position:absolute;left:80px;top:440px;color:#F37520;font-weight:900;font-size:20px">Pro čerpání renty</div>${tab(tr.map(a=>FPE.bezHot(a,R.S)),475)}
    <div class="foot">Mezi body tabulky lineární interpolace podle horizontu cíle. Zdroj: Morningstar, metodika ZFP.</div>`,lbl:"Alokace"});
   // 4 finanční plán – animovaně: každý krok = jedna platba (jednorázově z majetku / pravidelně z cash flow)
   const planFrames=(withIns,G)=>{
@@ -1559,20 +1563,20 @@ function buildFrames(I,R){
     const sumV=done.filter(x=>x.k==="v").reduce((a,x)=>a+x.a,0),sumP=done.filter(x=>x.k==="p").reduce((a,x)=>a+x.a,0);
     const mz=M0-sumV,cz=R.cf-sumP;
     const has=(i,k)=>done.some(x=>x.i===i&&x.k===k),rowDone=i=>TXP.filter(x=>x.i===i).every(x=>done.includes(x)),vSum=i=>done.filter(x=>x.i===i&&x.k==="v").reduce((a,x)=>a+x.a,0),onlyDps=i=>has(i,"v")&&done.filter(x=>x.i===i&&x.k==="v").every(x=>x.dps);
-    const box=(n,l,big,sub,bar,act)=>`<div class="card k" data-k="bc${n}" style="left:${bx[n]}px;top:170px;width:340px;height:150px;border-color:${act?"#E8722A":"#2e2e2e"}"></div>
+    const box=(n,l,big,sub,bar,act)=>`<div class="card k" data-k="bc${n}" style="left:${bx[n]}px;top:170px;width:340px;height:150px;border-color:${act?"#F37520":"#2e2e2e"}"></div>
       <div style="position:absolute;left:${bx[n]+20}px;top:185px;font-size:15px;color:#b4b4b4">${l}</div>
-      <div class="k" data-k="bv${n}" style="position:absolute;left:${bx[n]+20}px;top:212px;font-size:32px;font-weight:900;color:#E8722A">${big}</div>
+      <div class="k" data-k="bv${n}" style="position:absolute;left:${bx[n]+20}px;top:212px;font-size:32px;font-weight:900;color:#F37520">${big}</div>
       <div class="k" data-k="bz${n}" style="position:absolute;left:${bx[n]+20}px;top:262px;font-size:16px;color:#cfcfcf">${sub}</div>
-      ${bar!=null?`<div style="position:absolute;left:${bx[n]+20}px;top:292px;width:300px;height:8px;border-radius:4px;background:#2c2c2c"></div><div class="k" data-k="bb${n}" style="position:absolute;left:${bx[n]+20}px;top:292px;width:${Math.max(0,300*bar)}px;height:8px;border-radius:4px;background:#E8722A"></div>`:""}`;
+      ${bar!=null?`<div style="position:absolute;left:${bx[n]+20}px;top:292px;width:300px;height:8px;border-radius:4px;background:#2c2c2c"></div><div class="k" data-k="bb${n}" style="position:absolute;left:${bx[n]+20}px;top:292px;width:${Math.max(0,300*bar)}px;height:8px;border-radius:4px;background:#F37520"></div>`:""}`;
     let h=chrome(withIns?"Finanční plán s pojištěním":"Finanční plán",fin?"Na co s vaším cash flow dosáhnete":over?"Plán je rozdělený":step>pre?`Krok ${step-pre} z ${TXP.length-pre}`:withIns?"Cíle jsou rozdělené – přidáme ochranu příjmu a majetku":"")+
       box(0,"Finanční majetek",kc(R.majCelkem),`zbývá: <b>${kc(mz)}</b>`,M0?mz/M0:0,t&&t.k==="v")+
       box(1,"Cash flow",kcm(R.cf),`zbývá: <b class="${cz<0?"red":""}">${kcm(cz)}</b>`,R.cf>0?Math.max(0,cz)/R.cf:0,t&&t.k==="p")+
       box(2,"Celkem alokováno",kc(sumV),"jednorázově",null,false)+box(3,"Již rozděleno",kcm(sumP),"pravidelně",null,false)+
-      `<div style="position:absolute;left:80px;top:342px;font-size:16px;font-style:italic;color:#E8722A">Priorita: nejprve vyčerpáme veškerý finanční majetek, teprve potom bereme z cash flow.</div>
+      `<div style="position:absolute;left:80px;top:342px;font-size:16px;font-style:italic;color:#F37520">Priorita: nejprve vyčerpáme veškerý finanční majetek, teprve potom bereme z cash flow.</div>
       ${R.nefinCelkem||R.zavazky?`<div style="position:absolute;right:80px;top:342px;font-size:15px;color:#b4b4b4">Čisté jmění <b style="color:#efefef">${kc(R.jmeni)}</b> = finanční ${kc(R.majCelkem)} + nefinanční ${kc(R.nefinCelkem)} − úvěry ${kc(R.zavazky)}</div>`:""}
       <div style="position:absolute;left:80px;top:392px;width:1440px;height:40px;background:#2a2a2a"></div>`+
       [["n","Co"],["kdy","Kdy"],["cil","Cíl"],["v","Jedn. vklad"],["p","Prav. platba"],["vys","Výsledek"],["s","Splnění"]].map(([c,tt])=>`<div style="position:absolute;left:${COL[c][0]}px;top:402px;width:${COL[c][1]}px;font-size:14px;font-weight:700;color:#cfcfcf;text-transform:uppercase;letter-spacing:.3px;text-align:${c==="n"?"left":c==="kdy"?"center":"right"}">${tt}</div>`).join("");
-    h+=`<div class="k" data-k="hl" style="position:absolute;left:${t?COL[t.k][0]-14:COL.v[0]-14}px;top:${t?rowY(t.i)+4:rowY(0)+4}px;width:${COL.v[1]+24}px;height:${rh-8}px;border-radius:8px;background:rgba(232,114,42,.16);border:2px solid #E8722A;opacity:${t?1:0}"></div>`;
+    h+=`<div class="k" data-k="hl" style="position:absolute;left:${t?COL[t.k][0]-14:COL.v[0]-14}px;top:${t?rowY(t.i)+4:rowY(0)+4}px;width:${COL.v[1]+24}px;height:${rh-8}px;border-radius:8px;background:rgba(243,117,32,.16);border:2px solid #F37520;opacity:${t?1:0}"></div>`;
     PR.forEach((r,i)=>{const y=rowY(i),rd=rowDone(i)&&done.some(x=>x.i===i),part=!rowDone(i)&&has(i,"v");
       const fOut=FL.find(f=>f.from===i),fIn=FL.find(f=>f.to===i),fDone=f=>done.some(x=>x.k==="f"&&x.from===f.from&&x.i===f.to);
       const F2=fin&&r.kr,sTxt=r.s==null?(rd?"✓":""):F2?"100 %":rd?r.s+" %":part?(onlyDps(i)?r.sd:r.sj)+" %":"";
@@ -1581,15 +1585,15 @@ function buildFrames(I,R){
        ${fOut?`<div class="k" data-k="fo${i}" style="position:absolute;left:${COL.n[0]}px;top:${y+(rh>56?36:28)}px;width:${COL.n[1]+60}px;font-size:12.5px;color:#9a9a9a;white-space:nowrap;opacity:${fDone(fOut)?1:0}">po splnění → ${PR[fOut.to].n}</div>`:""}
        <div style="position:absolute;left:${COL.kdy[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.kdy[1]}px;text-align:center;font-size:17px">${r.kdy}</div>
        <div class="k" data-k="c${i}" style="position:absolute;left:${COL.cil[0]}px;top:${y+(F2?2:r.sub?4:rh>56?16:12)}px;width:${COL.cil[1]}px;text-align:right;font-size:${F2?13:17}px;color:${F2?"#8a8a8a":"#efefef"};text-decoration:${F2?"line-through":"none"}">${r.cil}${r.sub&&!F2?`<div class="mut" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.sub)}</div>`:""}</div>
-       ${r.kr?`<div class="k" data-k="cn${i}" style="position:absolute;left:${COL.cil[0]}px;top:${y+(F2?(r.dosSub?18:20):rh+10)}px;width:${COL.cil[1]}px;text-align:right;font-size:${F2?19:15}px;font-weight:900;color:#E8722A;opacity:${F2?1:0}">${r.dos}${r.dosSub?`<div style="font-size:11.5px;font-weight:400;color:#b4b4b4">${r.dosSub}</div>`:""}</div>`:""}
-       <div class="k" data-k="v${i}" style="position:absolute;left:${COL.v[0]}px;top:${y+(r.dps?4:rh>56?16:12)}px;width:${COL.v[1]}px;text-align:right;font-size:18px;font-weight:700;color:${has(i,"v")?"#E8722A":"#555"}">${r.lump||r.dps||!r.ins?kc(vSum(i)):"–"}</div>
-       <div class="k" data-k="p${i}" style="position:absolute;left:${COL.p[0]}px;top:${y+(fIn?(rh>56?8:5):rh>56?16:12)}px;width:${COL.p[1]}px;text-align:right;font-size:18px;font-weight:700;color:${has(i,"p")?"#E8722A":"#555"}">${kc(has(i,"p")?r.pmt:0)}</div>
-       ${fIn?`<div class="k" data-k="fi${i}" style="position:absolute;left:${COL.p[0]-40}px;top:${y+(rh>56?36:28)}px;width:${COL.p[1]+40}px;text-align:right;font-size:12.5px;font-weight:700;color:#E8722A;white-space:nowrap;opacity:${fDone(fIn)?1:0}">za ${letTxt(fIn.let)} už ${fmt(r.pmt+fIn.a)} Kč/měs</div>`:""}
+       ${r.kr?`<div class="k" data-k="cn${i}" style="position:absolute;left:${COL.cil[0]}px;top:${y+(F2?(r.dosSub?18:20):rh+10)}px;width:${COL.cil[1]}px;text-align:right;font-size:${F2?19:15}px;font-weight:900;color:#F37520;opacity:${F2?1:0}">${r.dos}${r.dosSub?`<div style="font-size:11.5px;font-weight:400;color:#b4b4b4">${r.dosSub}</div>`:""}</div>`:""}
+       <div class="k" data-k="v${i}" style="position:absolute;left:${COL.v[0]}px;top:${y+(r.dps?4:rh>56?16:12)}px;width:${COL.v[1]}px;text-align:right;font-size:18px;font-weight:700;color:${has(i,"v")?"#F37520":"#555"}">${r.lump||r.dps||!r.ins?kc(vSum(i)):"–"}</div>
+       <div class="k" data-k="p${i}" style="position:absolute;left:${COL.p[0]}px;top:${y+(fIn?(rh>56?8:5):rh>56?16:12)}px;width:${COL.p[1]}px;text-align:right;font-size:18px;font-weight:700;color:${has(i,"p")?"#F37520":"#555"}">${kc(has(i,"p")?r.pmt:0)}</div>
+       ${fIn?`<div class="k" data-k="fi${i}" style="position:absolute;left:${COL.p[0]-40}px;top:${y+(rh>56?36:28)}px;width:${COL.p[1]+40}px;text-align:right;font-size:12.5px;font-weight:700;color:#F37520;white-space:nowrap;opacity:${fDone(fIn)?1:0}">za ${letTxt(fIn.let)} už ${fmt(r.pmt+fIn.a)} Kč/měs</div>`:""}
        <div class="k" data-k="r${i}" style="position:absolute;left:${COL.vys[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.vys[1]}px;text-align:right;font-size:17px;opacity:${rd||F2?1:0}">${F2?r.dos:r.vys}</div>
-       <div class="k" data-k="s${i}" style="position:absolute;left:${COL.s[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.s[1]}px;text-align:right;font-size:18px;font-weight:900;color:${(rd&&!r.kr)||F2?"#4FB389":r.kr&&rd?"#DF6A6A":"#E8722A"};opacity:${sTxt?1:0}">${sTxt}</div>`});
+       <div class="k" data-k="s${i}" style="position:absolute;left:${COL.s[0]}px;top:${y+(rh>56?16:12)}px;width:${COL.s[1]}px;text-align:right;font-size:18px;font-weight:900;color:${(rd&&!r.kr)||F2?"#4FB389":r.kr&&rd?"#DF6A6A":"#F37520"};opacity:${sTxt?1:0}">${sTxt}</div>`});
     TXP.forEach((x,j)=>{if(j<pre)return;const cur=!over&&j===step-1,past=j<step-1||over,src=x.k==="v"?0:1;
       const atCell=cur||past,X=atCell?COL[x.k][0]+COL[x.k][1]-190:x.k==="f"?COL.p[0]+COL.p[1]-190:bx[src]+80,Y=atCell?rowY(x.i)+rh/2-22:x.k==="f"?rowY(x.from)+rh/2-22:226;
-      h+=`<div class="k" data-k="ch${j}" style="position:absolute;left:${X}px;top:${Y}px;width:190px;height:44px;border-radius:22px;background:#E8722A;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;opacity:${cur?1:0};transition:all 1.1s cubic-bezier(.5,0,.2,1)">${x.k==="p"?fmt(x.a)+"/měs":x.k==="f"?"→ "+fmt(x.a)+"/měs":fmt(x.a)+NB+"Kč"}</div>`});
+      h+=`<div class="k" data-k="ch${j}" style="position:absolute;left:${X}px;top:${Y}px;width:190px;height:44px;border-radius:22px;background:#F37520;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;opacity:${cur?1:0};transition:all 1.1s cubic-bezier(.5,0,.2,1)">${x.k==="p"?fmt(x.a)+"/měs":x.k==="f"?"→ "+fmt(x.a)+"/měs":fmt(x.a)+NB+"Kč"}</div>`});
     const r=t?PR[t.i]:null,partTxt=t&&t.dps?` <span class="mut">· samo pokryje ${r.sd} % renty</span>`:t&&t.k==="v"&&r.pmt>0.5&&r.s!=null?` <span class="mut">· vklad pokryje ${r.sj} %, zbytek z cash flow</span>`:t&&t.k==="p"&&FL.some(f=>f.to===t.i)?` <span class="mut">· zbytek doplní platba splněného cíle</span>`:t&&t.k==="p"&&r.s!=null?` <span class="mut">· cíl splněn na ${r.s} %</span>`:"";
     const nKr=PR.filter(x=>x.kr).length;
     h+=`<div class="k" data-k="ptxt" style="position:absolute;left:80px;top:812px;width:1440px;font-size:19px">${fin?`<b class="o">Cash flow ${kcm(R.cf)} nestačí na plné cíle.</b> <span class="mut">S platbami, které zvládnete, dosáhnete na 100 % oranžových částek.</span>`:over?`<b class="o">Cash flow ${kcm(R.cf)} se po splnění každého cíle přelévá do dalšího.</b> <span class="mut">Dřív splněný cíl uvolní svou platbu a další cíl na ni naváže.</span>`:t&&t.k==="f"?`<b class="o">${kcm(t.a)}</b> z cíle <b>${PR[t.from].n}</b> poteče po jeho splnění (za ${letTxt(t.let)}) do cíle <b>${r.n}</b> <span class="mut">· teprve pak na něj začnete „spořit“ naplno${t.uvol>0.5?`, ${kcm(t.uvol)} se uvolní do cash flow`:""} · cíl splněn na ${r.s} %</span>`:t?`<b class="o">${t.k==="v"?kc(t.a):kcm(t.a)}</b> ${t.dps?"stávající DPS – zůstává a pracuje pro rentu":t.k==="v"?"z finančního majetku jako jednorázový vklad":"z cash flow jako pravidelná platba"} → <b>${r.n}</b>${partTxt}`:withIns?`<span class="mut">Volné cash flow po investicích: ${kcm(R.cf-R.pmtCelkem)}.</span>`:`<span class="mut">Finanční majetek ${kc(M0)} a volné cash flow ${kcm(R.cf)} rozdělíme krok za krokem.</span>`}</div>
@@ -1607,7 +1611,7 @@ function buildFrames(I,R){
       const death=kind==="smrt",s=sc[kind],tot=s.celkem,vyd=k.vyd,roz=tot-vyd,xf=X(k.vydFP);
       let amount=death?(k.smrt.treba?kc(k.smrt.pc):"Nejsou závazky pro zajištění"):kc(tot),hint=death?(k.smrt.treba?"doporučená pojistná částka":"pojištění pro případ smrti"):"měsíční příjem",gap;
       if(death)gap=k.smrt.zavisli?`<span class="mut">${smrtTxt(k,R.S)}<br>${kc(k.smrt.prijem3)}  +  závazky ${kc(k.smrt.zavazky)}</span>`:k.smrt.treba?`<span class="mut">Nikdo nezávisí na příjmu — krytí jen na úvěry ${kc(k.smrt.zavazky)}</span>`:`<span class="mut">Bez partnera, dětí a závazků</span>`;
-      else gap=(kind!=="normal"?`<span class="mut">−${kc(k.normal-tot)} proti dnešku&nbsp;&nbsp; </span>`:"")+(roz<0?`<b class="red">výdaje ${kc(vyd)} → chybí ${kcm(-roz)}</b>`:`<b class="grn">výdaje ${kc(vyd)} → zbývá ${kcm(roz)}</b>`)+(kind!=="normal"&&tot<k.vydFP?`<br><span style="color:#E8722A">s finančním plánem ${kc(k.vydFP)} → chybí ${kcm(k.vydFP-tot)}</span>`:"");
+      else gap=(kind!=="normal"?`<span class="mut">−${kc(k.normal-tot)} proti dnešku&nbsp;&nbsp; </span>`:"")+(roz<0?`<b class="red">výdaje ${kc(vyd)} → chybí ${kcm(-roz)}</b>`:`<b class="grn">výdaje ${kc(vyd)} → zbývá ${kcm(roz)}</b>`)+(kind!=="normal"&&tot<k.vydFP?`<br><span style="color:#F37520">s finančním plánem ${kc(k.vydFP)} → chybí ${kcm(k.vydFP-tot)}</span>`:"");
       let det;
       if(kind==="normal")det=[`Čistý příjem: ${kcm(k.normal)}`,`Výdaje: ${kcm(vyd)}`+(k.smrt.vydOs>0?` (domácnost ${kc(k.smrt.vyd)} + osobní ${kc(k.smrt.vydOs)})`:""),"Co když tento příjem vypadne? →"];
       else if(kind==="inv")det=[`Invalidní důchod III. st. (IOLDP): ${kcm(s.inv)}`,`Min. do výdajů ${kcm(k.inv.min)}, doporučeno do výdajů s plánem ${kcm(k.inv.dop)}`,`na ${Math.round(k.roky)} let (${k.doRenty?"do začátku renty":"do starobního důchodu"}) → ${kc(k.inv.pcMin)} / ${kc(k.inv.pcDop)}`];
@@ -1626,7 +1630,7 @@ function buildFrames(I,R){
       const xt=X(tot),xv=X(vyd),gw=!death&&roz<0?xv-xt:0;
       seg+=`<div class="k" data-k="gap" style="position:absolute;left:${death?xv:xt}px;top:545px;width:${gw}px;height:76px;border:${gw?"2px dashed #DF6A6A":"0"};background:rgba(223,106,106,.12);border-radius:4px;color:#DF6A6A;font-weight:900;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap">${gw>130?"chybí "+fmt(-roz):""}</div>
        <div class="k" data-k="vyd" style="position:absolute;left:${xv-2}px;top:528px;width:4px;height:110px;background:#f3f3f3;opacity:${death?0:1}"></div><div class="k" data-k="vydt" style="position:absolute;left:${xv-260}px;top:500px;width:255px;text-align:right;font-size:14px;font-weight:700;opacity:${death?0:1}">výdaje ${kc(vyd)}</div>
-       <div class="k" data-k="vydf" style="position:absolute;left:${xf-1}px;top:528px;width:0;height:110px;border-left:3px dashed #E8722A;opacity:${death?0:1}"></div><div class="k" data-k="vydft" style="position:absolute;left:${xf>1150?xf-336:xf+6}px;top:${Math.abs(xf-xv)<300?476:500}px;width:330px;text-align:${xf>1150?"right":"left"};font-size:14px;font-weight:700;color:#E8722A;opacity:${death?0:1}">výdaje s finančním plánem ${kc(k.vydFP)}</div>`;
+       <div class="k" data-k="vydf" style="position:absolute;left:${xf-1}px;top:528px;width:0;height:110px;border-left:3px dashed #F37520;opacity:${death?0:1}"></div><div class="k" data-k="vydft" style="position:absolute;left:${xf>1150?xf-336:xf+6}px;top:${Math.abs(xf-xv)<300?476:500}px;width:330px;text-align:${xf>1150?"right":"left"};font-size:14px;font-weight:700;color:#F37520;opacity:${death?0:1}">výdaje s finančním plánem ${kc(k.vydFP)}</div>`;
       // osa
       const nx=i=>110+1380*(i+.5)/4;
       let axis=`<div style="position:absolute;left:110px;top:755px;width:1380px;height:4px;background:#3a3a3a"></div>
@@ -1635,7 +1639,7 @@ function buildFrames(I,R){
         const val=kd==="smrt"?(k.smrt.treba?"krytí "+mil(k.smrt.pc):"nejsou závazky pro zajištění"):kd==="normal"?kc(sc[kd].celkem):(r2<0?"chybí "+kc(-r2):kc(sc[kd].celkem));
         axis+=`<div class="node k" data-k="n${i}" style="left:${nx(i)-sz/2}px;top:${757-sz/2}px;width:${sz}px;height:${sz}px;background:${past?c2:"#161616"};border:3px solid ${act?"#fff":c2}"></div>
         <div class="nl k" data-k="nl${i}" style="left:${nx(i)-150}px;top:788px;width:300px;font-size:${act?19:16}px;font-weight:${act?900:400};color:${act?"#efefef":"#9a9a9a"}">${sh}</div>
-        <div class="nl k" data-k="nv${i}" style="left:${nx(i)-150}px;top:818px;width:300px;font-size:15px;font-weight:${act?900:400};color:${past?(kd==="smrt"?"#E8722A":r2<0&&kd!=="normal"?"#DF6A6A":"#9a9a9a"):"#555"}">${past?val:"?"}</div>`});
+        <div class="nl k" data-k="nv${i}" style="left:${nx(i)-150}px;top:818px;width:300px;font-size:15px;font-weight:${act?900:400};color:${past?(kd==="smrt"?"#F37520":r2<0&&kd!=="normal"?"#DF6A6A":"#9a9a9a"):"#555"}">${past?val:"?"}</div>`});
       F.push({g:"kat"+pi,h:chrome("Příjmy po katastrofě – "+esc(jm),"Příjem a výdaje: "+esc(p.jmeno)+(p.osvc?" (OSVČ)":"")+" — co když příjem vypadne")+
         `<div class="card k" data-k="card" style="left:80px;top:170px;width:1440px;height:500px;border-top:5px solid ${col}"></div>
         <div class="k" data-k="pill" style="position:absolute;left:112px;top:200px"><span class="pill" style="background:${col}">${pill}</span><span class="mut" style="margin-left:18px;font-size:16px">${hint}</span></div>
@@ -1710,9 +1714,9 @@ function buildFrames(I,R){
         <div style="position:absolute;left:112px;top:284px;width:640px;font-size:14px;color:#b4b4b4">${osvc?"odhad: 29,2 % z poloviny zisku":`7,1 % z hrubé mzdy ${kc(k.hruba)} · zaměstnavatel za vás odvádí dalších 24,8 %`}</div>
         <div class="card" style="left:820px;top:170px;width:700px;height:140px;border-top:5px solid ${C.inv}"></div>
         <div style="position:absolute;left:852px;top:192px"><span class="pill" style="background:${C.inv}">ŽIVOTNÍ POJIŠTĚNÍ – DOPLNĚK</span><span class="mut" style="margin-left:14px;font-size:15px">${multi?"vaše připojištění":"navrhované pojistné"}</span></div>
-        <div style="position:absolute;left:852px;top:226px;font-size:46px;font-weight:900;color:#E8722A">${mojePoj?kcm(mojePoj):"–"}</div>
+        <div style="position:absolute;left:852px;top:226px;font-size:46px;font-weight:900;color:#F37520">${mojePoj?kcm(mojePoj):"–"}</div>
         <div style="position:absolute;left:852px;top:284px;width:640px;font-size:14px;color:#b4b4b4">${mojePoj?(multi?"jen "+esc(p.jmeno.split(" ")[0])+" · ":"")+Math.round(mojePoj/soc*100)+" % z toho, co platíte na sociální":"pojistné není zadané"}</div>
-        <div style="position:absolute;left:783px;top:223px;width:34px;height:34px;border-radius:50%;background:#2a2a2a;border:2px solid #E8722A;text-align:center;line-height:30px;font-size:24px;font-weight:900">+</div>
+        <div style="position:absolute;left:783px;top:223px;width:34px;height:34px;border-radius:50%;background:#2a2a2a;border:2px solid #F37520;text-align:center;line-height:30px;font-size:24px;font-weight:900">+</div>
         <div style="position:absolute;left:${X(base)-310}px;top:328px;width:306px;text-align:right;font-size:14px;font-weight:700">dnešní čistý příjem ${kc(base)}</div>`+rows+
         `<div class="k" data-k="mk" style="position:absolute;left:${X(base)-1}px;top:352px;width:0;height:${2*144+130+16}px;border-left:2px dashed #efefef;opacity:.6"></div>
         <div class="k" data-k="sum" style="position:absolute;left:80px;top:802px;width:1440px;font-size:19px">${sumTxt}</div>
@@ -1721,8 +1725,8 @@ function buildFrames(I,R){
   // pojištění dětí
   if(R.detiPoj.length){const n=R.detiPoj.length,w=Math.min(440,(1440-(n-1)*30)/n);
     F.push({g:"deti",h:chrome("Pojištění dětí","U dětí pojišťujeme vždy stejně – úraz a vážná nemoc, ne výpadek příjmu")+
-     R.detiPoj.map((d,i)=>{const x=80+i*(w+30);return `<div class="card" style="left:${x}px;top:200px;width:${w}px;height:520px;border-top:5px solid #E8722A"></div>
-      <div style="position:absolute;left:${x}px;top:225px;width:${w}px;text-align:center"><div style="display:inline-flex;width:96px;height:96px;border-radius:50%;background:#E8722A;align-items:center;justify-content:center">${ICON.rodina}</div>
+     R.detiPoj.map((d,i)=>{const x=80+i*(w+30);return `<div class="card" style="left:${x}px;top:200px;width:${w}px;height:520px;border-top:5px solid #F37520"></div>
+      <div style="position:absolute;left:${x}px;top:225px;width:${w}px;text-align:center"><div style="display:inline-flex;width:96px;height:96px;border-radius:50%;background:#F37520;align-items:center;justify-content:center">${ICON.rodina}</div>
       <div style="font-size:26px;font-weight:900;margin-top:16px">${esc(d.jmeno.split(" ")[0])}</div><div class="mut" style="font-size:16px">${Math.floor(d.vek)} let</div></div>
       <div style="position:absolute;left:${x+30}px;top:430px;width:${w-60}px;font-size:17px;line-height:1.5">
        <div class="mut" style="font-size:14px">Trvalé následky úrazu</div><div style="font-size:24px;font-weight:900" class="o">${kc(d.tnu)}</div><div class="mut" style="font-size:13px;margin-bottom:12px">s ${d.progrese}× progresí – až ${mil(d.tnu*d.progrese)}</div>
@@ -1732,7 +1736,7 @@ function buildFrames(I,R){
      `<div class="foot">Progrese 10×: při těžkém trvalém poškození se pojistné plnění násobí až desetkrát. Závažná onemocnění: rakovina, cukrovka 1. typu, meningitida a další dle podmínek pojišťovny.</div>`,lbl:"Pojištění dětí"})}
   F.push(...planFrames(true,"p2"));
   // realokace – struktura aktiv: nyní → nově (2 snímky, animovaný přechod)
-  const st=R.struktura,cols3=["#E8722A","#5b8dd6","#8a8a8a"],nm3=["Akcie","Dluhopisy","Peníze"];
+  const st=R.struktura,cols3=["#F37520","#5b8dd6","#8a8a8a"],nm3=["Akcie","Dluhopisy","Peníze"];
   const smax=Math.max(...st.ted,...st.nove,1),tot0=st.ted.reduce((a,b)=>a+b,0),tot1=st.nove.reduce((a,b)=>a+b,0);
   [0,1].forEach(ph=>{
     const v=ph?st.nove:st.ted,ps=ph?st.novePct:st.tedPct,tot=ph?tot1:tot0;
@@ -1770,10 +1774,10 @@ function buildFrames(I,R){
       let h=chrome(title,step?`${lblOne} ${step} z ${TX.length}`:intro)+
         `<div style="position:absolute;left:80px;top:205px;font-size:15px;color:#9a9a9a;letter-spacing:.5px">${unit?"ODKUD":"ZDROJ"}</div><div style="position:absolute;left:1000px;top:205px;font-size:15px;color:#9a9a9a;letter-spacing:.5px">KAM</div>`;
       srcN.forEach((n,i)=>h+=box(80,rowY(i,srcN.length),rowH(srcN.length),n,Math.max(0,bal[n]),"#8a8a8a",t&&t.z===n,"s"+i));
-      dstN.forEach((n,i)=>{const tt=TX.find(x=>x.do===n),p=tt&&prodOf(tt.k);const col=tt&&tt.k==="dps"?"#E8722A":p?(p.s[0]>=50?"#E8722A":p.s[1]>=50?"#5b8dd6":"#8a8a8a"):"#8a8a8a";h+=box(1000,rowY(i,dstN.length),rowH(dstN.length),n,dbal[n],col,t&&t.do===n,"d"+i)});
+      dstN.forEach((n,i)=>{const tt=TX.find(x=>x.do===n),p=tt&&prodOf(tt.k);const col=tt&&tt.k==="dps"?"#F37520":p?(p.s[0]>=50?"#F37520":p.s[1]>=50?"#5b8dd6":"#8a8a8a"):"#8a8a8a";h+=box(1000,rowY(i,dstN.length),rowH(dstN.length),n,dbal[n],col,t&&t.do===n,"d"+i)});
       TX.forEach((x,j)=>{const si=srcN.indexOf(x.z),di=dstN.indexOf(x.do),done=j<step-1,cur=j===step-1;
         const y=(cur||done?rowY(di,dstN.length)+rowH(dstN.length)/2:rowY(si,srcN.length)+rowH(srcN.length)/2)-22,xx=cur||done?1000-200:600;
-        h+=`<div class="k" data-k="coin${j}" style="position:absolute;left:${xx}px;top:${y}px;width:190px;height:44px;border-radius:22px;background:#E8722A;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;opacity:${cur?1:0};transition:all 1.1s cubic-bezier(.5,0,.2,1)">${fmt(x.castka)}${unit?"/měs":NB+"Kč"}</div>`});
+        h+=`<div class="k" data-k="coin${j}" style="position:absolute;left:${xx}px;top:${y}px;width:190px;height:44px;border-radius:22px;background:#F37520;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;opacity:${cur?1:0};transition:all 1.1s cubic-bezier(.5,0,.2,1)">${fmt(x.castka)}${unit?"/měs":NB+"Kč"}</div>`});
       const sum=TX.reduce((a,x)=>a+x.castka,0),rest=Object.values(bal).reduce((a,v)=>a+Math.max(0,v),0);
       h+=`<div class="k" data-k="txt" style="position:absolute;left:80px;top:830px;width:1440px;font-size:20px">${t?`<b class="o">${val(t.castka)}</b> z <b>${esc(t.z)}</b> → <b>${esc(t.do)}</b> <span class="mut">· ${why(t)}</span>${unit&&step===TX.length&&rest>0.5?` <span class="mut">· volně zůstává</span> <b>${kcm(rest)}</b>`:""}`:unit?`<span class="mut">Volné cash flow ${kcm(bal0["Volné cash flow"])}: trvalé příkazy ${kcm(sum)} do ${TX.length} ${TX.length===1?"produktu":"produktů"}${bal0["Volné cash flow"]-sum>0.5?`, volně zůstane ${kcm(bal0["Volné cash flow"]-sum)}`:""}.</span>`:`<span class="mut">Celkem ${TX.length} ${TX.length===1?"převod":TX.length<5?"převody":"převodů"}, ${kc(sum)}. Rezerva ${kc(R.rez.vklad)} zůstává na účtech.</span>`}</div>`;
       F.push({g:G,h,lbl:step?lblOne+" "+step:title});
@@ -1794,7 +1798,7 @@ function buildFrames(I,R){
    <div class="foot">Procentní podíl se týká zůstatků; pravidelné vklady se v čase rebalancují.</div>`,lbl:"Produkty"});
   // portfolio – přehled, pak se postupně „otevře“ každý produkt (informace + historický graf)
   {
-  const PZ=R.pozice.filter(p=>p.jednor>0||p.mesicne>0).sort((a,b)=>(b.jednor+12*b.mesicne)-(a.jednor+12*a.mesicne)),PI=R.portfolio.invest,W=R.portfolio.w,pc=["#E8722A","#2E9C8F","#5b8dd6","#C2508D","#6BAA45","#D9A441","#8a8a8a"];
+  const PZ=R.pozice.filter(p=>p.jednor>0||p.mesicne>0).sort((a,b)=>(b.jednor+12*b.mesicne)-(a.jednor+12*a.mesicne)),PI=R.portfolio.invest,W=R.portfolio.w,pc=["#F37520","#2E9C8F","#5b8dd6","#C2508D","#6BAA45","#D9A441","#8a8a8a"];
   const pop=k=>R.poplatky.find(q=>q.k===k)||{};
   const net=k=>{const f=pop(k);return (f.vynos||0)-(f.sprava||0)};
   const wR=PI.reduce((s,p,i)=>s+W[i]*net(p.k),0)/100;
@@ -1822,9 +1826,9 @@ function buildFrames(I,R){
   const chart=(pts,w,h)=>{const n=pts.length,step=Math.max(1,Math.floor(n/240)),P=pts.filter((_,i)=>i%step===0||i===n-1),x0=P[0][0],x1=P[P.length-1][0],v=P.map(p=>p[1]),lo=Math.min(...v),hi=Math.max(...v);
     const X=d=>(d-x0)/(x1-x0||1)*w,Y=q=>h-(q-lo)/(hi-lo||1)*(h-20)-10,line=P.map(p=>X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1)).join(" ");
     const yrs=[];for(let yy=new Date(x0*864e5).getFullYear()+1;yy<=new Date(x1*864e5).getFullYear();yy++)yrs.push(yy);const ys=yrs.filter((_,i,a)=>a.length<=8||i%Math.ceil(a.length/8)===0);
-    return `<svg width="${w}" height="${h+24}" viewBox="0 0 ${w} ${h+24}"><defs><linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8722A" stop-opacity=".35"/><stop offset="1" stop-color="#E8722A" stop-opacity="0"/></linearGradient></defs>
+    return `<svg width="${w}" height="${h+24}" viewBox="0 0 ${w} ${h+24}"><defs><linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F37520" stop-opacity=".35"/><stop offset="1" stop-color="#F37520" stop-opacity="0"/></linearGradient></defs>
       ${ys.map(yy=>{const xx=X(Date.UTC(yy,0,1)/864e5);return `<line x1="${xx}" y1="0" x2="${xx}" y2="${h}" stroke="#2c2c2c"/><text x="${xx+4}" y="${h+18}" fill="#8a8a8a" font-size="13">${yy}</text>`}).join("")}
-      <polygon points="0,${h} ${line} ${w},${h}" fill="url(#gg)"/><polyline points="${line}" fill="none" stroke="#E8722A" stroke-width="3"/></svg>`};
+      <polygon points="0,${h} ${line} ${w},${h}" fill="url(#gg)"/><polyline points="${line}" fill="none" stroke="#F37520" stroke-width="3"/></svg>`};
   const N=PZ.length;
   const seq=[-1];for(let q=0;q<N;q++)seq.push(q,-1);
   for(const op of seq){
@@ -1834,7 +1838,7 @@ function buildFrames(I,R){
      `<div class="k" data-k="thd" style="position:absolute;left:640px;top:188px;width:880px;height:36px;background:#2a2a2a;opacity:${op>=0?0:1}"></div>
       ${[["Produkt",660,"left",400],["Jednorázově",1000,"right",160],["Měsíčně",1170,"right",140],["Čistý výnos p.a.",1320,"right",180]].map(([t,x,al,w])=>`<div class="k" data-k="th${x}" style="position:absolute;left:${x}px;top:197px;width:${w}px;text-align:${al};font-size:13px;font-weight:700;color:#cfcfcf;text-transform:uppercase;opacity:${op>=0?0:1}">${t}</div>`).join("")}`;
     PZ.forEach((p,i)=>{const isO=i===op,y=rowY(i);
-      h+=`<div class="k" data-k="rc${i}" style="position:absolute;z-index:${isO?5:1};left:${isO?80:640}px;top:${isO?175:y}px;width:${isO?1440:880}px;height:${isO?650:rH}px;background:${isO?"#1d1d1d":"#202020"};border:2px solid ${isO?"#E8722A":"#2e2e2e"};border-radius:12px;opacity:${op>=0&&!isO?0:1}"></div>
+      h+=`<div class="k" data-k="rc${i}" style="position:absolute;z-index:${isO?5:1};left:${isO?80:640}px;top:${isO?175:y}px;width:${isO?1440:880}px;height:${isO?650:rH}px;background:${isO?"#1d1d1d":"#202020"};border:2px solid ${isO?"#F37520":"#2e2e2e"};border-radius:12px;opacity:${op>=0&&!isO?0:1}"></div>
        <div class="k" data-k="rt${i}" style="position:absolute;z-index:6;left:${isO?110:660}px;top:${isO?195:y+rH/2-12}px;width:${isO?900:330}px;font-size:${isO?34:17}px;font-weight:${isO?900:700};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:${op>=0&&!isO?0:1}">${esc(p.nazev)}</div>
        <div class="k" data-k="rv${i}" style="position:absolute;z-index:6;left:1000px;top:${y+rH/2-12}px;width:470px;display:flex;justify-content:flex-end;gap:0;font-size:17px;opacity:${op>=0?0:1}"><span style="width:160px;text-align:right">${kc(p.jednor)}</span><span style="width:140px;text-align:right">${p.mesicne?kcm(p.mesicne):"–"}</span><span style="width:170px;text-align:right" class="grn"><b>${pct(net(p.k))}</b></span></div>`;
       const inf=info(p),hp=histOf(p.k),st=hp&&hp.length>10?stats(hp):null;
@@ -1852,7 +1856,7 @@ function buildFrames(I,R){
   }
   // časová osa — kaskáda plateb: pruh „Měsíční platby“ v kartě; segmenty mají stejné klíče ve všech snímcích → plynulé přelití
   const TK=R.toky||[],FK=[],FN={};TK.forEach(t=>t.rozpad.forEach(r=>{if(!FK.includes(r.k))FK.push(r.k);FN[r.k]=r.nazev}));
-  const FCOL=k=>k==="renta"?"#E8722A":k==="volne"?"#6a6a6a":["#5b8dd6","#C2508D","#2E9C8F","#D9A441","#6BAA45"][(+k.slice(1))%5];
+  const FCOL=k=>k==="renta"?"#F37520":k==="volne"?"#6a6a6a":["#5b8dd6","#C2508D","#2E9C8F","#D9A441","#6BAA45"][(+k.slice(1))%5];
   const FTOT=Math.max(1,...TK.map(t=>t.rozpad.reduce((a,r)=>a+r.kc,0)));
   const flowBar=u=>{let cur=TK[0]?TK[0].rozpad:[];TK.forEach(t=>{if(t.m<=u.m)cur=t.rozpad});const cm=Object.fromEntries(cur.map(r=>[r.k,r.kc])),tot=cur.reduce((a,r)=>a+r.kc,0);
     const X0=900,W0=440,Y=420;let x=X0;
@@ -1869,22 +1873,22 @@ function buildFrames(I,R){
     else if(u.typ==="splaceno"){card.amount="−"+kcm(u.uver.splatka);card.sub="Úvěr splacen — uvolní se cash flow";card.det=[`Splátka ${kcm(u.uver.splatka)} skončí`,"Uvolněné peníze můžeme přidat do investic"]}
     else if(u.typ==="refix"){card.amount="beze změny splátky";card.sub="Konec fixace — nová sazba podle trhu";card.det=["Plán počítá se stejnou splátkou","Před refixací porovnáme nabídky bank"]}
     else{const rk=R.renta.kraceno;card.amount=kcm(rk?R.renta.dosazitelneMes:R.renta.mesicne);card.sub=esc(K.jmeno)+` — ${Math.round(R.renta.vekStart)} let, finanční nezávislost`;card.det=[`Kapitál ${kc(R.renta.vysledek)}`,rentaTxt(Object.assign({},R.renta,{dosOn:rk})),rk?`Dosažitelná renta – cash flow nestačí na ${kcm(R.renta.mesicne)}`:`Splnění cíle ${Math.round(R.renta.splneni*100)} %`]}
-    let h=chrome("Časová osa plánu","Plán krok za krokem — další bod po kliknutí")+`<div class="card k" data-k="tcard" style="left:220px;top:175px;width:1160px;height:370px;border-top:5px solid #E8722A"></div>
+    let h=chrome("Časová osa plánu","Plán krok za krokem — další bod po kliknutí")+`<div class="card k" data-k="tcard" style="left:220px;top:175px;width:1160px;height:370px;border-top:5px solid #F37520"></div>
      <div class="k" data-k="tc" style="position:absolute;left:255px;top:200px;width:1090px">
-      <div style="display:flex;align-items:center;gap:22px"><span class="pill" style="background:#E8722A">${card.date}</span><span class="mut">${card.za}</span><span class="sp" style="flex:1"></span><span class="mut" style="font-size:15px">Hodnota plánu: ${kc(Math.round(u.hodnota/1000)*1000)}</span></div>
-      <div style="font-size:30px;font-weight:900;margin-top:22px">${esc(card.title)}</div><div style="font-size:44px;font-weight:900;color:#E8722A;margin-top:6px">${card.amount}</div>
+      <div style="display:flex;align-items:center;gap:22px"><span class="pill" style="background:#F37520">${card.date}</span><span class="mut">${card.za}</span><span class="sp" style="flex:1"></span><span class="mut" style="font-size:15px">Hodnota plánu: ${kc(Math.round(u.hodnota/1000)*1000)}</span></div>
+      <div style="font-size:30px;font-weight:900;margin-top:22px">${esc(card.title)}</div><div style="font-size:44px;font-weight:900;color:#F37520;margin-top:6px">${card.amount}</div>
       <div class="mut" style="font-size:17px;margin-top:6px;max-width:600px">${card.sub}</div><ul style="margin:10px 0 0;padding-left:22px;font-size:17px;line-height:1.55;max-width:600px">${card.det.map(d=>`<li>${d}</li>`).join("")}</ul></div>
      ${flowBar(u)}
      <div style="position:absolute;left:0;top:628px;width:1600px;height:5px;background:#3a3a3a"></div>
-     <div style="position:absolute;left:786px;top:562px;border-left:14px solid transparent;border-right:14px solid transparent;border-top:18px solid #E8722A"></div>`;
+     <div style="position:absolute;left:786px;top:562px;border-left:14px solid transparent;border-right:14px solid transparent;border-top:18px solid #F37520"></div>`;
     U.forEach((v,i)=>{const act=i===step,sz=act?46:28,cx=800+(i-step)*360;
-      h+=`<div class="node k" data-k="tn${i}" style="left:${cx-sz/2}px;top:${630-sz/2}px;width:${sz}px;height:${sz}px;background:${i<=step?"#E8722A":"#161616"};border:4px solid #E8722A"></div>
+      h+=`<div class="node k" data-k="tn${i}" style="left:${cx-sz/2}px;top:${630-sz/2}px;width:${sz}px;height:${sz}px;background:${i<=step?"#F37520":"#161616"};border:4px solid #F37520"></div>
        <div class="nl k" data-k="td${i}" style="left:${cx-150}px;top:668px;width:300px;font-size:${act?20:16}px;font-weight:${act?900:400};color:${act?"#efefef":"#9a9a9a"}">${v.datum.getFullYear()}</div>
        <div class="nl k" data-k="tl${i}" style="left:${cx-150}px;top:698px;width:300px;font-size:${act?17:14}px;font-weight:${act?700:400};color:${act?"#efefef":"#9a9a9a"}">${esc(v.titul)}</div>`});
     const mx=d=>145+1310*((d.getTime()-t0)/(t1-t0||1));
     h+=`<div style="position:absolute;left:145px;top:818px;width:1310px;height:3px;background:#3a3a3a"></div>`+U.map((v,i)=>`<div class="k" data-k="m${i}" style="position:absolute;left:${mx(v.datum)-6}px;top:813px;width:12px;height:12px;border-radius:50%;background:#666"></div>`).join("")+
-      `<div class="k" data-k="mpin" style="position:absolute;left:${mx(u.datum)-14}px;top:805px;width:28px;height:28px;border-radius:50%;background:#E8722A"></div>
-       <div class="k" data-k="myear" style="position:absolute;left:${mx(u.datum)-60}px;top:840px;width:120px;text-align:center;font-weight:900;color:#E8722A">${u.datum.getFullYear()}</div>`;
+      `<div class="k" data-k="mpin" style="position:absolute;left:${mx(u.datum)-14}px;top:805px;width:28px;height:28px;border-radius:50%;background:#F37520"></div>
+       <div class="k" data-k="myear" style="position:absolute;left:${mx(u.datum)-60}px;top:840px;width:120px;text-align:center;font-weight:900;color:#F37520">${u.datum.getFullYear()}</div>`;
     F.push({g:"tl",h,lbl:"Osa: "+u.titul});
   });
   // vývoj majetku – křivka v čase; „kamera“ odkrývá graf bod po bodu, u cíle majetek viditelně spadne o vybranou částku
@@ -1898,8 +1902,8 @@ function buildFrames(I,R){
     const nice=x=>{const p=Math.pow(10,Math.floor(Math.log10(x))),f=x/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p},stepY=nice(vmax/5);
     const fmtM=v=>v>=1e6?(v/1e6).toFixed(v%1e6?1:0).replace(".",",")+" mil.":Math.round(v/1e3)+" tis.";
     const y0=R.udalosti[0].datum.getFullYear(),yrs=[];for(let y=Math.ceil((y0+1)/5)*5;y<=y0+MX/12;y+=5)yrs.push(y);
-    const svg=(op,dash)=>`<svg width="1600" height="900" viewBox="0 0 1600 900" style="position:absolute;left:0;top:0"><defs><linearGradient id="vg${dash?"d":"f"}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8722A" stop-opacity="${dash?0.08:0.45}"/><stop offset="1" stop-color="#E8722A" stop-opacity="0"/></linearGradient></defs>
-      <polygon points="${gx(0)},${Y1} ${line} ${gx(MX)},${Y1}" fill="url(#vg${dash?"d":"f"})"/><polyline points="${line}" fill="none" stroke="#E8722A" stroke-width="${dash?2:4}" ${dash?'stroke-dasharray="6 8"':""} stroke-linejoin="round" opacity="${op}"/></svg>`;
+    const svg=(op,dash)=>`<svg width="1600" height="900" viewBox="0 0 1600 900" style="position:absolute;left:0;top:0"><defs><linearGradient id="vg${dash?"d":"f"}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F37520" stop-opacity="${dash?0.08:0.45}"/><stop offset="1" stop-color="#F37520" stop-opacity="0"/></linearGradient></defs>
+      <polygon points="${gx(0)},${Y1} ${line} ${gx(MX)},${Y1}" fill="url(#vg${dash?"d":"f"})"/><polyline points="${line}" fill="none" stroke="#F37520" stroke-width="${dash?2:4}" ${dash?'stroke-dasharray="6 8"':""} stroke-linejoin="round" opacity="${op}"/></svg>`;
     const grid=[];for(let v=stepY;v<vmax;v+=stepY)grid.push(`<div style="position:absolute;left:${X0}px;top:${gy(v)}px;width:${W}px;height:1px;background:#262626"></div><div style="position:absolute;left:${X0-110}px;top:${gy(v)-10}px;width:100px;text-align:right;font-size:14px;color:#8a8a8a">${fmtM(v)}</div>`);
     const ax=`<div style="position:absolute;left:${X0}px;top:${Y1}px;width:${W}px;height:2px;background:#3a3a3a"></div>`+yrs.map(y=>`<div style="position:absolute;left:${gx((y-y0)*12)-30}px;top:${Y1+12}px;width:60px;text-align:center;font-size:14px;color:#8a8a8a">${y}</div>`).join("");
     U.forEach((u,stepI)=>{
@@ -1908,12 +1912,12 @@ function buildFrames(I,R){
         `<div style="position:absolute;left:0;top:0;width:1600px;height:900px">${svg(0.35,true)}</div>
          <div class="k" data-k="gclip" style="position:absolute;left:0;top:0;width:${Math.max(X0+2,cx+2)}px;height:900px;overflow:hidden;transition:width 1.4s cubic-bezier(.45,0,.2,1)">${svg(1,false)}</div>`;
       U.forEach((v,i)=>{const px=gx(Math.min(MX,v.m)),py=gy(v.v),past=i<stepI,act=i===stepI;
-        h+=`<div class="k" data-k="gm${i}" style="position:absolute;left:${px-(act?11:7)}px;top:${py-(act?11:7)}px;width:${act?22:14}px;height:${act?22:14}px;border-radius:50%;background:${past||act?"#E8722A":"#161616"};border:3px solid ${act?"#fff":"#E8722A"};opacity:${past||act?1:0.35};z-index:3"></div>`;
+        h+=`<div class="k" data-k="gm${i}" style="position:absolute;left:${px-(act?11:7)}px;top:${py-(act?11:7)}px;width:${act?22:14}px;height:${act?22:14}px;border-radius:50%;background:${past||act?"#F37520":"#161616"};border:3px solid ${act?"#fff":"#F37520"};opacity:${past||act?1:0.35};z-index:3"></div>`;
         if(v.typ==="cil")h+=`<div class="k" data-k="gb${i}" style="position:absolute;right:${1600-px+16}px;top:${(py+gy(v.vPred))/2-18}px;padding:6px 12px;border-radius:18px;background:rgba(223,106,106,.16);border:1.5px solid #DF6A6A;color:#DF6A6A;font-weight:900;font-size:15px;white-space:nowrap;opacity:${act?1:past?0.55:0};transform:translateY(${act||past?0:-30}px);transition:all 1s cubic-bezier(.2,.8,.2,1) ${act?".9s":"0s"};z-index:4">−${kc(v.cil.kraceno?v.cil.dosazitelne:v.cil.castka)} · ${esc(v.titul)}</div>`});
       h+=`<div class="k" data-k="gv" style="position:absolute;left:${Math.min(1250,Math.max(X0,cx-130))}px;top:${Math.max(200,cy-92)}px;width:260px;text-align:center;z-index:5;transition:all 1.4s cubic-bezier(.45,0,.2,1)"><div style="font-size:34px;font-weight:900;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.6)">${kc(Math.round(u.v/1000)*1000)}</div><div style="font-size:14px;color:#cfcfcf">${u.datum.getFullYear()} · ${esc(u.titul)}</div></div>
        <div class="k" data-k="gvl" style="position:absolute;left:${cx-1}px;top:${cy}px;width:2px;height:${Math.max(0,Y1-cy)}px;background:linear-gradient(#ffffff88,#ffffff00);z-index:2;transition:all 1.4s cubic-bezier(.45,0,.2,1)"></div>
-       <div class="card k" data-k="gcard" style="left:${X0+20}px;top:180px;width:470px;height:120px;border-top:4px solid #E8722A;z-index:6"></div>
-       <div class="k" data-k="gct" style="position:absolute;left:${X0+44}px;top:198px;width:430px;z-index:7"><span class="pill" style="background:#E8722A">${(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase()}</span>
+       <div class="card k" data-k="gcard" style="left:${X0+20}px;top:180px;width:470px;height:120px;border-top:4px solid #F37520;z-index:6"></div>
+       <div class="k" data-k="gct" style="position:absolute;left:${X0+44}px;top:198px;width:430px;z-index:7"><span class="pill" style="background:#F37520">${(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase()}</span>
          <div style="font-size:22px;font-weight:900;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.titul)}${isCil?` <span style="color:#DF6A6A;font-size:18px">−${kc(u.cil.kraceno?u.cil.dosazitelne:u.cil.castka)}</span>`:""}</div>
          <div class="mut" style="font-size:15px;margin-top:2px">${u.typ==="start"?"Začínáme – majetek po realokaci":isCil?`Výběr z investic na cíl · zbývá ${kc(Math.round(u.v/1000)*1000)}`:u.typ==="renta"?"Kapitál na rentu je připravený":u.typ==="refix"?"Splátka beze změny":u.typ==="splaceno"?"Úvěr splacen":""}</div></div>
        <div class="foot">Reálné hodnoty (po inflaci). Hodnota zahrnuje rezervu, investice na cíle, rentu a DPS; po výběru na cíl hodnota klesne o vybranou částku.</div>`;
@@ -1921,8 +1925,8 @@ function buildFrames(I,R){
     });
   }
   // strategie
-  F.push({g:"s",h:chrome("Investiční strategie")+`<div style="position:absolute;left:80px;top:120px;font-size:24px;font-style:italic;color:#E8722A">Vytrvalost je všechno.</div>`+
-   [["2 %","Správný odhad okamžiku pro nákup nebo prodej","#6BAA45"],["4 %","Výběr konkrétních titulů cenných papírů","#5b8dd6"],["94 %","Správné rozmístění peněz do investičních tříd: akcií, dluhopisů, peněz","#E8722A"]].map(([v,t,c],i)=>`<div class="card" style="left:${80+i*496}px;top:200px;width:448px;height:560px;border-top:8px solid ${c};background:#2a2a2a"></div><div style="position:absolute;left:${80+i*496}px;top:300px;width:448px;text-align:center;font-size:110px;font-weight:900;color:${c}">${v}</div><div style="position:absolute;left:${80+i*496+60}px;top:480px;width:328px;text-align:center;font-size:20px;color:#cfcfcf;line-height:1.45">${t}</div>`).join("")+
+  F.push({g:"s",h:chrome("Investiční strategie")+`<div style="position:absolute;left:80px;top:120px;font-size:24px;font-style:italic;color:#F37520">Vytrvalost je všechno.</div>`+
+   [["2 %","Správný odhad okamžiku pro nákup nebo prodej","#6BAA45"],["4 %","Výběr konkrétních titulů cenných papírů","#5b8dd6"],["94 %","Správné rozmístění peněz do investičních tříd: akcií, dluhopisů, peněz","#F37520"]].map(([v,t,c],i)=>`<div class="card" style="left:${80+i*496}px;top:200px;width:448px;height:560px;border-top:8px solid ${c};background:#2a2a2a"></div><div style="position:absolute;left:${80+i*496}px;top:300px;width:448px;text-align:center;font-size:110px;font-weight:900;color:${c}">${v}</div><div style="position:absolute;left:${80+i*496+60}px;top:480px;width:328px;text-align:center;font-size:20px;color:#cfcfcf;line-height:1.45">${t}</div>`).join("")+
    `<div class="foot">Zdroj: Gary Brinson, L. Randolph Hood a Gilbert Beebower, 1986</div>`,lbl:"Strategie"});
   // realizace
   const k0=R.katastrofy[0];
@@ -1942,11 +1946,11 @@ function buildFrames(I,R){
    .concat(ppTx.length?[[`Penzijko bez poplatku do DPS`,`dynamická strategie s vyšším výnosem, státní příspěvek zůstává`]]:[])
    .concat([[`Pravidelná revize plánu`,`1× ročně kontrola, rebalancování a úprava podle života`]])
    .concat([[`Jeden poradce, jeden přehled`,`investice, pojištění a cíle na jednom místě`]]).slice(0,5);
-  F.push({g:"z",h:`<div class="bar"></div><img class="logo" src="${LOGO}" alt=""><div style="position:absolute;left:80px;top:50px;color:#E8722A;font-weight:900;font-size:17px">POSTUP</div><div style="position:absolute;left:80px;top:90px;font-size:44px;font-weight:900;line-height:1.15">Realizace<br>doporučeného řešení</div>
-   ${steps.map((s,i)=>`<div style="position:absolute;left:80px;top:${250+i*92}px;width:52px;height:52px;border-radius:50%;background:#E8722A;color:#fff;font-weight:900;font-size:22px;display:flex;align-items:center;justify-content:center">${i+1}</div><div style="position:absolute;left:160px;top:${250+i*92}px;width:650px"><div style="font-size:21px;font-weight:900">${s[0]}</div><div class="mut" style="font-size:15px;margin-top:3px">${s[1]}</div></div>`).join("")}
+  F.push({g:"z",h:`<div class="bar"></div><img class="logo" src="${LOGO}" alt=""><div style="position:absolute;left:80px;top:50px;color:#F37520;font-weight:900;font-size:17px">POSTUP</div><div style="position:absolute;left:80px;top:90px;font-size:44px;font-weight:900;line-height:1.15">Realizace<br>doporučeného řešení</div>
+   ${steps.map((s,i)=>`<div style="position:absolute;left:80px;top:${250+i*92}px;width:52px;height:52px;border-radius:50%;background:#F37520;color:#fff;font-weight:900;font-size:22px;display:flex;align-items:center;justify-content:center">${i+1}</div><div style="position:absolute;left:160px;top:${250+i*92}px;width:650px"><div style="font-size:21px;font-weight:900">${s[0]}</div><div class="mut" style="font-size:15px;margin-top:3px">${s[1]}</div></div>`).join("")}
    <div class="card" style="left:900px;top:220px;width:620px;height:600px;background:#232323"></div><div style="position:absolute;left:935px;top:245px;font-size:24px;font-weight:900">Co tím získáte</div>
    ${gains.map((g,i)=>`<div style="position:absolute;left:935px;top:${305+i*84}px;display:flex;gap:16px">${ICON.check}<div><div style="font-size:19px;font-weight:900">${g[0]}</div><div class="mut" style="font-size:15px">${g[1]}</div></div></div>`).join("")}
-   <div style="position:absolute;left:935px;top:735px;font-size:22px;font-weight:900;color:#E8722A">Jste připraveni?</div><div style="position:absolute;left:935px;top:770px;font-size:15px;color:#9a9a9a">První krok: podpis smluv na schůzce.</div>`,lbl:"Realizace"});
+   <div style="position:absolute;left:935px;top:735px;font-size:22px;font-weight:900;color:#F37520">Jste připraveni?</div><div style="position:absolute;left:935px;top:770px;font-size:15px;color:#9a9a9a">První krok: podpis smluv na schůzce.</div>`,lbl:"Realizace"});
   F.push({g:"e",h:`<img src="${LOGO}" style="position:absolute;left:650px;top:90px;width:300px" alt=""><div style="position:absolute;left:0;top:420px;width:1600px;text-align:center;font-size:60px;font-style:italic">Těším se na naši dlouhodobou spolupráci</div><div style="position:absolute;left:0;top:780px;width:1600px;text-align:center;color:#9a9a9a;font-size:18px">ZFP Group  |  Váš finanční partner  |  ${new Date().getFullYear()}</div>`,lbl:"Závěr"});
   return F;
 }
@@ -2047,7 +2051,7 @@ function mergeDz(I,D){let n=0;const val=v=>v!==""&&v!=null&&!(typeof v==="number
   return n}
 $("#bDz").onclick=()=>{
   const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:200;background:var(--bg)";
-  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=2#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
+  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=3#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
   ov.append(fr);document.body.append(ov);
   const close=()=>{removeEventListener("message",on);ov.remove();renderClients();renderEditor();update()};
   const on=e=>{if(e.origin!==location.origin||e.source!==fr.contentWindow||!e.data)return;const d=e.data;

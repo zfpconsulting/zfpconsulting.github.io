@@ -800,7 +800,7 @@ const h = (tag, attrs = {}, ...kids) => {
 };
 
 const CSS = `
-#aiFab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:52px;height:52px;border-radius:50%;background:var(--tint);color:#fff;display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,122,255,.4);z-index:30;border:0;font-size:22px;line-height:1}
+#aiFab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:52px;height:52px;border-radius:50%;background:var(--tint);color:#fff;display:grid;place-items:center;box-shadow:0 8px 24px rgba(243,117,32,.4);z-index:30;border:0;font-size:22px;line-height:1}
 #aiFab[hidden]{display:none}
 .aiLog{display:grid;gap:10px;max-height:46vh;overflow:auto;padding:2px}
 .aiMsg{padding:9px 12px;border-radius:14px;font-size:15px;line-height:1.35;max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere}

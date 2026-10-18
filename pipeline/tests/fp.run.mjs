@@ -484,6 +484,16 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["DPS: státní příspěvek 20 % z vlastního vkladu 500–1 700 Kč (max. 340 Kč) se počítá do hodnoty DPS v rentě"] = async function () {
+  const { ctx, page, errors } = await open();
+  eq(await page.evaluate(() => [400, 500, 1000, 1700, 3000].map(FPE.dpsStatni)), [0, 100, 200, 340, 340], "příspěvek");
+  const base = { klient: { jmeno: "Jan Novák", narozen: "1985-01-01", zam: 50000, vydaje_osobni: 30000, inv1: 8000, inv2: 12000, inv3: 20000, starobni: 18000, bez_partnera: true, hruba: 70000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [], renta: { mesicne: 30000, od_veku: "" } };
+  const run = async v => { await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }, { typ: "Doplňkové penzijní spoření (DPS)", nazev: "DPS", hodnota: 100000, vklad: v }] })); return page.evaluate(() => { compute(); return { p: R.dpsPrisp, fv: R.renta && R.renta.dpsFv }; }); };
+  const a = await run(1000), b = await run(400);
+  eq([a.p, b.p], [200, 0], "příspěvek v plánu"); assert(a.fv > b.fv, "vyšší vklad + příspěvek = víc v DPS");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();

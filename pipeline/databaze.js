@@ -202,7 +202,7 @@ const CSS=`
 .dbx .db-search{width:100%;box-sizing:border-box;height:42px;border:1px solid var(--sep);border-radius:10px;background:var(--bg,#f2f2f7);color:var(--label);font:inherit;font-size:16px;padding:0 12px;margin-bottom:12px}
 .dbx .db-msg{font-size:13.5px;line-height:1.45;border-radius:10px;padding:9px 12px;margin:0 0 12px;background:var(--bg,#f2f2f7)}
 .dbx .db-prog{font-size:13.5px;line-height:1.45;border-radius:10px;padding:9px 12px;margin:0 0 12px;background:var(--bg,#f2f2f7);color:var(--label2)}
-.dbx .db-msg.warn{background:var(--orange-soft,rgba(255,149,0,.14))}
+.dbx .db-msg.warn{background:var(--orange-soft,rgba(243,117,32,.12))}
 .dbx .db-wrap{overflow:auto;border:1px solid var(--sep);border-radius:12px}
 .dbx table{border-collapse:collapse;width:100%;min-width:640px;font-size:14.5px}
 .dbx th{position:sticky;top:0;background:var(--bg,#f2f2f7);text-align:left;font-size:12.5px;font-weight:600;color:var(--label2);padding:10px 10px;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--sep)}
@@ -214,7 +214,7 @@ const CSS=`
 .dbx td.num input{text-align:right;font-variant-numeric:tabular-nums}
 .dbx td input:hover{border-color:var(--sep)}
 .dbx td input:focus{outline:2px solid var(--tint);outline-offset:-1px;background:var(--bg2,#fff)}
-.dbx td input.miss{background:var(--orange-soft,rgba(255,149,0,.14))}
+.dbx td input.miss{background:var(--orange-soft,rgba(243,117,32,.12))}
 .dbx td.x{width:44px;text-align:center}
 .dbx td.x button{border:0;background:none;color:var(--label2);font-size:20px;line-height:1;cursor:pointer;padding:6px 10px;border-radius:8px}
 .dbx td.x button:hover{color:var(--red)}
@@ -230,8 +230,8 @@ const CSS=`
 .dbx td.a{width:52px;text-align:center;white-space:nowrap}
 .dbx .db-plus{width:34px;height:34px;border-radius:50%;border:0;background:var(--orange);color:#fff;font-size:21px;font-weight:600;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .dbx .db-plus:hover{filter:brightness(1.08)}
-.dbx .db-in{height:30px;border-radius:999px;border:1px solid var(--green,#34C759);background:none;color:var(--green,#34C759);font:inherit;font-size:12.5px;font-weight:600;padding:0 10px;cursor:pointer;white-space:nowrap}
-.dbx tr.sel td{background:var(--orange-soft,rgba(255,149,0,.10))}
+.dbx .db-in{height:30px;border-radius:999px;border:1px solid var(--green,#F37520);background:none;color:var(--green,#F37520);font:inherit;font-size:12.5px;font-weight:600;padding:0 10px;cursor:pointer;white-space:nowrap}
+.dbx tr.sel td{background:var(--orange-soft,rgba(243,117,32,.10))}
 .dbx details.db-map{margin:14px 0 0;font-size:13px;color:var(--label2)}
 .dbx details.db-map summary{cursor:pointer;font-weight:600;color:var(--label)}
 .dbx .db-mapg{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(150px,1.1fr) minmax(150px,1.2fr);margin-top:8px;border:1px solid var(--sep);border-radius:10px;overflow:hidden;font-size:12.5px}
