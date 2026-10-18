@@ -1957,7 +1957,7 @@ function render(){
   if(view==="pipe"){queueMicrotask(runFlip);$("bigTitle").textContent=appName();$("sub").textContent=pper&&!q?pmLabel(pper)+" · archiv":leads.length?`${act} ${plural(act,"rozjednaný lead","rozjednané leady","rozjednaných leadů")} · ${pmLabel(null)}`:"Zatím prázdno. Přidej první lead tlačítkem +.";renderCareer(cur);renderPipe(cur)}
   else if(view==="money"){$("bigTitle").textContent="Obrat";$("sub").textContent="Body, provize, pasivní příjem a tým";renderMoney(cq,cur)}
   else if(view==="cli"){$("bigTitle").textContent="Klienti";renderClients()}
-  else if(view==="cal"){$("bigTitle").textContent="Kalendář";$("sub").textContent="Schůzky z vybraných kalendářů · oranžově volné bloky 8:30–19:00";renderCalTab()}
+  else if(view==="cal"){$("bigTitle").textContent="Kalendář";$("sub").textContent="Schůzky z vybraných kalendářů · oranžově volné bloky po 90 min (8:30–19:00)";renderCalTab()}
   else if(view==="fp"){$("bigTitle").textContent="Finanční plán";$("sub").textContent="Živé finanční plány klientů";renderFpTab()}
   else if(view==="net"){$("bigTitle").textContent="Rozvoj sítě";renderNet()}
   else if(view==="tax"){$("bigTitle").textContent="Daně";renderTax()}
@@ -2092,10 +2092,16 @@ function renderDzNotes(){
 setInterval(()=>{try{renderDzNotes()}catch(e){}},1500);
 
 /* ---------- volné bloky pro schůzky: všední dny 8:30–19:00, 45 min + 15 min rezerva; jen tvoje schůzky (prefix) a osobní kalendář blokují ---------- */
-const DZS={from:510,to:1140,len:45,buf:15,days:21,addr:()=>(settings.dzAddr||"Trnitá 500/9, 602 00 Brno")};
+const DZS={from:510,to:1140,len:45,buf:15,block:90,grid:[510,600,690,780,870,960,1050],days:21,addr:()=>(settings.dzAddr||"Trnitá 500/9, 602 00 Brno")};
+/* pevná mřížka bloků po 90 min (každý týden stejné časy): 8:30, 10:00, 11:30, 13:00, 14:30, 16:00, 17:30.
+   Tvoje schůzka / osobní událost v okně bloku → blok je obsazený. Škola v okně → začátek se posune na 50 min po konci výuky
+   (konec v hh:40 → (hh+1):30), ale jen uvnitř okna; když se schůzka (45 min) do okna nevejde, blok ten den odpadá. */
 function dzFreeSlots(dayKey,busy){const dow=new Date(dayKey+"T12:00:00").getDay();if(dow===0||dow===6)return[];
-  const B=busy.map(([a,b,after])=>[a-DZS.buf,b+(after??DZS.buf)]).sort((x,y)=>x[0]-y[0]),out=[];let t=DZS.from;
-  while(t+DZS.len<=DZS.to){const c=B.find(([a,b])=>t<b&&t+DZS.len>a);if(!c){out.push(t);t+=DZS.len+DZS.buf}else t=Math.max(t+15,Math.ceil(c[1]/15)*15)}
+  const mine=busy.filter(x=>x[2]===undefined),sch=busy.filter(x=>x[2]!==undefined).map(([a,b,after])=>[a-DZS.buf,b+after]),out=[];
+  for(const g of DZS.grid){const ge=g+DZS.block;
+    if(mine.some(([a,b])=>a<ge&&b>g))continue;
+    let t=g;for(let n=0;n<10;n++){const c=sch.find(([a,b])=>t<b&&t+DZS.len>a);if(!c)break;t=Math.ceil(c[1]/5)*5}
+    if(t+DZS.len<=ge)out.push({m:t,e:ge})}
   return out}
 /* druh události: mine = tvoje schůzka, sem = seminář/cvičení ze školy, hide = přednáška a ostatní školní (nezobrazuje se, neblokuje),
    own = tvůj osobní kalendář, off = kolegové v kanclu (JT:, PV:, porada…) → v tu dobu kancelář obsazená = jen online */
@@ -2115,7 +2121,7 @@ function dzDaySlots(dayKey,evs){
   const iv=e=>{const a=ctMinutesOf(e.start),b=e.end&&ymd(new Date(e.end))===dayKey?ctMinutesOf(e.end):(e.end?1440:a+60);return [a,b]};
   const busy=evs.filter(dzBlocks).map(e=>{const[a,b]=iv(e);return [a,b,(e.kind||ctKind(e))==="sem"?SCHOOL_AFTER:undefined]});
   const off=evs.filter(dzOffice).map(iv);
-  return dzFreeSlots(dayKey,busy).map(m=>({m,online:off.some(([a,b])=>m<b&&m+DZS.len>a)}))}
+  return dzFreeSlots(dayKey,busy).map(({m,e})=>({m,e,online:off.some(([a,b])=>m<b&&m+DZS.len>a)}))}
 async function dzBusy(from,to){
   const sch=await schoolIds().catch(()=>[]),ids=[...new Set([calCfg().id,"primary",...sch].filter(Boolean))],out=[];
   for(const id of ids){try{const p=new URLSearchParams({timeMin:from.toISOString(),timeMax:to.toISOString(),singleEvents:"true",orderBy:"startTime",maxResults:"500"});
@@ -5290,12 +5296,12 @@ function renderCalWeek(){
   const gridEl=$("cwGrid");
   gridEl.replaceChildren(...cols);gridEl.style.height=totalH+"px";
   const canWrite=ctCanWrite();
-  /* volné bloky 8:30–19:00 (45 min) – klepnutím je zaplníš klientem. Bloky a události se rozloží do sloupců vedle sebe,
+  /* volné bloky po 90 min (pevná mřížka) – klepnutím je zaplníš klientem. Bloky a události se rozloží do sloupců vedle sebe,
      takže se nic nepřekrývá; blok v čase, kdy má kancl obsazený kolega, je „jen online“ */
   const nowD=new Date();
   days.forEach((k,i)=>{
     const dayEvs=(byDay[k]||[]).filter(e=>!e.allDay);
-    const slots=dzDaySlots(k,dayEvs).filter(({m})=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);return s>=nowD}).map(({m,online})=>({_slot:true,online,_sMin:m,_eMin:m+DZS.len}));
+    const slots=dzDaySlots(k,dayEvs).filter(({m})=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);return s>=nowD}).map(({m,e,online})=>({_slot:true,online,_sMin:m,_eMin:e}));
     const items=ctLayoutDay([...dayEvs.map(e=>({...e,_sMin:ctMinutesOf(e.start),_eMin:e.end?Math.max(ctMinutesOf(e.start)+15,ctMinutesOf(e.end)):ctMinutesOf(e.start)+60})),...slots]);
     items.forEach(e=>{
       const top=(e._sMin/60-hStart)*HH, h=Math.max(16,(e._eMin-e._sMin)/60*HH-2), w=100/e._cols, left=e._col*w;
