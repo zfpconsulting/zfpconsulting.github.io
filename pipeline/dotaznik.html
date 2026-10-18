@@ -129,6 +129,10 @@ const DRAFT="fp_dotaznik_draft_v1",ADV="dz_poradce_v1";
 /* parametry odkazu jsou za # (prohlížeč je neposílá na server): to = e-mail poradce (schránka), k = veřejný klíč, p/t/e = jméno, telefon, e-mail poradce */
 const H=new URLSearchParams(EMB?"":location.hash.replace(/^#/,"")),Q=new URLSearchParams(location.search);
 const LINK={to:H.get("to")||"",k:H.get("k")||""};
+/* přišel přes krátký odkaz (/dotaznik/vk): v adresním řádku zůstane jen krátký odkaz, klíč se drží v paměti (obnovení stránky znovu načte krátký odkaz) */
+(()=>{const c=H.get("s");if(EMB||!c||!/^[a-z0-9-]{1,24}$/.test(c)||!history.replaceState)return;
+  try{document.querySelectorAll("picture source[srcset]").forEach(e=>e.srcset=new URL(e.getAttribute("srcset"),location.href).href);
+    document.querySelectorAll("img[src]").forEach(e=>e.src=e.src);history.replaceState(null,"","/dotaznik/"+c)}catch(e){}})();
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const NBS=" ";

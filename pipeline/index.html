@@ -2024,7 +2024,9 @@ async function dzKey(){if(settings.dzKey&&settings.dzKey.pub&&settings.dzKey.pri
   await dzLib();const k=await DzCrypto.genKey();const v={...k,at:new Date().toISOString()};settings={...settings,dzKey:v};await db.doc("settings/main").update({dzKey:v});setTimeout(dzStart,300);return v}
 const dzMe=()=>String(lsGet("g_owner")||"").toLowerCase();
 async function dzLinkInfo(){if(DEMO)return null;const me=dzMe();if(!me)return null;try{const k=await dzKey();return {to:me,k:k.pub}}catch(e){console.warn(e);return null}}
-async function dzClientLink(){const z=await dzLinkInfo();if(!z)return null;const h=new URLSearchParams({v:"1",to:z.to,k:z.k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);
+/* krátké odkazy na dotazník (/dotaznik/<kód>/) – platí jen, dokud sedí veřejný klíč; jinak se použije dlouhý odkaz */
+const DZ_SHORT=[{c:"vk",k:"BLuX42kajBu-1zXVvdCDa89b2HToLwbBocLU7UY4cbvINbAiDzDXfmkCOG_GzuvH0tU98sQl72Z1rGj5jS7LSHI"}];
+async function dzClientLink(){const z=await dzLinkInfo();if(!z)return null;const sh=DZ_SHORT.find(x=>x.k===z.k);if(sh&&/github\.io$/.test(location.hostname))return location.origin+"/dotaznik/"+sh.c;const h=new URLSearchParams({v:"1",to:z.to,k:z.k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);
   return location.origin+location.pathname.replace(/[^/]*$/,"")+"dotaznik.html#"+h.toString()}
 $("fpDzBtn")?.addEventListener("click",async()=>{try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission()}catch(e){}const u=await dzClientLink();if(!u){toast(DEMO?"V ukázkovém režimu nejde":"Nejdřív se přihlas Googlem");return}
   try{await navigator.clipboard.writeText(u);toast("Odkaz na dotazník zkopírovaný – pošli ho klientovi")}catch(e){prompt("Zkopíruj odkaz pro klienta:",u)}});
@@ -6801,7 +6803,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=28#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=29#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
