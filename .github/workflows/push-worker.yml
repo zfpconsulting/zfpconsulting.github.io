@@ -23,7 +23,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         working-directory: worker
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::warning::Chybí secret CLOUDFLARE_API_TOKEN – nasazení přeskakuji (testy prošly)"; exit 0; fi
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::Chybí secret CLOUDFLARE_API_TOKEN – prostředník se NENASADIL. Přidej secret (Settings → Secrets and variables → Actions), nebo nahraj worker/bundle.js ručně v editoru Cloudflare."; exit 1; fi
           [ -z "$CLOUDFLARE_ACCOUNT_ID" ] && unset CLOUDFLARE_ACCOUNT_ID
           npx --yes wrangler@4 deploy 2>&1 | tee deploy.log
           URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
