@@ -85,4 +85,30 @@ ok(JSON.parse(store.get("subs:vojta@example.com")).length===1,"zařízení, kter
 const un=await call("/unsubscribe",{body:{endpoint:B.sub.endpoint},tok:"tok-vk"});ok(un.j.n===0,"odhlášení zařízení");
 /* 6) šifra z pushcrypto je stejná i v prohlížeči – kontrola délky/hlavičky */
 const raw=await PC.encrypt(B.sub.keys,"x");ok(raw[20]===65&&raw.length===16+4+1+65+1+1+16,"formát hlavičky aes128gcm");
+/* 7) zařízení appky Škola: jednou Google, dál jen tajemství vlastního odběru; plán vázaný na zařízení */
+const SK="https://kudla2002.github.io",D1=device(),D2=device();
+ok((await call("/dev/subscribe",{body:{app:"skola",sub:D1.sub},tok:"tok-vk",origin:"https://evil.example"})).st===403,"Škola: přihlášení zařízení jen z webu appky");
+ok((await call("/dev/subscribe",{body:{app:"skola",sub:D1.sub},origin:SK})).st===401,"Škola: přihlášení zařízení vyžaduje Google");
+const ds=await call("/dev/subscribe",{body:{app:"skola",sub:D1.sub,ua:"iPhone"},tok:"tok-vk",origin:SK});
+const ds2=await call("/dev/subscribe",{body:{app:"skola",sub:D2.sub},tok:"tok-vk",origin:SK});
+ok(ds.st===200&&ds.j.id&&ds.h.get("Access-Control-Allow-Origin")===SK,"Škola: zařízení přihlášené, CORS pro web appky");
+ok(JSON.parse(store.get("subs:vojta@example.com")||"[]").every(x=>x.endpoint!==D1.sub.endpoint),"Škola: odběr se nemíchá se zařízeními Pipeline");
+const k1=D1.sub.keys.auth,dk={p256dh:D1.sub.keys.p256dh,auth:k1};
+ok((await call("/dev/plan",{body:{id:ds.j.id,k:D2.sub.keys.auth,items:[]},origin:SK})).st===401,"Škola: cizí tajemství plán nenahraje");
+const at2=Math.floor(Date.now()/60000)*60000+10*60000;
+const far=Date.now()+40*864e5,tooFar=Date.now()+50*864e5;
+const pl=await call("/dev/plan",{body:{id:ds.j.id,k:k1,items:[{at:at2,body:PC.b64u(await PC.encrypt(dk,{t:"Zítra: Odevzdání eseje",b:"MAKRO · 23:59"})),tag:"dl-1"},{at:far,body:"x"},{at:tooFar,body:"x"}]},origin:SK});
+ok(pl.st===200&&pl.j.n===2,"Škola: plán uložený bez tokenu, horizont 45 dní");
+await call("/dev/plan",{body:{id:ds2.j.id,k:D2.sub.keys.auth,items:[]},origin:SK});
+ok(JSON.parse(store.get("rem:dev:"+ds.j.id)).items.length===2,"Škola: plán druhého zařízení nepřepíše plán prvního");
+ok(JSON.parse(store.get("rem:vojta@example.com")).items.length===3,"Škola: plán Pipeline zůstal netknutý");
+ok(!/Odevzdání/.test(store.get("rem:dev:"+ds.j.id)),"Škola: prostředník obsah termínů nevidí");
+sent.length=0;const nd=await cron(env,at2);
+ok(nd===1&&sent.length===1&&sent[0].u===D1.sub.endpoint&&JSON.parse(decrypt(D1,sent[0].body).text).b==="MAKRO · 23:59","Škola: v čas dojde na správné zařízení a dešifruje se");
+sent.length=0;const sd=await call("/dev/send",{body:{id:ds.j.id,k:k1,items:[{body:PC.b64u(await PC.encrypt(dk,{t:"Ukázka"}))}]},origin:SK});
+ok(sd.j.sent===1&&sent.length===1,"Škola: okamžitá ukázka na vlastní zařízení");
+gone.add(D2.sub.endpoint);await call("/dev/send",{body:{id:ds2.j.id,k:D2.sub.keys.auth,items:[{body:"AAAA"}]},origin:SK});
+ok(!store.get("dev:"+ds2.j.id)&&!JSON.parse(store.get("users")).includes("dev:"+ds2.j.id),"Škola: zrušený odběr (410) se smaže i s plánem");
+const du=await call("/dev/unsubscribe",{body:{id:ds.j.id,k:k1},origin:SK});
+ok(du.j.ok&&!store.get("dev:"+ds.j.id)&&!store.get("rem:dev:"+ds.j.id),"Škola: vypnutí smaže zařízení i plán");
 console.log(`\n${pass} prošlo, ${fail} selhalo`);if(fail)process.exit(1);
