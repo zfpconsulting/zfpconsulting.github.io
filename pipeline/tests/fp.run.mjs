@@ -324,6 +324,20 @@ tests["slide sociální vs. pojištění: 3 animované snímky hned za modelací
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+/* ---- slide ŽP: automatická modelace NN – jen rizika s pojistnou částkou, PČ a pojistné ---- */
+tests["slide ŽP: tabulka z výpočtu NN má jen rizika s pojistnou částkou, PČ a měsíční pojistné; děti a součet sedí"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, { klient: { jmeno: "Jan Novák", narozen: "1988-05-05", zam: 55000, vydaje_osobni: 40000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 75000 }, partner: { zapnuto: false },
+    deti: [{ jmeno: "Anička", narozen: "2018-04-01", vs: false }], majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 200000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }], cile: [],
+    renta: { mesicne: 0, od_veku: "" }, nastaveni: { nn_dite: 400 }, pojisteni: { zivotni: { stav: 0 } } });
+  const o = await page.evaluate(() => { compute(); const f = FR.find(x => x.g === "zp0"); const e = document.createElement("div"); e.innerHTML = f.h;
+    return { auto: R.pojAuto, celkem: R.nn.celkem, nove: R.pojNove, t: e.textContent.replace(/ /g, " "), rows: e.querySelectorAll("table tr").length, bad: /Infinity|NaN|undefined/.test(f.h) }; });
+  assert(o.auto, "automatický výpočet"); eq(o.nove, o.celkem, "pojistné ve slidu = výpočet NN"); eq(o.bad, false, "bez Infinity/NaN/undefined");
+  assert(/Pojistná částka/i.test(o.t) && /Pojistné/.test(o.t) && /NN Orange Risk/.test(o.t), "tabulka s PČ a pojistným");
+  assert(!/0 Kč\s*0 Kč/.test(o.t), "žádný řádek s nulovou pojistnou částkou");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();

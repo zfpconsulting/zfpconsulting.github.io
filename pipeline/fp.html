@@ -200,13 +200,81 @@ const PROD_IDX = Object.fromEntries(PRODUKTY.map(p => [p.k, p]));
 
 const DEFAULT_SET = { inflace: 0.03, hotovost_nom: 0.02, renta_let: 20, doziti: 85, renta_r: 0.045, dip_strop: 4000, dps_nom: 0.07, dan: 0.15, smrt_nasobek: 3,
   prac_inv1: 0.5, prac_inv2: 0.3, dluh_mix: 0.5, cq_mgmt: 0.01, cq_success: 0.05, auv_tarif: "M", eur_kurz: 24.5,
-  akc_prod: "cq_akc", dluh_p1: "zfpi", dluh_p2: "cq_dluh", dip_prod: "cq_dip" };
+  akc_prod: "cq_akc", dluh_p1: "zfpi", dluh_p2: "cq_dluh", dip_prod: "cq_dip",
+  nn_smrt: "klesajici", nn_inv: "klesajici", nn_fitsport: "", nn_propoj: "", nn_dite: "" };
 const PP = "Penzijní připojištění (PP)", DPS = "Doplňkové penzijní spoření (DPS)", DPS_OLD = "Penzijní připojištění (DPS)";
 /* V prezentacích je jen životní pojištění (majetkové – nemovitost, domácnost, auto – se do plánu nezahrnuje). */
 const POJ_TYPY = [["zivotni", "Životní pojištění"]];
 const CASH = ["Běžný účet", "Spořicí účet", "Termínovaný vklad"];
 const MOVE = ["Podílový fond (OPF)", "ETF", "Akcie / dluhopisy (přímé)", "Stavební spoření"];
 const DETI_POJ = { tnu: 1000000, progrese: 10, zo: 500000, dou: 400 };
+/* ---------------- NN Orange Risk: měsíční pojistné z modelací ve Stele ----------------
+   Sazby = měsíční pojistné za jednotku PČ (1 000 000 Kč, u denních dávek 100 Kč/den) podle vstupního věku, konec pojištění 65 let
+   (modelace NN Stela 2.0, 10/2026). Mezi tabulkovými věky lineárně. Věk mimo 20–60 nebo konec před 65. rokem → upozornění (ověřit ve Stele). */
+const NN_VEKY = [20, 25, 30, 35, 37, 40, 45, 50, 55, 60];
+const NN_SAZ = {
+  "SMTV-P2R": { n: "Smrt (konstantní PČ)", j: 1e6, k: 65, m: [120, 128, 143, 181, 214, 261, 456, 760, 1140, 1615] },
+  "SMTV-K2R": { n: "Smrt (klesající PČ)", j: 1e6, k: 65, m: [60, 62, 76, 100, 122, 152, 247, 437, 713, 1140] },
+  "INV3-P2R": { n: "Invalidita III. st. (konstantní)", j: 1e6, k: 65, m: [81, 95, 124, 181, 213, 257, 361, 523, 646, 703] },
+  "INV2-P2R": { n: "Invalidita II. st. (konstantní)", j: 1e6, k: 65, m: [38, 43, 57, 86, 104, 128, 181, 257, 314, 333] },
+  "INV1-P2R": { n: "Invalidita I. st. (konstantní)", j: 1e6, k: 65, m: [105, 128, 176, 257, 301, 366, 523, 665, 808, 884] },
+  "INV3-K2R": { n: "Invalidita III. st. (klesající)", j: 1e6, k: 65, m: [57, 62, 71, 95, 113, 138, 200, 290, 361, 371] },
+  "INV2-K2R": { n: "Invalidita II. st. (klesající)", j: 1e6, k: 65, m: [29, 33, 43, 57, 67, 81, 114, 162, 190, 200] },
+  "INV1-K2R": { n: "Invalidita I. st. (klesající)", j: 1e6, k: 65, m: [53, 73, 103, 152, 183, 214, 299, 380, 447, 523] },
+  "PN29-P3R": { n: "Pracovní neschopnost od 29. dne", j: 100, k: 65, m: [63.5, 65.5, 68, 74.8, 83.8, 93, 101, 134, 155.3, 165] },
+  "TN01-P1R": { n: "Trvalé následky úrazu od 1 %", j: 1e5, k: 65, m: Array(10).fill(1.6) },
+  "TN10-P1R": { n: "Trvalé následky úrazu od 10 %", j: 1e5, k: 65, m: Array(10).fill(1) },
+  "DOU3-P1R": { n: "Denní odškodné úrazu od 3 dnů", j: 100, k: 65, m: Array(10).fill(60) },
+};
+/* sazba za jednotku pro vstupní věk (lineárně mezi tabulkovými věky); null = mimo tabulku */
+function nnSazba(tarif, vek) {
+  const t = NN_SAZ[tarif]; if (!t || !(vek >= NN_VEKY[0]) || vek > NN_VEKY[NN_VEKY.length - 1]) return null;
+  for (let i = 0; i < NN_VEKY.length - 1; i++) { const a = NN_VEKY[i], b = NN_VEKY[i + 1]; if (vek <= b) return t.m[i] + (t.m[i + 1] - t.m[i]) * (vek - a) / (b - a); }
+  return t.m[t.m.length - 1];
+}
+/* vstupní (technický) věk = rok počátku − rok narození; počátek = 1. den příštího měsíce */
+const nnPocatek = today => new Date(today.getFullYear(), today.getMonth() + 1, 1);
+const nnVek = (nar, d) => d.getFullYear() - nar.getFullYear();
+/* rizika osoby z doporučení plánu → pojistné. o = { jmeno, vstup, smrt, smrtKonec, inv:[pc1,pc2,pc3], invKonec, pnDen }, opt = { smrt, inv, prirazka, fitsport } */
+function nnOsoba(o, opt, S, flags) {
+  const rows = [], vek = o.vstup, add = (tarif, pc, konecVek) => {
+    if (!(pc > 0)) return;
+    const t = NN_SAZ[tarif], s = nnSazba(tarif, vek), doba = Math.max(0, konecVek - vek);
+    if (doba <= 0) { flags.push(`NN: ${o.jmeno} – ${t.n}: vstupní věk ${vek} let je na konci pojištění (${konecVek}) – riziko nelze sjednat.`); return; }
+    if (s == null) flags.push(`NN: ${o.jmeno} – pro vstupní věk ${vek} let chybí sazba (${t.n}) – pojistné doplň ze Stely.`);
+    else if (konecVek < t.k) flags.push(`NN: ${o.jmeno} – ${t.n} do ${konecVek} let, sazby jsou z modelací s koncem v ${t.k} letech – pojistné je orientační, ověř ve Stele.`);
+    rows.push({ tarif, nazev: t.n, pc, jedn: t.j === 100 ? "Kč/den" : "Kč", konec: konecVek, doba, zaklad: s == null ? null : pc / t.j * s });
+  };
+  if (o.smrt > 0) add(opt.smrt === "konstantni" ? "SMTV-P2R" : "SMTV-K2R", o.smrt, o.smrtKonec || 65);
+  const ik = opt.inv === "konstantni" ? "P2R" : "K2R";
+  [3, 2, 1].forEach(st => add(`INV${st}-${ik}`, o.inv[st - 1], o.invKonec || 65));
+  if (o.pnDen > 0) add("PN29-P3R", o.pnDen, o.invKonec || 65);
+  const priraz = Math.max(0, n0(opt.prirazka)) / 100, fit = opt.fitsport ? Math.max(0, n0(S.nn_fitsport)) / 100 : 0;
+  if (opt.fitsport && !n0(S.nn_fitsport)) flags.push(`NN: ${o.jmeno} má FitSport, ale v Nastavení chybí výše slevy FitSport (%).`);
+  rows.forEach(r => { if (r.zaklad == null) { r.mes = null; return; } r.prir = r.zaklad * priraz; r.mes = Math.round((r.zaklad + r.prir) * (1 - fit)); });
+  const ok = rows.filter(r => r.mes != null);
+  return { jmeno: o.jmeno, vek, rizika: rows, prirazka: priraz * 100, fitsport: fit * 100, celkem: ok.reduce((a, r) => a + r.mes, 0), kompletni: ok.length === rows.length };
+}
+/* celá smlouva: dospělí z katastrof + děti (standardní balíček DETI_POJ) + sleva za propojištěnost z celkového pojistného */
+function nnSmlouva(inp, katastrofy, deti, S, today, flags) {
+  const poc = nnPocatek(today), raw = [inp.klient || {}].concat(inp.partner && inp.partner.zapnuto ? [inp.partner] : []);
+  const osoby = katastrofy.map((k, i) => { const p = k.osoba, r = raw[i] || {}, vstup = nnVek(p.nar, poc);
+    const invKonec = Math.min(65, nnVek(p.nar, k.konec)), smrtTyp = S.nn_smrt || "klesajici";
+    let smrtKonec = 65;
+    if (smrtTyp === "kratsi") smrtKonec = Math.min(65, vstup + Math.max(1, Math.ceil(k.smrt.roky || 0)));
+    return nnOsoba({ jmeno: p.jmeno, vstup, smrt: k.smrt.treba ? k.smrt.pc : 0, smrtKonec, inv: k.invAll.map(x => x.pcDop), invKonec, pnDen: k.pn.treba ? k.pn.denniDop : 0 },
+      { smrt: smrtTyp === "kratsi" ? "konstantni" : smrtTyp, inv: S.nn_inv || "klesajici", prirazka: r.nn_prirazka, fitsport: !!r.nn_fitsport }, S, flags); });
+  const dCena = S.nn_dite === "" || S.nn_dite == null ? null : n0(S.nn_dite);
+  if (deti.length && dCena == null) flags.push("NN: pojistné dětí (balíček úraz 1 mil. ×10, závažná onemocnění 500 tis., 400 Kč/den) chybí v Nastavení – do součtu se nepočítá.");
+  const dite = deti.map(d => ({ jmeno: d.jmeno, vek: Math.floor(d.vek), rizika: [
+    { nazev: "Trvalé následky úrazu PREMIUM (10× progrese)", pc: DETI_POJ.tnu, jedn: "Kč" }, { nazev: "Závažná onemocnění dětí", pc: DETI_POJ.zo, jedn: "Kč" }, { nazev: "Denní odškodné úrazu", pc: DETI_POJ.dou, jedn: "Kč/den" }], celkem: dCena }));
+  const hrubo = osoby.reduce((a, o) => a + o.celkem, 0) + dite.reduce((a, d) => a + (d.celkem || 0), 0);
+  const propoj = (inp.pojisteni || {}).nn_propoj ? Math.max(0, n0(S.nn_propoj)) / 100 : 0;
+  if ((inp.pojisteni || {}).nn_propoj && !n0(S.nn_propoj)) flags.push("NN: zapnutá sleva za propojištěnost, ale v Nastavení chybí její výše (%).");
+  const sleva = Math.round(hrubo * propoj), celkem = hrubo - sleva;
+  const kompletni = osoby.every(o => o.kompletni) && (!deti.length || dCena != null);
+  return { pocatek: poc, osoby, deti: dite, hrubo, propoj: propoj * 100, sleva, celkem, kompletni };
+}
 
 /* ---------------- motivace: z citátu (a cílů) automaticky 3 hodnoty s ikonou ---------------- */
 const TEMATA = [
@@ -232,7 +300,19 @@ function motivace(text, cile, renta) {
 }
 const bezPartnera = inp => !!(inp.klient && inp.klient.bez_partnera) && !(inp.partner && inp.partner.zapnuto);
 
+/* Navržené pojistné prázdné → doplní se z NN sazeb. Pojistné ubírá cash flow plánu a to mění krytí, proto se počítá dokola, dokud se neustálí. */
 function compute(inp, today, ext) {
+  let R = compute0(inp, today, ext);
+  const PJ = inp.pojisteni || {}, Z = PJ.zivotni || {}, rucne = (Z.navrh !== "" && Z.navrh != null) || (!PJ.zivotni && PJ.navrh);
+  if (rucne || !R.nn || !(R.nn.celkem > 0)) return R;
+  let prev = -1;
+  for (let i = 0; i < 8 && R.nn.celkem !== prev; i++) { prev = R.nn.celkem;
+    R = compute0(Object.assign({}, inp, { pojisteni: Object.assign({}, PJ, { zivotni: Object.assign({}, Z, { navrh: prev }) }) }), today, ext); }
+  R.pojAuto = true;
+  if (!R.nn.kompletni) R.flags.push("NN: navržené pojistné neobsahuje rizika bez sazby – doplň je ze Stely, nebo zadej pojistné ručně.");
+  return R;
+}
+function compute0(inp, today, ext) {
   ext = ext || {};
   today = today || new Date();
   const T0 = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -593,6 +673,7 @@ function compute(inp, today, ext) {
   if (!zavisli) flags.push(zavazky > 0 ? "Úmrtí: bez partnera a dětí — krytí jen na splacení úvěrů." : "Úmrtí: bez partnera, dětí a závazků — nejsou závazky pro zajištění.");
   katastrofy.forEach(k => { if (!k.pn.treba) flags.push(`${k.osoba.jmeno}: rezerva ${kc(k.pn.uspory)} pokryje 12 měsíců nemoci (potřeba ${kc(k.pn.need12)}) — PN není nutné pojistit.`); });
   const detiPoj = deti.map(d => Object.assign({ jmeno: d.jmeno, vek: d.vek }, DETI_POJ));
+  const nn = nnSmlouva(inp, katastrofy, deti, S, today, flags);
   // ---------- časová osa
   const hodnota = m => rezVklad + cile.reduce((s, c) => s + (m < c.months ? fvOf(c.vklad, c.pmt, c.r, m, c.fee) + fvInh(c.inh, c, m) : 0), 0) + (renta ? fvOf(renta.vklad, renta.pmt, renta.r, Math.min(m, renta.months), renta.fee) + fvInh(renta.inh, renta, Math.min(m, renta.months)) : 0);
   const udalosti = [{ typ: "start", datum: T0, titul: "Start plánu", m: 0 }];
@@ -613,11 +694,11 @@ function compute(inp, today, ext) {
   udalosti.forEach(u => { u.v = vyvoj[Math.min(mEnd, Math.max(0, u.m))]; u.vPred = u.m > 0 ? vyvoj[Math.min(mEnd, u.m - 1)] : u.v; });
   return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { cil: rezCil, vklad: rezVklad, chybi: rezChybi, pravidlo: rezPravidlo },
     maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
-    cile, renta, pojNove, poj, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
+    cile, renta, pojNove, poj, nn, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
     portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, toky, vyvoj, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
 }
-return { POJ_TYPY, PP, DPS, compute, alok, bezHot, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
+return { NN_SAZ, NN_VEKY, nnSazba, nnOsoba, POJ_TYPY, PP, DPS, compute, alok, bezHot, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
 });
 </script>
 <script>/* Export živé prezentace do PowerPointu (.pptx) – nativní tvary a texty, přechod Morph mezi snímky stejné skupiny.
@@ -907,7 +988,15 @@ function renderEditor(){
   ()=>`<details open><summary>Cíle</summary>${(migCile(I),rows("cile",[["Cíl","nazev","text","1.4fr"],["Částka (dnešní ceny)","castka","number"],["Za kolik let","za_let","number"]],{nazev:"",castka:0,za_let:""}))}</details>
    <details open><summary>Renta</summary><div class="g">${fld("Renta Kč/měs (dnešní ceny)","renta.mesicne")}${fld("Renta od věku (prázdné = důchod)","renta.od_veku")}</div>
    <p class="hint">Do starobního důchodu celá renta, potom jen dorovnání ke státnímu důchodu (odhad z IOLDP u klienta) až do věku ${esc(String(((I.nastaveni||{}).doziti)||FPE.DEFAULT_SET.doziti))} let.</p></details>`,
-  ()=>{migPoj(I);return `<details open><summary>Životní pojištění</summary><div class="g">${fld("Stávající pojistné / měs","pojisteni.zivotni.stav")}${fld("Navržené pojistné / měs","pojisteni.zivotni.navrh")}</div>
+  ()=>{migPoj(I);return `<details open><summary>Životní pojištění</summary><div class="g">${fld("Stávající pojistné / měs","pojisteni.zivotni.stav")}${fld("Navržené pojistné / měs","pojisteni.zivotni.navrh","number",'placeholder="prázdné = výpočet NN Orange"')}</div>
+   <div class="hint" style="margin-top:8px"><b>Modelace NN Orange Risk</b> – pojistné se počítá z doporučeného krytí (jen když je „Navržené pojistné“ prázdné)</div>
+   <div class="g">${sel("Smrt","nastaveni.nn_smrt",[["klesajici","klesající PČ do 65 let"],["konstantni","konstantní PČ do 65 let"],["kratsi","konstantní, kratší doba (do konce závislosti)"]])}${sel("Invalidita","nastaveni.nn_inv",[["klesajici","klesající PČ"],["konstantni","konstantní PČ"]])}
+   ${[["klient",I.klient]].concat(I.partner&&I.partner.zapnuto?[["partner",I.partner]]:[]).map(([k,o])=>fld(`${esc((o&&o.jmeno)||k)}: přirážka povolání/sport %`,k+".nn_prirazka","number",'placeholder="0"')).join("")}</div>
+   ${[["klient",I.klient]].concat(I.partner&&I.partner.zapnuto?[["partner",I.partner]]:[]).map(([k,o])=>`<label class="chk"><input type="checkbox" data-p="${k}.nn_fitsport" ${get(I,k+".nn_fitsport")?"checked":""}> ${esc((o&&o.jmeno)||k)}: FitSport</label>`).join("")}
+   <label class="chk"><input type="checkbox" data-p="pojisteni.nn_propoj" ${get(I,"pojisteni.nn_propoj")?"checked":""}> Sleva za propojištěnost</label>
+   <div class="g">${fld("Sleva FitSport %","nastaveni.nn_fitsport","number",'placeholder="doplň ze Stely"')}${fld("Sleva za propojištěnost %","nastaveni.nn_propoj","number",'placeholder="doplň ze Stely"')}${fld("Pojistné dítěte / měs (balíček)","nastaveni.nn_dite","number",'placeholder="doplň ze Stely"')}</div>
+   <div id="nnPrev" class="hint"></div>
+   <p class="hint">Sazby z modelací NN Stela 2.0 (konec pojištění 65 let, mezi věky lineárně). Přirážka se připočte k pojistnému osoby, FitSport ho sníží, propojištěnost snižuje celé pojistné smlouvy. Finální částka je vždy ta ze Stely.</p>
    <label class="f">Screenshot modelace ŽP (zůstane jen do zavření stránky)<input type="file" id="shotIn" accept="image/*"></label>
    <p class="hint">Děti se pojišťují vždy stejně: trvalé následky úrazu 1 000 000 Kč s 10× progresí, závažná onemocnění dětí 500 000 Kč, denní odškodné léčení úrazu 400 Kč/den.</p></details>
    <p class="hint">Pojistné se nepočítá do výdajů – v plánu se platí z volného cash flow. Majetkové pojištění (nemovitost, domácnost, auto) se do prezentace nezahrnuje.</p>`},
@@ -1153,17 +1242,19 @@ function buildFrames(I,R){
         <ul class="k" data-k="det" style="position:absolute;left:870px;top:198px;width:620px;margin:0;padding-left:22px;font-size:18px;line-height:1.6">${det.map(d=>`<li>${d}</li>`).join("")}</ul>`+seg+axis+
         `<div class="foot">Po jednotlivci: čistý příjem osoby proti jejím výdajům. Invalidní důchod z IOLDP. Zaměstnanec: 1.–14. den náhrada mzdy, pak nemocenská 60 / 66 / 72 % redukovaného DVZ; OSVČ bez dobrovolného nemocenského nemá v nemoci nic. Dočasné příjmy nepočítáme.</div>`,lbl:jm+": "+short});
     });
+    const no=R.nn&&R.nn.osoby[pi],multiNN=!!(R.nn&&(R.nn.osoby.length+R.nn.deti.length>1));
     F.push({g:"zp"+pi,h:chrome("Návrh životního pojištění","Doporučené krytí pro zajištění příjmu – "+esc(p.jmeno))+
-      `<div class="shot" style="left:80px;top:180px;width:860px;height:560px">${SHOT[DB.cur]&&pi===0?`<img src="${SHOT[DB.cur]}" alt="Modelace">`:"sem patří screenshot modelace (nahraj ho v editoru → Pojištění)"}</div>
-      <div class="card" style="left:990px;top:180px;width:530px;height:560px"></div>
+      (SHOT[DB.cur]&&pi===0?`<div class="shot" style="left:80px;top:180px;width:860px;height:560px"><img src="${SHOT[DB.cur]}" alt="Modelace"></div>`:R.pojAuto?nnSlideTable(no,true):`<div class="shot" style="left:80px;top:180px;width:860px;height:560px">sem patří screenshot modelace (nahraj ho v editoru → Pojištění)</div>`)+
+      `<div class="card" style="left:990px;top:180px;width:530px;height:560px"></div>
       <div style="position:absolute;left:1020px;top:205px;font-size:22px;font-weight:900">Doporučené krytí</div>
       <ul style="position:absolute;left:1020px;top:248px;width:480px;margin:0;padding-left:20px;font-size:16.5px;line-height:1.55">
        ${k.invAll.map(x=>`<li>Invalidita ${["I.","II.","III."][x.st-1]} st.: <b class="o">${kc(x.pcDop)}</b> <span class="mut">(min. ${kc(x.pcMin)})</span></li>`).join("")}
-       <li class="mut" style="list-style:none;font-size:13.5px;margin:-2px 0 4px">klesající renta na ${Math.round(k.roky)} let – ${k.doRenty?"do začátku renty":"do důchodu"}</li>
+       <li class="mut" style="list-style:none;font-size:13.5px;margin:-2px 0 4px">${(R.S.nn_inv||"klesajici")==="konstantni"?"konstantní":"klesající"} renta na ${Math.round(k.roky)} let – ${k.doRenty?"do začátku renty":"do důchodu"}</li>
        <li>Pracovní neschopnost: ${k.pn.treba?`<b class="o">${fmt(k.pn.denniDop)} Kč/den</b> ${k.pn.denniMin&&k.pn.denniMin<k.pn.denniDop?`<span class="mut">(min. ${fmt(k.pn.denniMin)})</span>`:""}`:`<b class="grn">kryje rezerva</b>`}</li>
        <li>Úmrtí: ${k.smrt.treba?`<b class="o">${kc(k.smrt.pc)}</b>${k.smrt.zavisli?"":' <span class="mut">(úvěry)</span>'}`:`<b class="grn">nejsou závazky pro zajištění</b>`}</li>
-       <li>Závažná onemocnění: dle modelace</li></ul>
-      <div style="position:absolute;left:1020px;top:640px;font-size:15px;color:#b4b4b4">Měsíční pojistné</div>
+       <li>Závažná onemocnění: dle modelace</li>
+       ${R.pojAuto&&no&&no.prirazka?`<li>Přirážka za povolání/sport ${no.prirazka} %</li>`:""}${R.pojAuto&&no&&no.fitsport?`<li>Sleva FitSport ${no.fitsport} %</li>`:""}${R.pojAuto&&R.nn.sleva?`<li>Sleva za propojištěnost ${R.nn.propoj} % (celá smlouva)</li>`:""}</ul>
+      <div style="position:absolute;left:1020px;top:640px;font-size:15px;color:#b4b4b4">Měsíční pojistné${multiNN?" (celá rodina)":""}</div>
       <div style="position:absolute;left:1020px;top:665px;font-size:40px;font-weight:900">${fmt(R.pojNove)},–${NB}Kč</div>
       <div style="position:absolute;left:80px;top:775px;font-size:20px;font-weight:900">Proč pojištění?</div>
       ${["Výpadek příjmu neohrozí plán","Rezerva zůstane nedotčená",p.osvc?"OSVČ nemá nemocenskou":k.smrt.treba?"Závazky jsou kryté":"Platíte jen za to, co potřebujete","Invalida neznamená chudobu","Vážná nemoc bez finančního stresu"].map((t,i)=>`<div style="position:absolute;left:${80+i*292}px;top:815px;display:flex;gap:8px;align-items:center;font-size:15px">${ICON.check}${t}</div>`).join("")}`,lbl:"ŽP "+jm});
@@ -1226,7 +1317,8 @@ function buildFrames(I,R){
       <div style="position:absolute;left:${x+30}px;top:430px;width:${w-60}px;font-size:17px;line-height:1.5">
        <div class="mut" style="font-size:14px">Trvalé následky úrazu</div><div style="font-size:24px;font-weight:900" class="o">${kc(d.tnu)}</div><div class="mut" style="font-size:13px;margin-bottom:12px">s ${d.progrese}× progresí – až ${mil(d.tnu*d.progrese)}</div>
        <div class="mut" style="font-size:14px">Závažná onemocnění dětí</div><div style="font-size:22px;font-weight:900">${kc(d.zo)}</div>
-       <div class="mut" style="font-size:14px;margin-top:10px">Léčení úrazu</div><div style="font-size:22px;font-weight:900">${fmt(d.dou)} Kč/den</div></div>`}).join("")+
+       <div class="mut" style="font-size:14px;margin-top:10px">Léčení úrazu</div><div style="font-size:22px;font-weight:900">${fmt(d.dou)} Kč/den</div>
+       ${R.pojAuto&&R.nn&&R.nn.deti[i]&&R.nn.deti[i].celkem!=null?`<div class="mut" style="font-size:14px;margin-top:14px">Pojistné</div><div style="font-size:22px;font-weight:900" class="o">${kc(R.nn.deti[i].celkem)} / měs</div>`:""}</div>`}).join("")+
      `<div class="foot">Progrese 10×: při těžkém trvalém poškození se pojistné plnění násobí až desetkrát. Závažná onemocnění: rakovina, cukrovka 1. typu, meningitida a další dle podmínek pojišťovny.</div>`,lbl:"Pojištění dětí"})}
   F.push(...planFrames(true,"p2"));
   // realokace – struktura aktiv: nyní → nově (2 snímky, animovaný přechod)
@@ -1470,6 +1562,21 @@ function show(stageEl,i,animate){
   if(old&&animate!==false){el.classList.add("enter");stageEl.appendChild(el);requestAnimationFrame(()=>requestAnimationFrame(()=>{el.classList.remove("enter");old.classList.add("leave");setTimeout(()=>old.remove(),700)}))}
   else{stageEl.innerHTML="";stageEl.appendChild(el)}
 }
+/* modelace NN: jen rizika, která plánu vyšla (PČ > 0) */
+function nnRows(o){return o.rizika.filter(r=>r.pc>0)}
+function nnTable(nn){const one=o=>`<tr><th colspan="3" style="text-align:left;padding-top:6px">${esc(o.jmeno)} · vstupní věk ${o.vek}${o.prirazka?` · přirážka ${o.prirazka} %`:""}${o.fitsport?` · FitSport −${o.fitsport} %`:""}</th></tr>`+
+   nnRows(o).map(r=>`<tr><td>${esc(r.nazev)}</td><td style="text-align:right">${r.jedn==="Kč/den"?fmt(r.pc)+" Kč/den":kc(r.pc)}</td><td style="text-align:right">${r.mes==null?"dle Stely":kc(r.mes)}</td></tr>`).join("");
+  const dt=nn.deti.map(d=>`<tr><th colspan="3" style="text-align:left;padding-top:6px">${esc(d.jmeno)} · ${d.vek} let</th></tr><tr><td colspan="2">${d.rizika.map(r=>esc(r.nazev)).join(", ")}</td><td style="text-align:right">${d.celkem==null?"dle Stely":kc(d.celkem)}</td></tr>`).join("");
+  return `<table style="width:100%;border-collapse:collapse;font-size:12.5px">${nn.osoby.map(one).join("")}${dt}${nn.sleva?`<tr><td colspan="2">Sleva za propojištěnost ${nn.propoj} %</td><td style="text-align:right">−${kc(nn.sleva)}</td></tr>`:""}<tr><th colspan="2" style="text-align:left;padding-top:6px">Celkem měsíčně</th><th style="text-align:right">${kc(nn.celkem)}</th></tr></table>`}
+function nnSlideTable(o,auto){if(!o)return "";const rs=nnRows(o);
+  return `<div class="card" style="left:80px;top:180px;width:860px;height:560px"></div>
+   <div style="position:absolute;left:110px;top:205px;font-size:22px;font-weight:900">Modelace pojištění – ${esc(o.jmeno.split(" ")[0])}</div>
+   <table style="position:absolute;left:110px;top:255px;width:800px;border-collapse:collapse;font-size:19px">
+    <tr style="color:#b4b4b4;font-size:14px"><td style="padding:0 0 10px">Riziko</td><td style="text-align:right;padding:0 0 10px">Pojistná částka</td>${auto?'<td style="text-align:right;padding:0 0 10px">Pojistné / měs</td>':""}</tr>
+    ${rs.map(r=>`<tr style="border-top:1px solid rgba(255,255,255,.12)"><td style="padding:14px 0">${esc(r.nazev)}<div class="mut" style="font-size:13px">${r.doba?`na ${r.doba} let (do ${r.konec} let)`:""}</div></td><td style="text-align:right;font-weight:900" class="o">${r.jedn==="Kč/den"?fmt(r.pc)+NB+"Kč/den":kc(r.pc)}</td>${auto?`<td style="text-align:right;font-weight:900">${r.mes==null?'<span class="mut">dle Stely</span>':kc(r.mes)}</td>`:""}</tr>`).join("")||`<tr><td class="mut" style="padding:14px 0">Plán nevyžaduje žádné připojištění.</td></tr>`}
+   </table>
+   ${auto&&rs.length?`<div style="position:absolute;left:110px;top:660px;width:800px;text-align:right;font-size:18px;font-weight:900">Celkem ${esc(o.jmeno.split(" ")[0])}: ${kc(o.celkem)} / měs</div>`:""}
+   <div class="mut" style="position:absolute;left:110px;top:700px;font-size:13px">NN Orange Risk · počátek ${R.nn.pocatek.getMonth()+1}/${R.nn.pocatek.getFullYear()} · závazná je modelace ve Stele</div>`}
 function update(){
   compute();if(cur>=FR.length)cur=FR.length-1;
   const st=$("#stage");st.innerHTML="";show(st,cur,false);scaleStage($("#box"),st);
@@ -1477,6 +1584,7 @@ function update(){
   $("#thumbs").innerHTML=FR.map((f,i)=>`<button data-i="${i}" class="${i===cur?"on":""}" title="${esc(f.lbl)}"><div class="mini"><div class="sl">${f.h}</div></div><span class="tl">${i+1}. ${esc(f.lbl)}</span></button>`).join("");
   renderCheck();
   const ko=$("#kontrola");if(ko&&R&&R.kontrola)ko.innerHTML=(R.manual?"":`<li style="color:var(--mut)">Automatický návrh – zaškrtni „Upravit ručně“ pro vlastní rozdělení.</li>`)+R.kontrola.map(x=>`<li style="color:${x.ok?"#3E9B7A":"#DF6A6A"};font-weight:${x.ok?400:700}">${esc(x.t)}</li>`).join("");
+  const np=$("#nnPrev");if(np&&R&&R.nn)np.innerHTML=R.pojAuto?nnTable(R.nn):"Pojistné zadané ručně – výpočet NN se nepoužívá.";
   const mp=$("#motPrev");if(mp&&R)mp.textContent=R.motivace.map(m=>m.t).join(" · ");
   document.querySelectorAll("[data-vs]").forEach(h=>{const q=R&&R.persons[h.dataset.vs==="partner"?1:0];if(!q)return;
     h.textContent=q.vydaje>0?`Osobní výdaje: ${kcm(Math.max(0,q.vydaje-q.vydDom))} – při úmrtí odpadnou. Výdaje domácnosti: ${kcm(q.vydDom)} – zůstanou a krytí smrti je pokrývá.`:""});
