@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://*.workers.dev; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://zfp-push.kudlicka-vojtech2002.workers.dev; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
 <title>Vstupní dotazník – finanční plán</title>
 <style>
 /* Vstupní dotazník k finančnímu plánu. Otázky odpovídají vstupům živé prezentace (fp.html) – co klient vyplní, jde 1:1 do plánu.
@@ -130,7 +130,7 @@ const DRAFT="fp_dotaznik_draft_v1",ADV="dz_poradce_v1";
 const H=new URLSearchParams(EMB?"":location.hash.replace(/^#/,"")),Q=new URLSearchParams(location.search);
 const LINK={to:H.get("to")||"",k:H.get("k")||""};
 /* po odeslání „šťouchnout“ poradci push notifikaci (jen obecná zpráva, žádné údaje) – prostředník worker/push.js */
-const PUSH_URL="";
+const PUSH_URL="https://zfp-push.kudlicka-vojtech2002.workers.dev";
 function pushPing(k){if(!PUSH_URL||!LINK.to)return;try{fetch(PUSH_URL+"/ping",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({to:LINK.to,k}),credentials:"omit",referrerPolicy:"strict-origin",keepalive:true}).catch(()=>{})}catch(e){}}
 /* m=r → odkaz jen na rezervaci schůzky (bez dotazníku) */
 const ONLY=!EMB&&H.get("m")==="r",ADVN=H.get("p")||"";

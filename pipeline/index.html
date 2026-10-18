@@ -2091,7 +2091,7 @@ async function dzBooking(x){
 /* ================= Push notifikace (prostředník na Cloudflare – worker/push.js) =================
    Zařízení se přihlásí k odběru (ověří se Google přihlášením) → chodí sem: nový dotazník, rezervace schůzky, připomínky schůzek.
    Připomínky se šifrují už tady pro každé zařízení zvlášť (pushcrypto.js), prostředník jejich obsah nevidí. */
-const PUSH_URL="";
+const PUSH_URL="https://zfp-push.kudlicka-vojtech2002.workers.dev";
 function pushLib(){return window.PushCrypto?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="pushcrypto.js?v=1";sc.onload=res;sc.onerror=rej;document.head.append(sc)})}
 const pushCan=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
 const pushIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
@@ -6950,7 +6950,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=31#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=32#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};

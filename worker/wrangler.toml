@@ -1,4 +1,5 @@
-# Prostředník pro push notifikace Pipeline – nasazuje se automaticky z GitHubu (.github/workflows/push-worker.yml)
+# Prostředník pro push notifikace Pipeline – účet Cloudflare cffa463d9fe9f24fe733a055de7b75b8, adresa https://zfp-push.kudlicka-vojtech2002.workers.dev
+# Nasazuje se z GitHubu (.github/workflows/push-worker.yml, potřebuje secret CLOUDFLARE_API_TOKEN), nebo ručně: node worker/build.mjs a nahrát worker/bundle.js
 name = "zfp-push"
 main = "push.js"
 compatibility_date = "2025-06-01"
@@ -6,7 +7,7 @@ workers_dev = true
 
 [[kv_namespaces]]
 binding = "KV"
-id = "b647715b987d489898f70263f0d518d1"
+id = "096362da6aa845c0b91c9c840181717c"
 
 [triggers]
 crons = ["* * * * *"]
