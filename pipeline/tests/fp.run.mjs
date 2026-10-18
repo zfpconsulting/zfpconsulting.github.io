@@ -309,10 +309,10 @@ tests["slide sociální vs. pojištění: 3 animované snímky hned za modelací
   await setPlan(page, rodina);
   const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/ /g, " "); };
     const idx = FR.map((f, i) => [f.g, i]).filter(x => /^soc\d$/.test(x[0]));
-    const zp0 = FR.findIndex(f => f.g === "zp0"), s0 = FR.map((f, i) => f.g === "soc0" ? i : -1).filter(i => i >= 0);
+    const zp0 = FR.map(f => f.g).lastIndexOf("zp0"), s0 = FR.map((f, i) => f.g === "soc0" ? i : -1).filter(i => i >= 0);
     return { groups: [...new Set(idx.map(x => x[0]))], n0: s0.length, nextToZp: s0[0] === zp0 + 1, last: t(FR[s0[s0.length - 1]].h), first: t(FR[s0[0]].h), bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl),
       keys: s0.map(i => [...FR[i].h.matchAll(/data-k="(sb0|ib0|sum)"/g)].map(m => m[1]).join(",")), lbl: FR[s0[0]].lbl }; });
-  eq(o.groups, ["soc0", "soc1"], "slide pro každou osobu"); eq(o.n0, 3, "3 snímky = animace karty → stát → + pojištění"); assert(o.nextToZp, "slide je hned za slidem s modelací ŽP");
+  eq(o.groups, ["soc0", "soc1"], "slide pro každou osobu"); eq(o.n0, 3, "3 snímky = animace karty → stát → + pojištění"); assert(o.nextToZp, "slide je hned za slidy s modelací ŽP (včetně varianty FitSport)");
   assert(/5 320/.test(o.first) && /7,1 %/.test(o.first), "sociální pojistné = 7,1 % z hrubé 75 000 = 5 320 Kč");
   assert(/Stát\s+20 000 Kč/.test(o.last) && /pojištění/.test(o.last), "poslední snímek ukazuje dávku státu i doplatek pojištění");
   assert(!/majetku/i.test(o.lbl), "popisek bez „majetku“"); eq(o.bad, [], "bez Infinity / NaN"); assert(o.keys.every(k => k === "sb0,ib0,sum"), "stejné animované prvky ve všech snímcích (" + o.keys.join(" | ") + ")");
@@ -343,7 +343,7 @@ tests["NN Orange Risk: testové případy sedí na korunu se Stelou (jednotlivec
   const { ctx, page, errors } = await open();
   const fx = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./fixtures/nn-stela.json", import.meta.url), "utf8"));
   const res = await page.evaluate(F => Object.entries(F).map(([nazev, c]) => {
-    const fl = [], osoby = c.osoby.map(o => ({ jmeno: o.jmeno, vek: o.vek, dite: !!o.dite, rsPovolani: o.rsPovolani, rsSport: o.rsSport, fit: o.fit,
+    const fl = [], osoby = c.osoby.map(o => ({ jmeno: o.jmeno, vek: o.vek, dite: !!o.dite, maxKonec: o.dite ? o.maxKonec : (o.plan.maxKonec || 65), rsPovolani: o.rsPovolani, rsSport: o.rsSport, fit: o.fit,
       rizika: o.dite ? FPE.nnRizikaDitete({ jmeno: o.jmeno, vek: o.vek }, fl).map(r => Object.assign(r, { konec: Math.min(r.konec, o.maxKonec || 99), doba: Math.min(r.konec, o.maxKonec || 99) - o.vek }))
         : FPE.nnRizikaOsoby(Object.assign({ jmeno: o.jmeno, vstup: o.vek }, o.plan), o.opt || {}, fl) }));
     const R = FPE.nnOcen(osoby, c.hypo, fl);
@@ -377,6 +377,29 @@ tests["NN Orange Risk: navržené pojistné se doplní samo, slide modelace ukaz
   await setPlan(page, Object.assign({}, rodina, { pojisteni: { zivotni: { stav: 0, navrh: 2500 } } }));
   const m = await page.evaluate(() => { compute(); return { auto: !!R.pojAuto, poj: R.pojNove }; });
   eq(m, { auto: false, poj: 2500 }, "ručně zadané pojistné má přednost");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["NN Orange Risk: dospělí mají vždy TNÚ PREMIUM 1 mil., pojistné do konce smlouvy ≥ 100 Kč, za modelací slide s FitSport a logo NN"] = async function () {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(() => {
+    const fl = [], o = FPE.nnRizikaOsoby({ jmeno: "A", vstup: 38, hlavni: true, smrt: 0, inv: [0, 5e5, 1.5e6], invKonec: 55, pnDen: 0 }, {}, fl);
+    const tnu = o.find(x => x.tarif === "TNX1-P1R");
+    /* bez TNÚ (jako kdyby ho nikdo nepřidal): invalidita jen do 55 → do konce smlouvy zbude jen povinná smrt 30 000 Kč → rizika se prodlouží do 65 */
+    const fl2 = [], bez = o.filter(x => x.tarif !== "TNX1-P1R").map(x => Object.assign({}, x));
+    const R2 = FPE.nnOcen([{ jmeno: "A", vek: 38, rizika: bez, maxKonec: 65 }], false, fl2);
+    return { tnu: tnu && [tnu.pc, tnu.konec], kon: R2.osoby[0].rizika.map(x => [x.tarif, x.konec]), dk: R2.doKonce, flag: fl2.some(f => /100 Kč/.test(f)) };
+  });
+  eq(r.tnu, [1000000, 65], "TNÚ PREMIUM 1 mil. do 65"); assert(r.flag, "upozornění na 100 Kč");
+  assert(r.kon.every(([t, k]) => k === 65), "bez TNÚ se rizika prodlouží na maximum (65)"); assert(r.dk >= 100, "pojistné do konce smlouvy ≥ 100 Kč");
+  await setPlan(page, { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 40000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 75000 }, partner: { zapnuto: false },
+    deti: [], majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 200000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }], cile: [], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" } } });
+  const o = await page.evaluate(() => { compute(); const zi = FR.map((f, i) => [f.g, f.lbl, i]).filter(x => x[0] === "zp0"); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
+    return { n: zi.length, lbl: zi.map(x => x[1]), t: zi.map(x => t(FR[x[2]].h)), logo: zi.every(x => FR[x[2]].h.includes(NN_LOGO)), base: R.nn.celkem, fit: R.nnFit && R.nnFit.celkem, poj: R.pojNove }; });
+  eq(o.n, 2, "modelace + hned za ní varianta FitSport"); assert(/FitSport/.test(o.lbl[1]), "druhý snímek je FitSport");
+  assert(o.fit < o.base, "s FitSport je pojistné nižší (" + o.fit + " < " + o.base + ")"); eq(o.poj, o.base, "do plánu jde pojistné bez FitSport");
+  assert(o.t[1].includes("ušetříte " + (o.base - o.fit).toLocaleString("cs-CZ").replace(/\s/g, " ") + " Kč"), "úspora na snímku");
+  assert(o.logo, "logo NN na obou snímcích"); assert(/Trvalé následky úrazu PREMIUM/.test(o.t[0]), "TNÚ PREMIUM na slidu");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
