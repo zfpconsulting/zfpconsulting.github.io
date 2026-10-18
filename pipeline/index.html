@@ -1363,6 +1363,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
       </div>
       <div class="dcfg keepas" id="asCfg"></div>
       <div class="dcfg" id="aiCfg"></div>
+      <div class="dcfg" id="pushCfg"></div>
       <div class="dcfg">
         <label>Šablony zpráv</label>
         <label>Podpis <input id="dSign" placeholder="např. Vojtěch Kudlička, ZFP Group" autocomplete="off"></label>
@@ -2078,6 +2079,69 @@ async function dzBooking(x){
   dzNotify({ic:"cal",t:x.only?"Rezervace schůzky":"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(offBusy?" · POZOR: kancelář je v tu dobu obsazená – domluv online nebo jinou místnost":"")+(r&&r.evId?"":" · do kalendáře se zatím NEZAPSALO"+(r&&r.canWrite?" (chyba Google "+(r.evErr||"")+")":" (nejsi přihlášený ke Google kalendáři)")+" – zapíšu to sám, jakmile to půjde"),lead:l.id,cal:start.toISOString()});
   setTimeout(()=>dzPublishSlots(true),1500);
 }
+/* ================= Push notifikace (prostředník na Cloudflare – worker/push.js) =================
+   Zařízení se přihlásí k odběru (ověří se Google přihlášením) → chodí sem: nový dotazník, rezervace schůzky, připomínky schůzek.
+   Připomínky se šifrují už tady pro každé zařízení zvlášť (pushcrypto.js), prostředník jejich obsah nevidí. */
+const PUSH_URL="";
+function pushLib(){return window.PushCrypto?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="pushcrypto.js?v=1";sc.onload=res;sc.onerror=rej;document.head.append(sc)})}
+const pushCan=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const pushIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const pushStandalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const pushUa=()=>{const u=navigator.userAgent;return (/iPhone/.test(u)?"iPhone":/iPad/.test(u)||pushIOS()&&!/iPhone/.test(u)&&navigator.maxTouchPoints>1?"iPad":/Android/.test(u)?"Android":/Mac/.test(u)?"Mac":/Windows/.test(u)?"Windows":"zařízení")+" · "+(/Edg\//.test(u)?"Edge":/Chrome\//.test(u)?"Chrome":/Firefox\//.test(u)?"Firefox":/Safari\//.test(u)?"Safari":"prohlížeč")};
+const pushRemMin=()=>{const v=settings&&settings.pushRemind;return v==null?30:+v||0};
+async function pushApi(path,opt={}){const t=GAuth.token();if(!t)throw Object.assign(new Error("nepřihlášeno"),{code:401});
+  const r=await fetch(PUSH_URL+path,{method:opt.body?"POST":"GET",headers:{Authorization:"Bearer "+t,...(opt.body?{"Content-Type":"application/json"}:{})},body:opt.body?JSON.stringify(opt.body):undefined,cache:"no-store"});
+  if(!r.ok)throw Object.assign(new Error("push "+r.status),{code:r.status});return r.json()}
+async function pushSub(){if(!pushCan())return null;try{const reg=await navigator.serviceWorker.getRegistration();return reg?await reg.pushManager.getSubscription():null}catch(e){return null}}
+let pushSubsCache=null,pushSubsAt=0,pushBusy=false;
+async function pushEnable(){
+  if(!PUSH_URL){toast("Push notifikace se ještě nasazují – zkus to za chvíli");return}
+  if(!pushCan()){toast(pushIOS()&&!pushStandalone()?"Na iPhonu: v Safari Sdílet → Přidat na plochu, pak otevři Pipeline z ikony a zapni to tam":"Tento prohlížeč push notifikace neumí");return}
+  if(!GAuth.token()){toast("Nejdřív se přihlas Googlem");return}
+  let perm=Notification.permission;if(perm!=="granted")perm=await Notification.requestPermission();
+  if(perm!=="granted"){toast("Notifikace nejsou povolené – povol je pro Pipeline v nastavení prohlížeče / telefonu");renderPushCfg();return}
+  pushBusy=true;renderPushCfg();
+  try{await pushLib();const {pub}=await(await fetch(PUSH_URL+"/vapid",{cache:"no-store"})).json();const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(sub){const k=sub.options&&sub.options.applicationServerKey;if(k&&PushCrypto.b64u(new Uint8Array(k))!==pub){await sub.unsubscribe();sub=null}}
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:PushCrypto.unb64u(pub)});
+    await pushApi("/subscribe",{body:{sub:sub.toJSON(),ua:pushUa()}});
+    pushSubsCache=null;lsSet("push_sig","");if(!settings.pushOn){settings={...settings,pushOn:true};try{await db.doc("settings/main").update({pushOn:true})}catch(e){}}
+    toast("Push notifikace zapnuté na tomto zařízení");pushSyncReminders(true).catch(()=>{})}
+  catch(e){console.warn("push",e);toast("Zapnutí se nepovedlo ("+(e.code||e.message||"chyba")+")")}
+  pushBusy=false;renderPushCfg()}
+async function pushDisable(){pushBusy=true;renderPushCfg();
+  try{const sub=await pushSub();if(sub){const ep=sub.endpoint;await sub.unsubscribe();try{await pushApi("/unsubscribe",{body:{endpoint:ep}})}catch(e){}}pushSubsCache=null;lsSet("push_sig","");toast("Na tomto zařízení vypnuto")}
+  catch(e){toast("Vypnutí se nepovedlo")}pushBusy=false;renderPushCfg()}
+async function pushTest(){try{const r=await pushApi("/test",{body:{}});toast(r.sent?"Zkušební notifikace odeslaná na "+r.sent+" "+plural(r.sent,"zařízení","zařízení","zařízení"):"Žádné zařízení nemá push zapnutý")}catch(e){toast("Nepovedlo se ("+(e.code||e.message)+")")}}
+/* připomínky schůzek na příštích 14 dní – posílá se jen při změně (šetří limity prostředníka) */
+async function pushSyncReminders(force){
+  if(!PUSH_URL||DEMO||!settings||!settings.pushOn||!GAuth.token()||!navigator.onLine||!Array.isArray(calEvents))return;
+  if(!pushSubsCache||force||Date.now()-pushSubsAt>30*60000){pushSubsCache=(await pushApi("/subs")).subs||[];pushSubsAt=Date.now()}
+  const subs=pushSubsCache,mins=pushRemMin(),now=Date.now();
+  const evs=mins?calEvents.filter(e=>{const t=new Date(e.start).getTime()-mins*60000;return t>now+30000&&t<now+14*864e5}).slice(0,120):[];
+  const sig=JSON.stringify([mins,subs.map(x=>x.id),evs.map(e=>[e.id,e.start,e.title,e.place])]);
+  if(!force&&sig===lsGet("push_sig"))return;
+  if(!subs.length){lsSet("push_sig",sig);return}
+  await pushLib();const items=[],za=mins>=60&&mins%60===0?(mins===60?"Za hodinu":"Za "+mins/60+" h"):"Za "+mins+" min";
+  for(const e of evs){const who=(e.name||e.title.replace(prefixRe()||/^$/,"")).trim();
+    const pl={t:za+" schůzka: "+who,b:fmtHM(e.start)+(e.online?" · online":e.place?" · "+e.place:""),u:"./?push=rem",tag:"rem-"+String(e.id).slice(-24)};
+    for(const x of subs)items.push({id:x.id,at:new Date(e.start).getTime()-mins*60000,body:PushCrypto.b64u(await PushCrypto.encrypt(x,pl)),tag:pl.tag})}
+  await pushApi("/reminders",{body:{items}});lsSet("push_sig",sig)}
+setInterval(()=>{pushSyncReminders().catch(()=>{})},10*60000);
+/* klepnutí na notifikaci, když je Pipeline už otevřená: hned zkontrolovat schránku dotazníků/rezervací a kalendář */
+try{navigator.serviceWorker&&navigator.serviceWorker.addEventListener("message",e=>{if(!e.data||e.data.type!=="push-open")return;try{if(!DZI.on)dzStart();Promise.resolve(refreshCalendar()).catch(()=>{});if(/push=(bk|rem)/.test(e.data.u||""))setView("cal")}catch(x){}})}catch(e){}
+async function renderPushCfg(){const box=$("pushCfg");if(!box)return;
+  const sub=await pushSub(),on=!!sub&&Notification.permission==="granted",mins=pushRemMin();
+  const sel=el("select",{"aria-label":"Připomínka před schůzkou"},...[[0,"Vypnuto"],[10,"10 min"],[15,"15 min"],[30,"30 min"],[60,"1 hodinu"],[120,"2 hodiny"]].map(([v,t])=>{const o=el("option",{value:String(v)},t);if(v===mins)o.selected=true;return o}));
+  sel.onchange=async()=>{const v=+sel.value;settings={...settings,pushRemind:v};try{await db.doc("settings/main").update({pushRemind:v})}catch(e){}lsSet("push_sig","");pushSyncReminders(true).catch(()=>{});toast(v?"Připomínka "+sel.options[sel.selectedIndex].text+" před schůzkou":"Připomínky schůzek vypnuté")};
+  const st=!PUSH_URL?"Připravuje se – zapnout půjde po nasazení prostředníka.":!pushCan()?(pushIOS()&&!pushStandalone()?"Na iPhonu fungují jen v Pipeline přidané na plochu (Safari → Sdílet → Přidat na plochu) a otevřené z ikony.":"Tento prohlížeč push notifikace neumí."):
+    Notification.permission==="denied"?"Notifikace jsou pro Pipeline zakázané – povol je v nastavení prohlížeče / telefonu.":on?"Na tomto zařízení zapnuto ("+pushUa()+").":"Na tomto zařízení vypnuto.";
+  box.replaceChildren(el("label",{},"Push notifikace"),el("p",{class:"hint",style:"margin-top:0"},st),
+    el("div",{class:"chips"},on?el("button",{type:"button",class:"dbtn",disabled:pushBusy,onclick:pushDisable},"Vypnout na tomto zařízení"):el("button",{type:"button",class:"dbtn",disabled:pushBusy||!PUSH_URL||!pushCan(),onclick:pushEnable},pushBusy?"Zapínám…":"Zapnout na tomto zařízení"),
+      on?el("button",{type:"button",class:"dbtn",onclick:pushTest},"Poslat zkušební"):null),
+    el("label",{},"Připomínka před schůzkou",sel),
+    el("p",{class:"hint"},"Přijde: nový vstupní dotazník, rezervace schůzky od klienta a připomínka tvých schůzek (VK: …). Zapni na každém zařízení zvlášť. Text připomínek se šifruje přímo v Pipeline – prostředník ani nikdo jiný ho nepřečte; u dotazníku a rezervace jde jen obecná zpráva bez údajů klienta."))}
 /* rezervace, které se nepovedlo zapsat do kalendáře: drží se v nastavení (vidí je všechna zařízení) a zkouší se znovu každou minutu */
 const dzQ=()=>(settings&&Array.isArray(settings.dzBkQ)?settings.dzBkQ:[]);
 async function dzQueue(it){const L=[...dzQ().filter(q=>!(q.lead===it.lead&&q.start===it.start)),{...it,at:Date.now()}].slice(-20);settings={...settings,dzBkQ:L};try{await db.doc("settings/main").update({dzBkQ:L})}catch(e){}}
@@ -5004,7 +5068,7 @@ function calErrorText(e){
   }
 }
 function calFootText(){const c=calCfg();return c.prefix?"Schůzky „"+c.prefix+" Příjmení“ z kalendáře "+c.name+" za posledních 60 dní a nadcházející. Porady a jiné události se ignorují. Změníš v nastavení synchronizace (tlačítko ✓).":"Z kalendáře se nic nenačítá – v nastavení synchronizace (tlačítko ✓) vyplň začátek názvu schůzek, např. „VK:“."}
-function applyCalItems(items){try{$("calFoot").textContent=calFootText()}catch(e){}if(!calCfg().prefix){calEvents=null;calState="error";calMsg="Nastav začátek názvu schůzek (např. VK:) v nastavení synchronizace – tlačítko ✓ vpravo nahoře.";render();return}calEvents=items.map(parseEvent).filter(Boolean);calState="ok";calMsg="";render();scheduleSync()}
+function applyCalItems(items){try{$("calFoot").textContent=calFootText()}catch(e){}if(!calCfg().prefix){calEvents=null;calState="error";calMsg="Nastav začátek názvu schůzek (např. VK:) v nastavení synchronizace – tlačítko ✓ vpravo nahoře.";render();return}calEvents=items.map(parseEvent).filter(Boolean);calState="ok";calMsg="";render();scheduleSync();setTimeout(()=>pushSyncReminders().catch(()=>{}),3000)}
 async function refreshCalendar(){
   if(!calCfg().prefix){calEvents=null;calState="error";calMsg="Nastav začátek názvu schůzek (např. VK:) v nastavení synchronizace – tlačítko ✓ vpravo nahoře.";try{$("calFoot").textContent=calFootText()}catch(e){}render();return}
   if(!GAuth.token()||!navigator.onLine)return;
@@ -6855,7 +6919,7 @@ async function openFP(e,rec){
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=30#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=31#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -7389,7 +7453,7 @@ async function updateEurRate(){
       const a=document.activeElement;if(a&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))return;e.preventDefault();go(k==="y"||e.shiftKey?1:-1)})}
   const saveCal=async patch=>{try{await db.doc("settings/main").set({...settings,...patch});lsSet("cal_cache",null);lsSet("cal_hist",null);calHist=null;calEvents=null;calState="loading";render();refreshCalendar().then(()=>fetchCalHistory(true))}catch(e){toast("Nepodařilo se uložit")}};
   sb.addEventListener("click",async()=>{
-    if(!dd.open)return;renderTpls();if(typeof renderAsCfg==="function")renderAsCfg();if(window.Assistant)Assistant.renderSettings($("aiCfg"));{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
+    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}if(typeof renderAsCfg==="function")renderAsCfg();if(window.Assistant)Assistant.renderSettings($("aiCfg"));{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
     const me=lsGet("g_owner");$("dataInfo").textContent=(me&&!DEMO?"Účet "+me+" · ":"")+($("syncBtn").title||"");
     if(!GAuth.token()){sel.replaceChildren(new Option(c.name,c.id));return}
     try{const cals=await listCalendars();sel.replaceChildren(...cals.map(k=>new Option((k.primary?"★ ":"")+(k.summary||k.id),k.id)));sel.value=cals.some(k=>k.id===c.id)?c.id:(cals.find(k=>k.primary)?.id||"primary")}catch(e){sel.replaceChildren(new Option(c.name,c.id))}

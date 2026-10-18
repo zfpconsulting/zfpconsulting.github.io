@@ -1,0 +1,78 @@
+/* Testy prostředníka pro push (bez sítě): falešné KV + falešný fetch. Dešifrování a ověření podpisu dělá node:crypto,
+   tedy jiná implementace než Web Crypto v pushcrypto.js – ověřuje, že zpráva odpovídá RFC 8291 / 8292. */
+import crypto from "node:crypto";
+import W,{cron} from "./push.js";
+const PC=globalThis.PushCrypto;
+let pass=0,fail=0;const ok=(c,n)=>{if(c){pass++;console.log("✓ "+n)}else{fail++;console.log("✗ "+n)}};
+
+const store=new Map();
+const env={KV:{async get(k,o){const v=store.get(k);if(v==null)return null;return o&&o.type==="json"?JSON.parse(v):v},async put(k,v){store.set(k,String(v))},async delete(k){store.delete(k)}}};
+const sent=[];let gone=new Set();
+globalThis.fetch=async(u,o={})=>{u=String(u);
+  if(u.startsWith("https://www.googleapis.com/oauth2/v3/tokeninfo")){const t=new URL(u).searchParams.get("access_token");
+    if(t==="tok-vk")return new Response(JSON.stringify({email:"Vojta@Example.com",email_verified:"true",expires_in:"3000"}),{status:200});
+    if(t==="tok-jt")return new Response(JSON.stringify({email:"jt@example.com",email_verified:"true",expires_in:"3000"}),{status:200});
+    return new Response("{}",{status:400})}
+  if(u.startsWith("https://push.example/")){sent.push({u,h:o.headers,body:new Uint8Array(o.body)});return new Response("",{status:gone.has(u)?410:201})}
+  throw new Error("neočekávaný fetch "+u)};
+const ORIGIN="https://zfpconsulting.github.io";
+const call=async(path,{method="POST",body,tok,origin=ORIGIN}={})=>{const h={Origin:origin};if(tok)h.Authorization="Bearer "+tok;if(body)h["Content-Type"]="application/json";
+  const r=await W.fetch(new Request("https://zfp-push.x.workers.dev"+path,{method,headers:h,body:body?JSON.stringify(body):undefined}),env);return {st:r.status,j:await r.json().catch(()=>null),h:r.headers}};
+
+/* zařízení (strana prohlížeče): ECDH pár + auth tajemství */
+function device(){const e=crypto.createECDH("prime256v1");e.generateKeys();const auth=crypto.randomBytes(16);
+  return {e,auth,sub:{endpoint:"https://push.example/"+crypto.randomBytes(6).toString("hex"),keys:{p256dh:e.getPublicKey().toString("base64url"),auth:auth.toString("base64url")}}}}
+const hk=(salt,ikm,info,len)=>Buffer.from(crypto.hkdfSync("sha256",ikm,salt,info,len));
+function decrypt(dev,body){const b=Buffer.from(body);const salt=b.subarray(0,16),rs=b.readUInt32BE(16),idlen=b[20],asPub=b.subarray(21,21+idlen),ct=b.subarray(21+idlen);
+  const ecdh=dev.e.computeSecret(asPub),ua=dev.e.getPublicKey();
+  const ikm=hk(dev.auth,ecdh,Buffer.concat([Buffer.from("WebPush: info\0"),ua,asPub]),32);
+  const cek=hk(salt,ikm,Buffer.from("Content-Encoding: aes128gcm\0"),16),nonce=hk(salt,ikm,Buffer.from("Content-Encoding: nonce\0"),12);
+  const d=crypto.createDecipheriv("aes-128-gcm",cek,nonce);d.setAuthTag(ct.subarray(ct.length-16));const pt=Buffer.concat([d.update(ct.subarray(0,ct.length-16)),d.final()]);
+  if(pt[pt.length-1]!==2)throw new Error("chybí oddělovač");return {rs,text:pt.subarray(0,pt.length-1).toString("utf8")}}
+function verifyVapid(auth,endpoint){const m=/^vapid t=([^,]+), k=(.+)$/.exec(auth);if(!m)return false;const [h,c,s]=m[1].split(".");
+  const claims=JSON.parse(Buffer.from(c,"base64url").toString());const pub=Buffer.from(m[2],"base64url");
+  const key=crypto.createPublicKey({key:{kty:"EC",crv:"P-256",x:pub.subarray(1,33).toString("base64url"),y:pub.subarray(33,65).toString("base64url")},format:"jwk"});
+  const v=crypto.verify("sha256",Buffer.from(h+"."+c),{key,dsaEncoding:"ieee-p1363"},Buffer.from(s,"base64url"));
+  return v&&claims.aud===new URL(endpoint).origin&&claims.exp>Date.now()/1000&&/^https:|^mailto:/.test(claims.sub)}
+
+/* 1) VAPID klíč se vytvoří jednou a pak drží */
+const v1=await call("/vapid",{method:"GET"}),v2=await call("/vapid",{method:"GET"});
+ok(v1.st===200&&v1.j.pub&&v1.j.pub===v2.j.pub&&Buffer.from(v1.j.pub,"base64url").length===65,"VAPID klíč vznikne jednou a zůstává stejný");
+ok(v1.h.get("Access-Control-Allow-Origin")===ORIGIN,"CORS jen pro web Pipeline");
+/* 2) přihlášení zařízení */
+const A=device(),B=device(),C=device();
+ok((await call("/subscribe",{body:{sub:A.sub}})).st===401,"bez Google přihlášení nejde zařízení přidat");
+ok((await call("/subscribe",{body:{sub:A.sub},tok:"spatny"})).st===401,"neplatný token odmítnut");
+const s1=await call("/subscribe",{body:{sub:A.sub,ua:"Mac"},tok:"tok-vk"});await call("/subscribe",{body:{sub:B.sub,ua:"iPhone"},tok:"tok-vk"});await call("/subscribe",{body:{sub:C.sub},tok:"tok-jt"});
+ok(s1.st===200&&s1.j.id&&JSON.parse(store.get("subs:vojta@example.com")).length===2,"zařízení se uloží pod e-mail (malými písmeny)");
+ok((await call("/subscribe",{body:{sub:{endpoint:"http://x",keys:{p256dh:"a",auth:"b"}}},tok:"tok-vk"})).st===400,"vadný odběr odmítnut");
+/* 3) ping z dotazníku → jen zařízení toho poradce, šifrované, podepsané */
+sent.length=0;const pg=await call("/ping",{body:{to:"vojta@example.com",k:"bk"}});
+ok(pg.st===200&&sent.length===2&&sent.every(x=>x.u!==C.sub.endpoint),"ping dojde jen na zařízení daného poradce");
+const dA=decrypt(A,sent.find(x=>x.u===A.sub.endpoint).body),msg=JSON.parse(dA.text);
+ok(msg.t==="Nová rezervace schůzky"&&!/@/.test(dA.text)&&dA.rs===4096,"zpráva se dešifruje (RFC 8291) a neobsahuje údaje klienta");
+ok(sent.every(x=>verifyVapid(x.h.Authorization,x.u)&&x.h["Content-Encoding"]==="aes128gcm"&&+x.h.TTL>0),"VAPID podpis platný (RFC 8292), hlavičky v pořádku");
+sent.length=0;await call("/ping",{body:{to:"vojta@example.com",k:"dz"},origin:"https://evil.example"});
+ok(sent.length===0,"ping z cizího webu se neodešle");
+sent.length=0;for(let i=0;i<6;i++)await call("/ping",{body:{to:"vojta@example.com",k:"dz"}});
+ok(sent.length<=2*(4-1),"omezení četnosti – spam pingů se zastaví");
+const pn=await call("/ping",{body:{to:"nikdo@example.com"}});ok(pn.st===200&&pn.j.ok,"neznámý poradce – stejná odpověď (neprozradí, kdo existuje)");
+/* 4) připomínky: předšifrované v Pipeline, prostředník je jen v čas odešle */
+const subs=(await call("/subs",{method:"GET",tok:"tok-vk"})).j.subs;
+ok(subs.length===2&&subs.every(s=>!("endpoint" in s)),"Pipeline dostane klíče zařízení, ne jejich adresy");
+const at=Math.floor(Date.now()/60000)*60000+5*60000;
+const items=[];for(const s of subs)items.push({id:s.id,at,body:PC.b64u(await PC.encrypt(s,{t:"Za 30 min schůzka",b:"VK: Novák · 10:00"})),tag:"rem-1"});
+items.push({id:subs[0].id,at:at+3600e3,body:PC.b64u(await PC.encrypt(subs[0],{t:"později"})),tag:"rem-2"});
+const rr=await call("/reminders",{body:{items},tok:"tok-vk"});ok(rr.st===200&&rr.j.n===3,"připomínky uložené");
+ok(!/Novák/.test(store.get("rem:vojta@example.com")),"prostředník obsah připomínek nevidí (jen šifra)");
+sent.length=0;ok(await cron(env,at-60000)===0&&sent.length===0,"minutu předem se nic neposílá");
+const n=await cron(env,at);const dB=decrypt(B,sent.find(x=>x.u===B.sub.endpoint).body);
+ok(n===2&&JSON.parse(dB.text).b==="VK: Novák · 10:00","v čas dojde připomínka na obě zařízení a dešifruje se");
+sent.length=0;ok(await cron(env,at+60000)===0,"další minutu se znovu neposílá (žádné duplicity)");
+/* 5) zrušený odběr (410) se smaže */
+gone.add(A.sub.endpoint);sent.length=0;await call("/test",{tok:"tok-vk"});
+ok(JSON.parse(store.get("subs:vojta@example.com")).length===1,"zařízení, které odběr zrušilo, se odstraní");
+const un=await call("/unsubscribe",{body:{endpoint:B.sub.endpoint},tok:"tok-vk"});ok(un.j.n===0,"odhlášení zařízení");
+/* 6) šifra z pushcrypto je stejná i v prohlížeči – kontrola délky/hlavičky */
+const raw=await PC.encrypt(B.sub.keys,"x");ok(raw[20]===65&&raw.length===16+4+1+65+1+1+16,"formát hlavičky aes128gcm");
+console.log(`\n${pass} prošlo, ${fail} selhalo`);if(fail)process.exit(1);

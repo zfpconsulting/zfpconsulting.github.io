@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://*.workers.dev; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
 <title>Vstupní dotazník – finanční plán</title>
 <style>
 /* Vstupní dotazník k finančnímu plánu. Otázky odpovídají vstupům živé prezentace (fp.html) – co klient vyplní, jde 1:1 do plánu.
@@ -129,6 +129,9 @@ const DRAFT="fp_dotaznik_draft_v1",ADV="dz_poradce_v1";
 /* parametry odkazu jsou za # (prohlížeč je neposílá na server): to = e-mail poradce (schránka), k = veřejný klíč, p/t/e = jméno, telefon, e-mail poradce */
 const H=new URLSearchParams(EMB?"":location.hash.replace(/^#/,"")),Q=new URLSearchParams(location.search);
 const LINK={to:H.get("to")||"",k:H.get("k")||""};
+/* po odeslání „šťouchnout“ poradci push notifikaci (jen obecná zpráva, žádné údaje) – prostředník worker/push.js */
+const PUSH_URL="";
+function pushPing(k){if(!PUSH_URL||!LINK.to)return;try{fetch(PUSH_URL+"/ping",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({to:LINK.to,k}),credentials:"omit",referrerPolicy:"strict-origin",keepalive:true}).catch(()=>{})}catch(e){}}
 /* m=r → odkaz jen na rezervaci schůzky (bez dotazníku) */
 const ONLY=!EMB&&H.get("m")==="r",ADVN=H.get("p")||"";
 if(ONLY){document.title="Rezervace konzultace"+(ADVN?" – "+ADVN:"")+" | ZFP GROUP";const t=document.querySelector(".brand > span");if(t)t.textContent="Rezervace konzultace"}
@@ -329,7 +332,7 @@ async function book(){
   BK.err="";BK.busy=true;renderSent();
   try{const K0=ONLY?{email:BK.c.email.trim(),telefon:BK.c.telefon.trim()}:SENT.kontakt||{},nm=ONLY?BK.c.jmeno.trim().replace(/\s+/g," "):(SENT.klient||{}).jmeno||"";
     const box=await DzCrypto.seal(LINK.k,{type:"fp-booking",v:1,at:new Date().toISOString(),start:BK.time,online:BK.mode==="online",name:nm,email:K0.email||"",phone:K0.telefon||"",only:ONLY});
-    await DzCrypto.post(LINK.to,box);BK.done={start:BK.time,online:BK.mode==="online"};SENT=null}
+    await DzCrypto.post(LINK.to,box);pushPing("bk");BK.done={start:BK.time,online:BK.mode==="online"};SENT=null}
   catch(e){BK.err="Rezervace se nepodařila – zkuste to prosím znovu.";console.error(e)}
   BK.busy=false;renderSent()}
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.bkc;if(k&&ONLY)BK.c[k]=e.target.value});
@@ -411,7 +414,7 @@ async function send(){
     const box=await DzCrypto.seal(LINK.k,{type:"fp-dotaznik",v:2,at:new Date().toISOString(),plan,files,adv:adv().n||""});
     await DzCrypto.post(LINK.to,box,(i,n)=>{b.textContent=n>1?`Odesílám ${i}/${n}…`:"Odesílám…"});
     SENT={klient:{jmeno:P.klient.jmeno},kontakt:{email:K().email,telefon:K().telefon}};
-    sent=true;try{localStorage.removeItem(DRAFT)}catch(e){}Object.keys(FILES).forEach(k=>delete FILES[k]);renderSent();loadSlots();
+    pushPing("dz");sent=true;try{localStorage.removeItem(DRAFT)}catch(e){}Object.keys(FILES).forEach(k=>delete FILES[k]);renderSent();loadSlots();
   }catch(e){console.error(e);const c=e&&e.code;
     toast(c==="big"?"Přílohy jsou moc velké – vložte prosím menší PDF.":c===403||c===401?"Schránka poradce teď odpověď nepřijala – dejte prosím vědět poradci. Vyplněné odpovědi zůstávají uložené.":typeof c==="number"?"Odeslání se nepovedlo (chyba "+c+") – zkuste to prosím za chvíli znovu.":"Odeslání se nepovedlo – zkontrolujte připojení k internetu a zkuste to znovu.");
     b.disabled=false;b.textContent="Odeslat poradci"}

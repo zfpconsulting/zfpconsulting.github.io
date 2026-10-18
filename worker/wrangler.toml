@@ -1,0 +1,12 @@
+# Prostředník pro push notifikace Pipeline – nasazuje se automaticky z GitHubu (.github/workflows/push-worker.yml)
+name = "zfp-push"
+main = "push.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "KV"
+id = "b647715b987d489898f70263f0d518d1"
+
+[triggers]
+crons = ["* * * * *"]
