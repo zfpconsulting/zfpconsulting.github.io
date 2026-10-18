@@ -2094,7 +2094,12 @@ async function dzRetryQueue(){
         try{if(view==="cal")fetchCalTab(true);Promise.resolve(refreshCalendar()).catch(()=>{})}catch(e){}}}}
   finally{dzQBusy=false}}
 async function dzQueue0(q){const L=dzQ().filter(x=>!(x.lead===q.lead&&x.start===q.start));settings={...settings,dzBkQ:L};try{await db.doc("settings/main").update({dzBkQ:L})}catch(e){}}
-setInterval(()=>{dzRetryQueue().catch(()=>{})},60000);setTimeout(()=>dzRetryQueue().catch(()=>{}),8000);
+/* dřívější rezervace, které zůstaly jen v leadu (schůzka „local:“ v budoucnu + záznam o rezervaci) → do fronty */
+let dzQScan=false;
+async function dzScanOld(){if(dzQScan||DEMO||!Array.isArray(leads)||!leads.length)return;dzQScan=true;const now=new Date().toISOString();
+  for(const l of leads){const bk=(l.log||[]).some(x=>/^Klient si zarezervoval/.test(x.t||""));if(!bk)continue;
+    for(const m of (l.meetings||[]))if(String(m.id).startsWith("local:")&&m.start>now&&!dzQ().some(q=>q.lead===l.id&&q.start===m.start))await dzQueue({lead:l.id,name:l.name||"",start:m.start,online:!!m.online})}}
+setInterval(()=>{dzScanOld().catch(()=>{}).then(()=>dzRetryQueue()).catch(()=>{})},60000);setTimeout(()=>{dzScanOld().catch(()=>{}).then(()=>dzRetryQueue()).catch(()=>{})},8000);
 /* ---------- upozornění v appce (dotazník, rezervace): drží se v nastavení, takže je vidíš na všech zařízeních, dokud je neodklikneš ---------- */
 const dzNotes=()=>(settings&&Array.isArray(settings.dzNotes)?settings.dzNotes:[]);
 async function dzNotify(n){const L=[{id:newId(),at:Date.now(),...n},...dzNotes()].slice(0,15);settings={...settings,dzNotes:L};renderDzNotes();
