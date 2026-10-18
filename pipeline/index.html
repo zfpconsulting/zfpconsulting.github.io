@@ -2153,8 +2153,8 @@ function pxMeets(k){/* moje schůzky v daný den: kalendář (VK: …) + schůzk
   leads.forEach(l=>(l.meetings||[]).forEach(m=>{if(m.start&&m.start.slice(0,10)===k&&!L.some(x=>x.id===m.id))L.push({id:m.id,start:m.start,end:null,name:l.name,online:!!m.online,lead:l})}));
   return L.sort((a,b)=>a.start.localeCompare(b.start))}
 const pxLeadOf=x=>{if(x.lead)return x.lead;try{return x.ev&&typeof contactFor==="function"?contactFor(x.ev).lead:null}catch(e){return null}};
-function pxBooked(k){/* kolik schůzek jsem v den k domluvil (událost s mým prefixem vytvořená ten den) */
-  const ids=new Set();(calEvents||[]).forEach(e=>{if(e.created&&ymd(new Date(e.created))===k)ids.add(e.id)});return ids.size}
+function pxBooked(k){/* kolik schůzek jsem v den k domluvil = nově zadaná schůzka (VK: …) vytvořená ten den na NĚKTERÝ DALŠÍ den – ne to, co už ten den v kalendáři mám */
+  const ids=new Set();(calEvents||[]).forEach(e=>{if(e.created&&ymd(new Date(e.created))===k&&e.start.slice(0,10)>k)ids.add(e.id)});return ids.size}
 function pxBrief(k){
   const M=pxMeets(k),act=leads.filter(l=>!l.shared&&ACTIVE(l.stage)),calls=act.filter(l=>l.nextDate&&l.nextDate<=k).length,late=act.filter(l=>l.nextDate&&l.nextDate<k).length,none=act.filter(l=>!l.nextDate).length;
   const f=M[0],parts=[];if(f)parts.push("první "+fmtHM(f.start)+" "+f.name);if(calls)parts.push(pxN(calls,"hovor","hovory","hovorů")+" v plánu");if(late)parts.push(late+" po termínu");if(none)parts.push(none+" bez dalšího kroku");
@@ -2189,14 +2189,18 @@ async function pushSyncReminders(force){
   if(!force&&now-pushUpAt<4*60000){clearTimeout(pushUpT);pushUpT=setTimeout(()=>pushSyncReminders().catch(()=>{}),4*60000-(now-pushUpAt)+500);return}
   await pushLib();const items=[];
   for(const p of plan)for(const x of subs)items.push({id:x.id,at:p.at,body:PushCrypto.b64u(await PushCrypto.encrypt(x,p.pl)),tag:p.pl.tag});
-  await pushApi("/reminders",{body:{items:items.slice(0,400)}});lsSet("push_sig",sig);pushUpAt=Date.now()}
+  const r=await pushApi("/reminders",{body:{v:PUSH_PLAN_V,items:items.slice(0,400)}});lsSet("push_sig",sig);pushUpAt=Date.now();return r}
+const PUSH_PLAN_V=2;   /* zvýšit při změně plánu notifikací – prostředník pak nepřijme plán od starší verze appky na jiném zařízení */
 /* ukázka všech typů jednou hned (do minuty) – z tvých skutečných dat */
 async function pushTestAll(){
-  const t=todayStr(),tm=addDaysFrom(t,1),at=Math.ceil((Date.now()+20000)/60000)*60000,M=pxMeets(t).concat(pxMeets(tm)),last=(calEvents||[]).filter(e=>new Date(e.start)<new Date()).slice(-1)[0];
+  const t=todayStr(),tm=addDaysFrom(t,1),at=Date.now(),M=pxMeets(t).concat(pxMeets(tm)),last=(calEvents||[]).filter(e=>new Date(e.start)<new Date()).slice(-1)[0];
   const ex=M[0]||(last?{id:last.id,start:last.start,name:last.name||last.title,ev:last}:{id:"x",start:new Date().toISOString(),name:"Ukázkový klient"});
   const items=[{at,pl:pxBrief(t)},{at,pl:{...pxAfter(ex,15),tag:"t-after"}},{at,pl:pxTmr(tm)||{t:"Zítra žádná schůzka",b:"Až si domluvíš, ve "+pushX().tmr+" ti přijde přehled potvrzení.",u:"./?push=conf",tag:"t-tmr"}},{at,pl:pxGoal(t)}].map(x=>({at:x.at,pl:{...x.pl,tag:"t-"+x.pl.tag}}));
-  pushDemo={until:at+5*60000,items};
-  try{await pushSyncReminders(true);toast("Ukázky všech notifikací přijdou do minuty")}catch(e){toast("Nepovedlo se ("+(e.code||e.message)+")")}}
+  /* ukázka jde hned (prostředník ji odešle okamžitě), plán se tím nemění */
+  try{if(!pushSubsCache)pushSubsCache=(await pushApi("/subs")).subs||[];await pushLib();const out=[];
+    for(const x of items)for(const s of pushSubsCache)out.push({id:s.id,body:PushCrypto.b64u(await PushCrypto.encrypt(s,x.pl))});
+    const r=await pushApi("/send",{body:{items:out}});toast(r.sent?"Ukázky odeslané ("+r.sent+")":"Žádné zařízení nemá push zapnutý");return r}
+  catch(e){toast("Nepovedlo se ("+(e.code||e.message)+")")}}
 /* klepnutí na notifikaci → rovnou na správné místo */
 function pushOpen(u){try{const q=new URL(u||location.href,location.href).searchParams,k=q.get("push");if(!k)return;
   const go=()=>{if(k==="after"){const l=leads.find(x=>x.id===q.get("lead"));setView("pipe");if(l)openEdit(l)}else if(k==="bk"||k==="rem")setView("cal");else setView("pipe")};
@@ -2226,7 +2230,7 @@ async function renderPushCfg(){const box=$("pushCfg");if(!box)return;
   box.replaceChildren(el("label",{},"Push notifikace"),el("p",{class:"hint",style:"margin-top:0"},st),
     el("div",{class:"chips"},on?el("button",{type:"button",class:"dbtn",disabled:pushBusy,onclick:pushDisable},"Vypnout na tomto zařízení"):el("button",{type:"button",class:"dbtn",disabled:pushBusy||!PUSH_URL||!pushCan(),onclick:pushEnable},pushBusy?"Zapínám…":"Zapnout na tomto zařízení"),
       on?el("button",{type:"button",class:"dbtn",onclick:pushTest},"Poslat zkušební"):null,
-      on?el("button",{type:"button",class:"dbtn",onclick:pushTestAll},"Vyzkoušet všechny (do minuty)"):null),
+      on?el("button",{type:"button",class:"dbtn",onclick:pushTestAll},"Vyzkoušet všechny"):null),
     el("label",{},"Připomínka před schůzkou",sel),
     ...pxCfgRows(),
     el("p",{class:"hint"},"Přijde: nový vstupní dotazník, rezervace schůzky od klienta, připomínka tvých schůzek (VK: …), ranní přehled, výzva zapsat výsledek po schůzce, zítřejší nepotvrzené schůzky a večer denní cíl (schůzky domluvené ten den). Zapni na každém zařízení zvlášť. Text připomínek se šifruje přímo v Pipeline – prostředník ani nikdo jiný ho nepřečte; u dotazníku a rezervace jde jen obecná zpráva bez údajů klienta."))}

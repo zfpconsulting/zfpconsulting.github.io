@@ -69,6 +69,16 @@ sent.length=0;ok(await cron(env,at-60000)===0&&sent.length===0,"minutu předem s
 const n=await cron(env,at);const dB=decrypt(B,sent.find(x=>x.u===B.sub.endpoint).body);
 ok(n===2&&JSON.parse(dB.text).b==="VK: Novák · 10:00","v čas dojde připomínka na obě zařízení a dešifruje se");
 sent.length=0;ok(await cron(env,at+60000)===0,"další minutu se znovu neposílá (žádné duplicity)");
+/* 4b) verze plánu a okamžité odeslání */
+const stale=await call("/reminders",{body:{items:[{id:subs[0].id,at:at+7200e3,body:"x"}]},tok:"tok-vk"});
+ok(stale.j.n===1,"bez verze (v1) se uloží, když je uložený v1");
+await call("/reminders",{body:{v:2,items}, tok:"tok-vk"});
+const st2=await call("/reminders",{body:{items:[{id:subs[0].id,at:at+7200e3,body:"x"}]},tok:"tok-vk"});
+ok(st2.j.stale&&JSON.parse(store.get("rem:vojta@example.com")).items.length===3,"starší verze appky nepřepíše plán od novější");
+sent.length=0;const sn=await call("/send",{body:{items:[{id:subs[0].id,body:PC.b64u(await PC.encrypt(subs[0],{t:"Ukázka"}))}]},tok:"tok-vk"});
+ok(sn.j.sent===1&&sent.length===1,"okamžité odeslání ukázky na moje zařízení");
+ok((await call("/send",{body:{items:[]}})).st===401,"okamžité odeslání jen přihlášenému");
+sent.length=0;ok(await cron(env,at)===2,"cron čte i nový formát plánu");
 /* 5) zrušený odběr (410) se smaže */
 gone.add(A.sub.endpoint);sent.length=0;await call("/test",{tok:"tok-vk"});
 ok(JSON.parse(store.get("subs:vojta@example.com")).length===1,"zařízení, které odběr zrušilo, se odstraní");

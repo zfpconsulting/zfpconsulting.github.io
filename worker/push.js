@@ -62,15 +62,22 @@ async function handle(req,env){
   if(p==="/unsubscribe"){const L=(await getSubs(env,m)).filter(x=>x.endpoint!==body.endpoint&&x.id!==body.id);await env.KV.put("subs:"+m,JSON.stringify(L));return J(o,{ok:true,n:L.length})}
   if(p==="/subs")return J(o,{subs:(await getSubs(env,m)).map(s=>({id:s.id,p256dh:s.p256dh,auth:s.auth,ua:s.ua,at:s.at}))});
   if(p==="/test"){const st=await sendAll(env,m,{t:"Pipeline",b:"Zkušební notifikace – funguje to.",u:"./",tag:"test"},{ttl:600});return J(o,{ok:true,sent:st.filter(x=>x>=200&&x<300).length,n:st.length})}
+  /* hned odeslat předšifrované zprávy na moje zařízení (ukázka notifikací z Pipeline) */
+  if(p==="/send"){const S=await getSubs(env,m),its=(Array.isArray(body.items)?body.items:[]).filter(x=>x&&typeof x.id==="string"&&typeof x.body==="string"&&x.body.length<6000).slice(0,40);let n=0;
+    for(const x of its){const s=S.find(y=>y.id===x.id);if(!s)continue;try{const st=await send(env,m,s,PC.unb64u(x.body),{ttl:600});if(st>=200&&st<300)n++}catch(e){}}
+    return J(o,{ok:true,sent:n,n:its.length})}
   if(p==="/reminders"){
+    /* verze plánu: starší verze appky (na jiném zařízení) nesmí přepsat plán od novější */
+    const v=Math.max(1,Math.floor(+body.v||1)),cur=await env.KV.get("rem:"+m,{type:"json"}),curV=cur&&!Array.isArray(cur)?+cur.v||1:1;
+    if(v<curV)return J(o,{ok:true,n:0,stale:true,v:curV});
     const now=Date.now(),its=(Array.isArray(body.items)?body.items:[]).filter(x=>x&&typeof x.id==="string"&&typeof x.body==="string"&&x.body.length<6000&&+x.at>now-60000&&+x.at<now+21*864e5).slice(0,MAX_REM).map(x=>({id:x.id,at:+x.at,body:x.body,tag:String(x.tag||"").slice(0,60)}));
-    await env.KV.put("rem:"+m,JSON.stringify(its));if(its.length)await addUser(env,m);return J(o,{ok:true,n:its.length})}
+    await env.KV.put("rem:"+m,JSON.stringify({v,items:its}));if(its.length)await addUser(env,m);return J(o,{ok:true,n:its.length,v})}
   return J(o,{error:"path"},404)}
 
 /* každou minutu: odešle připomínky, které spadají do této minuty (bez zápisu do KV – nic se neposílá dvakrát) */
 async function cron(env,t){
   const to=Math.floor(t/60000)*60000,from=to-60000,U=(await env.KV.get("users",{type:"json"}))||[];let n=0;
-  for(const m of U){const R=(await env.KV.get("rem:"+m,{type:"json"}))||[];const due=R.filter(x=>x.at>from&&x.at<=to);if(!due.length)continue;
+  for(const m of U){const R0=(await env.KV.get("rem:"+m,{type:"json"}))||[],R=Array.isArray(R0)?R0:(R0.items||[]);const due=R.filter(x=>x.at>from&&x.at<=to);if(!due.length)continue;
     const S=await getSubs(env,m);
     for(const x of due){const s=S.find(y=>y.id===x.id);if(!s)continue;try{await send(env,m,s,PC.unb64u(x.body),{ttl:900,topic:x.tag?x.tag.replace(/[^A-Za-z0-9_-]/g,"").slice(0,32):undefined});n++}catch(e){}}}
   return n}
