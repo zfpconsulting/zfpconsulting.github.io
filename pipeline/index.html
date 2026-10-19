@@ -2245,10 +2245,12 @@ function afterMeetSheet(o){
     el("div",{class:"chips"},save,W.l?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setTimeout(()=>openEdit(leads.find(x=>x.id===W.l.id)||W.l),340)}},"Otevřít lead"):null)]);
   setTimeout(()=>{try{notes.focus()}catch(e){}},350)}
 /* testová notifikace „po schůzce“ o poslední proběhlé schůzce s klientem (hledá se podle jména) – odejde hned */
-async function pushTestAfter(q){const now=new Date().toISOString(),hit=[];
-  (calEvents||[]).forEach(e=>{if(e.start<now&&(sameName(e.name||"",q)||String(e.title||"").toLowerCase().includes(String(q).toLowerCase())))hit.push({id:e.id,start:e.start,name:e.name||e.title,ev:e})});
-  leads.forEach(l=>{if(!sameName(l.name,q)&&!String(l.name).toLowerCase().includes(String(q).toLowerCase()))return;(l.meetings||[]).forEach(m=>{if(m.start&&m.start<now&&!hit.some(x=>x.id===m.id))hit.push({id:m.id,start:m.start,name:l.name,lead:l})})});
-  const x=hit.sort((a,b)=>a.start.localeCompare(b.start)).pop();if(!x){toast("Žádná proběhlá schůzka: "+q);return {ok:false}}
+async function pushTestAfter(q){const now=Date.now(),N=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(),k=N(q),hit=[];
+  /* bez diakritiky („Petranova“ najde Petráňovou) a podle skutečného času (začátky v kalendáři mají posun +01:00/+02:00, řetězce nejde porovnávat) */
+  const past=x=>x&&new Date(x).getTime()<now;
+  (calEvents||[]).forEach(e=>{if(past(e.start)&&N((e.name||"")+" "+(e.title||"")).includes(k))hit.push({id:e.id,start:e.start,name:e.name||e.title,ev:e})});
+  leads.forEach(l=>{if(!N(l.name).includes(k))return;(l.meetings||[]).forEach(m=>{if(past(m.start)&&!hit.some(x=>x.id===m.id))hit.push({id:m.id,start:m.start,name:l.name,lead:l})})});
+  const x=hit.sort((a,b)=>new Date(a.start)-new Date(b.start)).pop();if(!x){toast("Žádná proběhlá schůzka: "+q);return {ok:false}}
   if(!pushSubsCache)pushSubsCache=(await pushApi("/subs")).subs||[];await pushLib();
   const pl={...pxAfter(x,15),tag:"t-after-"+Date.now()},out=[];for(const s of pushSubsCache)out.push({id:s.id,body:PushCrypto.b64u(await PushCrypto.encrypt(s,pl))});
   const r=await pushApi("/send",{body:{items:out}});toast(r.sent?"Testová notifikace odeslaná ("+x.name+", "+meetDateTxt(x.start)+")":"Žádné zařízení nemá push zapnutý");return {...r,meet:{name:x.name,start:x.start}}}
