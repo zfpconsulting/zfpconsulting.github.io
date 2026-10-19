@@ -144,7 +144,7 @@ body.emb .hero h1{font-size:22px}
 <main id="main"></main>
 <div class="bottom" id="bottom"><div class="in"><span class="st" id="st"></span><span id="botBtns"></span></div></div>
 <div class="toast" id="toast"></div>
-<script>window.DZ_LINK=decodeURIComponent(escape(atob("dj0xJnRvPWt1ZGxpY2thLnZvanRlY2gyMDAyJTQwZ21haWwuY29tJms9Qkx1WDQya2FqQnUtMXpYVnZkQ0RhODliMkhUb0x3YkJvY0xVN1VZNGNidklOYkFpRHpEWGZta0NPR19HenV2SDB0VTk4c1FsNzJaMXJHajVqUzdMU0hJJnA9Vm9qdCVDNCU5QmNoK0t1ZGxpJUM0JThEa2E=")));</script>
+<script>window.DZ_LINK=decodeURIComponent(escape(atob("dj0xJnRvPWt1ZGxpY2thLnZvanRlY2gyMDAyJTQwZ21haWwuY29tJms9Qkx1WDQya2FqQnUtMXpYVnZkQ0RhODliMkhUb0x3YkJvY0xVN1VZNGNidklOYkFpRHpEWGZta0NPR19HenV2SDB0VTk4c1FsNzJaMXJHajVqUzdMU0hJJnA9Vm9qdCVDNCU5QmNoK0t1ZGxpJUM0JThEa2EmYj1odHRwcyUzQSUyRiUyRnNjcmlwdC5nb29nbGUuY29tJTJGbWFjcm9zJTJGcyUyRkFLZnljYnlfSXJTRzlsSXdzWlYtTUl3blhVdG12TzN1Rjg4eTg2Q2lLaHdOOEtXenNyXzlRSHNMZW16YnE1aGMzMXl0eVYzYyUyRmV4ZWM=")));</script>
 <script src="/pipeline/dzcrypto.js?v=2"></script>
 <script>
 "use strict";
@@ -154,7 +154,9 @@ const DRAFT="fp_dotaznik_draft_v1",ADV="dz_poradce_v1";
 /* parametry odkazu jsou za # (prohlížeč je neposílá na server): to = e-mail poradce (schránka), k = veřejný klíč, p/t/e = jméno, telefon, e-mail poradce */
 /* parametry: z odkazu za # (dlouhý odkaz), nebo zapečené ve stránce krátkého odkazu (/termin/vk/, /dotaznik/vk/ – window.DZ_LINK, viz tools/short-links.mjs) */
 const H=new URLSearchParams(EMB?"":(window.DZ_LINK||location.hash.replace(/^#/,""))),Q=new URLSearchParams(location.search);
-const LINK={to:H.get("to")||"",k:H.get("k")||""};
+/* b = adresa živé kontroly kalendáře (Apps Script poradce, tools/rezervace.gs) – zapečená v odkazu, jinak z dzslots */
+const BK_RE=/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/;
+const LINK={to:H.get("to")||"",k:H.get("k")||"",b:BK_RE.test(H.get("b")||"")?H.get("b"):""};
 /* výroční schůzka: odkaz s předvyplněnými údaji z posledního plánu – #…&r=<deflate+base64url JSON> (i u krátkého odkazu, kde jsou ostatní parametry zapečené).
    Údaje jsou jen za # – prohlížeč je neposílá na žádný server. Sekce Úspory a investice a Pojištění se skryjí (ty vedeme u nás a máme do nich náhled). */
 const RVZ=EMB?"":(new URLSearchParams(location.hash.replace(/^#/,"")).get("r")||"");
@@ -332,7 +334,7 @@ const BK={c:{jmeno:"",email:"",telefon:""},slots:null,addr:"Trnitá 500/9, 602 0
 async function bkCall(o){const r=await fetch(BK.bk,{method:"POST",body:JSON.stringify(o),credentials:"omit",referrerPolicy:"no-referrer",cache:"no-store"});if(!r.ok)throw new Error("bk "+r.status);return r.json()}
 const FSDOC="https://firestore.googleapis.com/v1/projects/zfp-pipeline/databases/(default)/documents/dzslots/";
 async function loadSlots(){try{const r=await fetch(FSDOC+encodeURIComponent(LINK.to)+"?key=AIzaSyDfS0FJx1EtbgqJSUUOK722PB_5Zo6hCuI",{credentials:"omit",referrerPolicy:"strict-origin",cache:"no-store"});
-    if(!r.ok)throw 0;const j=await r.json(),F=j.fields||{};BK.addr=(F.addr&&F.addr.stringValue)||BK.addr;BK.bk=(F.bk&&F.bk.stringValue)||"";BK.len=+(F.len&&(F.len.integerValue||F.len.doubleValue))||45;
+    if(!r.ok)throw 0;const j=await r.json(),F=j.fields||{};BK.addr=(F.addr&&F.addr.stringValue)||BK.addr;{const fb=(F.bk&&F.bk.stringValue)||"";BK.bk=BK_RE.test(fb)?fb:LINK.b}BK.len=+(F.len&&(F.len.integerValue||F.len.doubleValue))||45;
     const min=Date.now()+12*3600e3;BK.slots=((F.slots&&F.slots.arrayValue&&F.slots.arrayValue.values)||[]).map(v=>String(v.stringValue||"").split("|")).map(([t,f])=>({t,o:f==="o"})).filter(x=>x.t&&Date.parse(x.t)>min).sort((a,b)=>a.t.localeCompare(b.t));
     if(BK.bk)try{const b=await bkCall({a:"busy",days:22});if(b&&b.ok){const L=(b.len||BK.len)*60000,bf=(b.buf||0)*60000;
       BK.slots=BK.slots.filter(x=>{const s=Date.parse(x.t);return !b.busy.some(([a,e])=>a<s+L+bf&&e>s-bf)})}}catch(e){console.warn("živá kontrola kalendáře",e)}}

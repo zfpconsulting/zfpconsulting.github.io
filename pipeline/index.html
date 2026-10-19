@@ -2072,7 +2072,7 @@ const DZ_SHORT=[{c:"vk",k:"BLuX42kajBu-1zXVvdCDa89b2HToLwbBocLU7UY4cbvINbAiDzDXf
 /* odkaz pro klienta: only=true → jen rezervace termínu (bez dotazníku); krátký odkaz, pokud sedí veřejný klíč */
 function dzLinkSync(only){const k=settings&&settings.dzKey&&settings.dzKey.pub,me=dzMe();if(DEMO||!k||!me)return "";
   const sh=DZ_SHORT.find(x=>x.k===k);if(sh&&/github\.io$/.test(location.hostname))return location.origin+(only?"/termin/":"/dotaznik/")+sh.c+"/";
-  const h=new URLSearchParams({v:"1",to:me,k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);if(only)h.set("m","r");
+  const h=new URLSearchParams({v:"1",to:me,k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);if(only)h.set("m","r");if(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(settings.bkUrl||""))h.set("b",settings.bkUrl);
   return location.origin+location.pathname.replace(/[^/]*$/,"")+"dotaznik.html#"+h.toString()}
 /* výroční schůzka: odkaz na dotazník předvyplněný z posledního plánu klienta (za #r=… – deflate + base64url, bez serveru).
    Bez Úspor a investic a Pojištění (vedeme u nás); klient jen přepíše, co se změnilo. Údaje jsou v odkazu – posílat jen klientovi. */
@@ -2436,7 +2436,11 @@ async function dzPublishSlots(force){
     for(let i=1;i<=DZS.days;i++){const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i),k=ymd(day);
       /* „|o“ za časem = v tu dobu je kancelář obsazená → klient si může vybrat jen online */
       dzDaySlots(k,busy.filter(e=>ymd(new Date(e.start))===k)).forEach(({m,online})=>{const s=new Date(day.getFullYear(),day.getMonth(),day.getDate(),Math.floor(m/60),m%60);if(s>from)slots.push(s.toISOString()+(online?"|o":""))})}
-    await DZI.F.setDoc(DZI.F.doc(DZI.fdb,"dzslots",dzMe()),{slots:slots.slice(0,300),upd:new Date().toISOString(),len:DZS.len,addr:DZS.addr(),bk:settings.bkUrl||""});
+    const sd={slots:slots.slice(0,300),upd:new Date().toISOString(),len:DZS.len,addr:DZS.addr()},sref=DZI.F.doc(DZI.fdb,"dzslots",dzMe());
+    /* pole bk (adresa živé kontroly) povolují jen novější pravidla databáze – když ho starší odmítnou, zveřejnit termíny bez něj
+       (adresa je pak zapečená v odkazu pro klienta, parametr b) – jinak by klienti viděli zastaralé volné časy */
+    try{await DZI.F.setDoc(sref,settings.bkUrl?{...sd,bk:settings.bkUrl}:sd)}
+    catch(e){if(settings.bkUrl&&e&&e.code==="permission-denied")await DZI.F.setDoc(sref,sd);else throw e}
   }catch(e){console.warn("volné termíny",e)}}
 setInterval(()=>dzPublishSlots(false),5*60000);
 async function dzHandle(docs){
