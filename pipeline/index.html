@@ -4843,7 +4843,7 @@ const TPL_DEF=[{id:"potvrzeni",name:"Potvrzení schůzky",text:"Dobrý den, {osl
 const OLD_MEET_RE=/Na Vaši (?:e-)?mailovou adresu Vám v den konzultace zašlu\s+odkaz pro připojení\.?/;
 function tpls(){let L=settings.tpls&&settings.tpls.length?settings.tpls:TPL_DEF;
   /* nové výchozí šablony „Nezvedl“ se k uloženým šablonám přidají jednou (po prvním uložení šablon už je lze smazat) */
-  if(!settings.tplNezvedl&&L!==TPL_DEF)L=L.concat(TPL_DEF.filter(d=>/^nezvedl/.test(d.id)&&!L.some(t=>t.id===d.id)));
+  if(L!==TPL_DEF)L=L.concat(TPL_DEF.filter(d=>(d.id==="nezvedl"||(!settings.tplNezvedl&&/^nezvedl/.test(d.id)))&&!L.some(t=>t.id===d.id)));
   /* první verze šablony „Nezvedl“ (před finálním zněním) se přepíše novým výchozím textem, pokud ji nikdo neupravil */
   L=L.map(t=>t.id==="nezvedl"&&/^Dobrý den, \{osloveni\}, zkoušel jsem se Vám dovolat/.test(t.text||"")?{...t,text:TPL_DEF.find(d=>d.id==="nezvedl").text,name:TPL_DEF.find(d=>d.id==="nezvedl").name}:t);
   return L.map(t=>OLD_MEET_RE.test(t.text||"")?{...t,text:t.text.replace(OLD_MEET_RE,"Zde Vám zasílám odkaz pro připojení: {meet}.")}:t)}
@@ -4943,6 +4943,7 @@ function renderTpls(){const box=$("tplList");if(!box)return;const list=tpls().ma
   box.replaceChildren(...list.map((t,i)=>{const n=el("input",{value:t.name,"aria-label":"Název šablony"});n.value=t.name;n.onchange=()=>{t.name=n.value.trim()||"Šablona";save()};
     const x=el("textarea",{"aria-label":"Text šablony"});x.value=t.text;x.onchange=()=>{t.text=x.value;save()};
     return el("div",{class:"tpl"},n,x,el("button",{type:"button",class:"del",onclick:()=>{list.splice(i,1);save().then(renderTpls)}},"Smazat"))}));
+  try{caches.keys().then(ks=>{const v=ks.filter(k=>/^pipeline-v\d+$/.test(k)).sort().pop();if(v&&box.isConnected)box.append(el("p",{class:"hint"},"Verze appky: "+v.replace("pipeline-","")))})}catch(e){}
   $("tplAdd").onclick=()=>{list.push({id:newId(),name:"Nová šablona",text:"Dobrý den, {osloveni}, \n{podpis}"});save().then(renderTpls)};
   const sg=$("dSign");sg.value=settings.sign||"";sg.onchange=async()=>{try{await db.doc("settings/main").set({...settings,sign:sg.value.trim()});toast("Uloženo")}catch(e){}}
   const an=$("dAppName");an.value=settings.appName||"";an.onchange=async()=>{try{await db.doc("settings/main").set({...settings,appName:an.value.trim()});toast("Uloženo");applyAppName();if(view==="pipe")render()}catch(e){}}
@@ -5709,15 +5710,15 @@ function taskHintText(){if(!calCfg().prefix)return "Do kalendáře se zapíše, 
 const noKind=x=>x.call==="no"||(!x.call&&!x.msg&&/nezved|nedovolal/i.test(x.t||""))?"no":x.call==="yes"||(!x.call&&!x.msg&&/hovor proběhl|^dovolal/i.test(x.t||""))?"yes":"";
 const noRun=log=>{let n=0;const c=(log||[]).filter(noKind);for(let i=c.length-1;i>=0&&noKind(c[i])==="no";i--)n++;return n};
 async function offerNoAnswerSms(ctx,log,onSent,lead){
-  const n=noRun(log);if(n<3||!tpls().some(t=>t.id==="nezvedl"))return;   /* smazaná šablona = nabídka vypnutá */
+  const n=noRun(log);if(n<3)return;
   /* už poslaná zpráva „Nezvedl –“ od začátku této řady nezvednutí → znovu nenabízet */
-  {const c=log||[];let i=c.length,k=0;while(i>0&&k<n){i--;if(noKind(c[i])==="no")k++}if(c.slice(i).some(x=>/Poslána zpráva.*Nezvedl –/.test(x.t||"")))return}
-  if(!(ctx.phone||"").replace(/\D/g,"")){toast(n+"× nezvedl – doplň telefon a pošli zprávu");return}
+  {const c=log||[];let i=c.length,k=0;while(i>0&&k<n){i--;if(noKind(c[i])==="no")k++}if(c.slice(i).some(x=>/Poslána zpráva.*Nezvedl –/.test(x.t||""))){toast(n+"× nezvedl · zpráva už byla poslána");return}}
+  const noTel=!(ctx.phone||"").replace(/\D/g,"");
   document.getElementById("noAnsBar")?.remove();
   /* lead v aktivní fázi se zároveň přesune do „Zamrzlý“ (podepsané a už mrtvé fáze se nemění) */
   let frozen=false;const cur=lead&&(leads.find(x=>x.id===lead.id)||lead);
   if(cur&&ACTIVE(cur.stage)&&!cur.shared){try{await moveTo(cur,"zamrzly");frozen=true;const fs=document.getElementById("f_stage");if(fs&&typeof editing!=="undefined"&&editing&&editing.id===cur.id){fs.value="zamrzly";editing={...editing,stage:"zamrzly"}}}catch(e){}}
-  const bar=el("div",{id:"noAnsBar",class:"noans",role:"alert"},el("span",{},n+"× po sobě nezvedl"+(frozen?" · přesunuto do Zamrzlý":"")+" – poslat SMS?"),
+  const bar=el("div",{id:"noAnsBar",class:"noans",role:"alert"},el("span",{},n+"× po sobě nezvedl"+(frozen?" · přesunuto do Zamrzlý":"")+(noTel?" · chybí telefon – napsat e-mailem / zkopírovat?":" – poslat SMS?")),
     el("button",{type:"button",onclick:()=>{bar.remove();openMsg(ctx,"nezvedl",onSent)}},"Poslat"),
     el("button",{type:"button",class:"sec",onclick:()=>bar.remove(),"aria-label":"Zavřít"},"Ne"));
   /* při otevřeném okně (dialog) musí být lišta uvnitř něj – jinak je zbytek stránky neklikatelný; překreslení obsahu okna ji nesmaže (mění se jen #edBody) */
