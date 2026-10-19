@@ -802,7 +802,10 @@ function compute0(inp, today, ext) {
     if (c.months < 60 && c.alok[0] > 0) flags.push(`Cíl „${c.nazev}“ za méně než 5 let má akciovou složku ${c.alok[0]} % — před výběrem rebalancovat.`);
   });
   const RT = inp.renta || {};
-  const rentaMes = n0(RT.mesicne);
+  /* renta nevyplněna (nebo 0) → cílem je stejný příjem jako dnes: starobní důchod + renta = dnešní čistý příjem domácnosti (v dnešních cenách) */
+  const rentaAuto = n0(RT.mesicne) <= 0 && prijmy > 0;
+  const rentaMes = rentaAuto ? Math.round(prijmy / 100) * 100 : n0(RT.mesicne);
+  if (rentaAuto) flags.push(`Renta není zadána — počítám tak, aby příjem v důchodu (starobní důchod + renta) byl stejný jako dnes: ${Math.round(rentaMes)} Kč/měs.`);
   let renta = null;
   if (rentaMes > 0) {
     const odVeku = n0(RT.od_veku);
@@ -836,7 +839,7 @@ function compute0(inp, today, ext) {
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
     const dip = Math.min(prostor, pmt);
     if (prostor < S.dip_strop) flags.push(`DIP: daňový strop částečně čerpá DPS/ŽP — do DIP jen ${prostor} Kč/měs.`);
-    renta = { mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
+    renta = { auto: rentaAuto, mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
     flags.push(`Renta: kapitál se vyčerpá v ${S.doziti} letech (reálný výnos při čerpání ${(S.renta_r * 100).toFixed(1).replace(".", ",")} %).`);
     }
   }
@@ -1360,7 +1363,6 @@ function missing(I,R){const M=[],add=(st,p,t)=>M.push({st,p,t});const ppl=[["kli
   if(!(I.majetek||[]).some(a=>+a.hodnota>0))add(1,"majetek","Finanční majetek");
   (I.uvery||[]).forEach((u,i)=>{if(!+u.zustatek)add(1,`uvery.${i}.zustatek`,(u.nazev||"Úvěr")+": zůstatek");if(!u.splatnost)add(1,`uvery.${i}.splatnost`,(u.nazev||"Úvěr")+": splatnost")});
   (I.cile||[]).forEach((c,i)=>{if(!+c.castka)add(2,`cile.${i}.castka`,(c.nazev||"Cíl")+": částka");if(!(+c.za_let>0)&&!c.datum)add(2,`cile.${i}.za_let`,(c.nazev||"Cíl")+": za kolik let")});
-  if(!(I.cile||[]).length&&!+((I.renta||{}).mesicne))add(2,"renta.mesicne","Alespoň jeden cíl nebo renta");
   /* navržené pojistné ŽP: prázdné = doplní se z výpočtu NN; chybí jen tehdy, když výpočet nic nespočítal */
   if(!+(((I.pojisteni||{}).zivotni||{}).navrh||(I.pojisteni||{}).navrh)&&!(typeof R!=="undefined"&&R&&R.pojAuto&&R.pojNove>0))add(3,"pojisteni.zivotni.navrh","Navržené pojistné ŽP");
   if(R&&R.manual)R.kontrola.filter(x=>!x.ok).forEach(x=>add(4,"realokace",x.t));
@@ -1401,8 +1403,8 @@ function renderEditor(){
   <details open><summary>Úvěry</summary>${rows("uvery",[["Typ úvěru","typ","text","full",[["","—"]].concat(UVERY)],["Banka / název","nazev","text","1.3fr"],["Zůstatek","zustatek","number"],["Splátka","splatka","number"],["Konec fixace","fixace_do","month"],["Splatnost","splatnost","month"]],{typ:"Hypotéka",nazev:"",zustatek:0,splatka:0,fixace_do:"",splatnost:""})}</details>
   ${hypoEditor(I)}`,
   ()=>`<details open><summary>Cíle</summary>${(migCile(I),rows("cile",[["Cíl","nazev","text","1.4fr"],["Částka (dnešní ceny)","castka","number"],["Za kolik let","za_let","number"]],{nazev:"",castka:0,za_let:""}))}</details>
-   <details open><summary>Renta</summary><div class="g">${fld("Renta Kč/měs (dnešní ceny)","renta.mesicne")}${fld("Renta od věku (prázdné = důchod)","renta.od_veku")}</div>
-   <p class="hint">Do starobního důchodu celá renta, potom jen dorovnání ke státnímu důchodu (odhad z IOLDP u klienta) až do věku ${esc(String(((I.nastaveni||{}).doziti)||FPE.DEFAULT_SET.doziti))} let.</p></details>`,
+   <details open><summary>Renta</summary><div class="g">${fld("Renta Kč/měs (dnešní ceny) – prázdné = stejný příjem jako dnes","renta.mesicne")}${fld("Renta od věku (prázdné = důchod)","renta.od_veku")}</div>
+   <p class="hint">Nevyplníš-li rentu (nebo 0), počítá se tak, aby měl klient v důchodu stejný příjem jako dnes (starobní důchod + renta). Do starobního důchodu celá renta, potom jen dorovnání ke státnímu důchodu (odhad z IOLDP u klienta) až do věku ${esc(String(((I.nastaveni||{}).doziti)||FPE.DEFAULT_SET.doziti))} let.</p></details>`,
   ()=>{migPoj(I);return `<details open><summary>Životní pojištění</summary><div class="g">${fld("Stávající pojistné / měs","pojisteni.zivotni.stav")}${fld("Navržené pojistné / měs","pojisteni.zivotni.navrh","number",'placeholder="prázdné = výpočet NN Orange"')}</div>
    <div class="hint" style="margin-top:8px"><b>Modelace NN Orange Risk</b> – pojistné se počítá z doporučeného krytí</div>
    <div class="g">${sel("Smrt","nastaveni.nn_smrt",[["klesajici","klesající PČ do 65 let"],["konstantni","konstantní PČ do 65 let"],["kratsi","konstantní, kratší doba (do konce závislosti)"]])}${sel("Invalidita","nastaveni.nn_inv",[["klesajici","klesající PČ"],["konstantni","konstantní PČ"]])}

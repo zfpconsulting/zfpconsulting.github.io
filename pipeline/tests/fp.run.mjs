@@ -179,6 +179,14 @@ tests["renta, kterou pokrývá státní důchod, se do plánu nedává (žádné
   eq(bad, [], "snímky bez Infinity / NaN");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
+const rent = (page, plan) => page.evaluate(p => { const R = FPE.compute(JSON.parse(JSON.stringify(p)), new Date(), {}); return { flags: R.flags, renta: R.renta ? { auto: R.renta.auto, mesicne: R.renta.mesicne, dor: R.renta.dor } : null }; }, plan);
+tests["renta nezadána (prázdná / 0): cílem je stejný příjem jako dnes (starobní důchod + renta)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const d = rm => zaklad({ klient: { jmeno: "Re", narozen: "1980-03-03", zam: 60000, vydaje_osobni: 30000, starobni: 25000, inv1: 6000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 80000 }, cile: [], renta: { mesicne: rm, od_veku: "" } });
+  for (const rm of [0, ""]) { const o = await rent(page, d(rm)); assert(o.renta && o.renta.auto, "renta se dopočítá"); eq(o.renta.mesicne, 60000, "renta = dnešní příjem"); eq(o.renta.dor, 35000, "dorovnání = příjem − starobní důchod"); assert(o.flags.some(f => /stejný jako dnes/.test(f)), "poznámka"); }
+  const o2 = await rent(page, d(40000)); assert(!o2.renta.auto && o2.renta.mesicne === 40000, "zadaná renta zůstává");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
 tests["výdaje: úmrtí kryje jen výdaje domácnosti (osobní odpadnou); bez rozdělení = vše domácnost"] = async function () {
   const { ctx, page, errors } = await open();
   const d = (tot, dom) => zaklad({ klient: { jmeno: "Jitka", narozen: "1985-03-14", zam: 60000, vydaje_osobni: tot, vydaje_dom: dom, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, sirotci: 8000, bez_partnera: true, hruba: 80000 }, deti: [{ jmeno: "D", narozen: "2016-06-01", vs: true }], cile: [], renta: { mesicne: 0, od_veku: "" } });
