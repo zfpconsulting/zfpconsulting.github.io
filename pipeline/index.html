@@ -1336,6 +1336,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
       <div class="fg" id="docsBox" hidden></div>
 
       <div class="group" id="delBox">
+        <button type="button" class="danger-row" id="toCliBtn" style="color:var(--label)" hidden>↩︎ Bez novinek – zpět do Klientů</button>
         <button type="button" class="danger-row" id="delBtn">Smazat lead</button>
         <div class="confirm" id="delConfirm" hidden>
           <div class="q">Lead se smaže natrvalo.</div>
@@ -2670,6 +2671,7 @@ function card(l,i,cur){
     el("div",{class:"foot"},
       el("span",{},el("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openEdit(l)}},"Otevřít"),
         ACTIVE(l.stage)&&l.phone?el("button",{class:"open",type:"button",style:"color:var(--red);margin-left:6px",title:"Zapsat: volal, nezvedl",onclick:e=>{e.stopPropagation();quickNo(l)}},"Nezvedl"):null,
+        !l.shared&&!SIGNED(l.stage)&&!(l.items||[]).length&&clientOfLead(l)?el("button",{class:"open",type:"button",style:"color:var(--label2);margin-left:6px",title:"Výroční schůzka bez novinek – vrátit do Klientů",onclick:e=>{e.stopPropagation();leadToClients(l)}},"Do klientů"):null,
         l.phone?el("button",{class:"open",type:"button",style:"color:var(--green);margin-left:6px",title:"Potvrzení schůzky / zpráva",onclick:e=>{e.stopPropagation();openMsg(leadMsgCtx(l),null,r=>logLeadMsg(l,r))}},"Zpráva"):null),
       el("div",{class:"stepper"},
         DEAD(l.stage)?el("button",{type:"button",class:"txt",onclick:e=>{e.stopPropagation();moveTo(l,"kontaktovan")}},"Oživit"):null,
@@ -3779,7 +3781,8 @@ function openClient(e0){
     meets.length?el("div",{class:"group"},meets.slice(0,12).map(s=>el("div",{class:"row"},el("span",{class:"main"},fmtMeet(s)+" "+s.slice(0,4)),el("span",{class:"end"},s>new Date().toISOString()?"naplánováno":"")))):null,
     log.length?el("h3",{class:"sechead"},"Historie servisu"):null,
     log.length?el("div",{class:"group"},log.slice(0,15).map(x=>el("div",{class:"row"},el("span",{class:"main"},x.t),el("span",{class:"end"},fmtDT(x.d))))):null,
-    e.lead?el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(e.lead)}},"Otevřít lead v pipeline")):null,
+    e.lead?el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(e.lead)}},"Otevřít lead v pipeline"),
+      !e.lead.shared&&!SIGNED(e.lead.stage)&&!(e.lead.items||[]).length?el("button",{type:"button",class:"chipbtn",title:"Výroční schůzka bez novinek: lead zmizí z pipeline, historie se přenese ke klientovi",onclick:async()=>{if(await leadToClients(e.lead))$("edDlg").close()}},"↩︎ Bez novinek – uzavřít lead"):null):null,
     ...duchClientSection(e,rec),
     ...pfClientSection(e,rec),
     el("div",{class:"group"},el("button",{type:"button",class:"danger-row",onclick:()=>hideClient(e)},"Není to klient – skrýt ze seznamu")))
@@ -5724,6 +5727,29 @@ async function offerNoAnswerSms(ctx,log,onSent,lead){
   /* při otevřeném okně (dialog) musí být lišta uvnitř něj – jinak je zbytek stránky neklikatelný; překreslení obsahu okna ji nesmaže (mění se jen #edBody) */
   const dlg=[...document.querySelectorAll("dialog[open]")].pop();if(dlg){bar.classList.add("indlg");dlg.append(bar);dlg.addEventListener("close",()=>bar.remove(),{once:true})}else document.body.append(bar);
   setTimeout(()=>bar.remove(),30000)}
+/* výroční schůzka bez novinek: lead odejde z pipeline, historie a poznámka se přenesou ke klientovi a ten zůstane (nebo se založí) v „Klienti“ */
+async function leadToClients(l0){
+  if(!db)return false;const l=leads.find(x=>x.id===l0.id)||l0;
+  if(l.shared){toast("Sdílený obchod z pipeline nevyřazuji – mění ho jen ten, kdo ho sdílí");return false}
+  if(SIGNED(l.stage)){toast("Podepsaný obchod z pipeline nevyřazuji – zmizely by body a provize");return false}
+  if((l.items||[]).length){toast("Lead má produkty – nejdřív je odeber, pak ho vrať do klientů");return false}
+  try{
+    const now=new Date().toISOString();let c=clientOfLead(l);
+    if(!c){const data={name:l.name,phone:l.phone||"",email:l.email||"",note:l.note||"",calKey:surnameOf(l.name),leadId:null,products:[],log:[],createdAt:now};
+      const r=await db.collection("clients").add(data);c={id:r.id,...data}}
+    const key=x=>(x.d||"")+"|"+(x.t||""), have=new Set((c.log||[]).map(key));
+    const log=[...(c.log||[]),...(l.log||[]).filter(x=>!have.has(key(x))),{d:now,t:"Výroční schůzka bez novinek – lead uzavřen, zpět v klientech"}].sort((a,b)=>(a.d||"").localeCompare(b.d||"")).slice(-100);
+    const patch={log,lastContact:now,servisNext:""};
+    if(l.note&&!String(c.note||"").includes(l.note))patch.note=(c.note?c.note+"\n":"")+l.note;
+    if(!c.phone&&l.phone)patch.phone=l.phone;if(!c.email&&l.email)patch.email=l.email;
+    const lm=(l.meetings||[]).map(m=>m.start).filter(x=>x&&x<now).sort().pop();if(lm&&lm>(c.lastMeet||""))patch.lastMeet=lm;
+    if(c.leadId===l.id)patch.leadId=null;
+    await db.doc("clients/"+c.id).update(patch);
+    try{if(typeof Deals!=="undefined")Deals.afterSave(l.id,l.items||[],[])}catch(e){}
+    await db.doc("leads/"+l.id).delete();
+    toast("Zpět v klientech · "+(l.name||"klient"));return true
+  }catch(err){toast("Nepodařilo se uložit");return false}
+}
 async function quickNo(l0){
   if(!db)return;const l=leads.find(x=>x.id===l0.id)||l0;const now=new Date().toISOString(), n=(l.log||[]).filter(x=>x.call==="no").length+1;
   const log=[...(l.log||[]),{d:now,t:"Volal, nezvedl"+(n>1?" ("+n+". pokus)":""),call:"no"}].slice(-100);
@@ -5936,7 +5962,7 @@ function openEdit(l){
   formItems=(l?.items||[]).map(it=>{const n=normItem(it);return {...n,var:n.var||PROD[n.p]?.def,share:n.share??l?.share??100,_k:++itemSeq}});
   $("f_points").value=l?.pointsManual??(l&&!l.items?.length&&l.points!=null?l.points:"");
   $("taskHint").textContent=taskHintText();
-  $("f_logAt").value=localDT();$("delBox").hidden=!l;$("delBtn").hidden=false;$("delConfirm").hidden=true;$("fErr").hidden=true;$("logBox").hidden=!l;
+  $("f_logAt").value=localDT();$("delBox").hidden=!l;$("toCliBtn").hidden=!(l&&!l.shared&&!SIGNED(l.stage)&&!(l.items||[]).length);delete $("toCliBtn").dataset.arm;$("toCliBtn").textContent="↩︎ Bez novinek – zpět do Klientů";$("delBtn").hidden=false;$("delConfirm").hidden=true;$("fErr").hidden=true;$("logBox").hidden=!l;
   try{fpLeadBox(l)}catch(err){console.warn("finanční plán",err)}
   {const b=$("docsBox");b.hidden=!l;try{if(l&&window.Docs)Docs.mount(b,docOwnerLead(l));else b.replaceChildren()}catch(err){console.warn("soubory",err);b.hidden=true}}
   syncSigned();renderItems();renderLog(l);
@@ -5966,6 +5992,8 @@ $("f_log").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault()
 $("addBtn").onclick=()=>openEdit(null);
 $("cancelBtn").onclick=()=>$("dlg").close();
 $("delBtn").onclick=()=>{$("delBtn").hidden=true;$("delConfirm").hidden=false};
+$("toCliBtn").onclick=async()=>{const b=$("toCliBtn");if(!b.dataset.arm){b.dataset.arm="1";b.textContent="Opravdu? Klepni znovu – lead zmizí z pipeline, historie jde ke klientovi";setTimeout(()=>{delete b.dataset.arm;b.textContent="↩︎ Bez novinek – zpět do Klientů"},5000);return}
+  delete b.dataset.arm;b.textContent="↩︎ Bez novinek – zpět do Klientů";if(editing&&await leadToClients(editing))$("dlg").close()};
 $("delNo").onclick=()=>{$("delBtn").hidden=false;$("delConfirm").hidden=true};
 $("delYes").onclick=async()=>{try{if(editing.shared)await Deals.leave(editing.shared.id);else if(typeof Deals!=="undefined")Deals.afterSave(editing.id,editing.items||[],[]);await db.doc("leads/"+editing.id).delete();$("dlg").close();toast("Lead smazán")}catch(e){showErr(e)}};
 function showErr(e){$("fErr").textContent="Uložení se nepovedlo ("+(e.code||"chyba")+"). Zkus to znovu.";$("fErr").hidden=false}
