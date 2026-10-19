@@ -408,6 +408,7 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--bg2);color:var(--label);padding:11px 18px;border-radius:999px;font-size:14px;font-weight:500;z-index:20;box-shadow:0 10px 30px rgba(0,0,0,.2)}
 .noans{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;background:var(--bg2);color:var(--label);padding:10px 12px 10px 18px;border-radius:999px;font-size:14px;font-weight:500;z-index:2147483000;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100vw - 24px)}
+.noans.indlg{position:absolute;bottom:20px}
 .noans button{border:0;border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;background:var(--tint);color:#fff;cursor:pointer}
 .noans button.sec{background:transparent;color:var(--label);opacity:.7}
 .toast.in{animation:toastIn .32s cubic-bezier(.2,.9,.24,1)}
@@ -5697,16 +5698,20 @@ async function syncTasks(force){
 function taskHintText(){if(!calCfg().prefix)return "Do kalendáře se zapíše, až v nastavení synchronizace vyplníš začátek názvu schůzek.";if(!GAuth.hasScope("calendar.events"))return "Zápis do kalendáře čeká na povolení – klikni vpravo nahoře na ✓ a „Povolit zápis úkolů“.";return "Zapíše se do kalendáře "+calCfg().name+" jako celodenní „"+taskTitle()+"“ na daný den."}
 
 /* po 3. (6., 9. …) hovoru „nezvedl“ za sebou nabídne poslat SMS ze šablony „Nezvedl – dotaz na nabídku“; hovor, který proběhl, řadu přeruší */
-const noRun=log=>{let n=0;const c=(log||[]).filter(x=>x.call);for(let i=c.length-1;i>=0&&c[i].call==="no";i--)n++;return n};
+const noKind=x=>x.call==="no"||(!x.call&&!x.msg&&/nezved|nedovolal/i.test(x.t||""))?"no":x.call==="yes"||(!x.call&&!x.msg&&/hovor proběhl|^dovolal/i.test(x.t||""))?"yes":"";
+const noRun=log=>{let n=0;const c=(log||[]).filter(noKind);for(let i=c.length-1;i>=0&&noKind(c[i])==="no";i--)n++;return n};
 function offerNoAnswerSms(ctx,log,onSent){
-  const n=noRun(log);if(!n||n%3||!(ctx.phone||"").replace(/\D/g,"")||!tpls().some(t=>t.id==="nezvedl"))return;
+  const n=noRun(log);if(!n||n%3||!tpls().some(t=>t.id==="nezvedl"))return;   /* smazaná šablona = nabídka vypnutá */
+  if(!(ctx.phone||"").replace(/\D/g,"")){toast(n+"× nezvedl – doplň telefon a pošli zprávu");return}
   document.getElementById("noAnsBar")?.remove();
   const bar=el("div",{id:"noAnsBar",class:"noans",role:"alert"},el("span",{},n+"× po sobě nezvedl – poslat SMS?"),
     el("button",{type:"button",onclick:()=>{bar.remove();openMsg(ctx,"nezvedl",onSent)}},"Poslat"),
     el("button",{type:"button",class:"sec",onclick:()=>bar.remove(),"aria-label":"Zavřít"},"Ne"));
-  (document.querySelector("dialog[open]")||document.body).append(bar);setTimeout(()=>bar.remove(),30000)}
-async function quickNo(l){
-  if(!db)return;const now=new Date().toISOString(), n=(l.log||[]).filter(x=>x.call==="no").length+1;
+  /* při otevřeném okně (dialog) musí být lišta uvnitř něj – jinak je zbytek stránky neklikatelný; překreslení obsahu okna ji nesmaže (mění se jen #edBody) */
+  const dlg=[...document.querySelectorAll("dialog[open]")].pop();if(dlg){bar.classList.add("indlg");dlg.append(bar);dlg.addEventListener("close",()=>bar.remove(),{once:true})}else document.body.append(bar);
+  setTimeout(()=>bar.remove(),30000)}
+async function quickNo(l0){
+  if(!db)return;const l=leads.find(x=>x.id===l0.id)||l0;const now=new Date().toISOString(), n=(l.log||[]).filter(x=>x.call==="no").length+1;
   const log=[...(l.log||[]),{d:now,t:"Volal, nezvedl"+(n>1?" ("+n+". pokus)":""),call:"no"}].slice(-100);
   const patch={log,lastContact:now,updatedAt:now};
   if(!l.nextDate||l.nextDate<=todayStr()){patch.nextDate=addWorkDays(1);if(!l.nextStep)patch.nextStep="Zavolat znovu"}
