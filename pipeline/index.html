@@ -409,6 +409,8 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--bg2);color:var(--label);padding:11px 18px;border-radius:999px;font-size:14px;font-weight:500;z-index:20;box-shadow:0 10px 30px rgba(0,0,0,.2)}
 .noans{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;background:var(--bg2);color:var(--label);padding:10px 12px 10px 18px;border-radius:999px;font-size:14px;font-weight:500;z-index:2147483000;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100vw - 24px)}
 .noans.indlg{position:absolute;bottom:20px}
+#callBar.noans{bottom:calc(140px + env(safe-area-inset-bottom,0px))}
+#callBar.noans.indlg{bottom:84px}
 .noans{left:12px;right:12px;transform:none;justify-content:space-between;border-radius:18px;max-width:560px;margin:0 auto}
 .noans.indlg{left:12px;right:12px}
 .noans span{flex:1;min-width:0}
@@ -5741,19 +5743,24 @@ function callTarget(phone){const p=last9(phone);if(p.length<9)return null;
 document.addEventListener("click",e=>{const a=e.target&&e.target.closest&&e.target.closest('a[href^="tel:"]');if(!a)return;
   const t=callTarget(decodeURIComponent(a.getAttribute("href").slice(4)));if(!t)return;
   try{lsSet("call_pending",JSON.stringify({...t,at:Date.now()}))}catch(x){}},true);
-function askCallResult(){
+async function askCallResult(){
   let p=null;try{p=JSON.parse(lsGet("call_pending")||"null")}catch(e){}
   if(!p||!db||!Array.isArray(leads))return;
   const age=Date.now()-p.at;if(age>6*3600e3){lsSet("call_pending","");return}
   if(age<4000||document.hidden)return;
   lsSet("call_pending","");document.getElementById("callBar")?.remove();
-  const done=async ok=>{bar.remove();
-    if(p.kind==="lead"){const l=leads.find(x=>x.id===p.id);if(l){await aiLogCall(l,ok?"yes":"no","");toast(ok?"Zapsáno · hovor proběhl":"Zapsáno · nezvedl")}}
-    else{const ce=clientEntries().find(x=>x.rec&&x.rec.id===p.id);if(ce){await srvCall(ce,ok)}}};
-  const bar=el("div",{id:"callBar",class:"noans",role:"alert"},el("span",{},"Hovor: "+(p.name||"kontakt")+" – jak to dopadlo?"),
-    el("button",{type:"button",onclick:()=>done(true)},"Dovolal"),el("button",{type:"button",class:"sec",style:"opacity:1",onclick:()=>done(false)},"Nezvedl"),el("button",{type:"button",class:"sec",onclick:()=>bar.remove(),"aria-label":"Zavřít"},"✕"));
+  /* délka od klepnutí po návrat do appky: do 40 s = nezvedl (vyzvánění / záznamník), víc = hovor proběhl; chybný odhad jde opravit jedním klepnutím */
+  const secs=Math.round(age/1000), ok=secs>=40, mins=Math.max(1,Math.round(secs/60)), txt=ok?"hovor ~"+mins+" min":"";
+  const dropLast=async()=>{try{if(p.kind==="lead"){const l=leads.find(x=>x.id===p.id);if(l)await db.doc("leads/"+l.id).update({log:(l.log||[]).slice(0,-1)})}
+    else{const c=clients.find(x=>x.id===p.id);if(c)await db.doc("clients/"+c.id).update({log:(c.log||[]).slice(0,-1)})}}catch(e){}};
+  const write=async good=>{if(p.kind==="lead"){const l=leads.find(x=>x.id===p.id);if(l)await aiLogCall(l,good?"yes":"no",good?txt||"hovor":"")}
+    else{const ce=clientEntries().find(x=>x.rec&&x.rec.id===p.id);if(ce)await srvCall(ce,good)}};
+  try{await write(ok)}catch(e){toast("Hovor se nepodařilo zapsat");return}
+  const bar=el("div",{id:"callBar",class:"noans",role:"status"},el("span",{},"Zapsáno: "+(p.name||"kontakt")+" – "+(ok?txt:"nezvedl")),
+    el("button",{type:"button",class:"sec",style:"opacity:1;background:var(--fill)",onclick:async()=>{bar.remove();await dropLast();await new Promise(r=>setTimeout(r,500));await write(!ok);toast("Opraveno: "+(ok?"nezvedl":"hovor proběhl"))}},ok?"Nezvedl":"Dovolal"),
+    el("button",{type:"button",class:"sec",onclick:()=>bar.remove(),"aria-label":"Zavřít"},"OK"));
   const dlg=[...document.querySelectorAll("dialog[open]")].pop();if(dlg){bar.classList.add("indlg");dlg.append(bar)}else document.body.append(bar);
-  setTimeout(()=>bar.remove(),120000)}
+  setTimeout(()=>bar.remove(),20000)}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(askCallResult,600)});
 addEventListener("focus",()=>setTimeout(askCallResult,600));
 /* po 3. (6., 9. …) hovoru „nezvedl“ za sebou nabídne poslat SMS ze šablony „Nezvedl – dotaz na nabídku“; hovor, který proběhl, řadu přeruší */
