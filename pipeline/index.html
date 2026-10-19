@@ -1273,7 +1273,7 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
       <div class="fg">
         <div class="group">
           <div class="frow"><label for="f_name">Jméno</label><input id="f_name" required placeholder="Jméno a příjmení" autocomplete="off"></div>
-          <div class="frow"><label for="f_phone">Telefon</label><input id="f_phone" inputmode="tel" placeholder="777 123 456" autocomplete="off"></div>
+          <div class="frow"><label for="f_phone">Telefon</label><input id="f_phone" inputmode="tel" placeholder="777 123 456" autocomplete="off"><a id="f_call" class="chipbtn" href="#" hidden style="text-decoration:none;margin-left:8px;white-space:nowrap">📞</a></div>
           <div class="frow"><label for="f_email">E-mail</label><input id="f_email" type="email" placeholder="volitelné" autocomplete="off"></div>
         </div>
       </div>
@@ -5726,6 +5726,31 @@ async function syncTasks(force){
 }
 function taskHintText(){if(!calCfg().prefix)return "Do kalendáře se zapíše, až v nastavení synchronizace vyplníš začátek názvu schůzek.";if(!GAuth.hasScope("calendar.events"))return "Zápis do kalendáře čeká na povolení – klikni vpravo nahoře na ✓ a „Povolit zápis úkolů“.";return "Zapíše se do kalendáře "+calCfg().name+" jako celodenní „"+taskTitle()+"“ na daný den."}
 
+/* hovor z Pipeline: klepnutí na číslo (tel:) → po návratu do appky se zeptá „Dovolal / Nezvedl“ a zapíše to leadu / klientovi.
+   iPhone appce výpis hovorů nedá, proto zápis potvrzuješ jedním klepnutím; hovory vytočené mimo Pipeline appka nevidí. */
+const last9=v=>String(v||"").replace(/\D/g,"").slice(-9);
+function callTarget(phone){const p=last9(phone);if(p.length<9)return null;
+  const l=leads.filter(x=>!x.shared&&last9(x.phone)===p).sort((a,b)=>(ACTIVE(b.stage)-ACTIVE(a.stage))||(b.updatedAt||"").localeCompare(a.updatedAt||""))[0];
+  if(l)return {kind:"lead",id:l.id,name:l.name};
+  const c=clients.find(x=>!x.hidden&&last9(x.phone)===p);return c?{kind:"client",id:c.id,name:c.name}:null}
+document.addEventListener("click",e=>{const a=e.target&&e.target.closest&&e.target.closest('a[href^="tel:"]');if(!a)return;
+  const t=callTarget(decodeURIComponent(a.getAttribute("href").slice(4)));if(!t)return;
+  try{lsSet("call_pending",JSON.stringify({...t,at:Date.now()}))}catch(x){}},true);
+function askCallResult(){
+  let p=null;try{p=JSON.parse(lsGet("call_pending")||"null")}catch(e){}
+  if(!p||!db||!Array.isArray(leads))return;
+  const age=Date.now()-p.at;if(age>6*3600e3){lsSet("call_pending","");return}
+  if(age<4000||document.hidden)return;
+  lsSet("call_pending","");document.getElementById("callBar")?.remove();
+  const done=async ok=>{bar.remove();
+    if(p.kind==="lead"){const l=leads.find(x=>x.id===p.id);if(l){await aiLogCall(l,ok?"yes":"no","");toast(ok?"Zapsáno · hovor proběhl":"Zapsáno · nezvedl")}}
+    else{const ce=clientEntries().find(x=>x.rec&&x.rec.id===p.id);if(ce){await srvCall(ce,ok)}}};
+  const bar=el("div",{id:"callBar",class:"noans",role:"alert"},el("span",{},"Hovor: "+(p.name||"kontakt")+" – jak to dopadlo?"),
+    el("button",{type:"button",onclick:()=>done(true)},"Dovolal"),el("button",{type:"button",class:"sec",style:"opacity:1",onclick:()=>done(false)},"Nezvedl"),el("button",{type:"button",class:"sec",onclick:()=>bar.remove(),"aria-label":"Zavřít"},"✕"));
+  const dlg=[...document.querySelectorAll("dialog[open]")].pop();if(dlg){bar.classList.add("indlg");dlg.append(bar)}else document.body.append(bar);
+  setTimeout(()=>bar.remove(),120000)}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(askCallResult,600)});
+addEventListener("focus",()=>setTimeout(askCallResult,600));
 /* po 3. (6., 9. …) hovoru „nezvedl“ za sebou nabídne poslat SMS ze šablony „Nezvedl – dotaz na nabídku“; hovor, který proběhl, řadu přeruší */
 const noKind=x=>x.call==="no"||(!x.call&&!x.msg&&/nezved|nedovolal/i.test(x.t||""))?"no":x.call==="yes"||(!x.call&&!x.msg&&/hovor proběhl|^dovolal/i.test(x.t||""))?"yes":"";
 const noRun=log=>{let n=0;const c=(log||[]).filter(noKind);for(let i=c.length-1;i>=0&&noKind(c[i])==="no";i--)n++;return n};
@@ -5968,12 +5993,14 @@ async function delLog(x){
   }
   try{await db.doc("leads/"+editing.id).update(patch);editing={...editing,...patch};renderLog(editing);toast(x.cal?"Skryto z historie":"Záznam odstraněn")}catch(e){showErr(e)}
 }
+function syncCallBtn(){const a=$("f_call");if(!a)return;const n=($("f_phone").value||"").replace(/[^\d+]/g,"");a.hidden=n.length<9;if(n)a.setAttribute("href","tel:"+n)}
+$("f_phone").addEventListener("input",syncCallBtn);
 function openEdit(l){
   editing=l;
   $("fTitle").textContent=l?l.name:"Nový lead";
   $("f_name").value=l?.name||"";$("f_phone").value=l?.phone||"";$("f_email").value=l?.email||"";
   $("f_source").value=l?.source||"";$("f_stage").value=l?.stage||"novy";
-  $("f_signed").value=l?.signedAt||"";$("f_ref").value=l?.referredBy||"";
+  $("f_signed").value=l?.signedAt||"";$("f_ref").value=l?.referredBy||"";syncCallBtn();
   $("f_next").value=l?.nextStep||"";$("f_date").value=l?.nextDate||"";$("f_note").value=l?.note||"";
   {const lc=l&&clientOfLead(l);if(lc){if(!l.phone&&lc.phone)$("f_phone").value=lc.phone;if(!l.email&&lc.email)$("f_email").value=lc.email;if(!l.note&&lc.note)$("f_note").value=lc.note}}$("f_log").value="";
   formItems=(l?.items||[]).map(it=>{const n=normItem(it);return {...n,var:n.var||PROD[n.p]?.def,share:n.share??l?.share??100,_k:++itemSeq}});
