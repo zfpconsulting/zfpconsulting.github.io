@@ -347,7 +347,11 @@ function renderSent(){
    ${BK.err?`<p class="emsg">${esc(BK.err)}</p>`:""}
    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button type="button" class="btn pri" id="bBook"${BK.busy?" disabled":""}>${BK.busy?"Rezervuji…":"Potvrdit termín"}</button>${ONLY?"":`<button type="button" class="btn" id="bSkip">Teď ne, domluvíme se</button>`}</div></div>`;
 }
-const mapBox=()=>`<div class="map"><iframe title="Mapa – ${esc(BK.addr)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.google.com/maps?q=${encodeURIComponent(BK.addr)}&output=embed"></iframe></div><p class="hint"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(BK.addr)}" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">Otevřít v Google Maps</a></p>`;
+/* osobně: pěší trasa od Galerie Vaňkovka (hlavní nádraží / zastávky MHD) až ke kanceláři + navigace v Google Maps */
+const FROM="Galerie Vaňkovka, Ve Vaňkovce 1, Brno";
+const mapBox=()=>`<div class="note" style="margin-top:14px"><b>Cesta od Vaňkovky</b><br>Od Galerie Vaňkovka (u hlavního nádraží) je to pár minut pěšky.</div>
+  <div class="map"><iframe title="Pěší trasa od Vaňkovky – ${esc(BK.addr)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.google.com/maps?saddr=${encodeURIComponent(FROM)}&daddr=${encodeURIComponent(BK.addr)}&dirflg=w&output=embed"></iframe></div>
+  <p class="hint"><a href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(FROM)}&destination=${encodeURIComponent(BK.addr)}&travelmode=walking" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">Navigovat pěšky v Google Maps</a> · <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(BK.addr)}" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">Adresa v mapě</a></p>`;
 async function book(){
   if(!BK.time){BK.err="Vyberte čas.";return renderSent()}if(!BK.mode){BK.err="Vyberte, jestli osobně, nebo online.";return renderSent()}
   if(ONLY){const c=BK.c;if(String(c.jmeno).trim().split(/\s+/).length<2){BK.err="Vyplňte jméno a příjmení.";return renderSent()}
