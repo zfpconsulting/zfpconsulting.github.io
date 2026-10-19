@@ -407,6 +407,9 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 .err{color:var(--red);font-size:14px;text-align:center}
 
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--bg2);color:var(--label);padding:11px 18px;border-radius:999px;font-size:14px;font-weight:500;z-index:20;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.noans{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;background:var(--bg2);color:var(--label);padding:10px 12px 10px 18px;border-radius:999px;font-size:14px;font-weight:500;z-index:2147483000;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100vw - 24px)}
+.noans button{border:0;border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;background:var(--tint);color:#fff;cursor:pointer}
+.noans button.sec{background:transparent;color:var(--label);opacity:.7}
 .toast.in{animation:toastIn .32s cubic-bezier(.2,.9,.24,1)}
 .toast.out{animation:toastOut .28s ease forwards}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,10px) scale(.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
@@ -3716,7 +3719,8 @@ async function srvCall(e,ok){
   try{const rec=await ensureClient(e);const now=new Date().toISOString(), n=(rec.log||[]).filter(x=>x.call==="no").length+1;
     const log=[...(rec.log||[]),{d:now,t:ok?"Hovor proběhl":"Nezvedl"+(n>1?" ("+n+". pokus)":""),call:ok?"yes":"no"}].slice(-100);
     const patch={log,lastContact:now};if(!ok)patch.servisNext=addWorkDays(1);
-    await db.doc("clients/"+rec.id).update(patch);toast(ok?"Zapsáno – domluv schůzku „"+(calCfg().prefix||"VK:")+" "+surnameOfDisplay(e.name)+"“":"Nezvedl · zkusíš "+fmtDate(patch.servisNext))}catch(err){toast("Nepodařilo se uložit")}
+    await db.doc("clients/"+rec.id).update(patch);toast(ok?"Zapsáno – domluv schůzku „"+(calCfg().prefix||"VK:")+" "+surnameOfDisplay(e.name)+"“":"Nezvedl · zkusíš "+fmtDate(patch.servisNext));
+    if(!ok)offerNoAnswerSms({name:e.name,phone:e.phone||rec.phone||""},log,async r=>{try{const l2=[...log,{d:new Date().toISOString(),t:"Poslána zpráva ("+r.ch+"): "+r.tpl,msg:r.ch}].slice(-100);await db.doc("clients/"+rec.id).update({log:l2});rec.log=l2}catch(x){}})}catch(err){toast("Nepodařilo se uložit")}
 }
 /* ručně přidaní klienti do dnešního volacího bloku: settings.callQ={d:den,ids:[id záznamu v clients]} – platí jen pro daný den */
 function callQIds(){const q=settings.callQ;return q&&q.d===todayStr()?(q.ids||[]):[]}
@@ -4029,6 +4033,7 @@ async function aiLogCall(l,res,text){
   const patch={log,lastContact:now,updatedAt:now};
   if(no&&(!cur.nextDate||cur.nextDate<=todayStr())){patch.nextDate=addWorkDays(1);if(!cur.nextStep)patch.nextStep="Zavolat znovu"}
   await db.doc("leads/"+cur.id).update(patch);
+  if(no)offerNoAnswerSms(leadMsgCtx(cur),log,r=>logLeadMsg(cur,r));
 }
 const aiTasks=()=>myTasks.filter(t=>!t.done).map(t=>({id:t.id,text:t.text||"",client:t.client||"",due:t.due||""}));
 async function aiAddTask(t){await db.collection("mytasks").add({text:t.text,client:t.client||"",due:t.due||"",done:"",createdAt:new Date().toISOString()})}
@@ -4822,10 +4827,15 @@ function openRecruit(r0,isNew){
 const TPL_DEF=[{id:"potvrzeni",name:"Potvrzení schůzky",text:"Dobrý den, {osloveni}, potvrzuji naši schůzku {den} {datum} {vcas}{kde}. Kdyby se Vám cokoli změnilo, dejte mi prosím vědět. Děkuji a těším se.\n{podpis}"},
   {id:"zitra",name:"Připomenutí zítřejší schůzky",text:"Dobrý den, {osloveni}, jen připomínám naši zítřejší schůzku {vcas}{kde}. Budu se těšit.\n{podpis}"},
   {id:"rezervace",name:"Rezervace schůzky",text:"Dobrý den, {osloveni}, termín konzultace si můžete vybrat zde: {rezervace}. Stačí zvolit den, čas a jestli se potkáme osobně, nebo online. Děkuji a těším se.\n{podpis}"},
+  {id:"nezvedl",name:"Nezvedl – dotaz na nabídku",text:"Dobrý den, {osloveni}, zkoušel jsem se Vám dovolat ohledně nabídky, kterou jsem Vám poslal. Nechci Vás zbytečně zdržovat, stačí mi jedno slovo: je to pro Vás pořád aktuální, nebo to teď řešit nechcete? Kdyby bylo něco nejasné, rád to krátce projdu telefonicky.\n{podpis}"},
+  {id:"nezvedl2",name:"Nezvedl – uzavření",text:"Dobrý den, {osloveni}, protože jsem se Vám nedovolal, beru to tak, že teď nabídku řešit nechcete, a nebudu Vás dál obtěžovat. Nabídka zůstává k dispozici, kdykoli se ozvěte a navážeme.\n{podpis}"},
   {id:"narozeniny",name:"Přání k narozeninám",text:"Dobrý den, {osloveni}, chtěl bych Vám popřát vše nejlepší k narozeninám – hodně zdraví, štěstí a pohody.\n{podpis}"}];
 /* stará online šablona slibovala odkaz „v den konzultace“ – teď se odkaz na Google Meet generuje hned a vkládá přes {meet} */
 const OLD_MEET_RE=/Na Vaši (?:e-)?mailovou adresu Vám v den konzultace zašlu\s+odkaz pro připojení\.?/;
-function tpls(){const L=settings.tpls&&settings.tpls.length?settings.tpls:TPL_DEF;return L.map(t=>OLD_MEET_RE.test(t.text||"")?{...t,text:t.text.replace(OLD_MEET_RE,"Zde Vám zasílám odkaz pro připojení: {meet}.")}:t)}
+function tpls(){let L=settings.tpls&&settings.tpls.length?settings.tpls:TPL_DEF;
+  /* nové výchozí šablony „Nezvedl“ se k uloženým šablonám přidají jednou (po prvním uložení šablon už je lze smazat) */
+  if(!settings.tplNezvedl&&L!==TPL_DEF)L=L.concat(TPL_DEF.filter(d=>/^nezvedl/.test(d.id)&&!L.some(t=>t.id===d.id)));
+  return L.map(t=>OLD_MEET_RE.test(t.text||"")?{...t,text:t.text.replace(OLD_MEET_RE,"Zde Vám zasílám odkaz pro připojení: {meet}.")}:t)}
 /* ================= Google Meet odkaz k online schůzce ================= */
 const MEET_PH="[odkaz na Google Meet se generuje…]";
 const meetCache=lsGet("meet_links")||{};
@@ -4918,7 +4928,7 @@ async function tplMigrate(){
   settings={...settings,tplRezV2:true,...(ch?{tpls:L}:{})};
   try{await db.doc("settings/main").update(ch?{tpls:L,tplRezV2:true}:{tplRezV2:true})}catch(e){}}
 function renderTpls(){const box=$("tplList");if(!box)return;const list=tpls().map(t=>({...t}));
-  const save=async()=>{try{await db.doc("settings/main").set({...settings,tpls:list});toast("Šablony uloženy")}catch(e){toast("Nepodařilo se uložit")}};
+  const save=async()=>{try{await db.doc("settings/main").set({...settings,tpls:list,tplNezvedl:true});toast("Šablony uloženy")}catch(e){toast("Nepodařilo se uložit")}};
   box.replaceChildren(...list.map((t,i)=>{const n=el("input",{value:t.name,"aria-label":"Název šablony"});n.value=t.name;n.onchange=()=>{t.name=n.value.trim()||"Šablona";save()};
     const x=el("textarea",{"aria-label":"Text šablony"});x.value=t.text;x.onchange=()=>{t.text=x.value;save()};
     return el("div",{class:"tpl"},n,x,el("button",{type:"button",class:"del",onclick:()=>{list.splice(i,1);save().then(renderTpls)}},"Smazat"))}));
@@ -5684,12 +5694,21 @@ async function syncTasks(force){
 }
 function taskHintText(){if(!calCfg().prefix)return "Do kalendáře se zapíše, až v nastavení synchronizace vyplníš začátek názvu schůzek.";if(!GAuth.hasScope("calendar.events"))return "Zápis do kalendáře čeká na povolení – klikni vpravo nahoře na ✓ a „Povolit zápis úkolů“.";return "Zapíše se do kalendáře "+calCfg().name+" jako celodenní „"+taskTitle()+"“ na daný den."}
 
+/* po 3. (6., 9. …) hovoru „nezvedl“ za sebou nabídne poslat SMS ze šablony „Nezvedl – dotaz na nabídku“; hovor, který proběhl, řadu přeruší */
+const noRun=log=>{let n=0;const c=(log||[]).filter(x=>x.call);for(let i=c.length-1;i>=0&&c[i].call==="no";i--)n++;return n};
+function offerNoAnswerSms(ctx,log,onSent){
+  const n=noRun(log);if(!n||n%3||!(ctx.phone||"").replace(/\D/g,"")||!tpls().some(t=>t.id==="nezvedl"))return;
+  document.getElementById("noAnsBar")?.remove();
+  const bar=el("div",{id:"noAnsBar",class:"noans",role:"alert"},el("span",{},n+"× po sobě nezvedl – poslat SMS?"),
+    el("button",{type:"button",onclick:()=>{bar.remove();openMsg(ctx,"nezvedl",onSent)}},"Poslat"),
+    el("button",{type:"button",class:"sec",onclick:()=>bar.remove(),"aria-label":"Zavřít"},"Ne"));
+  (document.querySelector("dialog[open]")||document.body).append(bar);setTimeout(()=>bar.remove(),30000)}
 async function quickNo(l){
   if(!db)return;const now=new Date().toISOString(), n=(l.log||[]).filter(x=>x.call==="no").length+1;
   const log=[...(l.log||[]),{d:now,t:"Volal, nezvedl"+(n>1?" ("+n+". pokus)":""),call:"no"}].slice(-100);
   const patch={log,lastContact:now,updatedAt:now};
   if(!l.nextDate||l.nextDate<=todayStr()){patch.nextDate=addWorkDays(1);if(!l.nextStep)patch.nextStep="Zavolat znovu"}
-  try{await db.doc("leads/"+l.id).update(patch);toast("Nezvedl · "+(patch.nextDate?"další pokus "+fmtDate(patch.nextDate):"zapsáno"))}catch(e){toast("Nepodařilo se uložit")}
+  try{await db.doc("leads/"+l.id).update(patch);toast("Nezvedl · "+(patch.nextDate?"další pokus "+fmtDate(patch.nextDate):"zapsáno"));offerNoAnswerSms(leadMsgCtx(l),log,r=>logLeadMsg(l,r))}catch(e){toast("Nepodařilo se uložit")}
 }
 /* ================= sheet ================= */
 function fillSelect(sel,opts){if(!opts.some(o=>o[2])){sel.replaceChildren(...opts.map(([v,t])=>el("option",{value:v},t)));return}const out=[],grp=new Map();opts.forEach(([v,t,g])=>{const o=el("option",{value:v},t);if(!g){out.push(o);return}if(!grp.has(g)){const og=el("optgroup",{label:g});grp.set(g,og);out.push(og)}grp.get(g).append(o)});sel.replaceChildren(...out)}
@@ -5917,6 +5936,7 @@ $("logBtn").onclick=async()=>{if(await addLog($("f_log").value.trim()))$("f_log"
 $("callNo").onclick=async()=>{
   const n=(editing?.log||[]).filter(x=>x.call==="no").length+1;
   if(await addLog("Volal, nezvedl"+(n>1?" ("+n+". pokus)":""),{call:"no"})&&!$("f_date").value){$("f_date").value=addWorkDays(1);toast("Zapsáno · další pokus zítra")}
+  if(editing){const l={...editing,name:$("f_name").value.trim()||editing.name,phone:$("f_phone").value.trim(),email:$("f_email").value.trim()};offerNoAnswerSms(leadMsgCtx(l),editing.log,r=>logLeadMsg(l,r))}
 };
 $("callYes").onclick=()=>addLog("Volal · hovor proběhl",{call:"yes"});
 $("msgBtn").onclick=()=>{if(!editing){toast("Nejdřív lead ulož");return}const l={...editing,name:$("f_name").value.trim()||editing.name,phone:$("f_phone").value.trim(),email:$("f_email").value.trim()};openMsg(leadMsgCtx(l),null,r=>{if(r.meetId)setTodo("conf:"+r.meetId,{s:"done",d:todayStr()});addLog("Poslána zpráva ("+r.ch+"): "+r.tpl+(r.start?" · schůzka "+fmtMeet(r.start):""),{msg:r.ch})})};
