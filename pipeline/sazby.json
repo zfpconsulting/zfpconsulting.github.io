@@ -1,0 +1,7 @@
+{
+ "source": "Swiss Life Hypoindex",
+ "period": "2026-09",
+ "url": "https://www.swisslifeselect.cz/content/dam/sls-cz/pro-media/hypoindex/hypoindex-092026/TZ_Swiss%20Life_Hypoindex_ZARI_2026.pdf",
+ "index": 5.51,
+ "fix": {"1": {"a": 5.29, "b": 5.58}, "3": {"a": 5.27, "b": 5.58}, "5": {"a": 5.51, "b": 5.82}, "10": {"a": 5.99, "b": 6.24}}
+}

@@ -21,6 +21,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Krátké odkazy (termin/, dotaznik/) odpovídají dotazníku
         run: node ../tools/short-links.mjs --check
+      - name: Parser sazeb hypoték (tools/sazby.mjs)
+        run: node ../tools/sazby.test.mjs
       - name: Test ikon
         run: node tests/icons.run.mjs
       - name: Testy kalkulačky a editoru fotek

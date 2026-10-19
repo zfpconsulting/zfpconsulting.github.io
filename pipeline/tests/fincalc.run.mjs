@@ -237,6 +237,73 @@ const tests = {
     assert(!errors.length, "chyby: " + errors.join(" | "));
     await ctx.close();
   },
+  async "hypotéka: vlastní zdroje, LTV, potřebný příjem, aktuální sazba (výpočty)"() {
+    const { ctx, page } = await open();
+    const r = await page.evaluate(() => {
+      const { loanInfo, liveRate } = FinCalc.math;
+      const L = loanInfo({ price: 3750000, pv: 3000000, pmt: 16000, other: 2000, dsti: 40, dti: 8, ltvType: "own" });
+      const D = loanInfo({ price: 0, pv: 3000000, pmt: 8000, other: 0, dsti: 50, dti: 8 });
+      const R = { fix: { 5: { a: 5.51, b: 5.82 }, 3: { a: 6.15, b: null } } };
+      return { own: L.own, ltv: L.ltv, need: L.need, bind: L.binding, warn: L.warn.length, dti: D.need, dbind: D.binding,
+        over: loanInfo({ price: 3500000, pv: 3000000, pmt: 1, ltvType: "own" }).warn[0] || "", young: loanInfo({ price: 3500000, pv: 3000000, pmt: 1, ltvType: "young" }).warn.length,
+        r80: liveRate(5, 80, R), r85: liveRate(5, 85, R), only: liveRate(3, 85, R).rate, none: liveRate(10, 50, R) };
+    });
+    eq([r.own, r.ltv, r.need, r.bind, r.warn], [750000, 80, 45000, "dsti", 0], "vlastní zdroje, LTV 80 %, příjem (16 000 + 2 000) / 40 %");
+    eq([r.dti, r.dbind], [31250, "dti"], "DTI 8: 3 mil. / 8 / 12");
+    assert(/LTV 85,71 % překračuje limit ČNB 80 %/.test(r.over), "varování LTV: " + r.over);
+    eq(r.young, 0, "do 36 let limit 90 %");
+    eq([r.r80, r.r85, r.only, r.none], [{ rate: 5.51, band: "do 80 %" }, { rate: 5.82, band: "nad 80 %" }, 6.15, null], "sazba podle fixace a LTV");
+    await ctx.close();
+  },
+  async "UI: úvěr – cena nemovitosti, aktuální sazba ze sazby.json, PDF"() {
+    const { ctx, page, errors } = await open();
+    await page.click('[data-a="mode"][data-k="loan"]');
+    let t = await tiles(page);
+    eq([t["Cena nemovitosti"], t["Vlastní zdroje (akontace)"], t["LTV"]], ["3 750 000 Kč", "750 000 Kč", "80,00 %"], "dlaždice nemovitosti");
+    assert(t["Potřebný čistý příjem / měs."] && /Kč$/.test(t["Potřebný čistý příjem / měs."]), "potřebný příjem");
+    assert(await page.isVisible(".fc-note"), "poznámka o příjmu");
+    // aktuální sazba – sazba se zamkne a vezme z sazby.json (fixace 5 let, LTV do 80 %)
+    await page.check('input[data-x="live"]');
+    await page.waitForFunction(() => document.querySelector('input[data-k="rate"]').disabled);
+    const json = await page.evaluate(() => fetch("sazby.json").then(r => r.json()));
+    await page.waitForFunction(v => document.querySelector('input[data-k="rate"]').value === v, json.fix[5].a.toFixed(2).replace(".", ",") + " %");
+    assert((await page.textContent(".fc-src")).includes("Swiss Life Hypoindex"), "zdroj sazby");
+    // vyšší LTV → sazba nad 80 % a varování u vlastního bydlení, u „do 36 let“ bez varování
+    await page.fill('input[data-k="price"]', "3400000"); await page.press('input[data-k="price"]', "Enter");
+    await page.waitForFunction(v => document.querySelector('input[data-k="rate"]').value === v, json.fix[5].b.toFixed(2).replace(".", ",") + " %");
+    assert(await page.isVisible(".fc-note.warn"), "varování LTV");
+    await page.selectOption('select[data-x="ltvType"]', "young");
+    assert(!(await page.isVisible(".fc-note.warn")), "do 36 let bez varování");
+    await page.selectOption('select[data-x="fix"]', "10");
+    await page.waitForFunction(v => document.querySelector('input[data-k="rate"]').value === v, json.fix[10].b.toFixed(2).replace(".", ",") + " %");
+    t = await tiles(page);
+    assert(t["Úroková sazba p.a. (aktuální)"], "dlaždice aktuální sazby");
+    if (SHOTS) await page.screenshot({ path: "/tmp/fc-uver-live.png", fullPage: true });
+    // vlajka u zamčené sazby nic nedopočítává
+    assert(await page.isDisabled('.fc-f[data-k="rate"] .fc-flag'), "vlajka sazby zamčená");
+    const popP = ctx.waitForEvent("page");
+    await page.click('button[data-a="pdf"]');
+    const pop = await popP; await pop.waitForLoadState();
+    const html = await pop.content();
+    assert(html.includes("Vlastní zdroje (akontace)") && html.includes("Zdroj sazby") && html.includes("Potřebný čistý příjem"), "obsah PDF úvěru");
+    // vypnutí → sazba zůstane, jde zase psát
+    await page.uncheck('input[data-x="live"]');
+    assert(!(await page.isDisabled('input[data-k="rate"]')), "sazba odemčená");
+    if (SHOTS) await page.screenshot({ path: "/tmp/fc-uver.png", fullPage: true });
+    assert(!errors.length, "chyby: " + errors.join(" | "));
+    await ctx.close();
+  },
+  async "UI: starší uložená kalkulace úvěru bez nových polí se načte"() {
+    const { ctx, page, errors } = await open();
+    await page.evaluate(() => { const old = { mode: "loan", titles: {}, m: { loan: { v: { pv: 2000000, pmt: 0, years: 25, rate: 5, fv: 0, freq: "m" }, calc: "pmt" }, inv: { v: { pv: 1, pmt: 1, fv: 0, years: 1, rate: 1, freq: "m" }, calc: "fv" }, renta: { v: { pv: 1, pmt: 1, years: 1, rate: 1, fv: 0, freq: "m" }, calc: "pmt" } } };
+      localStorage.setItem("fc_draft_v1", JSON.stringify(old)); });
+    await page.reload(); await page.waitForFunction(() => window.ui);
+    const t = await tiles(page);
+    eq([t["Výše úvěru"], t["Cena nemovitosti"]], ["2 000 000 Kč", "3 750 000 Kč"], "doplněné výchozí hodnoty");
+    assert(/Kč$/.test(t["Potřebný čistý příjem / měs."]), "příjem spočten");
+    assert(!errors.length, "chyby: " + errors.join(" | "));
+    await ctx.close();
+  },
   async "UI: mobil a tmavý režim bez chyb"() {
     for (const o of [{ width: 390, height: 844 }, { width: 1300, height: 900, dark: true }]) {
       const { ctx, page, errors } = await open(o);

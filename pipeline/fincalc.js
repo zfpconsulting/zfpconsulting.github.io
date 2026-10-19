@@ -64,6 +64,35 @@ function totals(mode,v){const n=v.years*12;
   return{paid:v.pmt*n,rest:v.fv};
 }
 
+/* ================= hypotéka: LTV, vlastní zdroje, potřebný příjem, aktuální sazby ================= */
+/* limity LTV podle ČNB (závazné): 80 %, žadatel do 36 let 90 %, investiční nemovitost 70 % */
+const LTV_TYPES=[["own","Vlastní bydlení",80],["young","Do 36 let",90],["inv","Investiční",70]];
+const ltvLimit=t=>(LTV_TYPES.find(x=>x[0]===t)||LTV_TYPES[0])[2];
+const FIXES=[1,3,5,10];
+/* záloha pro offline / první spuštění; aktuální data čte appka ze sazby.json (týdně ho obnovuje GitHub Action tools/sazby.mjs) */
+const RATES_SEED={source:"Swiss Life Hypoindex",period:"2026-09",url:"https://www.swisslifeselect.cz/content/dam/sls-cz/pro-media/hypoindex/hypoindex-092026/TZ_Swiss%20Life_Hypoindex_ZARI_2026.pdf",
+  index:5.51,fix:{1:{a:5.29,b:5.58},3:{a:5.27,b:5.58},5:{a:5.51,b:5.82},10:{a:5.99,b:6.24}}};
+let RATES=RATES_SEED;
+/* sazba pro fixaci a LTV: sloupec a = LTV do 80 %, b = nad 80 %; chybí-li jeden sloupec, vezme se druhý */
+function liveRate(fix,ltv,R=RATES){const row=R&&R.fix&&(R.fix[fix]||R.fix[String(fix)]);if(!row)return null;
+  const hi=isFinite(ltv)&&ltv>80,r=hi?(row.b??row.a):(row.a??row.b);return isFinite(r)?{rate:r,band:hi&&row.b!=null?"nad 80 %":"do 80 %"}:null}
+const MONTHS=["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
+const periodTxt=p=>{const m=/^(\d{4})-(\d{2})$/.exec(p||"");return m?MONTHS[+m[2]-1]+" "+m[1]:String(p||"")};
+/* stáří dat v měsících vůči dnešku (Hypoindex vychází k 5. pracovnímu dni měsíce) */
+const periodAge=(p,now=new Date())=>{const m=/^(\d{4})-(\d{2})$/.exec(p||"");return m?(now.getFullYear()-+m[1])*12+now.getMonth()+1-+m[2]:99};
+/* LTV, vlastní zdroje a potřebný čistý příjem domácnosti (DSTI = všechny splátky / čistý měs. příjem; DTI = dluh / čistý roční příjem) */
+function loanInfo(v){
+  const price=+v.price>0?+v.price:0,pv=+v.pv||0,limit=ltvLimit(v.ltvType);
+  const ltv=price>0?pv/price*100:NaN,own=price>0?price-pv:NaN;
+  const dsti=(+v.dsti>0?+v.dsti:40)/100,dti=+v.dti>0?+v.dti:8;
+  const needDsti=((+v.pmt||0)+(+v.other||0))/dsti,needDti=pv/dti/12;
+  const need=isFinite(v.pmt)?Math.max(needDsti,needDti):NaN;
+  const warn=[];
+  if(price>0&&pv>price)warn.push("Úvěr je vyšší než cena nemovitosti.");
+  else if(price>0&&ltv>limit+1e-9)warn.push(`LTV ${fmtPct(ltv)} překračuje limit ČNB ${limit} % pro tento typ – banka úvěr v této výši poskytne jen výjimečně. Pro limit je potřeba úvěr max. ${fmtKc(price*limit/100)} (vlastní zdroje aspoň ${fmtKc(price*(1-limit/100))}).`);
+  return{price,own,ltv,limit,needDsti,needDti,need,binding:needDti>needDsti?"dti":"dsti",warn};
+}
+
 /* ================= formátování ================= */
 const nf0=new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:0});
 const nf2=new Intl.NumberFormat("cs-CZ",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -78,12 +107,19 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 
 /* ================= definice režimů ================= */
 const MODES={
-  loan:{t:"Úvěr",chart:"Vývoj zůstatku úvěru",sa:"Zůstatek úvěru",sb:"Splaceno celkem",def:{pv:3000000,pmt:16000,years:30,rate:5,fv:0,freq:"m"},calc:"pmt",
-    f:{pv:{l:"Výše úvěru (CZK)",st:50000,h:"Kolik si půjčujete."},
+  loan:{t:"Úvěr",chart:"Vývoj zůstatku úvěru",sa:"Zůstatek úvěru",sb:"Splaceno celkem",def:{pv:3000000,pmt:16000,years:30,rate:5,fv:0,freq:"m",price:3750000,ltvType:"own",live:false,fix:5,other:0,dsti:40,dti:8},calc:"pmt",
+    f:{price:{l:"Cena nemovitosti (CZK)",st:50000,h:"Kupní cena / odhad zástavy. Z ní a výše úvěru se dopočítají vlastní zdroje (akontace) a LTV. 0 = bez nemovitosti (spotřebitelský úvěr)."},
+       other:{l:"Ostatní splátky domácnosti (CZK/měs.)",st:500,h:"Splátky jiných úvěrů, leasingů a limity karet – banka je započítá do DSTI."},
+       dsti:{l:"Limit DSTI (%)",st:1,h:"Kolik % čistého příjmu smí jít na všechny splátky. ČNB doporučuje 40 % (nezávazně), banky interně často 45–50 %."},
+       dti:{l:"Limit DTI (násobek ročního příjmu)",st:0.5,h:"Kolikanásobek čistého ročního příjmu smí dluh činit. ČNB doporučuje 8 (nezávazně), u investičních hypoték je max. 7."},
+       pv:{l:"Výše úvěru (CZK)",st:50000,h:"Kolik si půjčujete."},
        pmt:{l:"Měsíční splátka (CZK)",st:500,h:"Pravidelná splátka na konci každého měsíce (anuita)."},
        years:{l:"Splatnost (počet let)",st:1,h:"Za jak dlouho bude úvěr splacen."},
        rate:{l:"Úroková sazba p.a. (%)",st:0.1,h:"Roční úroková sazba úvěru."}},
-    tiles:v=>{const t=totals("loan",v);return[["Výše úvěru",fmtKc(v.pv)],["Měsíční splátka",fmtKc(v.pmt)],["Úroková sazba p.a.",fmtPct(v.rate)],["Splatnost",yrsTxt(v.years)],["Celkem zaplatíte",fmtKc(t.paid)],["Přeplatek na úrocích",fmtKc(t.interest)]]},
+    tiles:v=>{const t=totals("loan",v),L=loanInfo(v),out=[];
+      if(L.price>0)out.push(["Cena nemovitosti",fmtKc(L.price)],["Vlastní zdroje (akontace)",fmtKc(L.own)],["LTV",fmtPct(L.ltv)]);
+      out.push(["Výše úvěru",fmtKc(v.pv)],["Měsíční splátka",fmtKc(v.pmt)],["Úroková sazba p.a."+(v.live?" (aktuální)":""),fmtPct(v.rate)],["Splatnost",yrsTxt(v.years)],["Celkem zaplatíte",fmtKc(t.paid)],["Přeplatek na úrocích",fmtKc(t.interest)],["Potřebný čistý příjem / měs.",fmtKc(L.need)]);
+      return out},
     help:"Graf ukazuje, jak klesá dlužná částka, a kolik už bylo na splátkách zaplaceno celkem."},
   inv:{t:"Investice",chart:"Vývoj hodnoty investice",sa:"Hodnota investice",sb:"Vloženo celkem",def:{pv:100000,pmt:5000,fv:0,years:20,rate:6,freq:"m"},calc:"fv",
     f:{pv:{l:"Jednorázový vklad (CZK)",st:10000,h:"Částka, kterou vložíte hned na začátku."},
@@ -204,6 +240,17 @@ const CSS=`
 .fc-f.err .fc-in{border-color:var(--red,#F37520)}
 .fc-sel{width:100%;height:50px;border:1px solid var(--fc-line);border-radius:6px;background:var(--bg2,#fff);color:var(--fc-navy);font:inherit;font-size:16px;padding:0 14px;appearance:auto}
 .fc-errm{color:var(--red,#F37520);font-size:13.5px;line-height:1.4;margin:4px 0 0}
+.fc-f.lock .fc-in{background:var(--fc-calc);border-color:var(--fc-calc)}
+.fc-f.lock .fc-in button{opacity:.4;cursor:default}
+.fc-flag[disabled]{opacity:.35;cursor:default}
+.fc-chk{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--fc-navy);font-weight:600;cursor:pointer;margin-bottom:8px;min-height:30px}
+.fc-chk input{width:20px;height:20px;accent-color:var(--fc-orange);margin:0}
+.fc-src{font-size:12.5px;line-height:1.4;color:var(--fc-txt);margin:6px 0 0}
+.fc-src a{color:inherit}
+.fc-sub{font-size:15px;margin:20px 0 10px;padding-top:12px;border-top:1px solid var(--fc-line)}
+.fc-note{font-size:13.5px;line-height:1.45;color:var(--fc-txt);margin:10px 0 0;padding:9px 11px;background:var(--fc-tile);border-radius:8px}
+.fc-note b{color:var(--fc-navy)}
+.fc-note.warn{background:transparent;border:1px solid var(--fc-orange);color:var(--fc-navy)}
 .fc-main{flex:1;min-width:0;padding:22px 26px 26px;container-type:inline-size}
 .fc-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:22px}
 .fc-tile{background:var(--fc-tile);border-radius:10px;padding:12px 14px;min-width:0}
@@ -277,6 +324,12 @@ function mount(root,opts={}){
   const ls=opts.ls||{get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
   let st=ls.get(LS);
   if(!st||!st.m||!ORDER.every(k=>st.m[k]))st=fresh();
+  /* starší uložené kalkulace nemají nová pole úvěru (cena nemovitosti, bonita…) – doplnit výchozí */
+  const fill=s=>{ORDER.forEach(k=>{s.m[k].v={...MODES[k].def,...s.m[k].v}});return s};
+  fill(st);
+  /* aktuální sazby hypoték (sazby.json vedle appky); když se nenačtou, zůstane záloha v kódu */
+  if(opts.rates)RATES=opts.rates;
+  else if(typeof fetch==="function")fetch(opts.ratesUrl||"sazby.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.fix){RATES=j;if(st.mode==="loan"&&cur().v.live)refresh()}}).catch(()=>{});
   let saved=[],help=null,menuOpen=false,minPar=false,lastRes=null;
   const persist=()=>ls.set(LS,st);
   /* vodoznak: sdílí se mezi zařízeními přes úložiště Pipeline (fcprefs/main), jinak jen v tomto zařízení */
@@ -289,12 +342,51 @@ function mount(root,opts={}){
   const cur=()=>st.m[st.mode];
   function compute(){
     const M=MODES[st.mode],c=cur(),v={...c.v};
-    const r=solve(st.mode,v,c.calc);
-    if(r.ok){v[c.calc]=c.calc==="years"?r.val:c.calc==="rate"?r.val:Math.round(r.val*100)/100;c.v[c.calc]=v[c.calc]}
-    lastRes={ok:r.ok,err:r.err,v,M};return lastRes;
+    const live=st.mode==="loan"&&v.live;
+    if(live&&c.calc==="rate")c.calc="pmt";
+    let r,lr=null;
+    for(let it=0;it<3;it++){
+      if(live){lr=liveRate(v.fix,loanInfo(v).ltv);if(lr){v.rate=lr.rate;c.v.rate=lr.rate}}
+      r=solve(st.mode,v,c.calc);
+      if(r.ok){v[c.calc]=c.calc==="years"?r.val:c.calc==="rate"?r.val:Math.round(r.val*100)/100;c.v[c.calc]=v[c.calc]}
+      if(!live||c.calc!=="pv"||!r.ok)break;
+      const nr=liveRate(v.fix,loanInfo(v).ltv);if(!nr||!lr||nr.rate===lr.rate)break;
+    }
+    if(live&&!lr)r={ok:false,err:"Aktuální sazba pro tuto fixaci není k dispozici – vypni „Aktuální úroková sazba“ a zadej ji ručně."};
+    lastRes={ok:r.ok,err:r.err,v,M,lr};return lastRes;
   }
-  function fieldVal(k,v){if(!isFinite(v))return"";if(k==="rate")return nf2.format(v)+" %";if(k==="years")return fmtYearsIn(v);return fmtNum(v)}
+  function fieldVal(k,v){if(!isFinite(v))return"";if(k==="rate"||k==="dsti")return nf2.format(v)+" %";if(k==="dti")return fmtYearsIn(v);if(k==="years")return fmtYearsIn(v);return fmtNum(v)}
 
+  /* jedno číselné pole; pole mimo FIELDS (cena nemovitosti, bonita) nemají vlajku – nedopočítávají se */
+  function fieldHTML(k,res){
+    const M=MODES[st.mode],c=cur(),solv=FIELDS[st.mode].includes(k),lock=st.mode==="loan"&&k==="rate"&&c.v.live;
+    const f=M.f[k],isC=k===c.calc;
+    return `<div class="fc-f${isC?" calc":""}${lock?" lock":""}${isC&&!res.ok?" err":""}" data-k="${k}">
+            <div class="fc-fl">${solv?`<button type="button" class="fc-flag" data-a="flag" data-k="${k}" title="${isC?"Tato hodnota se dopočítává":lock?"Aktuální sazba se nedopočítává":"Dopočítat tuto hodnotu"}" aria-label="Dopočítat: ${esc(f.l)}" aria-pressed="${isC}"${lock?" disabled":""}>${ICON.flag}</button>`:`<span class="fc-flag" aria-hidden="true"></span>`}<span>${esc(f.l)}</span><button type="button" class="fc-q" data-a="help" data-k="${k}" aria-label="Nápověda">${ICON.help}</button>${help===k?`<div class="fc-hp">${esc(f.h)}</div>`:""}</div>
+            <div class="fc-in"><button type="button" data-a="dec" data-k="${k}" aria-label="Snížit" ${isC||lock?"disabled":""}>−</button><input data-k="${k}" inputmode="decimal" autocomplete="off" aria-label="${esc(f.l)}" value="${isC&&!res.ok?"–":fieldVal(k,c.v[k])}" ${isC||lock?"disabled":""}><button type="button" data-a="inc" data-k="${k}" aria-label="Zvýšit" ${isC||lock?"disabled":""}>+</button></div></div>`
+  }
+  function loanNotes(res){
+    const v=res.v,L=loanInfo(v),out=[];
+    if(res.ok)out.push(`<p class="fc-note">Potřebný čistý příjem domácnosti: <b>${fmtKc(L.need)}</b> měsíčně – rozhoduje ${L.binding==="dti"?`DTI ${nf2.format(v.dti).replace(/,00$/,"")} (úvěr max. ${nf2.format(v.dti).replace(/,00$/,"")}× roční příjem)`:`DSTI ${nf2.format(v.dsti).replace(/,00$/,"")} % (splátky max. ${nf2.format(v.dsti).replace(/,00$/,"")} % příjmu)`}. Příjmy spolužadatelů se sčítají.</p>`);
+    L.warn.forEach(w=>out.push(`<p class="fc-note warn" role="status">${esc(w)}</p>`));
+    return out.join("");
+  }
+  function rateSrc(res){
+    const c=cur();if(!c.v.live)return"";const R=RATES,lr=res.lr,old=periodAge(R.period)>2;
+    return `${lr?`Sazba ${fmtPct(lr.rate)} = průměrná nabídková sazba, fixace ${c.v.fix} ${c.v.fix===1?"rok":c.v.fix<5?"roky":"let"}, LTV ${lr.band}. `:""}Zdroj: <a href="${esc(R.url||"https://www.hypoindex.cz/")}" target="_blank" rel="noopener">${esc(R.source||"Swiss Life Hypoindex")}</a>, ${esc(periodTxt(R.period))}.${old?` <b>Data jsou starší než 2 měsíce – zkontroluj aktualizaci sazeb.</b>`:""}`;
+  }
+  /* panel Parametry: u úvěru navíc cena nemovitosti, typ (limit LTV), aktuální sazba a bonita */
+  function parHTML(res){
+    const c=cur();
+    const freq=`<div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="fc-sel" data-a="freq" aria-label="Frekvence připisování úroku">${FREQ.map(([k,t])=>`<option value="${k}"${c.v.freq===k?" selected":""}>${t}</option>`).join("")}</select></div>`;
+    if(st.mode!=="loan")return FIELDS[st.mode].map(k=>fieldHTML(k,res)).join("")+freq;
+    return fieldHTML("price",res)
+      +`<div class="fc-f"><div class="fc-fl"><span>Účel / limit LTV</span></div><select class="fc-sel" data-x="ltvType" aria-label="Účel úvěru">${LTV_TYPES.map(([k,t,l])=>`<option value="${k}"${c.v.ltvType===k?" selected":""}>${esc(t)} – LTV ${l} %</option>`).join("")}</select></div>`
+      +["pv","pmt","years","rate"].map(k=>fieldHTML(k,res)).join("")
+      +`<div class="fc-f fc-live"><label class="fc-chk"><input type="checkbox" data-x="live"${c.v.live?" checked":""}> Aktuální úroková sazba</label>
+        ${c.v.live?`<select class="fc-sel" data-x="fix" aria-label="Délka fixace">${FIXES.map(f=>`<option value="${f}"${+c.v.fix===f?" selected":""}>Fixace ${f} ${f===1?"rok":f<5?"roky":"let"}</option>`).join("")}</select><p class="fc-src">${rateSrc(res)}</p>`:""}</div>`
+      +freq+`<h4 class="fc-sub">Bonita</h4>`+["other","dsti","dti"].map(k=>fieldHTML(k,res)).join("");
+  }
   function draw(){
     const res=compute(),M=MODES[st.mode],c=cur();persist();
     const title="Finanční matematika - "+(st.name||"Koncept");
@@ -307,11 +399,9 @@ function mount(root,opts={}){
       <div class="fc-body">
         <div class="fc-tabs" role="tablist" aria-label="Typ výpočtu">${ORDER.map(k=>`<button type="button" role="tab" data-a="mode" data-k="${k}" aria-selected="${k===st.mode}">${MODES[k].t}</button>`).join("")}</div>
         <div class="fc-par${minPar?" min":""}"><div class="fc-ph"><h3>Parametry</h3><button class="fc-coll" type="button" data-a="coll" aria-label="${minPar?"Rozbalit":"Sbalit"} parametry">${ICON.dbl}</button></div>
-          <div class="fc-pin">${FIELDS[st.mode].map(k=>{const f=M.f[k],isC=k===c.calc;return `<div class="fc-f${isC?" calc":""}${isC&&!res.ok?" err":""}" data-k="${k}">
-            <div class="fc-fl"><button type="button" class="fc-flag" data-a="flag" data-k="${k}" title="${isC?"Tato hodnota se dopočítává":"Dopočítat tuto hodnotu"}" aria-label="Dopočítat: ${esc(f.l)}" aria-pressed="${isC}">${ICON.flag}</button><span>${esc(f.l)}</span><button type="button" class="fc-q" data-a="help" data-k="${k}" aria-label="Nápověda">${ICON.help}</button>${help===k?`<div class="fc-hp">${esc(f.h)}</div>`:""}</div>
-            <div class="fc-in"><button type="button" data-a="dec" data-k="${k}" aria-label="Snížit" ${isC?"disabled":""}>−</button><input data-k="${k}" inputmode="decimal" autocomplete="off" aria-label="${esc(f.l)}" value="${isC&&!res.ok?"–":fieldVal(k,c.v[k])}" ${isC?"disabled":""}><button type="button" data-a="inc" data-k="${k}" aria-label="Zvýšit" ${isC?"disabled":""}>+</button></div></div>`}).join("")}
-            <div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="fc-sel" data-a="freq" aria-label="Frekvence připisování úroku">${FREQ.map(([k,t])=>`<option value="${k}"${c.v.freq===k?" selected":""}>${t}</option>`).join("")}</select></div>
+          <div class="fc-pin">${parHTML(res)}
             <p class="fc-errm" role="alert"${res.ok?" hidden":""}>${res.ok?"":esc(res.err)}</p>
+            <div class="fc-notes">${st.mode==="loan"?loanNotes(res):""}</div>
           </div></div>
         <div class="fc-main">
           <div class="fc-tiles">${tilesHTML()}</div>
@@ -330,6 +420,8 @@ function mount(root,opts={}){
       if(inp&&document.activeElement!==inp)inp.value=isC&&!res.ok?"–":fieldVal(k,c.v[k])});
     const em=root.querySelector(".fc-errm");if(em){em.hidden=res.ok;em.textContent=res.ok?"":res.err}
     const tl=root.querySelector(".fc-tiles");if(tl)tl.innerHTML=tilesHTML();
+    const nt=root.querySelector(".fc-notes");if(nt)nt.innerHTML=st.mode==="loan"?loanNotes(res):"";
+    const sr=root.querySelector(".fc-src");if(sr)sr.innerHTML=rateSrc(res);
     drawChart();
   }
   const scrColors=()=>({a:"var(--fc-green)",b:"var(--fc-area)",grid:"var(--fc-grid)",txt:"var(--fc-txt)",ring:"var(--bg2,#fff)",wmGray:"var(--fc-logo1)",wmGray2:"var(--fc-logo2)",wmOrange:"#F37520",wmOp:.3});
@@ -378,7 +470,7 @@ function mount(root,opts={}){
   function setField(k,val){const c=cur();if(k===c.calc)return;c.v[k]=val;refresh()}
   function stepField(k,dir){const c=cur(),f=MODES[st.mode].f[k];let v=+c.v[k];if(!isFinite(v))v=0;
     let nv=Math.round((v+dir*f.st)/f.st)*f.st;if(k==="rate")nv=Math.round(nv*100)/100;
-    if(k!=="rate")nv=Math.max(k==="years"?1:0,nv);setField(k,nv)}
+    if(k!=="rate")nv=clampF(k,Math.max(k==="years"?1:0,nv));setField(k,nv)}
 
   root.addEventListener("click",async e=>{
     const b=e.target.closest("[data-a]");
@@ -386,7 +478,7 @@ function mount(root,opts={}){
     const a=b.dataset.a,k=b.dataset.k;
     if(a!=="help"&&a!=="menu"&&help){help=null}
     if(a==="mode"){st.mode=k;help=null;draw()}
-    else if(a==="flag"){const c=cur();if(c.calc!==k){if(!lastRes.ok)c.v[c.calc]=MODES[st.mode].def[c.calc]||0;c.calc=k;draw()}}
+    else if(a==="flag"){const c=cur();if(st.mode==="loan"&&k==="rate"&&c.v.live){toast("Při aktuální sazbě se sazba nedopočítává");return}if(c.calc!==k){if(!lastRes.ok)c.v[c.calc]=MODES[st.mode].def[c.calc]||0;c.calc=k;draw()}}
     else if(a==="inc"||a==="dec")stepField(k,a==="inc"?1:-1);
     else if(a==="help"){help=help===k?null:k;draw()}
     else if(a==="coll"){minPar=!minPar;draw()}
@@ -397,7 +489,7 @@ function mount(root,opts={}){
     else if(a==="wmpick")pickWm();
     else if(a==="save")save();
     else if(a==="pdf")pdf();
-    else if(a==="load"){const s=saved.find(x=>x.id===b.dataset.id);if(s){const f=fresh();st={...f,...JSON.parse(JSON.stringify(s.state||{})),id:s.id,name:s.name};ORDER.forEach(m=>{if(!st.m[m])st.m[m]=f.m[m]});menuOpen=false;draw();toast("Načteno: "+(s.name||"kalkulace"))}}
+    else if(a==="load"){const s=saved.find(x=>x.id===b.dataset.id);if(s){const f=fresh();st={...f,...JSON.parse(JSON.stringify(s.state||{})),id:s.id,name:s.name};ORDER.forEach(m=>{if(!st.m[m])st.m[m]=f.m[m]});fill(st);menuOpen=false;draw();toast("Načteno: "+(s.name||"kalkulace"))}}
     else if(a==="delsaved"){const s=saved.find(x=>x.id===b.dataset.id);if(s&&confirm(`Smazat uloženou kalkulaci „${s.name||"Bez názvu"}“?`)){await store.doc("fincalc/"+s.id).delete();if(st.id===s.id){st.id=null;st.name=""}draw()}}
   });
   /* výběr souboru musí běžet přímo z kliknutí (iPhone) */
@@ -410,12 +502,16 @@ function mount(root,opts={}){
     const t=e.target;
     if(t.dataset&&t.dataset.w){saveWm();return}
     if(t.matches("select[data-a=freq]")){cur().v.freq=t.value;refresh();return}
+    if(t.dataset&&t.dataset.x){const c=cur(),x=t.dataset.x;
+      if(x==="live"){c.v.live=t.checked;if(t.checked&&c.calc==="rate")c.calc="pmt";if(!t.checked)c.v.rate=lastRes&&isFinite(lastRes.v.rate)?lastRes.v.rate:c.v.rate}
+      else if(x==="fix")c.v.fix=+t.value;else c.v[x]=t.value;
+      draw();return}
     if(t.matches("input[data-k]")){const k=t.dataset.k,v=parseNum(t.value);if(isFinite(v))setField(k,clampF(k,v));t.value=fieldVal(k,cur().v[k])}
   });
-  const clampF=(k,v)=>k==="years"?Math.max(1/12,v):k==="rate"?v:Math.max(0,v);
+  const clampF=(k,v)=>k==="years"?Math.max(1/12,v):k==="rate"?v:k==="dsti"?Math.min(100,Math.max(1,v)):k==="dti"?Math.max(0.5,v):Math.max(0,v);
   root.addEventListener("input",e=>{const t=e.target;if(!t.matches("input[data-k]"))return;const k=t.dataset.k,v=parseNum(t.value);if(isFinite(v))setField(k,clampF(k,v))});
   root.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input[data-k]"))e.target.blur();if(e.key==="Escape"&&(help||menuOpen)){help=null;menuOpen=false;draw()}});
-  root.addEventListener("focusin",e=>{const t=e.target;if(t.matches("input[data-k]")){const k=t.dataset.k,v=cur().v[k];t.value=k==="rate"?(isFinite(v)?nf2.format(v):""):fieldVal(k,v);try{t.select()}catch(_){}}});
+  root.addEventListener("focusin",e=>{const t=e.target;if(t.matches("input[data-k]")){const k=t.dataset.k,v=cur().v[k];t.value=k==="rate"||k==="dsti"?(isFinite(v)?nf2.format(v):""):fieldVal(k,v);try{t.select()}catch(_){}}});
 
   async function save(){
     if(!store){toast("Ukládání tu není k dispozici");return}
@@ -433,6 +529,12 @@ function mount(root,opts={}){
     const ch=chartSVG(pts,{w:900,h:430,c:{a:"#F37520",b:"#e4e6e9",grid:"#e9ebee",txt:"#6b7280",ring:"#fff",wmGray:"#4f5052",wmGray2:"#7d8183",wmOrange:"#F37520",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
     const params=FIELDS[st.mode].map(k=>[M.f[k].l.replace(/ \((CZK|%|počet let)\)/,""),k==="rate"?fmtPct(v[k]):k==="years"?yrsTxt(v[k]):fmtKc(v[k]),k===c.calc]);
     params.push(["Frekvence připisování úroku",(FREQ.find(f=>f[0]===v.freq)||FREQ[0])[1],false]);
+    let notes="";
+    if(st.mode==="loan"){const L=loanInfo(v),pc=x=>nf2.format(x).replace(/,00$/,"");
+      if(v.live&&res.lr)params.splice(params.findIndex(p=>p[0].startsWith("Úroková sazba"))+1,0,["Zdroj sazby",`${RATES.source||"Swiss Life Hypoindex"} (${periodTxt(RATES.period)}), fixace ${v.fix} ${v.fix===1?"rok":v.fix<5?"roky":"let"}, LTV ${res.lr.band}`,false]);
+      if(L.price>0)params.unshift(["Cena nemovitosti",fmtKc(L.price),false],["Vlastní zdroje (akontace)",fmtKc(L.own),false],["LTV",`${fmtPct(L.ltv)} (limit ${L.limit} %)`,false]);
+      params.push(["Ostatní splátky domácnosti",fmtKc(+v.other||0),false],["Limit DSTI / DTI",`${pc(v.dsti)} % / ${pc(v.dti)}×`,false],["Potřebný čistý příjem domácnosti / měs.",fmtKc(L.need),false]);
+      notes=L.warn.map(w=>`<p class="w">${esc(w)}</p>`).join("")}
     const d=new Date().toLocaleDateString("cs-CZ");
     const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${esc(M.t)} – ${esc(st.name||"Koncept")} – ${d}</title><style>
       @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#111111;margin:0;padding:24px}
@@ -441,23 +543,24 @@ function mount(root,opts={}){
       .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#f0f2f5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px}.t .v{font-size:17px;font-weight:700}
       table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}tr.c td{color:#F37520}
       h2{font-size:16px;margin:18px 0 8px}.leg{display:flex;gap:22px;font-size:12px;color:#6b7280;margin-top:6px}.leg i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-      .ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}
+      .w{border:1px solid #F37520;border-radius:6px;padding:8px 10px;margin:8px 0}.ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}
       @media print{body{padding:0}}</style></head><body>
       <div class="hd"><div><h1>Finanční matematika – ${esc(M.t)}</h1><small>${esc(st.name||"Koncept")} · ${d}</small></div><svg width="133" height="74" viewBox="0 0 ${LOGO_W} ${LOGO_H}">${zfpLogo()}</svg></div>
       <div class="tiles">${M.tiles(v).map(([k,x])=>`<div class="t"><div class="k">${esc(k)}</div><div class="v">${esc(x)}</div></div>`).join("")}</div>
       <h2>Parametry</h2><table>${params.map(([k,x,isC])=>`<tr${isC?' class="c"':""}><td>${esc(k)}${isC?" (dopočteno)":""}</td><td>${esc(x)}</td></tr>`).join("")}</table>
-      <h2>${esc(st.titles[st.mode]||M.chart)}</h2>${ch.svg}
+      ${notes}<h2>${esc(st.titles[st.mode]||M.chart)}</h2>${ch.svg}
       <div class="leg"><span><i style="background:#F37520"></i>${esc(M.sa)}</span><span><i style="background:#d9dce0"></i>${esc(M.sb)}</span></div>
-      <div class="ft">Výpočet je orientační a slouží pouze pro informaci. ${st.mode==="loan"?"Skutečné splátky závisí na podmínkách věřitele.":"Výnosy nejsou zaručeny, hodnota investice může kolísat."} Vklady, splátky a výplaty se počítají na konci každého měsíce. © ZFP Consulting</div>
+      <div class="ft">Výpočet je orientační a slouží pouze pro informaci. ${st.mode==="loan"?"Skutečné splátky závisí na podmínkách věřitele; potřebný příjem je odhad podle zadaných limitů DSTI/DTI, každá banka posuzuje bonitu vlastní metodikou.":"Výnosy nejsou zaručeny, hodnota investice může kolísat."} Vklady, splátky a výplaty se počítají na konci každého měsíce. © ZFP Consulting</div>
       <script>onload=()=>setTimeout(()=>print(),300)<\/script></body></html>`;
     const w=window.open("","_blank");if(!w){toast("Prohlížeč zablokoval nové okno – povol vyskakovací okna");return}
     w.document.open();w.document.write(html);w.document.close();
   }
-  let rT=null;const ro=typeof ResizeObserver!=="undefined"?new ResizeObserver(()=>{clearTimeout(rT);rT=setTimeout(()=>{if(lastRes)drawChart()},120)}):null;
+  /* graf závisí jen na šířce – změna výšky (např. delší panel parametrů u úvěru) ho nepřekresluje, jinak by utnula animaci */
+  let rT=null,rW=0;const ro=typeof ResizeObserver!=="undefined"?new ResizeObserver(en=>{const w=Math.round(en[0].contentRect.width);if(w===rW)return;rW=w;clearTimeout(rT);rT=setTimeout(()=>{if(lastRes)drawChart()},120)}):null;
   if(ro)ro.observe(root);
   draw();
   return{redraw:draw,state:()=>st};
 }
 
-window.FinCalc={mount,math:{iMonth,valueAt,solve,series,totals,FIELDS},fmt:{fmtKc,yrsTxt,parseNum},logo:{svg:zfpLogo,w:LOGO_W,h:LOGO_H}};
+window.FinCalc={mount,math:{iMonth,valueAt,solve,series,totals,FIELDS,loanInfo,liveRate,periodAge,ltvLimit},rates:()=>RATES,fmt:{fmtKc,yrsTxt,parseNum},logo:{svg:zfpLogo,w:LOGO_W,h:LOGO_H}};
 })();
