@@ -4208,6 +4208,10 @@ function openCallBlock(ids,i=0){
         el("button",{type:"button",class:"r",onclick:after},"Odebrat z bloku")))]);
     return}
   const last=(l.log||[]).slice(-2).reverse();
+  /* dovolal jsem se: zapíše hovor, nový lead posune do „Kontaktován“ a když nemá budoucí termín, další pokus za 3 pracovní dny */
+  const contacted=async()=>{try{await aiLogCall(l,"yes","");if(l.stage==="novy")await moveTo(l,"kontaktovan");
+    const cur=leads.find(x=>x.id===l.id)||l;if(!cur.nextDate||cur.nextDate<=todayStr())await db.doc("leads/"+l.id).update({nextDate:addWorkDays(3),nextStep:cur.nextStep||"Zavolat znovu",updatedAt:new Date().toISOString()});
+    toast("Kontaktován · další krok "+fmtDate(addWorkDays(3)))}catch(e){toast("Nepodařilo se uložit")}next()};
   const later=async(days,txt)=>{const now=new Date().toISOString();const log=[...(l.log||[]),{d:now,t:txt}].slice(-100);try{await db.doc("leads/"+l.id).update({log,lastContact:now,updatedAt:now,nextDate:addWorkDays(days),nextStep:l.nextStep||"Zavolat znovu"});toast(txt)}catch(e){toast("Nepodařilo se uložit")}next()};
   openSheet("Volací blok",[el("div",{class:"cb"},
     el("div",{class:"prog"},(i+1)+" / "+list.length+" · "+ST(l.stage).t),
@@ -4217,6 +4221,7 @@ function openCallBlock(ids,i=0){
     last.length?el("div",{class:"prog"},"Naposledy: "+last.map(x=>fmtDate(x.d.slice(0,10))+" "+x.t).join(" · ")):null,
     el("div",{class:"grid"},
       el("button",{type:"button",onclick:async()=>{await quickNo(l);next()}},"Nezvedl"),
+      el("button",{type:"button",class:"g",onclick:contacted},"Kontaktován"),
       el("button",{type:"button",onclick:()=>{const nm=nextMeeting(l);openMsg(leadMsgCtx(l),null,r=>logLeadMsg(l,r))}},"✉︎ Poslat zprávu"),
       el("button",{type:"button",class:"g",onclick:()=>scheduleMeeting(l,next)},"Schůzka domluvena"),
       el("button",{type:"button",onclick:()=>later(5,"Zavolat za týden")},"Zavolat za týden"),
