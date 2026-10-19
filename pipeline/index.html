@@ -2419,10 +2419,12 @@ async function dzBusy(from,to){
    (klient zavřel stránku, výpadek), smaže se – termín se zase uvolní. Přijatou rezervací se blokace přejmenuje na klienta (zfpHold=0). */
 async function dzHoldsCleanup(){if(!settings.bkUrl||!GAuth.hasScope("calendar.events"))return;const cfg=calCfg(),now=Date.now();
   const p=new URLSearchParams({privateExtendedProperty:"zfpHold=1",timeMin:new Date(now-864e5).toISOString(),singleEvents:"true",maxResults:"100"});
-  const j=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events?"+p)).json();
   const used=new Set();leads.forEach(l=>(l.meetings||[]).forEach(m=>used.add(m.id)));lsGet("dz_failed",[]).forEach(z=>z.x&&z.x.hold&&used.add(z.x.hold));
-  for(const e of j.items||[]){const at=+((e.extendedProperties||{}).private||{}).zfpAt||Date.parse(e.created)||now;
-    if(!used.has(e.id)&&now-at>3*3600e3)try{await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events/"+encodeURIComponent(e.id),{method:"DELETE"})}catch(err){}}}
+  /* blokace hledat i v primary – když CAL ve skriptu není nastavený, leží tam */
+  for(const calId of [cfg.id,"primary"].filter((v,i,a)=>a.indexOf(v)===i)){
+    let j;try{j=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events?"+p)).json()}catch(e){continue}
+    for(const e of j.items||[]){const at=+((e.extendedProperties||{}).private||{}).zfpAt||Date.parse(e.created)||now;
+      if(!used.has(e.id)&&now-at>3*3600e3)try{await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events/"+encodeURIComponent(e.id),{method:"DELETE"})}catch(err){}}}}
 /* volné termíny pro klienty (rezervace 2. konzultace po dotazníku): jen časy, žádná jména – veřejně čitelné v dzslots/{tvůj e-mail} */
 let dzPubAt=0;
 async function dzPublishSlots(force){
@@ -4008,7 +4010,11 @@ async function saveMeeting(l,start,online,opt={}){
       const base="https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events";
       const body={summary:title,location:online?"":OFFICE_PLACE,start:{dateTime:startISO},end:{dateTime:end.toISOString()}};
       /* termín už zablokovaný z webu (rezervace) → jen přejmenovat na klienta, nová událost se nezakládá */
-      if(opt.holdId)try{const r=await gfetch(base+"/"+encodeURIComponent(opt.holdId),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,description:"",extendedProperties:{private:{zfpHold:"0"}}})});const j=await r.json();evId=j.id||null}catch(e){evId=null}
+      if(opt.holdId){const pj=JSON.stringify({...body,description:"",extendedProperties:{private:{zfpHold:"0"}}}),hdr={"Content-Type":"application/json"},hu=base+"/"+encodeURIComponent(opt.holdId);
+        const tryPatch=async()=>{try{const r=await gfetch(hu,{method:"PATCH",headers:hdr,body:pj});const j=await r.json();return j&&j.id||null}catch(e){return null}};
+        evId=await tryPatch();
+        /* blokace z webu leží v jiném kalendáři (např. CAL ve skriptu není nastavený → primary): přesunout do kalendáře schůzek a přejmenovat */
+        if(!evId){for(const src of ["primary"].filter(s=>s!==cfg.id)){try{const m=await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(src)+"/events/"+encodeURIComponent(opt.holdId)+"/move?destination="+encodeURIComponent(cfg.id),{method:"POST"});const mj=await m.json();if(mj&&mj.id){evId=await tryPatch();if(evId)break}}catch(e){}}}}
       if(!evId){const r=await gfetch(base,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const j=await r.json();evId=j.id||null;if(!evId)throw new Error("bez id")}
     }catch(e){evErr=e&&e.code||e&&e.message||"chyba";toast("Nepodařilo se zapsat do kalendáře, ukládám aspoň do leadu")}
@@ -7790,7 +7796,7 @@ async function updateEurRate(){
   if(!GAuth.maybeRefresh()){GSync.run().then(refreshCalendar).then(()=>{scheduleTasks();fetchCalHistory()})}
   addEventListener("online",()=>{GSync.run().then(refreshCalendar).then(()=>fetchCalHistory())});
   addEventListener("offline",()=>GSync.status("offline"));
-  document.addEventListener("visibilitychange",()=>{if(document.visibilityState!=="visible")return;if(GAuth.maybeRefresh())return;GSync.run().then(refreshCalendar).then(()=>fetchCalHistory())});
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState!=="visible")return;try{dzStart();dzScanOld().catch(()=>{}).then(()=>dzRetryQueue()).catch(()=>{})}catch(e){}if(GAuth.maybeRefresh())return;GSync.run().then(refreshCalendar).then(()=>fetchCalHistory())});
   setInterval(()=>{if(document.visibilityState==="visible")GSync.run()},120000);
   if(!LStore.count()&&!GAuth.token())$("sub").textContent="Zatím prázdné – přihlas se Googlem, nebo naimportuj zálohu.";
 })();
