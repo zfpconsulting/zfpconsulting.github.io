@@ -1795,7 +1795,12 @@ async function importBackup(file){
 }
 
 /* --- service worker (offline) --- */
-if("serviceWorker"in navigator&&location.protocol==="https:")addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+if("serviceWorker"in navigator&&location.protocol==="https:"){
+  const hadSW=!!navigator.serviceWorker.controller;let swReloaded=false;
+  /* nová verze appky převezme řízení → načíst ji (jinak by běžela stará, dokud appku ručně nezavřeš); při otevřeném okně jen upozornit */
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!hadSW||swReloaded)return;swReloaded=true;
+    if(document.querySelector("dialog[open]"))toast("Je nová verze appky – po zavření okna ji obnov (potáhni dolů)");else location.reload()});
+  addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{r.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(!document.hidden)r.update().catch(()=>{})})}).catch(()=>{}))}
 AppLock.init();
 
 </script>
