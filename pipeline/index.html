@@ -2139,12 +2139,12 @@ async function pushTest(){try{const r=await pushApi("/test",{body:{}});toast(r.s
 /* ---------- naplánované notifikace (všechny se šifrují tady v Pipeline pro každé zařízení – prostředník obsah nevidí) ----------
    rem   = připomínka schůzky X min předem
    brief = ranní přehled (po–pá): schůzky dnes, hovory, leady po termínu
-   after = X min po konci schůzky (výchozí 75): zapsat výsledek a další krok (klepnutím se otevře lead)
+   afterS = X min od ZAČÁTKU schůzky (výchozí 75; dřívější „after“ = po konci, už se nepoužívá – jen jeho „vypnuto“ zůstává vypnuto): zapsat výsledek a další krok (klepnutím se otevře lead)
    tmr   = odpoledne: zítřejší schůzky a kolik z nich není potvrzených
    goal  = večer (po–pá): kolik schůzek jsem dnes domluvil vůči cíli (výchozí 2)
    Obsah se počítá ze stavu Pipeline v okamžiku nahrání; při každé změně se plán nahraje znovu. */
-const PUSHX_DEF={brief:"08:00",after:75,tmr:"15:00",goal:"19:00",goalN:2};
-const pushX=()=>({...PUSHX_DEF,...((settings&&settings.pushX)||{})});
+const PUSHX_DEF={brief:"08:00",afterS:75,tmr:"15:00",goal:"19:00",goalN:2};
+const pushX=()=>{const s=(settings&&settings.pushX)||{},X={...PUSHX_DEF,...s};if(s.afterS==null&&s.after===0)X.afterS=0;return X};
 const pxAt=(dayKey,hm)=>{const[h,m]=String(hm).split(":").map(Number);const d=new Date(dayKey+"T00:00:00");d.setHours(h,m||0,0,0);return d.getTime()};
 const pxWork=k=>{const g=new Date(k+"T12:00:00").getDay();return g>=1&&g<=5};
 const pxN=(n,a,b,c)=>n+" "+plural(n,a,b,c);
@@ -2175,7 +2175,7 @@ function pushPlan(now){
     if(X.tmr){const pl=pxTmr(addDaysFrom(k,1));if(pl)add(pxAt(k,X.tmr),pl)}
     pxMeets(k).forEach(x=>{const st=new Date(x.start).getTime(),en=x.end?new Date(x.end).getTime():st+DZS.len*60000;
       if(mins)add(st-mins*60000,{t:(mins>=60&&mins%60===0?(mins===60?"Za hodinu":"Za "+mins/60+" h"):"Za "+mins+" min")+" schůzka: "+x.name,b:fmtHM(x.start)+(x.online?" · online":x.ev&&x.ev.place?" · "+x.ev.place:""),u:"./?push=rem",tag:"rem-"+String(x.id).slice(-24)});
-      if(+X.after)add(en+ +X.after*60000,pxAfter(x,+X.after))})}
+      if(+X.afterS)add(st+ +X.afterS*60000,pxAfter(x,+X.afterS))})}
   /* denní cíl jen pro dnešek – na budoucí dny ještě nevíme, kolik toho domluvíš */
   if(X.goal&&pxWork(t))add(pxAt(t,X.goal),pxGoal(t));
   return out.sort((a,b)=>a.at-b.at).slice(0,180)}
@@ -2270,7 +2270,7 @@ function pxCfgRows(){const X=pushX();
     sl.onchange=()=>save({[key]:num?+sl.value:sl.value});return el("label",{},label,sl)};
   const hrs=(a,b)=>{const o=[["","Vypnuto"]];for(let h=a;h<=b;h++){o.push([String(h).padStart(2,"0")+":00",h+":00"]);if(h<b)o.push([String(h).padStart(2,"0")+":30",h+":30"])}return o};
   return [selOf("Ranní přehled (po–pá)","brief",hrs(6,10)),
-    selOf("Po schůzce: zapsat výsledek","after",[[0,"Vypnuto"],[5,"5 min po konci"],[15,"15 min po konci"],[30,"30 min po konci"],[60,"hodinu po konci"],[75,"75 min po konci"]],true),
+    selOf("Po schůzce: zapsat výsledek","afterS",[[0,"Vypnuto"],[45,"45 min od začátku"],[60,"hodinu od začátku"],[75,"75 min od začátku"],[90,"1,5 h od začátku"],[120,"2 h od začátku"]],true),
     selOf("Zítřejší schůzky a potvrzení","tmr",hrs(10,20)),
     selOf("Denní cíl domluvených schůzek (po–pá)","goal",hrs(15,21)),
     selOf("Cíl schůzek denně","goalN",[[1,"1"],[2,"2"],[3,"3"],[4,"4"],[5,"5"]],true)]}
