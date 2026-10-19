@@ -1,5 +1,5 @@
-const CACHE="pipeline-v75", VCACHE="pipeline-vendor-v1";
-const CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png?v=2","./icon-512.png?v=2","./apple-touch-icon.png?v=2","./favicon-48.png?v=2","./fincalc.js?v=5","./duchod.js?v=7","./databaze.js?v=6","./photoedit.js?v=2","./docs.js?v=4","./fp.html?v=35","./dotaznik.html?v=13","./dzcrypto.js?v=2","./pushcrypto.js?v=1"];
+const CACHE="pipeline-v76", VCACHE="pipeline-vendor-v1";
+const CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png?v=2","./icon-512.png?v=2","./apple-touch-icon.png?v=2","./favicon-48.png?v=2","./fincalc.js?v=6","./duchod.js?v=7","./databaze.js?v=6","./photoedit.js?v=2","./docs.js?v=4","./fp.html?v=36","./dotaznik.html?v=13","./dzcrypto.js?v=2","./pushcrypto.js?v=1"];
 /* knihovny pro náhled souborů (PDF, Word, Excel) mají vlastní cache, která se při vydání nové verze appky nemaže ani nestahuje znovu */
 const VENDOR=["./vendor/pdf.min.mjs","./vendor/pdf.worker.min.mjs","./vendor/mammoth.browser.min.js","./vendor/read-excel-file.min.js"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)));caches.open(VCACHE).then(c=>Promise.all(VENDOR.map(u=>c.match(u).then(h=>h||c.add(u))))).catch(()=>{});self.skipWaiting()});

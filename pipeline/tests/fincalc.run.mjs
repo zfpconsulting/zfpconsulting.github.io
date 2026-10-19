@@ -22,7 +22,7 @@ async function open({ width = 1300, height = 900, dark = false } = {}) {
     const store={collection:name=>({onSnapshot(cb){const f=()=>cb({docs:Object.entries(docs).filter(([k])=>k.startsWith(name+"/")).map(([k,v])=>({id:k.split("/")[1],data:()=>v}))});subs.add(f);f()},
       async add(d){const id="d"+(++n);docs[name+"/"+id]=d;emit();return{id}}}),
       doc:p=>({onSnapshot(cb){const f=()=>cb({exists:!!docs[p],data:()=>docs[p]});subs.add(f);f()},async set(d){docs[p]=d;emit()},async delete(){delete docs[p];emit()}})};
-    window.toasts=[];window.ui=FinCalc.mount(document.getElementById("box"),{store,toast:m=>toasts.push(m)});window.docs=docs;
+    window.toasts=[];window.__store=store;window.ui=FinCalc.mount(document.getElementById("box"),{store,toast:m=>toasts.push(m)});window.docs=docs;
     </script></body></html>` }));
   await page.goto(base + "harness.html");
   await page.waitForFunction(() => window.ui);
@@ -291,6 +291,30 @@ const tests = {
     assert(!(await page.isDisabled('input[data-k="rate"]')), "sazba odemčená");
     if (SHOTS) await page.screenshot({ path: "/tmp/fc-uver.png", fullPage: true });
     assert(!errors.length, "chyby: " + errors.join(" | "));
+    await ctx.close();
+  },
+  async "RPSN: bez poplatků = efektivní roční sazba, poplatky ji zvednou; kalkulace přiřazená ke klientovi nese hypotéku"() {
+    const { ctx, page, errors } = await open();
+    const r = await page.evaluate(() => { const { rpsn } = FinCalc.math, v = { pv: 3000000, pmt: 17053, years: 30, feeOnce: 0, feeMonth: 0 };
+      const pmt = FinCalc.math.solve("loan", { pv: 3000000, years: 30, rate: 5.51, freq: "m" }, "pmt").val;
+      return { a: rpsn({ ...v, pmt }), b: rpsn({ ...v, pmt, feeOnce: 5000, feeMonth: 150 }), bad: rpsn({ pv: 0, pmt: 1, years: 1 }) }; });
+    assert(Math.abs(r.a - (Math.pow(1 + 0.0551 / 12, 12) - 1) * 100) < 0.001, "RPSN bez poplatků " + r.a);
+    assert(r.b > r.a + 0.05, "poplatky zvyšují RPSN " + r.b);
+    assert(Number.isNaN(r.bad), "neplatný vstup");
+    // přiřazení ke klientovi (Pipeline předá seznam klientů) a uložení úvěru
+    await page.evaluate(() => { const old = document.getElementById("box"), nb = document.createElement("div"); nb.id = "box"; old.replaceWith(nb); localStorage.clear(); window.ui = FinCalc.mount(nb, { store: window.__store || null, toast: m => toasts.push(m), clients: () => [{ id: "c1", name: "Jana Petranová" }, { id: "c2", name: "Petr Novák" }] }); });
+    await page.click('[data-a="mode"][data-k="loan"]');
+    assert((await tiles(page))["RPSN"].endsWith("%"), "dlaždice RPSN");
+    await page.click('button[data-a="menu"]');
+    await page.selectOption('select[data-x="client"]', "c1");
+    assert((await page.textContent(".fc-title")).includes("Jana Petranová"), "klient v názvu");
+    eq(await page.evaluate(() => ui.state().clientId), "c1", "klient ve stavu");
+    if (!(await page.evaluate(() => !!window.__store))) { eq(errors, [], "chyby"); await ctx.close(); return; }
+    await page.click('button[data-a="save"]');
+    const d = await page.waitForFunction(() => Object.values(docs).find(x => x.clientId === "c1")).then(h => h.jsonValue());
+    eq([d.clientName, d.mode, d.hypo.pv, d.hypo.price, d.hypo.own], ["Jana Petranová", "loan", 3000000, 3750000, 750000], "uložená hypotéka u klienta");
+    assert(d.hypo.rpsn > d.hypo.rate && d.hypo.need > 0, "RPSN a potřebný příjem v uložené kalkulaci");
+    eq(errors, [], "chyby: " + errors.join(" | "));
     await ctx.close();
   },
   async "UI: starší uložená kalkulace úvěru bez nových polí se načte"() {

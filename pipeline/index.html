@@ -2001,9 +2001,9 @@ function render(){
 let calcUI=null,calcLoading=false;
 function renderCalc(){
   if(calcUI||calcLoading)return;
-  const go=()=>{calcLoading=false;if(!window.FinCalc){$("calcBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}calcUI=FinCalc.mount($("calcBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)}})};
+  const go=()=>{calcLoading=false;if(!window.FinCalc){$("calcBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}calcUI=FinCalc.mount($("calcBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clients.filter(c=>!c.hidden&&c.name).map(c=>({id:c.id,name:c.name})).sort((a,b)=>a.name.localeCompare(b.name,"cs"))})};
   if(window.FinCalc)return go();
-  calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=5";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=6";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* záložka Důchodová kalkulačka – modul duchod.js se načte až při prvním otevření */
 let duchUI=null,duchLoading=false,duchPending=null;
@@ -2166,7 +2166,8 @@ function pxTmr(k){const M=pxMeets(k);if(!M.length)return null;
 function pxGoal(k){const n=pxBooked(k),g=pushX().goalN||2;
   return {t:n>=g?"Splněno – dnes "+pxN(n,"domluvená schůzka","domluvené schůzky","domluvených schůzek"):n?"Dnes "+n+"/"+g+" domluvených schůzek":"Dnes jsi nedomluvil žádnou schůzku",
     b:n>=g?"Cíl "+g+" schůzky denně máš splněný. Dobrá práce!":n?"Ještě "+pxN(g-n,"schůzka","schůzky","schůzek")+" a máš denní cíl. Pár hovorů?":"Cíl je "+g+" denně – ještě je čas na pár hovorů.",u:"./?push=goal",tag:"goal-"+k}}
-function pxAfter(x,mins){const l=pxLeadOf(x);return {t:"Jak dopadla schůzka: "+x.name+"?",b:"Zapiš výsledek a další krok, ať lead nevychladne.",u:"./?push=after"+(l?"&lead="+encodeURIComponent(l.id):""),tag:"after-"+String(x.id).slice(-20)}}
+function pxAfter(x,mins){const l=pxLeadOf(x),q=new URLSearchParams({push:"after"});if(l)q.set("lead",l.id);q.set("m",String(x.id||""));if(x.start)q.set("d",x.start);if(x.name)q.set("n",x.name);
+  return {t:"Jak dopadla schůzka: "+x.name+"?",b:"Klepni a zapiš poznámky a úkoly ze schůzky.",u:"./?"+q.toString(),tag:"after-"+String(x.id).slice(-20)}}
 function pushPlan(now){
   const X=pushX(),mins=pushRemMin(),out=[],t=todayStr(),lim=now+14*864e5,add=(at,pl)=>{if(at>now+30000&&at<lim)out.push({at,pl})};
   for(let i=0;i<=14;i++){const k=addDaysFrom(t,i);
@@ -2190,7 +2191,7 @@ async function pushSyncReminders(force){
   await pushLib();const items=[];
   for(const p of plan)for(const x of subs)items.push({id:x.id,at:p.at,body:PushCrypto.b64u(await PushCrypto.encrypt(x,p.pl)),tag:p.pl.tag});
   const r=await pushApi("/reminders",{body:{v:PUSH_PLAN_V,items:items.slice(0,400)}});lsSet("push_sig",sig);pushUpAt=Date.now();return r}
-const PUSH_PLAN_V=2;   /* zvýšit při změně plánu notifikací – prostředník pak nepřijme plán od starší verze appky na jiném zařízení */
+const PUSH_PLAN_V=3;   /* zvýšit při změně plánu notifikací – prostředník pak nepřijme plán od starší verze appky na jiném zařízení */
 /* ukázka všech typů jednou hned (do minuty) – z tvých skutečných dat */
 async function pushTestAll(){
   const t=todayStr(),tm=addDaysFrom(t,1),at=Date.now(),M=pxMeets(t).concat(pxMeets(tm)),last=(calEvents||[]).filter(e=>new Date(e.start)<new Date()).slice(-1)[0];
@@ -2201,9 +2202,59 @@ async function pushTestAll(){
     for(const x of items)for(const s of pushSubsCache)out.push({id:s.id,body:PushCrypto.b64u(await PushCrypto.encrypt(s,x.pl))});
     const r=await pushApi("/send",{body:{items:out}});toast(r.sent?"Ukázky odeslané ("+r.sent+")":"Žádné zařízení nemá push zapnutý");return r}
   catch(e){toast("Nepovedlo se ("+(e.code||e.message)+")")}}
+/* po schůzce (klepnutí na notifikaci „Jak dopadla schůzka“): poznámky → poznámka u klienta s nadpisem „Schůzka <datum>“
+   (nejnovější nahoře; u klienta i jeho leadů), úkoly → každý řádek jeden můj úkol s klientem a deadlinem */
+function afterMeetWho(o){
+  const ev=o.mid?(calEvents||[]).find(e=>e.id===o.mid):null,cf=ev&&typeof contactFor==="function"?contactFor(ev):null;
+  let l=o.leadId?leads.find(x=>x.id===o.leadId):null;if(!l&&cf)l=cf.lead;
+  if(!l&&o.mid)l=leads.find(x=>(x.meetings||[]).some(m=>m.id===o.mid))||null;
+  const name=o.name||(l&&l.name)||(cf&&cf.name)||(ev&&(ev.name||ev.title))||"";
+  let c=l?clientOfLead(l):null;if(!c&&cf&&cf.client)c=cf.client;
+  if(!c&&name){const h=clients.filter(x=>!x.hidden&&sameName(x.name,name));if(h.length===1)c=h[0]}
+  if(!l&&!c&&name){const h=leads.filter(x=>sameName(x.name,name));if(h.length===1)l=h[0]}
+  return {l,c,name:(c&&c.name)||(l&&l.name)||name,start:o.start||(ev&&ev.start)||""}}
+const meetDateTxt=s=>{const d=s?new Date(s):new Date();return d.getDate()+". "+(d.getMonth()+1)+". "+d.getFullYear()};
+async function afterMeetSave(o,noteTxt,taskTxt,due){
+  const W=afterMeetWho(o),now=new Date().toISOString(),out={note:false,tasks:0};
+  const txt=String(noteTxt||"").trim();
+  if(txt){const head="Schůzka "+meetDateTxt(W.start),block=head+"\n"+txt;
+    const cur=W.c?(W.c.note||""):W.l?(W.l.note||""):"",note=cur?block+"\n\n"+cur:block;
+    if(W.c){await db.doc("clients/"+W.c.id).update({note});await linkPushToLeads(W.c,{note});out.note=true}
+    else if(W.l){await db.doc("leads/"+W.l.id).update({note,updatedAt:now});await linkPushToClient(W.l.id,{note});out.note=true}
+    if(W.l){const cl=leads.find(x=>x.id===W.l.id)||W.l;try{await db.doc("leads/"+cl.id).update({log:[...(cl.log||[]),{d:now,t:"Zápis ze schůzky "+meetDateTxt(W.start)}].slice(-100),lastContact:now})}catch(e){}}}
+  for(const t of String(taskTxt||"").split(/\n+/).map(x=>x.replace(/^\s*([-•*–]|\d+[.)])\s*/,"").trim()).filter(Boolean)){
+    await db.collection("mytasks").add({text:t,client:W.name||"",due:due||"",done:"",createdAt:now});out.tasks++}
+  return {...out,who:W}}
+function afterMeetSheet(o){
+  const W=afterMeetWho(o),when=W.start?meetDateTxt(W.start)+(W.start.length>10?" · "+fmtHM(W.start):""):"";
+  const notes=el("textarea",{rows:"6",placeholder:"Co jsme probrali, co klient chce, na co nezapomenout…","aria-label":"Poznámky ze schůzky"});
+  const tasks=el("textarea",{rows:"4",placeholder:"Každý řádek = jeden úkol\nnapř. Poslat modelaci ŽP\nZavolat kvůli odhadu nemovitosti","aria-label":"Úkoly ze schůzky"});
+  const due=el("input",{type:"date","aria-label":"Deadline úkolů"});due.value=addWorkDays(asDefDays());
+  const save=el("button",{type:"button",class:"g"},"Uložit");
+  const target=W.c?"ke klientovi "+W.c.name:W.l?"k leadu "+W.l.name:null;
+  save.onclick=async()=>{if(!notes.value.trim()&&!tasks.value.trim()){toast("Napiš poznámky nebo úkoly");notes.focus();return}
+    if(notes.value.trim()&&!target){toast("Klienta se nepodařilo najít – poznámku nemám kam uložit");return}
+    save.disabled=true;
+    try{const r=await afterMeetSave(o,notes.value,tasks.value,due.value);$("edDlg").close();
+      toast([r.note?"Poznámka uložena":"",r.tasks?pxN(r.tasks,"úkol","úkoly","úkolů")+" přidáno":""].filter(Boolean).join(" · ")||"Uloženo")}
+    catch(e){save.disabled=false;toast("Nepodařilo se uložit")}};
+  openSheet("Schůzka: "+(W.name||"klient"),[
+    when||target?el("p",{class:"hint"},[when,target?"poznámka se uloží "+target+" s nadpisem „Schůzka "+meetDateTxt(W.start)+"“":"klient nenalezen – uloží se jen úkoly"].filter(Boolean).join(" · ")):null,
+    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámky"),notes)),
+    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkoly"),tasks),el("div",{class:"frow"},el("label",{},"Deadline"),due)),
+    el("div",{class:"chips"},save,W.l?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setTimeout(()=>openEdit(leads.find(x=>x.id===W.l.id)||W.l),340)}},"Otevřít lead"):null)]);
+  setTimeout(()=>{try{notes.focus()}catch(e){}},350)}
+/* testová notifikace „po schůzce“ o poslední proběhlé schůzce s klientem (hledá se podle jména) – odejde hned */
+async function pushTestAfter(q){const now=new Date().toISOString(),hit=[];
+  (calEvents||[]).forEach(e=>{if(e.start<now&&(sameName(e.name||"",q)||String(e.title||"").toLowerCase().includes(String(q).toLowerCase())))hit.push({id:e.id,start:e.start,name:e.name||e.title,ev:e})});
+  leads.forEach(l=>{if(!sameName(l.name,q)&&!String(l.name).toLowerCase().includes(String(q).toLowerCase()))return;(l.meetings||[]).forEach(m=>{if(m.start&&m.start<now&&!hit.some(x=>x.id===m.id))hit.push({id:m.id,start:m.start,name:l.name,lead:l})})});
+  const x=hit.sort((a,b)=>a.start.localeCompare(b.start)).pop();if(!x){toast("Žádná proběhlá schůzka: "+q);return {ok:false}}
+  if(!pushSubsCache)pushSubsCache=(await pushApi("/subs")).subs||[];await pushLib();
+  const pl={...pxAfter(x,15),tag:"t-after-"+Date.now()},out=[];for(const s of pushSubsCache)out.push({id:s.id,body:PushCrypto.b64u(await PushCrypto.encrypt(s,pl))});
+  const r=await pushApi("/send",{body:{items:out}});toast(r.sent?"Testová notifikace odeslaná ("+x.name+", "+meetDateTxt(x.start)+")":"Žádné zařízení nemá push zapnutý");return {...r,meet:{name:x.name,start:x.start}}}
 /* klepnutí na notifikaci → rovnou na správné místo */
 function pushOpen(u){try{const q=new URL(u||location.href,location.href).searchParams,k=q.get("push");if(!k)return;
-  const go=()=>{if(k==="after"){const l=leads.find(x=>x.id===q.get("lead"));setView("pipe");if(l)openEdit(l)}else if(k==="bk"||k==="rem")setView("cal");else setView("pipe")};
+  const go=()=>{if(k==="after"){setView("pipe");afterMeetSheet({leadId:q.get("lead"),mid:q.get("m"),start:q.get("d"),name:q.get("n")})}else if(k==="bk"||k==="rem")setView("cal");else setView("pipe")};
   if(Array.isArray(leads)&&leads.length)go();else setTimeout(go,1500);
   if(location.search.includes("push="))history.replaceState(null,"",location.pathname)}catch(e){}}
 setTimeout(()=>pushOpen(location.href),1200);
@@ -5885,7 +5936,7 @@ $("form").addEventListener("submit",async e=>{
 /* Data stahuje backend (Apps Script, op „fund“), protože prohlížeč na cizí weby kvůli CORS nedosáhne:
    conseq.cz = denní cena fondu, zfpwi.cz = denní vývoj portfolia (CZK), zfpinvest.com = měsíční hodnota podílu.
    Appka si výsledek drží v localStorage a obnovuje ho po 6 hodinách, kdykoli se Portfolia otevřou. */
-let funds=[], pfModels=[], pfInv=[], duchod=[], fplans=[];
+let funds=[], pfModels=[], pfInv=[], duchod=[], fplans=[], fincalcs=[];
 /* replaceChildren bez prázdných položek (null/false by se jinak vypsalo jako text „null“) */
 function rc(node,...kids){node.replaceChildren(...kids.flat(3).filter(k=>k!=null&&k!==false))}
 const PF_TTL=6*3600e3, pfBusy=new Set(), pfErr={}, pfPer={}, pfSel={}, pfQ=[];let pfRun=0, pfShowHidden=false;
@@ -7038,9 +7089,12 @@ async function openFP(e,rec){
   if(!rec){toast("Klient chybí");return}
   try{$("edDlg").close()}catch(err){}try{$("dlg").open&&$("dlg").close()}catch(err){}
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
+  /* plánovaná hypotéka: poslední uložená kalkulace úvěru přiřazená k tomuto klientovi (Kalkulačka → menu → Klient) */
+  const hc=fincalcs.filter(x=>x.hypo&&(x.clientId===rec.id||x.clientId===id)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+  const hypo=hc?{...hc.hypo,at:hc.updatedAt||0,name:hc.name||""}:null;
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=35#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=36#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -7048,7 +7102,7 @@ async function openFP(e,rec){
     try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now()})}catch(err){toast("Plán se nepodařilo uložit")}};
   const onMsg=ev=>{if(ev.origin!==location.origin||ev.source!==fr.contentWindow||!ev.data)return;const d=ev.data;
     if(d.type==="fp:ready"){let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
-      dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null,dz},location.origin))}
+      dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null,dz,hypo},location.origin))}
     else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()})}
     /* produkty v automatickém návrhu: poslední změna = výchozí pro další plány (synchronizuje se s nastavením) */
     else if(d.type==="fp:prodDef"&&d.prodDef&&typeof d.prodDef==="object"){clearTimeout(openFP._pd);openFP._pd=setTimeout(()=>{settings={...settings,fpProd:d.prodDef};db.doc("settings/main").update({fpProd:d.prodDef}).catch(()=>toast("Výchozí produkty se nepodařilo uložit"))},700)}};
@@ -7532,6 +7586,7 @@ async function updateEurRate(){
   db.collection("clients").onSnapshot(snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();stafleOv.clear();if(view==="cli"||view==="duch")render();pfSyncClientsSoon()});
   db.collection("duchod").onSnapshot(snap=>{duchod=snap.docs.map(d=>({id:d.id,...d.data()}))});
   db.collection("fplan").onSnapshot(snap=>{fplans=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="fp")renderFpTab()});
+  db.collection("fincalc").onSnapshot(snap=>{fincalcs=snap.docs.map(d=>({id:d.id,...d.data()}))});
   db.collection("team").onSnapshot(snap=>{team=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||"").localeCompare(b.name||""));clLoaded.team=true;clMigrate();if(view==="money"||view==="net")render()});
   db.collection("funds").onSnapshot(snap=>{funds=snap.docs.map(d=>({id:d.id,...d.data()}));pfSyncClientsSoon();if(view==="pf"){renderPf();pfRefreshAll()}else if(DEMO&&!pfRefreshAll._d){pfRefreshAll._d=1;pfRefreshAll()}});
   db.collection("pfmodels").onSnapshot(snap=>{pfModels=snap.docs.map(d=>({id:d.id,...d.data()}));pfSyncClientsSoon();if(view==="pf")renderPf()});

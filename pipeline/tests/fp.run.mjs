@@ -24,6 +24,32 @@ async function setPlan(page, patch) {
 const pvAnn = (m, n, r) => { const q = Math.pow(1 + r, 1 / 12) - 1; return n > 0 && m > 0 ? m * (1 - Math.pow(1 + q, -n)) / q : 0; };
 
 const tests = {
+  async "plánovaná hypotéka: z kalkulace, slajd Dnes → Po koupi, promítnutí do plánu (výdaje, cíl, úvěr), bez zdvojení cíle"() {
+    const { ctx, page, errors } = await open();
+    const base = { klient: { jmeno: "Hana Hypoteční", narozen: "1990-01-01", zam: 60000, vydaje_osobni: 30000, bez_partnera: true }, partner: { zapnuto: false }, deti: [],
+      majetek: [{ typ: "Spořicí účet", nazev: "Spořák", hodnota: 1500000 }], uvery: [], cile: [], renta: { mesicne: 0 } };
+    await setPlan(page, base);
+    // kalkulace z Pipeline (fp:init → hypoFromCalc)
+    const r = await page.evaluate(() => { const I = inp(); hypoFromCalc(I, { price: 5000000, pv: 4000000, rate: 6, rpsn: 6.2, years: 30, fix: 5, src: "Swiss Life Hypoindex (září 2026)", at: 1000, name: "Hana – byt" });
+      I.hypo.odpadne = 15000; I.hypo.naklady = 3000; compute();
+      const H = hypoOf(I), fr = FR.filter(f => f.g === "hy");
+      return { pmt: Math.round(H.pmt), own: H.own, n: fr.length, vyd: R.vydCelkem, cile: R.cile.map(c => [c.nazev, c.castka]), uv: R.uvery.map(u => [u.nazev, u.zustatek, u.splatka]), h: fr[1] && fr[1].h,
+        older: (hypoFromCalc(I, { pv: 1, price: 2, rate: 1, years: 1, at: 500 }), I.hypo.uver) }; });
+    eq(r.pmt, 23982, "anuita 4 mil., 6 %, 30 let");
+    eq([r.n, r.own], [2, 1000000], "dva snímky Morph, vlastní zdroje");
+    eq(r.vyd, 30000 + 23982 + 3000 - 15000, "výdaje po koupi");
+    eq(r.cile, [["Vlastní zdroje na bydlení", 1000000]], "vlastní zdroje = cíl");
+    eq(r.uv, [["Hypotéka – plánovaná", 4000000, 23982]], "úvěr v plánu (krytí smrti)");
+    eq(r.older, 4000000, "starší kalkulace plán nepřepíše");
+    assert(r.h.includes("RPSN") && r.h.includes("Výdaje po koupi") && r.h.includes("Swiss Life Hypoindex"), "obsah slajdu");
+    // klient už má cíl na byt → vlastní zdroje se nepřidají podruhé; bez promítnutí se plán nemění
+    const r2 = await page.evaluate(() => { const I = inp(); I.cile = [{ nazev: "Byt – vlastní zdroje", castka: 900000, za_let: 2 }]; compute(); const a = R.cile.map(c => c.nazev);
+      I.hypo.promitnout = false; compute(); return { a, vyd: R.vydCelkem, uv: R.uvery.length, n: FR.filter(f => f.g === "hy").length }; });
+    eq(r2.a, ["Byt – vlastní zdroje"], "bez zdvojení cíle");
+    eq([r2.vyd, r2.uv, r2.n], [30000, 0, 2], "bez promítnutí: plán beze změny, slajd zůstává");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
   async "koláč: popisky dílů mají součet 100 % a stejná čísla jako legenda"() {
     const { ctx, page, errors } = await open();
     // 49,4 / 25,5 / 25,1 → dřív 49 + 25 + 25 = 99 (každý díl zaokrouhlený zvlášť), legenda 49 + 26 + 25
