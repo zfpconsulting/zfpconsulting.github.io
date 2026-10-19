@@ -155,6 +155,12 @@ const DRAFT="fp_dotaznik_draft_v1",ADV="dz_poradce_v1";
 /* parametry: z odkazu za # (dlouhý odkaz), nebo zapečené ve stránce krátkého odkazu (/termin/vk/, /dotaznik/vk/ – window.DZ_LINK, viz tools/short-links.mjs) */
 const H=new URLSearchParams(EMB?"":(window.DZ_LINK||location.hash.replace(/^#/,""))),Q=new URLSearchParams(location.search);
 const LINK={to:H.get("to")||"",k:H.get("k")||""};
+/* výroční schůzka: odkaz s předvyplněnými údaji z posledního plánu – #…&r=<deflate+base64url JSON> (i u krátkého odkazu, kde jsou ostatní parametry zapečené).
+   Údaje jsou jen za # – prohlížeč je neposílá na žádný server. Sekce Úspory a investice a Pojištění se skryjí (ty vedeme u nás a máme do nich náhled). */
+const RVZ=EMB?"":(new URLSearchParams(location.hash.replace(/^#/,"")).get("r")||"");
+let REV=null;   /* {at, id} – načtený výroční dotazník */
+async function rvDecode(z){const b=atob(z.replace(/-/g,"+").replace(/_/g,"/")),u=Uint8Array.from(b,c=>c.charCodeAt(0));
+  const st=new Blob([u]).stream().pipeThrough(new DecompressionStream("deflate-raw"));return JSON.parse(await new Response(st).text())}
 /* po odeslání „šťouchnout“ poradci push notifikaci (jen obecná zpráva, žádné údaje) – prostředník worker/push.js */
 const PUSH_URL="https://zfp-push.kudlicka-vojtech2002.workers.dev";
 function pushPing(k){if(!PUSH_URL||!LINK.to)return;try{fetch(PUSH_URL+"/ping",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({to:LINK.to,k}),credentials:"omit",referrerPolicy:"strict-origin",keepalive:true}).catch(()=>{})}catch(e){}}
@@ -235,7 +241,7 @@ const ioldpBox=k=>{const f=FILES[k],m=(P.ioldp||{})[k];return `<div class="file$
 
 /* ---------- sekce: h = obsah, miss = co chybí [cesta, text] (vše povinné, kromě poznámky) ---------- */
 const digits=s=>String(s||"").replace(/\D/g,"");
-const SEC=[
+let SEC=[
  {id:"rodina",t:"Rodina",why:"Podle rodiny počítáme, koho je potřeba zajistit – vdovský a sirotčí důchod, krytí úmrtí.",
   h:()=>`<div class="g">${sel("Rodinný stav","kontakt.stav",STAV)}<span></span>
    ${ask("Máte manžela / manželku nebo partnera / partnerku?","klient.bez_partnera",[[false,"Ano"],[true,"Ne"]])}</div>
@@ -309,6 +315,7 @@ function render(){
   const A=adv(),ini=A.n.split(" ").filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase();
   const sc=window.scrollY;const per=check();const bad=per.reduce((a,l)=>a+(l.length?1:0),0);
   $("#main").innerHTML=`<div class="hero">${EMB?`<h1>Vstupní dotazník</h1><p>Co tady vyplníš, se rovnou propíše do plánu klienta.</p>`
+     :REV?`<h1>Před výroční schůzkou</h1><p>Níže jsou údaje z naší poslední konzultace${REV.at?" ("+esc(new Date(REV.at).toLocaleDateString("cs-CZ"))+")":""}. Projděte je prosím a <b>přepište, co se od té doby změnilo</b> – příjmy, výdaje, rodina, úvěry, cíle. Co platí dál, nechte beze změny.</p><p>Úspory, investice a pojištění, které spravujeme u nás, tu nejsou – do těch máme přehled.</p>`
      :`<h1>Než se potkáme</h1><p>Vyplňte prosím všechno – zabere to 10–15 minut. Kde si nejste jistí, stačí odhad.</p>`}</div>
    ${EMB?linkBox(A):A.n?`<div class="adv"><span class="av">${esc(ini)}</span><span><b>${esc(A.n)}</b><small>váš finanční poradce${A.t?" · "+esc(A.t):""}${A.e?" · "+esc(A.e):""}</small></span></div>`:""}
    ${EMB?"":`<div class="lock">${LOCK}<span>Odpovědi se před odesláním zašifrují přímo ve vašem zařízení. Přečíst je může jen váš poradce – nikdo jiný, ani provozovatel úložiště.</span></div>`}
@@ -389,7 +396,7 @@ function goMissing(){const per=check();const i=per.findIndex(l=>l.length);if(i<0
 let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>{
   if(EMB)parent.postMessage({type:"dz:change",plan:P},location.origin);
-  else if(!sent)try{localStorage.setItem(DRAFT,JSON.stringify({at:Date.now(),plan:P}))}catch(e){}},EMB?250:400)}
+  else if(!sent)try{localStorage.setItem(DRAFT,JSON.stringify({at:Date.now(),plan:P,rv:REV?REV.id:""}))}catch(e){}},EMB?250:400)}
 const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|kontakt\.stav)$/.test(p);
 function autoDo(p){const m=/^docasne\.(\d+)\.(typ|dite|castka)$/.exec(p);if(!m)return false;const r=P.docasne[+m[1]];if(r.typ!=="materska"&&r.typ!=="rodicovska")return false;const c=docasneDo(r);r.do=c?c.do:"";
   const h=document.querySelector(`[data-p="docasne.${m[1]}.do"]`),hint=h&&h.parentElement.querySelector(".hint");if(hint)hint.innerHTML=c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte";return true}
@@ -437,7 +444,7 @@ async function send(){
   try{
     const files=[];for(const k of Object.keys(FILES)){const f=FILES[k];files.push({who:k,name:f.name,type:f.type||"application/pdf",data:await b64(f)})}
     const plan=JSON.parse(JSON.stringify(P));
-    const box=await DzCrypto.seal(LINK.k,{type:"fp-dotaznik",v:2,at:new Date().toISOString(),plan,files,adv:adv().n||""});
+    const box=await DzCrypto.seal(LINK.k,{type:"fp-dotaznik",v:2,at:new Date().toISOString(),plan,files,adv:adv().n||"",rev:REV?1:0});
     await DzCrypto.post(LINK.to,box,(i,n)=>{b.textContent=n>1?`Odesílám ${i}/${n}…`:"Odesílám…"});
     SENT={klient:{jmeno:P.klient.jmeno},kontakt:{email:K().email,telefon:K().telefon}};
     pushPing("dz");sent=true;try{localStorage.removeItem(DRAFT)}catch(e){}Object.keys(FILES).forEach(k=>delete FILES[k]);renderSent();loadSlots();
@@ -460,7 +467,13 @@ function load(pl){const b=blank();P=Object.assign(b,JSON.parse(JSON.stringify(pl
 buttons();
 if(EMB){addEventListener("message",e=>{if(e.origin!==location.origin||e.source!==parent||!e.data||e.data.type!=="dz:init")return;DZ=e.data.dz||null;load(e.data.plan);render()});parent.postMessage({type:"dz:ready"},location.origin)}
 else if(ONLY){sent=true;renderSent();loadSlots()}
-else{try{const d=JSON.parse(localStorage.getItem(DRAFT)||"null");if(d&&d.plan)load(d.plan)}catch(e){}render();
+else if(RVZ){(async()=>{let pre=null;try{pre=await rvDecode(RVZ)}catch(e){console.warn(e)}
+    if(pre&&pre.plan){REV={at:pre.at||0,id:String(pre.at||"")+":"+(pre.plan.klient&&pre.plan.klient.jmeno||"")};SEC=SEC.filter(x=>x.id!=="majetek"&&x.id!=="pojisteni");
+      let d=null;try{d=JSON.parse(localStorage.getItem(DRAFT)||"null")}catch(e){}
+      load(d&&d.plan&&d.rv===REV.id?d.plan:pre.plan)}
+    else toast("Předvyplněné údaje v odkazu se nepodařilo načíst – vyplňte prosím dotazník.");
+    render()})()}
+else{try{const d=JSON.parse(localStorage.getItem(DRAFT)||"null");if(d&&d.plan&&!d.rv)load(d.plan)}catch(e){}render();
   if(!LINK.k)setTimeout(()=>toast("Odkaz je neúplný – dotazník půjde vyplnit, ale ne odeslat. Požádejte poradce o nový odkaz."),600)}
 </script>
 </body>
