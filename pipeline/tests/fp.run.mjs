@@ -24,6 +24,27 @@ async function setPlan(page, patch) {
 const pvAnn = (m, n, r) => { const q = Math.pow(1 + r, 1 / 12) - 1; return n > 0 && m > 0 ? m * (1 - Math.pow(1 + q, -n)) / q : 0; };
 
 const tests = {
+  async "příjem a výdaje v čase: rodičovská → návrat do práce, nová hypotéka nahradí starou, důchody, splacení; rozpis za každého"() {
+    const { ctx, page, errors } = await open();
+    await setPlan(page, {
+      klient: { jmeno: "Petr Novák", narozen: "1988-03-01", zam: 62000, vydaje_osobni: 30000, starobni: 21000, inv1: 9000, inv2: 12000, inv3: 20000, bez_partnera: false },
+      partner: { zapnuto: true, jmeno: "Jana Nováková", narozen: "1991-06-01", zam: 0, vydaje_osobni: 12000, starobni: 17000 }, deti: [], majetek: [{ typ: "Spořicí účet", nazev: "Účet", hodnota: 300000 }],
+      docasne: [{ nazev: "Rodičovská", typ: "rodicovska", castka: 12000, do: (new Date().getFullYear() + 2) + "-09", potom: 34000, kdo: "partner" }],
+      uvery: [{ typ: "Hypotéka", nazev: "KB", zustatek: 1800000, splatka: 14500, fixace_do: "", splatnost: (new Date().getFullYear() + 13) + "-06" }],
+      hypo: { zapnuto: true, promitnout: true, cena: 7500000, uver: 5800000, sazba: 5.5, let: 30, za_let: 3, odpadne: 0, naklady: 1500, nahrazuje: "0" }, cile: [], renta: { mesicne: 0 } });
+    const r = await page.evaluate(() => { const t = cfTimeline(inp(), R); return { pts: t.pts.map(q => ({ t: q.t, I: Math.round(q.s.I), loans: Math.round(q.s.loans), inc: q.s.inc.map(Math.round) })), fr: FR.filter(f => f.g === "cft").length,
+      uv: R.uvery.map(u => u.nazev), h: FR.find(f => f.g === "cft").h }; });
+    eq(r.pts.map(p => p.t), ["Dnes", "Konec: Rodičovská (Jana)", "Nahrazeno: Hypotéka – KB · Koupě nemovitosti", "Důchod: Petr", "Důchod: Jana", "Splacena plánovaná hypotéka"], "záchytné body");
+    eq(r.pts[0].inc, [62000, 12000], "dnes: Petr práce, Jana rodičovská");
+    eq(r.pts[1].inc, [62000, 34000], "Jana zpátky v práci");
+    eq([r.pts[0].loans, r.pts[2].loans > 30000, r.pts[5].loans], [14500, true, 0], "stará hypotéka → nová → splaceno");
+    eq(r.pts[4].inc, [21000, 17000], "oba v důchodu");
+    eq(r.fr, 6, "snímek na každý bod");
+    eq(r.uv, ["Hypotéka – plánovaná"], "nahrazený úvěr není v krytí smrti dvakrát");
+    assert(r.h.includes("PETR") || (r.h.includes("Petr") && r.h.includes("Jana")), "rozpis za každého");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
   async "plánovaná hypotéka: z kalkulace, slajd Dnes → Po koupi, promítnutí do plánu (výdaje, cíl, úvěr), bez zdvojení cíle"() {
     const { ctx, page, errors } = await open();
     const base = { klient: { jmeno: "Hana Hypoteční", narozen: "1990-01-01", zam: 60000, vydaje_osobni: 30000, bez_partnera: true }, partner: { zapnuto: false }, deti: [],

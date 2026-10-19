@@ -91,6 +91,7 @@ table.t th:first-child,table.t td:first-child{text-align:left;padding-left:20px}
 table.t th:last-child,table.t td:last-child{padding-right:20px}
 table.t td{padding:10px 12px;border-bottom:1px solid #2c2c2c;text-align:right;white-space:nowrap}
 table.t tr.sum td{font-weight:900;border-top:1px solid #444}
+table.tcf th{padding:6px 12px}table.tcf td{padding:5px 12px}
 .pill{display:inline-block;padding:5px 14px;border-radius:4px;color:#fff;font-weight:900;font-size:14px;letter-spacing:.4px}
 .node{position:absolute;border-radius:50%;transition:all .9s cubic-bezier(.2,.8,.2,1)}
 .nl{position:absolute;text-align:center;transition:all .9s cubic-bezier(.2,.8,.2,1);white-space:nowrap}
@@ -1378,7 +1379,7 @@ function hypoEditor(I){const h=I.hypo||{},on=!!h.zapnuto,H=hypoOf(I);
   return `<details open><summary>Plánovaná hypotéka</summary><label class="chk"><input type="checkbox" data-p="hypo.zapnuto" ${on?"checked":""}> Klient plánuje hypotéku (slajd v prezentaci)</label>
    ${h.src_at?`<p class="hint">Z kalkulace${h.src_name?" „"+esc(h.src_name)+"“":""} (${new Date(h.src_at).toLocaleDateString("cs-CZ")}). Novější uložená kalkulace úvěru u klienta údaje nahradí.</p>`:`<p class="hint">Údaje se načtou z kalkulace úvěru přiřazené ke klientovi (Kalkulačka → menu → Klient → Uložit), nebo je vyplň tady.</p>`}
    ${on?`<div class="g">${fld("Cena nemovitosti","hypo.cena")}${fld("Výše úvěru","hypo.uver")}${fld("Úroková sazba %","hypo.sazba")}${fld("RPSN %","hypo.rpsn")}${fld("Splatnost (let)","hypo.let")}${fld("Fixace (let)","hypo.fix")}
-    ${fld("Koupě za kolik let (0 = hned)","hypo.za_let")}${fld("Odpadne nájem / bydlení Kč/měs","hypo.odpadne")}${fld("Nové náklady bydlení Kč/měs (fond oprav, energie, pojištění)","hypo.naklady")}</div>
+    ${fld("Koupě za kolik let (0 = hned)","hypo.za_let")}${(I.uvery||[]).length?sel("Nahrazuje stávající úvěr","hypo.nahrazuje",[["","— ne —"]].concat((I.uvery||[]).map((u,j)=>[String(j),(u.typ||"Úvěr")+(u.nazev?" – "+u.nazev:"")]))):""}${fld("Odpadne nájem / bydlení Kč/měs","hypo.odpadne")}${fld("Nové náklady bydlení Kč/měs (fond oprav, energie, pojištění)","hypo.naklady")}</div>
     ${H?`<p class="hint" id="hypoPrev">Splátka ${kcm(H.pmt)} · vlastní zdroje ${kc(H.own)} · výdaje se změní o ${sgn(H.delta)}/měs</p>`:""}
     <label class="chk"><input type="checkbox" data-p="hypo.promitnout" ${h.promitnout!==false?"checked":""}> Promítnout do plánu (výdaje po koupi, vlastní zdroje jako cíl, úvěr do krytí smrti)</label>
     ${h.promitnout!==false&&hypoGoal(I)?`<p class="hint">Cíl „${esc(hypoGoal(I).nazev)}“ už v plánu je – vlastní zdroje podruhé nepřidávám. Zkontroluj, že jeho částka (${kc(hypoGoal(I).castka)}) odpovídá vlastním zdrojům${H?" ("+kc(H.own)+")":""}.</p>`:""}`:""}</details>`}
@@ -1388,7 +1389,7 @@ function renderEditor(){
   ()=>`${dzInfo(I)}<details open><summary>Klient</summary>${person("klient")}</details>
   <details open><summary>Partner / partnerka</summary><label class="chk"><input type="checkbox" data-p="partner.zapnuto" ${pa?"checked":""}> Plán pro pár</label>${pa?person("partner",1):""}</details>
   <details open><summary>Děti</summary>${rows("deti",[["Jméno","jmeno","text"],["Narození","narozen","date"],["Plánuje VŠ – sirotčí a vdovský do 26 let (jinak do 18)","vs","check"]],{jmeno:"",narozen:"",vs:false})}<p class="hint">Sirotčí a vdovský důchod se počítá jen do 18 let dítěte, s vysokou školou do 26. Krytí smrti pokrývá výdaje bez finančního plánu do 26 let nejmladšího dítěte; po zániku dávek se výdaje dorovnávají celé.</p></details>
-  <details open><summary>Dočasné příjmy (nejdou do plánu)</summary>${rows("docasne",[["Název","nazev","text","2fr"],["Kč/měs","castka","number"],["Do (rok-měsíc)","do","month"]],{nazev:"",castka:0,do:""})}</details>
+  <details open><summary>Dočasné příjmy (nejdou do plánu)</summary>${rows("docasne",[["Název","nazev","text","2fr"],["Kč/měs","castka","number"],["Do (rok-měsíc)","do","month"],["Pak příjem Kč/měs (návrat do práce)","potom","number"]].concat(pa?[["Kdo","kdo","text","",[["klient",(I.klient&&I.klient.jmeno)||"Klient"],["partner",(I.partner&&I.partner.jmeno)||"Partner"]]]]:[]),{nazev:"",castka:0,do:"",potom:0,kdo:"klient"})}<p class="hint">Na slajdu Příjem a výdaje v čase: do konce dočasný příjem, potom „pak příjem“.</p></details>
   <details open><summary>Motivace a hodnoty (slide 2)</summary><div class="g one"><label class="f">Citát / co je pro klienta nejdůležitější<textarea data-p="motivace" rows="3">${esc(I.motivace||"")}</textarea></label></div>
    <p class="hint">Ikony a popisky se vyberou automaticky podle citátu (a cílů): <span id="motPrev"></span></p>
    <label class="chk"><input type="checkbox" data-p="hodnoty_vlastni" ${I.hodnoty_vlastni?"checked":""}> Vlastní popisky místo automatických</label>
@@ -1521,13 +1522,16 @@ function hypoFromCalc(pl,h){if(!h||!(+h.pv>0))return;const o=pl.hypo||{};if(o.sr
     cena:+h.price||0,uver:+h.pv,sazba:+h.rate,rpsn:+h.rpsn||"",let:+h.years,fix:h.fix||"",zdroj:h.src||"",poplatky:+h.feeOnce||0,src_at:+h.at||Date.now(),src_name:h.name||""}}
 function hypoOf(I){const h=I&&I.hypo;if(!h||!h.zapnuto)return null;const uver=+h.uver||0,n=Math.round((+h.let||0)*12),i=(+h.sazba||0)/1200;if(!(uver>0)||!(n>0))return null;
   const pmt=Math.abs(i)<1e-12?uver/n:uver*i/(1-Math.pow(1+i,-n)),cena=+h.cena||0,own=cena>0?Math.max(0,cena-uver):0;
-  return {...h,uver,n,pmt,cena,own,ltv:cena>0?uver/cena:null,odp:+h.odpadne||0,nak:+h.naklady||0,delta:pmt+(+h.naklady||0)-(+h.odpadne||0),za:Math.max(0,+h.za_let||0),promitnout:h.promitnout!==false}}
+  /* nová hypotéka nahrazuje stávající úvěr → jeho splátka odpadne */
+  const ru=h.nahrazuje!==""&&h.nahrazuje!=null?(I.uvery||[])[+h.nahrazuje]:null,rep=ru?+ru.splatka||0:0;
+  return {...h,uver,n,pmt,cena,own,ltv:cena>0?uver/cena:null,odp:+h.odpadne||0,nak:+h.naklady||0,rep,repNazev:ru?(ru.typ||"Úvěr")+(ru.nazev?" – "+ru.nazev:""):"",delta:pmt+(+h.naklady||0)-(+h.odpadne||0)-rep,za:Math.max(0,+h.za_let||0),promitnout:h.promitnout!==false}}
 /* cíl na bydlení už v plánu je (klient ho zadal sám) → vlastní zdroje se nepřidávají podruhé */
 const hypoGoal=I=>(I.cile||[]).find(c=>+c.castka>0&&/byt|bydlen|nemovit|hypot|vlastn[ií] zdroj|d[uů]m\b|domek|chalup|chat/i.test(c.nazev||""));
 function withHypo(I){const H=hypoOf(I);if(!H||!H.promitnout)return I;const J=JSON.parse(JSON.stringify(I)),k=J.klient,d=Math.round(H.delta);
   k.vydaje_osobni=Math.max(0,(+k.vydaje_osobni||0)+d);if(k.vydaje_dom!==""&&k.vydaje_dom!=null)k.vydaje_dom=Math.max(0,(+k.vydaje_dom||0)+d);
   if(H.own>0&&!hypoGoal(J))J.cile=(J.cile||[]).concat([{nazev:"Vlastní zdroje na bydlení",castka:H.own,za_let:Math.max(1/12,H.za)}]);
   const T=new Date(),y=T.getFullYear()+Math.round(H.za+H.n/12),fy=H.fix?T.getFullYear()+Math.round(H.za)+(+H.fix):null,mm=String(T.getMonth()+1).padStart(2,"0");
+  if(H.rep||H.repNazev)J.uvery=(J.uvery||[]).filter((u,j)=>j!==+H.nahrazuje);
   J.uvery=(J.uvery||[]).concat([{typ:"Hypotéka",nazev:"plánovaná",zustatek:H.uver,splatka:Math.round(H.pmt),fixace_do:fy?fy+"-"+mm:"",splatnost:y+"-"+mm}]);
   return J}
 /* slajd „Plánujeme hypotéku“: 2 snímky (Morph) – dnešní výdaje → výdaje po koupi */
@@ -1566,6 +1570,98 @@ function hypoFrames(I,R){const H=hypoOf(I);if(!H)return [];
     const bon=`<div style="position:absolute;left:80px;top:822px;width:1440px;font-size:17px;color:#b4b4b4">Splátky / čistý příjem (DSTI): <b class="${okD?"grn":"red"}">${pc0(dsti)}</b> <span class="mut">(doporučení ČNB do 40 %)</span>&nbsp;&nbsp;·&nbsp;&nbsp;Potřebný čistý příjem pro banku: <b style="color:#efefef">${kcm(need)}</b>${P?` <span class="${P>=need?"grn":"red"}">${P>=need?"✓ splňujete":"✗ chybí "+kc(need-P)}</span>`:""}</div>
      <div class="foot" style="bottom:12px">${esc([H.zdroj?"Sazba: "+H.zdroj+" – průměrná nabídková sazba, ne nabídka konkrétní banky":"",H.promitnout?"Finanční plán už počítá s výdaji po koupi"+(H.own>0?" a vlastní zdroje jsou jedním z cílů":""):""].filter(Boolean).join(" · "))}</div>`;
     out.push({g:"hy",h:chrome("Plánujeme hypotéku",st?"Výdaje po koupi nemovitosti":"Jak se změní vaše měsíční výdaje")+left+right+bon,lbl:"Hypotéka"})}
+  return out}
+/* ================= příjem a výdaje v čase =================
+   Příjmy v dnešních cenách konstantní; mění se jen v záchytných bodech: konec dočasného příjmu (rodičovská → návrat do práce),
+   důchod (práce → starobní důchod), renta z plánu. Výdaje: ostatní výdaje (výdaje osob bez splátek), splátky úvěrů (končí splatností,
+   plánovaná hypotéka začne koupí a stávající úvěr může nahradit), spoření z plánu (podle toků R.toky – splněný cíl přestane spořit,
+   nebo platba přeteče do dalšího), pojištění (do důchodu). U páru: příjmy a výdaje dohromady, v bodě rozpis za každého. */
+function cfTimeline(I,R){
+  const P=R.persons,two=P.length>1,K=P[0],T0=R.udalosti[0].datum;
+  const pd=s=>{const m=/^(\d{4})-(\d{1,2})/.exec(String(s||""));return m?new Date(+m[1],+m[2]-1,1):null};
+  const mOf=d=>d?(d.getFullYear()-T0.getFullYear())*12+d.getMonth()-T0.getMonth():null;
+  const H=hypoOf(I),hD=H&&H.promitnout?Math.round(H.delta):0,hS=H?Math.round(H.za*12):null,hE=H?hS+H.n:null;
+  const earn=p=>p.zam+p.podnik+p.bonus/12,pas=p=>p.pasiv+p.pronajem,incN=p=>earn(p)+pas(p),incT=P.reduce((a,p)=>a+incN(p),0)||1;
+  const vydO=Math.max(0,R.vydCelkem-hD);
+  const vyd0=P.map((p,i)=>Math.max(0,p.vydaje?(i===0?p.vydaje-hD:p.vydaje):(two?vydO*incN(p)/incT:vydO)));
+  const vSum=vyd0.reduce((a,b)=>a+b,0)||1,sh=vyd0.map(v=>v/vSum);
+  const L=(I.uvery||[]).map((u,j)=>({j,nazev:u.typ?u.typ+(u.nazev&&u.nazev!==u.typ?" – "+u.nazev:""):(u.nazev||"Úvěr"),spl:+u.splatka||0,end:mOf(pd(u.splatnost))})).filter(u=>u.spl>0&&(u.end==null||u.end>0));
+  if(H&&H.nahrazuje!==""&&H.nahrazuje!=null){const r=L.find(u=>u.j===+H.nahrazuje);if(r&&(r.end==null||r.end>hS)){r.end=hS;r.nahr=1}}
+  const loan0=L.reduce((a,u)=>a+u.spl,0),ost0=vyd0.map((v,i)=>Math.max(0,v-loan0*sh[i]));
+  const docs=(I.docasne||[]).filter(d=>+d.castka>0).map(d=>({nazev:d.nazev||({materska:"Mateřská",rodicovska:"Rodičovská"})[d.typ]||"Dočasný příjem",castka:+d.castka,end:mOf(pd(d.do)),who:two&&d.kdo==="partner"?1:0,potom:+d.potom||0}));
+  const ret=P.map(p=>Math.max(0,mOf(p.duch))),RT=R.renta,dos=RT?rentaDos(RT):1;
+  const early=RT&&+((I.renta||{}).od_veku)>0&&RT.start<K.duch?Math.max(0,mOf(RT.start)):null;
+  const stopW=P.map((p,i)=>i===0&&early!=null?Math.min(ret[0],early):ret[i]);
+  const rS=RT?Math.max(0,mOf(RT.start)):null,rE=RT?mOf(new Date(K.nar.getFullYear()+RT.doziti,K.nar.getMonth(),1)):null;
+  const rPh=RT?RT.faze.map(f=>({m:Math.max(0,mOf(f.od)),mes:f.mes*dos})):[];
+  const PO=R.pojOs,pojP=P.map((p,i)=>PO&&PO.dosp&&PO.dosp[i]!=null?PO.dosp[i]:R.pojNove*incN(p)/incT),pojD=PO&&PO.detiCelkem||0;
+  const mEnd=Math.min(600,Math.max(24,mOf(new Date(K.nar.getFullYear()+((R.S&&R.S.doziti)||85),K.nar.getMonth(),1))));
+  const sporAt=m=>{const t=(R.toky||[]).filter(x=>x.m<=m).pop();return t?t.rozpad.filter(r=>r.k!=="volne").reduce((a,r)=>a+r.kc,0):0};
+  const st=m=>{
+    const inc=P.map((p,i)=>(m<stopW[i]?earn(p):0)+pas(p)+(m>=ret[i]?p.starobni:0)+docs.filter(d=>d.who===i).reduce((a,d)=>a+(d.end==null||m<d.end?d.castka:m<stopW[i]?d.potom:0),0));
+    const ph=rPh.filter(f=>f.m<=m).pop(),renta=RT&&m>=rS&&(rE==null||m<rE)&&ph?ph.mes:0;
+    const loans=L.filter(u=>u.end==null||m<u.end).reduce((a,u)=>a+u.spl,0)+(H&&m>=hS&&m<hE?H.pmt:0);
+    const adj=H&&m>=hS?H.nak-H.odp:0,ost=ost0.map((v,i)=>Math.max(0,v+adj*sh[i]));
+    const spor=sporAt(m),poj=P.map((p,i)=>m<ret[i]?pojP[i]:0),pojS=m<Math.max(...ret)?pojD:0;
+    const I1=inc.reduce((a,b)=>a+b,0)+renta,E=loans+ost.reduce((a,b)=>a+b,0)+spor+poj.reduce((a,b)=>a+b,0)+pojS;
+    return {m,inc,renta,loans,ost,spor,poj,pojS,I:I1,E}};
+  /* záchytné body */
+  const ev=[{m:0,t:"Dnes",d:[]}],add=(m,t,d)=>{if(m==null||m<=0||m>=mEnd)return;ev.push({m,t,d})};
+  const nm=i=>P[i].jmeno.split(" ")[0];
+  docs.forEach(d=>add(d.end,"Konec: "+d.nazev+(two?" ("+nm(d.who)+")":""),[`${two?nm(d.who)+": ":""}příjem ${d.nazev.toLowerCase()} ${kc(d.castka)}${d.potom?" → "+kc(d.potom):" skončí"}`]));
+  P.forEach((p,i)=>{if(stopW[i]<ret[i])add(stopW[i],"Konec práce"+(two?": "+nm(i):"")+" – žije z renty",[`${two?nm(i)+": ":""}přestává pracovat, příjem z práce −${kc(earn(p))}`]);
+    const wk=earn(p)+docs.filter(d=>d.who===i&&d.end!=null&&d.end<ret[i]).reduce((a,d)=>a+d.potom,0);
+    add(ret[i],"Důchod"+(two?": "+nm(i):""),[`${two?nm(i)+": ":""}${ret[i]<=stopW[i]&&wk>0?"práce "+kc(wk)+" → ":""}starobní důchod ${kc(p.starobni)}${p.starobni?"":" (doplň odhad IOLDP)"}`])});
+  if(RT&&rS>0&&rPh[0]&&rPh[0].mes>=100)add(rS,"Renta z plánu",[`renta ${kcm(rPh[0].mes)}`]);
+  if(RT)rPh.slice(1).forEach(f=>{if(f.mes>=100)add(f.m,"Renta: dorovnání k důchodu",[`renta ${kcm(f.mes)} (zbytek kryje státní důchod)`])});
+  L.forEach(u=>add(u.end,(u.nahr?"Nahrazeno: ":"Splaceno: ")+u.nazev,[`splátka −${kc(u.spl)}`]));
+  if(H){add(hS,"Koupě nemovitosti",[`hypotéka +${kcm(H.pmt)}`].concat(H.nak?[`nové náklady +${kc(H.nak)}`]:[],H.odp?[`nájem −${kc(H.odp)}`]:[]));if(hS===0)ev[0].d.push(`hypotéka ${kcm(H.pmt)} od začátku plánu`);add(hE,"Splacena plánovaná hypotéka",[`splátka −${kc(H.pmt)}`])}
+  (R.cile||[]).forEach(c=>{if(!(H&&c.nazev==="Vlastní zdroje na bydlení"))add(c.months,"Cíl: "+c.nazev,[])});   /* vlastní zdroje = bod Koupě nemovitosti */
+  /* sloučit body ve stejném měsíci, doplnit změny spoření */
+  const byM=new Map();ev.sort((a,b)=>a.m-b.m).forEach(e=>{const o=byM.get(e.m);if(o){o.t+=" · "+e.t;o.d.push(...e.d)}else byM.set(e.m,{...e,d:[...e.d]})});
+  let pts=[...byM.values()];
+  pts.forEach((p,i)=>{p.s=st(p.m);if(i){const q=pts[i-1].s,ds=Math.round(p.s.spor-q.spor);if(Math.abs(ds)>=100)p.d.push(`spoření ${ds>0?"+":"−"}${kc(Math.abs(ds))}`)}});
+  /* cíl bez změny cash flow (platba přeteče do dalšího) není záchytný bod */
+  pts=pts.filter((p,i)=>!i||p.d.length||Math.abs(p.s.I-pts[i-1].s.I)>=100||Math.abs(p.s.E-pts[i-1].s.E)>=100);
+  if(pts.length>12)pts=pts.slice(0,12);
+  return {P,two,T0,mEnd,st,pts,hasRenta:!!RT,hasLoans:L.length>0||!!H}}
+function cfFrames(I,R){
+  const T=cfTimeline(I,R);if(!T||T.pts.length<2)return [];
+  const {P,two,T0,mEnd,st,pts}=T,X0=150,X1=1470,Y0=196,Y1=520,W=X1-X0;
+  const br=[...new Set([0,mEnd].concat(pts.map(p=>p.m)))].sort((a,b)=>a-b),seg=br.slice(0,-1).map((a,i)=>({a,b:br[i+1],s:st(a)}));
+  const vmax=Math.max(...seg.map(x=>Math.max(x.s.I,x.s.E)))*1.12||1,gx=m=>X0+W*m/mEnd,gy=v=>Y1-(Y1-Y0)*v/vmax;
+  const C={ost:"#8a8a8a",loan:"#F37520",spor:"#5b8dd6",poj:"#cfcfcf",inc:"#4FB389"};
+  const layers=[["ost",s=>s.ost.reduce((a,b)=>a+b,0)],["loan",s=>s.loans],["spor",s=>s.spor],["poj",s=>s.poj.reduce((a,b)=>a+b,0)+s.pojS]];
+  let rects="";seg.forEach(x=>{let base=0;layers.forEach(([k,f])=>{const v=f(x.s);if(v>0.5)rects+=`<rect x="${gx(x.a).toFixed(1)}" y="${gy(base+v).toFixed(1)}" width="${(gx(x.b)-gx(x.a)).toFixed(1)}" height="${(gy(base)-gy(base+v)).toFixed(1)}" fill="${C[k]}" opacity=".85"/>`;base+=v})});
+  const inc=seg.map((x,i)=>`${i?"":`M${gx(x.a).toFixed(1)},${gy(x.s.I).toFixed(1)}`} H${gx(x.b).toFixed(1)}${i<seg.length-1?` V${gy(seg[i+1].s.I).toFixed(1)}`:""}`).join(" ");
+  const nice=x=>{const p=Math.pow(10,Math.floor(Math.log10(x))),f=x/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p},sy=nice(vmax/4);
+  const grid=[];for(let v=sy;v<vmax;v+=sy)grid.push(`<div style="position:absolute;left:${X0}px;top:${gy(v)}px;width:${W}px;height:1px;background:#262626"></div><div style="position:absolute;left:${X0-110}px;top:${gy(v)-10}px;width:100px;text-align:right;font-size:14px;color:#8a8a8a">${Math.round(v/1000)} tis.</div>`);
+  const y0=T0.getFullYear(),yrs=[];for(let y=Math.ceil((y0+1)/5)*5;y<=y0+mEnd/12;y+=5)yrs.push(y);
+  const ax=`<div style="position:absolute;left:${X0}px;top:${Y1}px;width:${W}px;height:2px;background:#3a3a3a"></div>`+yrs.map(y=>`<div style="position:absolute;left:${gx((y-y0)*12-T0.getMonth())-30}px;top:${Y1+8}px;width:60px;text-align:center;font-size:13px;color:#8a8a8a">${y}</div>`).join("");
+  const has={inc:1,ost:1,loan:seg.some(x=>x.s.loans>0.5),spor:seg.some(x=>x.s.spor>0.5),poj:seg.some(x=>x.s.poj.reduce((a,b)=>a+b,0)+x.s.pojS>0.5)};
+  const leg=[["inc","Příjmy"],["ost","Ostatní výdaje"],["loan","Hypotéka a úvěry"],["spor","Spoření (plán)"],["poj","Pojištění"]].filter(([k])=>has[k]).map(([k,t])=>`<span style="margin-right:22px"><i style="display:inline-block;width:12px;height:12px;border-radius:${k==="inc"?"2px":"50%"};background:${C[k]};margin-right:6px;vertical-align:-1px"></i>${t}</span>`).join("");
+  const svg=`<svg width="1600" height="900" viewBox="0 0 1600 900" style="position:absolute;left:0;top:0">${rects}<path d="${inc}" fill="none" stroke="${C.inc}" stroke-width="5" stroke-linejoin="round"/></svg>`;
+  const nmF=i=>esc(P[i].jmeno.split(" ")[0]),out=[];
+  pts.forEach((p,k)=>{const s=p.s,d=new Date(T0.getFullYear(),T0.getMonth()+p.m,1),cx=gx(p.m);
+    let h=chrome("Příjem a výdaje v čase","Měsíční cash flow domácnosti — v dnešních cenách")+grid.join("")+ax+svg+
+      `<div style="position:absolute;left:${X0}px;top:150px;font-size:14px;color:#b4b4b4">${leg}</div>`;
+    pts.forEach((q,i)=>{const px=gx(q.m),act=i===k,past=i<k;
+      h+=`<div class="k" data-k="cfm${i}" style="position:absolute;left:${px-(act?15:11)}px;top:${Y1+30-(act?4:0)}px;width:${act?30:22}px;height:${act?30:22}px;border-radius:50%;background:${act||past?"#F37520":"#161616"};border:2px solid ${act?"#fff":"#F37520"};color:#fff;font-size:${act?14:11}px;font-weight:900;display:flex;align-items:center;justify-content:center;opacity:${act||past?1:0.5}">${i+1}</div>`});
+    h+=`<div class="k" data-k="cfl" style="position:absolute;left:${cx-1}px;top:${Y0-6}px;width:2px;height:${Y1-Y0+34}px;background:linear-gradient(#ffffff00,#ffffffaa);transition:all 1.2s cubic-bezier(.45,0,.2,1)"></div>`;
+    const sum=v=>`<b>${kc(v)}</b>`,cell=v=>v==null?`<span class="mut">·</span>`:kc(v);
+    const ever=f=>pts.some(q=>f(q.s)>=1);
+    const rows=[["Příjmy",s.inc,null]].concat(ever(x=>x.renta)?[["Renta z plánu",null,s.renta]]:[],ever(x=>x.loans)?[["Hypotéka a úvěry",null,s.loans]]:[],[["Ostatní výdaje",s.ost,null]],ever(x=>x.spor)?[["Spoření (plán)",null,s.spor]]:[],ever(x=>x.poj.reduce((a,b)=>a+b,0)+x.pojS)?[["Pojištění",s.poj,s.pojS]]:[]);
+    const tot=r=>(r[1]?r[1].reduce((a,b)=>a+b,0):0)+(r[2]||0);
+    const tr=r=>`<tr><td>${r[0]}</td>${two?P.map((_,i)=>`<td>${r[1]?cell(r[1][i]):cell(null)}</td>`).join(""):""}<td>${kc(tot(r))}</td></tr>`;
+    const free=s.I-s.E;
+    h+=`<div class="card" style="left:80px;top:590px;width:560px;height:250px;border-top:4px solid #F37520"></div>
+      <div style="position:absolute;left:108px;top:610px;width:510px"><span class="pill" style="background:#F37520">${k+1} · ${(FPE.MES[d.getMonth()]+" "+d.getFullYear()).toUpperCase()}</span>
+       <div style="font-size:21px;font-weight:900;margin-top:10px;line-height:1.25;max-height:54px;overflow:hidden">${esc(p.t)}</div>
+       <div style="font-size:15px;color:#cfcfcf;margin-top:8px;line-height:1.5">${(p.d.length?p.d:[k?"":"Výchozí stav"]).slice(0,4).map(esc).join("<br>")}</div></div>
+      <table class="t tcf" style="left:670px;top:590px;width:850px;font-size:15px"><tr><th></th>${two?P.map((_,i)=>`<th>${nmF(i)}</th>`).join(""):""}<th>${two?"Celkem":"Měsíčně"}</th></tr>
+       ${rows.map(tr).join("")}<tr class="sum"><td>Zbývá</td>${two?P.map(()=>"<td></td>").join(""):""}<td class="${free<0?"red":"grn"}">${free<0?"−":""}${kc(Math.abs(free))}</td></tr></table>
+      <div class="foot">V dnešních cenách. Příjem se mění jen v záchytných bodech (konec dočasného příjmu, důchod, renta); splátky úvěrů v nominální výši. Hypotéka, renta a spoření jsou společné.</div>`;
+    out.push({g:"cft",h,lbl:"Cash flow: "+p.t})});
   return out}
 function buildFrames(I,R){
   const F=[];const K=R.persons[0];const doPlanu=R.pozice.reduce((x,p)=>x+p.jednor,0);const ttl=(K.titul?K.titul+" ":"");
@@ -1989,6 +2085,7 @@ function buildFrames(I,R){
       F.push({g:"gr",h,lbl:"Majetek: "+u.titul});
     });
   }
+  F.push(...cfFrames(I,R));
   // strategie
   F.push({g:"s",h:chrome("Investiční strategie")+`<div style="position:absolute;left:80px;top:120px;font-size:24px;font-style:italic;color:#F37520">Vytrvalost je všechno.</div>`+
    [["2 %","Správný odhad okamžiku pro nákup nebo prodej","#6BAA45"],["4 %","Výběr konkrétních titulů cenných papírů","#5b8dd6"],["94 %","Správné rozmístění peněz do investičních tříd: akcií, dluhopisů, peněz","#F37520"]].map(([v,t,c],i)=>`<div class="card" style="left:${80+i*496}px;top:200px;width:448px;height:560px;border-top:8px solid ${c};background:#2a2a2a"></div><div style="position:absolute;left:${80+i*496}px;top:300px;width:448px;text-align:center;font-size:110px;font-weight:900;color:${c}">${v}</div><div style="position:absolute;left:${80+i*496+60}px;top:480px;width:328px;text-align:center;font-size:20px;color:#cfcfcf;line-height:1.45">${t}</div>`).join("")+
