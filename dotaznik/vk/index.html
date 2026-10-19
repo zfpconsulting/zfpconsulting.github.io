@@ -136,6 +136,10 @@ body.emb .hero h1{font-size:22px}
 .times button.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .map{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:10px 0 6px}
 .map iframe{display:block;width:100%;height:240px;border:0}
+.mapph{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:140px;text-align:center;padding:12px;font-size:12.5px;color:var(--mut)}
+.gdpr{margin:22px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:12.5px;color:var(--mut);line-height:1.55}
+.gdpr summary{cursor:pointer;font-weight:600;color:inherit}
+.gdpr ul{margin:8px 0 2px;padding-left:18px}.gdpr li{margin:4px 0}.gdpr a{color:var(--acc)}
 .note{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;font-size:14.5px}
 </style>
 </head>
@@ -144,7 +148,7 @@ body.emb .hero h1{font-size:22px}
 <main id="main"></main>
 <div class="bottom" id="bottom"><div class="in"><span class="st" id="st"></span><span id="botBtns"></span></div></div>
 <div class="toast" id="toast"></div>
-<script>window.DZ_LINK=decodeURIComponent(escape(atob("dj0xJnRvPWt1ZGxpY2thLnZvanRlY2gyMDAyJTQwZ21haWwuY29tJms9Qkx1WDQya2FqQnUtMXpYVnZkQ0RhODliMkhUb0x3YkJvY0xVN1VZNGNidklOYkFpRHpEWGZta0NPR19HenV2SDB0VTk4c1FsNzJaMXJHajVqUzdMU0hJJnA9Vm9qdCVDNCU5QmNoK0t1ZGxpJUM0JThEa2EmYj1odHRwcyUzQSUyRiUyRnNjcmlwdC5nb29nbGUuY29tJTJGbWFjcm9zJTJGcyUyRkFLZnljYnlfSXJTRzlsSXdzWlYtTUl3blhVdG12TzN1Rjg4eTg2Q2lLaHdOOEtXenNyXzlRSHNMZW16YnE1aGMzMXl0eVYzYyUyRmV4ZWM=")));</script>
+<script>window.DZ_LINK=decodeURIComponent(escape(atob("dj0xJnRvPWt1ZGxpY2thLnZvanRlY2gyMDAyJTQwZ21haWwuY29tJms9Qkx1WDQya2FqQnUtMXpYVnZkQ0RhODliMkhUb0x3YkJvY0xVN1VZNGNidklOYkFpRHpEWGZta0NPR19HenV2SDB0VTk4c1FsNzJaMXJHajVqUzdMU0hJJnA9Vm9qdCVDNCU5QmNoK0t1ZGxpJUM0JThEa2EmYj1odHRwcyUzQSUyRiUyRnNjcmlwdC5nb29nbGUuY29tJTJGbWFjcm9zJTJGcyUyRkFLZnljYnlfSXJTRzlsSXdzWlYtTUl3blhVdG12TzN1Rjg4eTg2Q2lLaHdOOEtXenNyXzlRSHNMZW16YnE1aGMzMXl0eVYzYyUyRmV4ZWMmZT12b2p0ZWNoLmt1ZGxpY2thJTQwemZwYS5jeiZ0PTc3NCsyMjIrNjE3")));</script>
 <script src="/pipeline/dzcrypto.js?v=2"></script>
 <script>
 "use strict";
@@ -312,6 +316,17 @@ function check(){const m=new Map(),per=[];SEC.forEach((s,i)=>{const L=[];s.miss(
 function adv(){let a={};try{a=JSON.parse(localStorage.getItem(ADV)||"{}")||{}}catch(e){}
   return {n:H.get("p")||Q.get("p")||a.n||"",t:H.get("t")||Q.get("t")||a.t||"",e:H.get("e")||Q.get("e")||a.e||""}}
 const LOCK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>';
+/* informace o zpracování osobních údajů (čl. 13 GDPR) – u dotazníku i u rezervace */
+function gdprBox(){const A=adv(),who=A.n?esc(A.n):"váš finanční poradce",kon=[A.e?`<a href="mailto:${esc(A.e)}">${esc(A.e)}</a>`:"",A.t?esc(A.t):""].filter(Boolean).join(", ");
+  const co=ONLY?"jméno, e-mail, telefon a zvolený termín konzultace":"kontaktní údaje, údaje o rodině a dětech, příjmy, výdaje, majetek, závazky, pojištění, cíle, případně výpis z ČSSZ (IOLDP) a zvolený termín konzultace";
+  return `<details class="gdpr" id="gdprBox"><summary>Jak nakládám s vašimi osobními údaji</summary><ul>
+   <li><b>Kdo údaje zpracovává:</b> ${who}, finanční poradce spolupracující se ZFP Consulting${kon?" ("+kon+")":""}.</li>
+   <li><b>Proč:</b> abych vám připravil finanční analýzu a plán a domluvil s vámi konzultaci. Právním základem je jednání o smlouvě na vaši žádost (čl. 6 odst. 1 písm. b GDPR). Vyplnění je dobrovolné, bez údajů ale plán připravit nejde.</li>
+   <li><b>Jaké údaje:</b> ${co}.</li>
+   <li><b>Komu:</b> bez vašeho pokynu nikomu dalšímu. Odpovědi se šifrují už ve vašem zařízení, přenos a úložiště zajišťuje Google (Firebase) a termín se zapíše do kalendáře poradce u Googlu; Google je certifikován podle rámce EU–USA pro ochranu osobních údajů. Pokud se rozhodnete sjednat produkt, předám nezbytné údaje ZFP Consulting a zvolené finanční instituci.</li>
+   <li><b>Jak dlouho:</b> po dobu naší spolupráce. Když spolupráce nevznikne, údaje smažu nejpozději do 1 roku od poslední konzultace.</li>
+   <li><b>Vaše práva:</b> přístup k údajům, oprava, výmaz, omezení zpracování, námitka a přenositelnost – stačí napsat poradci. Stížnost můžete podat u Úřadu pro ochranu osobních údajů (<a href="https://uoou.gov.cz" target="_blank" rel="noopener noreferrer">uoou.gov.cz</a>).</li>
+  </ul></details>`}
 function render(){
   if(sent)return renderSent();
   const A=adv(),ini=A.n.split(" ").filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase();
@@ -323,7 +338,7 @@ function render(){
    ${EMB?"":`<div class="lock">${LOCK}<span>Odpovědi se před odesláním zašifrují přímo ve vašem zařízení. Přečíst je může jen váš poradce – nikdo jiný, ani provozovatel úložiště.</span></div>`}
    ${tried&&bad?`<div class="banner"><span>Ještě chybí údaje v <b>${bad}</b> ${bad===1?"části":"částech"}.</span><button type="button" id="goMiss">Ukázat</button></div>`:""}
    ${SEC.map((s,i)=>`<section id="${s.id}"><h2><span class="n">${String(i+1).padStart(2,"0")}</span>${s.t}${!per[i].length&&!s.optional?'<span class="dn">✓</span>':""}</h2><p class="why">${s.why}</p><div class="body">${s.h()}</div></section>`).join("")}
-   ${EMB?"":`<p class="priv">Rozpracované odpovědi se drží jen v tomto prohlížeči (bez příloh) a po odeslání se smažou. Data se šifrují standardem AES-256 klíčem, který má jen váš poradce.</p>`}`;
+   ${EMB?"":`<p class="priv">Rozpracované odpovědi se drží jen v tomto prohlížeči (bez příloh) a po odeslání se smažou. Data se šifrují standardem AES-256 klíčem, který má jen váš poradce.</p>${gdprBox()}`}`;
   window.scrollTo(0,sc);status(per);
 }
 const OK_IC='<span class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>';
@@ -343,7 +358,8 @@ const DNY=["ne","po","út","st","čt","pá","so"];
 const dk=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const hm=iso=>{const d=new Date(iso);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")};
 const dayTxt=iso=>{const d=new Date(iso);return ["neděle","pondělí","úterý","středa","čtvrtek","pátek","sobota"][d.getDay()]+" "+d.getDate()+". "+(d.getMonth()+1)+"."};
-function renderSent(){
+function renderSent(){renderSent0();if(ONLY&&!document.getElementById("gdprBox"))$("#main").insertAdjacentHTML("beforeend",gdprBox())}
+function renderSent0(){
   $("#bottom").hidden=true;$("#topBtns").innerHTML="";$("#prog").style.width="100%";
   const K0=ONLY?{email:BK.c.email}:(SENT&&SENT.kontakt)||{},mail=K0.email||"váš e-mail";
   if(BK.done){$("#main").innerHTML=`<div class="done">${OK_IC}<h1>Termín je zarezervovaný</h1><p><b>${esc(dayTxt(BK.done.start))} v ${esc(hm(BK.done.start))}</b> – ${BK.done.online?`online. Odkaz na schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.`:`osobně, ${esc(BK.addr)}.`}</p></div>${BK.done.online?"":mapBox()}`;return}
@@ -365,7 +381,8 @@ function renderSent(){
 /* osobně: pěší trasa od Galerie Vaňkovka (hlavní nádraží / zastávky MHD) až ke kanceláři + navigace v Google Maps */
 const FROM="Galerie Vaňkovka, Ve Vaňkovce 1, Brno";
 const mapBox=()=>`<div class="note" style="margin-top:14px"><b>Cesta od Vaňkovky</b><br>Od Galerie Vaňkovka (u hlavního nádraží) je to pár minut pěšky.</div>
-  <div class="map"><iframe title="Pěší trasa od Vaňkovky – ${esc(BK.addr)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.google.com/maps?saddr=${encodeURIComponent(FROM)}&daddr=${encodeURIComponent(BK.addr)}&dirflg=w&output=embed"></iframe></div>
+  <div class="map">${BK.map?`<iframe title="Pěší trasa od Vaňkovky – ${esc(BK.addr)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.google.com/maps?saddr=${encodeURIComponent(FROM)}&daddr=${encodeURIComponent(BK.addr)}&dirflg=w&output=embed"></iframe>`
+    :`<div class="mapph"><button type="button" class="btn sm" id="bMap">Zobrazit mapu</button><span>Mapa se načte ze služby Google Maps, která může ukládat cookies.</span></div>`}</div>
   <p class="hint"><a href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(FROM)}&destination=${encodeURIComponent(BK.addr)}&travelmode=walking" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">Navigovat pěšky v Google Maps</a> · <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(BK.addr)}" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">Adresa v mapě</a></p>`;
 async function book(){
   if(!BK.time){BK.err="Vyberte čas.";return renderSent()}if(!BK.mode){BK.err="Vyberte, jestli osobně, nebo online.";return renderSent()}
@@ -387,7 +404,7 @@ async function book(){
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.bkc;if(k&&ONLY)BK.c[k]=e.target.value});
 document.addEventListener("click",e=>{if(!sent)return;const t=e.target.closest("button");if(!t)return;
   if(t.dataset.day){BK.day=t.dataset.day;BK.time="";renderSent()}else if(t.dataset.time){BK.time=t.dataset.time;BK.err="";const c=BK.slots.find(x=>x.t===BK.time);if(c&&c.o)BK.mode="online";renderSent()}
-  else if(t.dataset.mode&&!t.disabled){BK.mode=t.dataset.mode;BK.err="";renderSent()}else if(t.id==="bBook")book();
+  else if(t.dataset.mode&&!t.disabled){BK.mode=t.dataset.mode;BK.err="";renderSent()}else if(t.id==="bBook")book();else if(t.id==="bMap"){BK.map=true;renderSent()}
   else if(t.id==="bSkip"){BK.slots=[];SENT=null;renderSent()}});
 let SENT=null;
 function linkBox(A){return `<div class="lnk"><b>Odkaz pro klienta</b><div class="hint">Klient dotazník vyplní u sebe a odešle – přijde ti zašifrovaný rovnou do Pipeline (nový lead + plán + IOLDP v dokumentech).</div>

@@ -2072,7 +2072,7 @@ const DZ_SHORT=[{c:"vk",k:"BLuX42kajBu-1zXVvdCDa89b2HToLwbBocLU7UY4cbvINbAiDzDXf
 /* odkaz pro klienta: only=true → jen rezervace termínu (bez dotazníku); krátký odkaz, pokud sedí veřejný klíč */
 function dzLinkSync(only){const k=settings&&settings.dzKey&&settings.dzKey.pub,me=dzMe();if(DEMO||!k||!me)return "";
   const sh=DZ_SHORT.find(x=>x.k===k);if(sh&&/github\.io$/.test(location.hostname))return location.origin+(only?"/termin/":"/dotaznik/")+sh.c+"/";
-  const h=new URLSearchParams({v:"1",to:me,k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);if(only)h.set("m","r");if(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(settings.bkUrl||""))h.set("b",settings.bkUrl);
+  const h=new URLSearchParams({v:"1",to:me,k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);if(only)h.set("m","r");{const sg=settings.sign||"",em=(sg.match(/[^\s,;<>]+@[^\s,;<>]+\.[a-z]{2,}/i)||[])[0],tl=(sg.match(/(?:\+420\s?)?\d{3}\s?\d{3}\s?\d{3}/)||[])[0];if(em)h.set("e",em);if(tl)h.set("t",tl)}if(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(settings.bkUrl||""))h.set("b",settings.bkUrl);
   return location.origin+location.pathname.replace(/[^/]*$/,"")+"dotaznik.html#"+h.toString()}
 /* výroční schůzka: odkaz na dotazník předvyplněný z posledního plánu klienta (za #r=… – deflate + base64url, bez serveru).
    Bez Úspor a investic a Pojištění (vedeme u nás); klient jen přepíše, co se změnilo. Údaje jsou v odkazu – posílat jen klientovi. */

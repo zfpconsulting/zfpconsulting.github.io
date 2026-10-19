@@ -8,7 +8,7 @@ const esc=s=>String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g
 const check=process.argv.includes("--check");let bad=0;
 for(const a of cfg){for(const kind of ["termin","dotaznik"]){
   const only=kind==="termin",dir=`${kind}/${a.code}/`,url="https://zfpconsulting.github.io/"+dir;
-  const h=new URLSearchParams({v:"1",to:a.to,k:a.k,p:a.p});if(a.bk)h.set("b",a.bk);if(only)h.set("m","r");
+  const h=new URLSearchParams({v:"1",to:a.to,k:a.k,p:a.p});if(a.bk)h.set("b",a.bk);if(a.e)h.set("e",a.e);if(a.t)h.set("t",a.t);if(only)h.set("m","r");
   const b64=Buffer.from(h.toString(),"utf8").toString("base64");
   const title=only?`Rezervace konzultace – ${a.p}`:`Vstupní dotazník – ${a.p}`;
   const desc=only?"Vyberte si termín konzultace – osobně v Brně (Trnitá 500/9) nebo online. ZFP Consulting":"Podklady k finančnímu plánu – vyplnění zabere asi 15 minut, odpovědi se šifrují. ZFP Consulting";
