@@ -1380,6 +1380,8 @@ html.asmode #dataDlg .dcfg:not(.keepas),html.asmode #dCsvC,html.asmode #dCsvL,ht
         <label>Začátek názvu schůzky <input id="dPrefix" placeholder="např. VK:" autocomplete="off"></label>
         <p class="hint">Do CRM se berou jen události, jejichž název začíná tímto textem (např. „VK: Novák“). Porady, tréninky a ostatní události se ignorují. Bez vyplnění se z kalendáře nic nenačte.</p>
         <button type="button" class="dbtn" id="dTasks" hidden>Povolit zápis úkolů do kalendáře</button>
+        <label>Rezervace – živá kontrola kalendáře <input id="dBk" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" inputmode="url"></label>
+        <p class="hint">Adresa tvého skriptu (tools/rezervace.gs). S ní stránka rezervace ukazuje jen časy, které jsou v kalendáři opravdu volné, a vybraný termín hned zablokuje – nikdo si nevybere obsazený čas, ani když Pipeline nemáš otevřenou.</p>
       </div>
       <div class="dcfg keepas">
         <label>Tapeta<select id="dWp"><option value="auto">Automaticky (podle měsíce)</option><option value="1">Leden – zima</option><option value="2">Únor – zima</option><option value="3">Březen – tání</option><option value="4">Duben – déšť a duha</option><option value="5">Květen – rozkvetlé stromy</option><option value="6">Červen – léto</option><option value="7">Červenec – léto</option><option value="8">Srpen – západ slunce</option><option value="9">Září – javorové listí</option><option value="10">Říjen – podzim</option><option value="11">Listopad – Halloween</option><option value="12">Prosinec – Vánoce</option></select></label>
@@ -2105,8 +2107,8 @@ async function dzBooking(x){
   let l=leads.find(L=>(x.email&&L.email&&L.email.toLowerCase()===String(x.email).toLowerCase())||(d(x.phone).length===9&&d(L.phone)===d(x.phone)))||leads.find(L=>f(L.name)===f(name));
   if(!l)l=await aiAddLead({name,phone:x.phone||"",email:x.email||""});
   const cur=leads.find(L=>L.id===l.id)||l;
-  const near=await dzBusy(start,new Date(start.getTime()+DZS.len*60000)).catch(()=>[]),busy=near.filter(dzBlocks),offBusy=!online&&near.some(dzOffice);
-  const r=await saveMeeting(cur,start,online);
+  const near=(await dzBusy(start,new Date(start.getTime()+DZS.len*60000)).catch(()=>[])).filter(e=>!x.hold||e.id!==x.hold),busy=near.filter(dzBlocks),offBusy=!online&&near.some(dzOffice);
+  const r=await saveMeeting(cur,start,online,{holdId:x.hold||""});
   if(online&&r&&r.evId)ensureMeet(r.evId).catch(()=>{});
   if(!(r&&r.evId))dzQueue({lead:l.id,name,start:start.toISOString(),online});
   try{if(view==="cal")fetchCalTab(true);Promise.resolve(refreshCalendar()).catch(()=>{})}catch(e){}
@@ -2386,20 +2388,29 @@ async function dzBusy(from,to){
   const sch=await schoolIds().catch(()=>[]),ids=[...new Set([calCfg().id,"primary",...sch].filter(Boolean))],out=[];
   for(const id of ids){try{const p=new URLSearchParams({timeMin:from.toISOString(),timeMax:to.toISOString(),singleEvents:"true",orderBy:"startTime",maxResults:"500"});
     const r=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(id)+"/events?"+p)).json();
-    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={calId:id,school:sch.includes(id),title:(e.summary||"").trim(),place:(e.location||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};ev.kind=ctKind(ev);if(ev.kind!=="hide")out.push(ev)})}
+    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={id:e.id,calId:id,school:sch.includes(id),title:(e.summary||"").trim(),place:(e.location||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};ev.kind=ctKind(ev);if(ev.kind!=="hide")out.push(ev)})}
     catch(e){if(id===calCfg().id||id==="primary")throw e}}
   return out}
+/* blokace z webu (tools/rezervace.gs): událost s extendedProperties.private.zfpHold=1. Když k ní do 3 h nedorazí šifrovaná rezervace
+   (klient zavřel stránku, výpadek), smaže se – termín se zase uvolní. Přijatou rezervací se blokace přejmenuje na klienta (zfpHold=0). */
+async function dzHoldsCleanup(){if(!settings.bkUrl||!GAuth.hasScope("calendar.events"))return;const cfg=calCfg(),now=Date.now();
+  const p=new URLSearchParams({privateExtendedProperty:"zfpHold=1",timeMin:new Date(now-864e5).toISOString(),singleEvents:"true",maxResults:"100"});
+  const j=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events?"+p)).json();
+  const used=new Set();leads.forEach(l=>(l.meetings||[]).forEach(m=>used.add(m.id)));lsGet("dz_failed",[]).forEach(z=>z.x&&z.x.hold&&used.add(z.x.hold));
+  for(const e of j.items||[]){const at=+((e.extendedProperties||{}).private||{}).zfpAt||Date.parse(e.created)||now;
+    if(!used.has(e.id)&&now-at>3*3600e3)try{await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events/"+encodeURIComponent(e.id),{method:"DELETE"})}catch(err){}}}
 /* volné termíny pro klienty (rezervace 2. konzultace po dotazníku): jen časy, žádná jména – veřejně čitelné v dzslots/{tvůj e-mail} */
 let dzPubAt=0;
 async function dzPublishSlots(force){
   if(DEMO||!DZI.on||!DZI.fdb||!GAuth.token()||!GAuth.hasScope("calendar"))return;
   if(!force&&Date.now()-dzPubAt<20*60000)return;dzPubAt=Date.now();
-  try{const now=new Date(),from=new Date(now.getTime()+18*3600e3),to=new Date(now.getFullYear(),now.getMonth(),now.getDate()+DZS.days);
+  try{await dzHoldsCleanup().catch(e=>console.warn("blokace rezervací",e));
+    const now=new Date(),from=new Date(now.getTime()+18*3600e3),to=new Date(now.getFullYear(),now.getMonth(),now.getDate()+DZS.days);
     const busy=await dzBusy(new Date(now.getFullYear(),now.getMonth(),now.getDate()),to),slots=[];
     for(let i=1;i<=DZS.days;i++){const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i),k=ymd(day);
       /* „|o“ za časem = v tu dobu je kancelář obsazená → klient si může vybrat jen online */
       dzDaySlots(k,busy.filter(e=>ymd(new Date(e.start))===k)).forEach(({m,online})=>{const s=new Date(day.getFullYear(),day.getMonth(),day.getDate(),Math.floor(m/60),m%60);if(s>from)slots.push(s.toISOString()+(online?"|o":""))})}
-    await DZI.F.setDoc(DZI.F.doc(DZI.fdb,"dzslots",dzMe()),{slots:slots.slice(0,300),upd:new Date().toISOString(),len:DZS.len,addr:DZS.addr()});
+    await DZI.F.setDoc(DZI.F.doc(DZI.fdb,"dzslots",dzMe()),{slots:slots.slice(0,300),upd:new Date().toISOString(),len:DZS.len,addr:DZS.addr(),bk:settings.bkUrl||""});
   }catch(e){console.warn("volné termíny",e)}}
 setInterval(()=>dzPublishSlots(false),5*60000);
 async function dzHandle(docs){
@@ -3962,8 +3973,11 @@ async function saveMeeting(l,start,online,opt={}){
       const end=new Date(start.getTime()+45*60000);
       const title=(cfg.prefix?cfg.prefix+" ":"")+(l.name||"Schůzka")+(online?" (online)":"");
       const base="https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events";
-      const r=await gfetch(base,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({summary:title,location:online?"":OFFICE_PLACE,start:{dateTime:startISO},end:{dateTime:end.toISOString()}})});
-      const j=await r.json();evId=j.id||null;if(!evId)throw new Error("bez id");
+      const body={summary:title,location:online?"":OFFICE_PLACE,start:{dateTime:startISO},end:{dateTime:end.toISOString()}};
+      /* termín už zablokovaný z webu (rezervace) → jen přejmenovat na klienta, nová událost se nezakládá */
+      if(opt.holdId)try{const r=await gfetch(base+"/"+encodeURIComponent(opt.holdId),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,description:"",extendedProperties:{private:{zfpHold:"0"}}})});const j=await r.json();evId=j.id||null}catch(e){evId=null}
+      if(!evId){const r=await gfetch(base,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const j=await r.json();evId=j.id||null;if(!evId)throw new Error("bez id")}
     }catch(e){evErr=e&&e.code||e&&e.message||"chyba";toast("Nepodařilo se zapsat do kalendáře, ukládám aspoň do leadu")}
   }
   const meeting={id:evId||("local:"+Date.now()),start:startISO,title:l.name||"",online};
@@ -7636,13 +7650,15 @@ async function updateEurRate(){
       const a=document.activeElement;if(a&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))return;e.preventDefault();go(k==="y"||e.shiftKey?1:-1)})}
   const saveCal=async patch=>{try{await db.doc("settings/main").set({...settings,...patch});lsSet("cal_cache",null);lsSet("cal_hist",null);calHist=null;calEvents=null;calState="loading";render();refreshCalendar().then(()=>fetchCalHistory(true))}catch(e){toast("Nepodařilo se uložit")}};
   sb.addEventListener("click",async()=>{
-    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}if(typeof renderAsCfg==="function")renderAsCfg();{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
+    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}if(typeof renderAsCfg==="function")renderAsCfg();{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dBk").value=settings.bkUrl||"";$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
     const me=lsGet("g_owner");$("dataInfo").textContent=(me&&!DEMO?"Účet "+me+" · ":"")+($("syncBtn").title||"");
     if(!GAuth.token()){sel.replaceChildren(new Option(c.name,c.id));return}
     try{const cals=await listCalendars();sel.replaceChildren(...cals.map(k=>new Option((k.primary?"★ ":"")+(k.summary||k.id),k.id)));sel.value=cals.some(k=>k.id===c.id)?c.id:(cals.find(k=>k.primary)?.id||"primary")}catch(e){sel.replaceChildren(new Option(c.name,c.id))}
   });
   $("dCal").onchange=e=>{const o=e.target.selectedOptions[0];saveCal({calId:o.value,calName:o.textContent.replace(/^★ /,"")})};
   $("dPrefix").onchange=e=>saveCal({calPrefix:e.target.value.trim()});
+  $("dBk").onchange=async e=>{const v=e.target.value.trim();if(v&&!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(v)){toast("Adresa musí být …script.google.com/macros/s/…/exec");return}
+    settings={...settings,bkUrl:v};try{await db.doc("settings/main").update({bkUrl:v});toast(v?"Živá kontrola kalendáře zapnutá":"Živá kontrola vypnutá");dzPublishSlots(true)}catch(err){toast("Nepodařilo se uložit")}};
   $("dTasks").onclick=()=>GAuth.login(false);
   {const s=$("dWp");try{s.value=localStorage.getItem("wp_month")||"auto"}catch(e){}s.onchange=()=>{try{localStorage.setItem("wp_month",s.value)}catch(e){}if(window.__wpSet)window.__wpSet(s.value)}}
   const err=lsGet("g_err");if(err){localStorage.removeItem("g_err");if(err!=="interaction_required"&&err!=="login_required"&&err!=="consent_required")toast("Přihlášení se nepovedlo ("+err+")")}

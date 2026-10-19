@@ -492,6 +492,32 @@ tests["produkty v automatickém návrhu: poslední změna = výchozí pro dalš�
   eq(nove, { dip: zvoleno, a: 2 }, "nový plán převzal výchozí produkty");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
+tests["rezervace: živá kontrola kalendáře skryje obsazené časy, termín se při rezervaci zablokuje (obsazený → vybrat jiný), blokace jde v šifrované zprávě"] = async function () {
+  const { ctx, page, errors } = await open();
+  const DZ = FP.replace("fp.html", "dotaznik.html"), BKU = "https://script.google.com/macros/s/TEST/exec";
+  await page.goto(DZ); const key = await page.evaluate(() => DzCrypto.genKey());
+  const d = new Date(Date.now() + 3 * 864e5); d.setHours(9, 0, 0, 0); const t1 = d.toISOString(), t2 = new Date(d.getTime() + 2 * 3600e3).toISOString(), t3 = new Date(d.getTime() + 4 * 3600e3).toISOString();
+  const doc = { fields: { slots: { arrayValue: { values: [t1, t2, t3].map(x => ({ stringValue: x })) } }, len: { integerValue: "45" }, bk: { stringValue: BKU } } };
+  const posts = [], calls = [];
+  await ctx.route(/firestore\.googleapis\.com/, async r => { if (r.request().method() === "GET") return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(doc) }); posts.push(JSON.parse(r.request().postData())); await r.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+  let nBook = 0;
+  await ctx.route(/script\.google\.com/, async r => { const o = JSON.parse(r.request().postData() || "{}"); calls.push(o);
+    if (o.a === "busy") return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, busy: [[Date.parse(t2) - 10 * 60000, Date.parse(t2) + 30 * 60000]], len: 45, buf: 15 }) });
+    nBook++; return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(nBook === 1 ? { ok: false, err: "busy" } : { ok: true, id: "hold123" }) }); });
+  await page.goto(DZ + "#v=1&to=poradce%40example.cz&k=" + key.pub + "&m=r"); await page.reload(); await page.waitForTimeout(800);
+  const times = await page.$$eval("[data-time]", b => b.map(x => x.dataset.time));
+  eq([times.includes(t1), times.includes(t2), times.includes(t3)], [true, false, true], "obsazený čas z kalendáře se nenabízí");
+  await page.evaluate(() => { const c = { jmeno: "Jan Testovací", email: "jan@example.cz", telefon: "777111222" }; Object.assign(BK.c, c); });
+  await page.click(`[data-time="${t1}"]`); await page.click('[data-mode="osobne"]'); await page.click("#bBook"); await page.waitForTimeout(600);
+  assert((await page.textContent("main")).includes("mezitím někdo obsadil"), "obsazený termín → hláška");
+  eq(posts.length, 0, "bez blokace se rezervace neodeslala");
+  await page.click(`[data-time="${t3}"]`); await page.click('[data-mode="osobne"]');
+  const sealed = await page.evaluate(() => new Promise(res => { const o = DzCrypto.seal; DzCrypto.seal = (k, x) => { res(x); return o(k, x) }; document.getElementById("bBook").click() }));
+  eq([sealed.start, sealed.hold], [t3, "hold123"], "zablokovaný termín v šifrované zprávě");
+  await page.waitForTimeout(600); assert(posts.length > 0 && (await page.textContent("main")).includes("zarezervovaný"), "rezervace odeslaná");
+  eq(calls.filter(c => c.a === "book").map(c => c.start), [t1, t3], "blokace volaná s vybraným časem");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
 tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičovské, šifrované odeslání, které přečte jen klíč poradce; sloučení s plánem"] = async function () {
   const { ctx, page, errors } = await open();
   const DZ = FP.replace("fp.html", "dotaznik.html");

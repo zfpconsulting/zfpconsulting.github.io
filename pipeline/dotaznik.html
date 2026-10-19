@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://zfp-push.kudlicka-vojtech2002.workers.dev; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://zfp-push.kudlicka-vojtech2002.workers.dev https://script.google.com https://script.googleusercontent.com; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
 <link rel="icon" type="image/png" sizes="48x48" href="/og/icon-48.png?v=3">
 <link rel="icon" type="image/png" sizes="192x192" href="/og/icon-192.png?v=3">
 <link rel="apple-touch-icon" sizes="180x180" href="/og/icon-180.png?v=3">
@@ -318,11 +318,16 @@ function render(){
 }
 const OK_IC='<span class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>';
 /* po odeslání: rezervace termínu 2. konzultace (volné bloky publikuje Pipeline poradce – jen časy, nic o klientech) */
-const BK={c:{jmeno:"",email:"",telefon:""},slots:null,addr:"Trnitá 500/9, 602 00 Brno",day:"",time:"",mode:"",err:"",busy:false,done:null};
+const BK={c:{jmeno:"",email:"",telefon:""},slots:null,addr:"Trnitá 500/9, 602 00 Brno",day:"",time:"",mode:"",err:"",busy:false,done:null,bk:"",len:45};
+/* živá kontrola kalendáře (Apps Script poradce – tools/rezervace.gs; adresu publikuje Pipeline v dzslots.bk):
+   při načtení se ze seznamu vyřadí časy, které už jsou v kalendáři obsazené, a při rezervaci se termín pod zámkem ověří a hned zablokuje */
+async function bkCall(o){const r=await fetch(BK.bk,{method:"POST",body:JSON.stringify(o),credentials:"omit",referrerPolicy:"no-referrer",cache:"no-store"});if(!r.ok)throw new Error("bk "+r.status);return r.json()}
 const FSDOC="https://firestore.googleapis.com/v1/projects/zfp-pipeline/databases/(default)/documents/dzslots/";
 async function loadSlots(){try{const r=await fetch(FSDOC+encodeURIComponent(LINK.to)+"?key=AIzaSyDfS0FJx1EtbgqJSUUOK722PB_5Zo6hCuI",{credentials:"omit",referrerPolicy:"strict-origin",cache:"no-store"});
-    if(!r.ok)throw 0;const j=await r.json(),F=j.fields||{};BK.addr=(F.addr&&F.addr.stringValue)||BK.addr;
-    const min=Date.now()+12*3600e3;BK.slots=((F.slots&&F.slots.arrayValue&&F.slots.arrayValue.values)||[]).map(v=>String(v.stringValue||"").split("|")).map(([t,f])=>({t,o:f==="o"})).filter(x=>x.t&&Date.parse(x.t)>min).sort((a,b)=>a.t.localeCompare(b.t))}
+    if(!r.ok)throw 0;const j=await r.json(),F=j.fields||{};BK.addr=(F.addr&&F.addr.stringValue)||BK.addr;BK.bk=(F.bk&&F.bk.stringValue)||"";BK.len=+(F.len&&(F.len.integerValue||F.len.doubleValue))||45;
+    const min=Date.now()+12*3600e3;BK.slots=((F.slots&&F.slots.arrayValue&&F.slots.arrayValue.values)||[]).map(v=>String(v.stringValue||"").split("|")).map(([t,f])=>({t,o:f==="o"})).filter(x=>x.t&&Date.parse(x.t)>min).sort((a,b)=>a.t.localeCompare(b.t));
+    if(BK.bk)try{const b=await bkCall({a:"busy",days:22});if(b&&b.ok){const L=(b.len||BK.len)*60000,bf=(b.buf||0)*60000;
+      BK.slots=BK.slots.filter(x=>{const s=Date.parse(x.t);return !b.busy.some(([a,e])=>a<s+L+bf&&e>s-bf)})}}catch(e){console.warn("živá kontrola kalendáře",e)}}
   catch(e){BK.slots=[]}renderSent()}
 const DNY=["ne","po","út","st","čt","pá","so"];
 const dk=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -359,8 +364,13 @@ async function book(){
     if(String(c.telefon).replace(/\D/g,"").length<9){BK.err="Vyplňte telefon.";return renderSent()}
     if(!LINK.to||!LINK.k){BK.err="Odkaz je neúplný – požádejte poradce o nový.";return renderSent()}}
   BK.err="";BK.busy=true;renderSent();
+  /* nejdřív termín zablokovat v kalendáři (pod zámkem) – když ho mezitím někdo obsadil, klient si vybere jiný */
+  let hold="";
+  if(BK.bk){let h=null;try{h=await bkCall({a:"book",start:BK.time,online:BK.mode==="online"?1:0})}catch(e){console.warn("blokace termínu",e)}
+    if(h&&!h.ok&&h.err==="busy"){BK.busy=false;BK.err="Tento termín už mezitím někdo obsadil – vyberte si prosím jiný.";const t=BK.time;BK.time="";BK.slots=(BK.slots||[]).filter(x=>x.t!==t);renderSent();loadSlots();return}
+    if(h&&h.ok)hold=h.id}
   try{const K0=ONLY?{email:BK.c.email.trim(),telefon:BK.c.telefon.trim()}:SENT.kontakt||{},nm=ONLY?BK.c.jmeno.trim().replace(/\s+/g," "):(SENT.klient||{}).jmeno||"";
-    const box=await DzCrypto.seal(LINK.k,{type:"fp-booking",v:1,at:new Date().toISOString(),start:BK.time,online:BK.mode==="online",name:nm,email:K0.email||"",phone:K0.telefon||"",only:ONLY});
+    const box=await DzCrypto.seal(LINK.k,{type:"fp-booking",v:1,at:new Date().toISOString(),start:BK.time,online:BK.mode==="online",name:nm,email:K0.email||"",phone:K0.telefon||"",only:ONLY,hold});
     await DzCrypto.post(LINK.to,box);pushPing("bk");BK.done={start:BK.time,online:BK.mode==="online"};SENT=null}
   catch(e){BK.err="Rezervace se nepodařila – zkuste to prosím znovu.";console.error(e)}
   BK.busy=false;renderSent()}
