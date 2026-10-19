@@ -2206,7 +2206,7 @@ async function pushSyncReminders(force){
   await pushLib();const items=[];
   for(const p of plan)for(const x of subs)items.push({id:x.id,at:p.at,body:PushCrypto.b64u(await PushCrypto.encrypt(x,p.pl)),tag:p.pl.tag});
   const r=await pushApi("/reminders",{body:{v:PUSH_PLAN_V,items:items.slice(0,400)}});lsSet("push_sig",sig);pushUpAt=Date.now();return r}
-const PUSH_PLAN_V=3;   /* zvýšit při změně plánu notifikací – prostředník pak nepřijme plán od starší verze appky na jiném zařízení */
+const PUSH_PLAN_V=4;   /* zvýšit při změně plánu notifikací – prostředník pak nepřijme plán od starší verze appky na jiném zařízení */
 /* ukázka všech typů jednou hned (do minuty) – z tvých skutečných dat */
 async function pushTestAll(){
   const t=todayStr(),tm=addDaysFrom(t,1),at=Date.now(),M=pxMeets(t).concat(pxMeets(tm)),last=(calEvents||[]).filter(e=>new Date(e.start)<new Date()).slice(-1)[0];
