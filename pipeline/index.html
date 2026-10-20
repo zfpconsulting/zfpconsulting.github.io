@@ -2652,6 +2652,16 @@ function renderPerBar(){
     pper?el("button",{type:"button",class:"pback",onclick:()=>{pper=null;render()}},"Zpět na aktuální měsíc"):
     el("span",{class:"pnote"},"Vyplacené zůstávají v měsíci výplaty, rozjednané se přesouvají do nového měsíce."));
 }
+/* velké sloupce (stovky leadů z Databáze) se vykreslují po dávkách – karta má hodně prvků a vykreslení všech najednou appku zasekávalo;
+   počet v hlavičce sloupce zůstává celkový, ostatní karty se načtou tlačítkem „Zobrazit dalších“ */
+const COL_PAGE=30;window.__colShown=window.__colShown||{};
+function colCards(st,items,i,cur){
+  const shown=Math.max(COL_PAGE,window.__colShown[st.k]||0);
+  if(items.length<=shown+10)return items.map(l=>card(l,i,cur));
+  const rest=items.length-shown;
+  return [...items.slice(0,shown).map(l=>card(l,i,cur)),
+    el("button",{class:"addcard",type:"button",onclick:()=>{window.__colShown[st.k]=shown+COL_PAGE*2;render()}},"Zobrazit dalších "+Math.min(rest,COL_PAGE*2)+" z "+rest)];
+}
 function renderPipe(cur){
   renderPerBar();
   const past=!!pper&&!q;
@@ -2706,7 +2716,7 @@ function renderPipe(cur){
     const col=el("section",{class:"col","data-stage":st.k},
       el("div",{class:"colhead"},el("span",{class:"t"},el("i",{style:"background:"+st.c}),st.t),el("span",{class:"n"},String(items.length))),
       meta?el("div",{class:"colmeta"},meta):null,
-      items.map(l=>card(l,i,cur)),
+      ...colCards(st,items,i,cur),
       st.k==="novy"?el("button",{class:"addcard",type:"button",onclick:()=>openEdit(null)},"Přidat lead"):null);
     col.addEventListener("dragover",e=>{if(window.Docs&&Docs.isFileDrag(e))return;e.preventDefault();col.classList.add("drop")});
     col.addEventListener("dragleave",()=>col.classList.remove("drop"));
