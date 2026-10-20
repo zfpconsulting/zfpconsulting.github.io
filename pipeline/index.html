@@ -7831,10 +7831,12 @@ const Acc={
   me:()=>lsGet("g_owner"), get:()=>lsGet("acc")||{},
   async post(o){if(DEMO&&["snap","team","share","inv"].includes(o.t))throw new Error("prezentační režim");const c=new AbortController(),t=setTimeout(()=>c.abort(),20000);try{const r=await fetch(Trk.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(o),signal:c.signal});return await r.json()}finally{clearTimeout(t)}},
   ok(){const a=Acc.get();return !Trk.on()||(!!Acc.me()&&a.email===Acc.me()&&ACC_OK.includes(a.st))},
-  set(st,email){if(!st||["bad","unverified","denied"].includes(st))return Acc.apply();lsSet("acc",{st,email,at:Date.now()});Acc.apply()},
+  /* uloží se jen jasný stav z tabulky; jakákoli chyba / výpadek serveru (error, busy, HTML…) platný přístup nepřepíše a zámek nezamkne */
+  set(st,email){if(!["aktivní","zkušební","čeká","blokován","unknown"].includes(st))return Acc.apply();lsSet("acc",{st,email,at:Date.now()});Acc.apply()},
   reg(email,name){const tok=GAuth.token();if(!tok)return Promise.resolve(null);return Acc.post({t:"login",email,name:name||"",dev:Trk.dev(),label:Trk.label(),ver:Trk.ver,tok}).then(j=>{Acc.set(j.status,email);return j.status})},
-  async check(){const email=Acc.me();if(!email||!Trk.on())return Acc.apply();
-    try{let st=(await Acc.post({t:"st",email})).status;if(st==="unknown"){const r=await Acc.reg(email);if(r)return;}Acc.set(st,email)}catch(e){Acc.apply()}},
+  busy:false, tried:0,
+  async check(){const email=Acc.me();if(!email||!Trk.on())return Acc.apply();if(Acc.busy)return;Acc.busy=true;Acc.tried=Date.now();
+    try{let st=(await Acc.post({t:"st",email})).status;if(st==="unknown"){const r=await Acc.reg(email);if(r)return;}Acc.set(st,email)}catch(e){Acc.apply()}finally{Acc.busy=false}},
   timer:null,
   apply(){
     const ok=Acc.ok();let g=$("accGate");
@@ -7842,18 +7844,21 @@ const Acc={
     if(ok){if(g)g.remove();document.documentElement.classList.remove("locked");clearInterval(Acc.timer);Acc.timer=null;return}
     document.documentElement.classList.add("locked");
     if(!g){g=el("div",{id:"accGate",role:"dialog","aria-modal":"true"});document.body.append(g)}
-    if(!Acc.timer)Acc.timer=setInterval(()=>{document.querySelectorAll("dialog[open]").forEach(d=>d.close());if(Acc.get().st==="čeká"&&document.visibilityState==="visible"&&Date.now()-(Acc.get().at||0)>60000)Acc.check()},700);
+    if(!Acc.timer)Acc.timer=setInterval(()=>{document.querySelectorAll("dialog[open]").forEach(d=>d.close());const a=Acc.get(),vis=document.visibilityState==="visible";
+      if(a.st==="čeká"&&vis&&Date.now()-(a.at||0)>60000)Acc.check();
+      /* nejasný stav (ověřování, starý uložený „error“…) se sám zkouší znovu každých 5 s, bez klikání */
+      else if(Acc.me()&&vis&&!["čeká","blokován","unknown"].includes(a.st)&&Date.now()-Acc.tried>5000)Acc.check()},700);
     document.querySelectorAll("dialog[open]").forEach(d=>d.close());
     const email=Acc.me(), a=Acc.get(), st=!email?"login":a.email!==email?"checking":a.st;
     const T={login:["Přihlas se","Pipeline je jen pro schválené uživatele. Přihlas se svým Google účtem – jakmile ti přístup povolím, aplikace se odemkne."],
       "čeká":["Čekáš na schválení","Účet "+email+" je zaregistrovaný. Jakmile ti přístup povolím, aplikace se sama odemkne."],
       "blokován":["Přístup pozastaven","Přístup pro "+email+" je pozastavený. Pokud jde o omyl, ozvi se. Svá data si můžeš stáhnout."],
       unknown:["Přihlas se znovu","Potřebuju ověřit tvůj Google účet."],checking:["Ověřuju přístup…","Chvilku strpení."]};
-    const [h,p]=T[st]||T.checking;
+    const known=!!T[st],[h,p]=T[st]||T.checking;
     g.replaceChildren(el("div",{class:"gbox"},el("div",{class:"glogo"},"Pipeline"),el("div",{class:"gt"},h),el("p",{},p),
       el("div",{class:"gbtns"},
         st==="login"||st==="unknown"?el("button",{type:"button",class:"gp",onclick:()=>GAuth.login(false)},"Přihlásit přes Google"):null,
-        st==="čeká"||st==="checking"?el("button",{type:"button",class:"gp",onclick:e=>{e.target.textContent="Ověřuju…";Acc.check()}},"Zkontrolovat znovu"):null,
+        st==="čeká"||st==="checking"||!known?el("button",{type:"button",class:"gp",onclick:e=>{e.target.textContent="Ověřuju…";Acc.check()}},"Zkontrolovat znovu"):null,
         st==="blokován"?el("button",{type:"button",onclick:()=>exportBackup()},"Stáhnout moje data"):null,
         email?el("button",{type:"button",onclick:()=>GAuth.logout()},"Odhlásit"):null),
       el("p",{class:"gsmall"},"Při přihlášení se pro správu přístupů zaznamená e-mail, typ zařízení a čas v aplikaci. Data klientů se nikam neodesílají.")));
