@@ -710,6 +710,27 @@ tests["uvolnění platby po splnění cíle: krok s animací zpět do cash flow;
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["datumy: pole type=date se změní na ruční zadání dd.mm.rrrr (.value zůstává rrrr-mm-dd), špatné datum se označí"] = async function () {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(async () => {
+    const i = document.createElement("input"); i.type = "date"; i.value = "2026-03-05"; let ev = 0; i.addEventListener("input", () => ev++); i.addEventListener("change", () => ev += 10);
+    document.body.appendChild(i); await new Promise(r => setTimeout(r, 50));
+    const out = { typ: i.type, disp: i.getAttribute("type") === "text" ? "text" : "?", ph: i.placeholder };
+    out.shown = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").get.call(i);
+    const typ = t => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(i, t); i.dispatchEvent(new Event("input", { bubbles: true })); };
+    typ("1.2.2026"); out.rozepsane = [i.value, ev];
+    i.dispatchEvent(new Event("change", { bubbles: true })); i.dispatchEvent(new Event("blur")); out.norm = [i.value, Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").get.call(i)];
+    typ("31.02.2026"); i.dispatchEvent(new Event("blur")); out.spatne = [i.value, i.style.outline !== ""];
+    typ("070385"); out.kratke = i.value; i.value = "1999-12-31"; out.set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").get.call(i);
+    return out; });
+  eq([r.typ, r.shown], ["text", "05.03.2026"], "pole je textové a ukazuje dd.mm.rrrr");
+  eq(r.rozepsane[0], "2026-02-01", "čte se ISO"); eq(r.rozepsane[1], 0, "rozepsané datum nevyvolá input v kódu okolo");
+  eq(r.norm, ["2026-02-01", "01.02.2026"], "po opuštění se zformátuje na dd.mm.rrrr");
+  eq(r.spatne, ["", true], "neplatné datum → prázdná hodnota a červený rámeček");
+  eq([r.kratke, r.set], ["1985-03-07", "31.12.1999"], "zkrácený zápis ddmmrr, zápis z kódu");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
