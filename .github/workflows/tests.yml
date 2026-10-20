@@ -35,6 +35,8 @@ jobs:
         run: node tests/docs.run.mjs
       - name: Testy finančního plánu a dotazníku
         run: node tests/fp.run.mjs
+      - name: Testy rezervace (volné termíny, kancelář a kolegové, uvolnění zrušené schůzky)
+        run: node tests/booking.run.mjs
       - name: Testy v prohlížeči (celá appka – všechny záložky bez chyb, synchronizace dat)
         run: node tests/run.mjs
         env:

@@ -18,7 +18,7 @@
 <meta property="og:locale" content="cs_CZ">
 <meta property="og:title" content="Vstupní dotazník k finančnímu plánu">
 <meta property="og:description" content="Podklady k finančnímu plánu – vyplnění zabere asi 15 minut, odpovědi se šifrují. ZFP Consulting">
-<meta property="og:image" content="https://zfpconsulting.github.io/og/dotaznik-2.jpg">
+<meta property="og:image" content="https://zfpconsulting.github.io/og/dotaznik.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image"><!--/og-->
@@ -342,9 +342,15 @@ async function bkCall(o){const r=await fetch(BK.bk,{method:"POST",body:JSON.stri
 const FSDOC="https://firestore.googleapis.com/v1/projects/zfp-pipeline/databases/(default)/documents/dzslots/";
 async function loadSlots(){try{const r=await fetch(FSDOC+encodeURIComponent(LINK.to)+"?key=AIzaSyDfS0FJx1EtbgqJSUUOK722PB_5Zo6hCuI",{credentials:"omit",referrerPolicy:"strict-origin",cache:"no-store"});
     if(!r.ok)throw 0;const j=await r.json(),F=j.fields||{};BK.addr=(F.addr&&F.addr.stringValue)||BK.addr;{const fb=(F.bk&&F.bk.stringValue)||"";BK.bk=BK_RE.test(fb)?fb:LINK.b}BK.len=+(F.len&&(F.len.integerValue||F.len.doubleValue))||45;
-    const min=Date.now()+12*3600e3;BK.slots=((F.slots&&F.slots.arrayValue&&F.slots.arrayValue.values)||[]).map(v=>String(v.stringValue||"").split("|")).map(([t,f])=>({t,o:f==="o"})).filter(x=>x.t&&Date.parse(x.t)>min).sort((a,b)=>a.t.localeCompare(b.t));
-    if(BK.bk)try{const b=await bkCall({a:"busy",days:22});if(b&&b.ok){const L=(b.len||BK.len)*60000,bf=(b.buf||0)*60000;
-      BK.slots=BK.slots.filter(x=>{const s=Date.parse(x.t);return !b.busy.some(([a,e])=>a<s+L+bf&&e>s-bf)})}}catch(e){console.warn("živá kontrola kalendáře",e)}}
+    /* za časem: „o“ = kancelář obsazená kolegou osobně (jen online), „x“ = blokuje ho jen poradcova vlastní schůzka (po zrušení se vrátí; třetí část = délka bloku v min) */
+    const min=Date.now()+12*3600e3,raw=((F.slots&&F.slots.arrayValue&&F.slots.arrayValue.values)||[]).map(v=>String(v.stringValue||"").split("|")).map(([t,f,blk])=>({t,o:(f||"").includes("o"),x:(f||"").includes("x"),blk:+blk||90})).filter(x=>x.t&&Date.parse(x.t)>min).sort((a,b)=>a.t.localeCompare(b.t));
+    let live=null;
+    if(BK.bk)try{const b=await bkCall({a:"busy",days:22});if(b&&b.ok&&Array.isArray(b.busy))live=b}catch(e){console.warn("živá kontrola kalendáře",e)}
+    if(live){const L=(live.len||BK.len)*60000,bf=(live.buf||0)*60000,off=Array.isArray(live.office)?live.office:null;
+      /* termín blokovaný jen poradcovou schůzkou se ukáže, jakmile ji z kalendáře zruší – kalendář se ptá živě, ne ze zveřejněného seznamu */
+      BK.slots=raw.filter(x=>{const s=Date.parse(x.t);return !live.busy.some(([a,e])=>x.x?a<s+x.blk*60000&&e>s:a<s+L+bf&&e>s-bf)})
+        .map(x=>{const s=Date.parse(x.t);return {t:x.t,o:off?off.some(([a,e])=>a<s+L&&e>s):x.o}})}
+    else BK.slots=raw.filter(x=>!x.x).map(x=>({t:x.t,o:x.o}))}
   catch(e){BK.slots=[]}renderSent()}
 const DNY=["ne","po","út","st","čt","pá","so"];
 const dk=iso=>{const d=new Date(iso);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -386,6 +392,7 @@ async function book(){
   /* nejdřív termín zablokovat v kalendáři (pod zámkem) – když ho mezitím někdo obsadil, klient si vybere jiný */
   let hold="";
   if(BK.bk){let h=null;try{h=await bkCall({a:"book",start:BK.time,online:BK.mode==="online"?1:0})}catch(e){console.warn("blokace termínu",e)}
+    if(h&&!h.ok&&h.err==="office"){BK.busy=false;BK.err="V tuto dobu je kancelář obsazená – zvolte prosím online, nebo jiný čas.";const c=(BK.slots||[]).find(x=>x.t===BK.time);if(c)c.o=true;BK.mode="online";renderSent();return}
     if(h&&!h.ok&&h.err==="busy"){BK.busy=false;BK.err="Tento termín už mezitím někdo obsadil – vyberte si prosím jiný.";const t=BK.time;BK.time="";BK.slots=(BK.slots||[]).filter(x=>x.t!==t);renderSent();loadSlots();return}
     if(h&&h.ok)hold=h.id}
   try{const K0=ONLY?{email:BK.c.email.trim(),telefon:BK.c.telefon.trim()}:SENT.kontakt||{},nm=ONLY?BK.c.jmeno.trim().replace(/\s+/g," "):(SENT.klient||{}).jmeno||"";

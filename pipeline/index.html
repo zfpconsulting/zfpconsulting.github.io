@@ -1363,7 +1363,7 @@ html.locked body{overflow:hidden}
         <p class="hint">Do CRM se berou jen události, jejichž název začíná tímto textem (např. „VK: Novák“). Porady, tréninky a ostatní události se ignorují. Bez vyplnění se z kalendáře nic nenačte.</p>
         <button type="button" class="dbtn" id="dTasks" hidden>Povolit zápis úkolů do kalendáře</button>
         <label>Rezervace – živá kontrola kalendáře <input id="dBk" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" inputmode="url"></label>
-        <p class="hint">Adresa tvého skriptu (tools/rezervace.gs). S ní stránka rezervace ukazuje jen časy, které jsou v kalendáři opravdu volné, a vybraný termín hned zablokuje – nikdo si nevybere obsazený čas, ani když Pipeline nemáš otevřenou.</p>
+        <p class="hint">Adresa tvého skriptu (tools/rezervace.gs). S ní stránka rezervace ukazuje jen časy, které jsou v kalendáři opravdu volné, a vybraný termín hned zablokuje – nikdo si nevybere obsazený čas, ani když Pipeline nemáš otevřenou. Zrušenou schůzku v kalendáři skript pozná hned a termín se v rezervaci znovu nabídne. Schůzky kolegů ve společném kalendáři tě neblokují: osobní schůzka kolegy v kanceláři ti nechá jen online, jeho online schůzka nic nemění. Po aktualizaci tools/rezervace.gs ho nasaď znovu (Nasadit → Spravovat nasazení → Nová verze).</p>
       </div>
       <div class="dcfg keepas">
         <label>Tapeta<select id="dWp"><option value="auto">Automaticky (podle měsíce)</option><option value="1">Leden – zima</option><option value="2">Únor – zima</option><option value="3">Březen – tání</option><option value="4">Duben – déšť a duha</option><option value="5">Květen – rozkvetlé stromy</option><option value="6">Červen – léto</option><option value="7">Červenec – léto</option><option value="8">Srpen – západ slunce</option><option value="9">Září – javorové listí</option><option value="10">Říjen – podzim</option><option value="11">Listopad – Halloween</option><option value="12">Prosinec – Vánoce</option></select></label>
@@ -2037,7 +2037,7 @@ async function dzKey(){if(settings.dzKey&&settings.dzKey.pub&&settings.dzKey.pri
 const dzMe=()=>String(lsGet("g_owner")||"").toLowerCase();
 async function dzLinkInfo(){if(DEMO)return null;const me=dzMe();if(!me)return null;try{const k=await dzKey();return {to:me,k:k.pub}}catch(e){console.warn(e);return null}}
 /* krátké odkazy na dotazník (/dotaznik/<kód>/) – platí jen, dokud sedí veřejný klíč; jinak se použije dlouhý odkaz */
-const DZ_SHORT=[{c:"vk",k:"BLuX42kajBu-1zXVvdCDa89b2HToLwbBocLU7UY4cbvINbAiDzDXfmkCOG_GzuvH0tU98sQl72Z1rGj5jS7LSHI"}];
+const DZ_SHORT=[{"c":"vk","k":"BLuX42kajBu-1zXVvdCDa89b2HToLwbBocLU7UY4cbvINbAiDzDXfmkCOG_GzuvH0tU98sQl72Z1rGj5jS7LSHI"}];
 /* odkaz pro klienta: only=true → jen rezervace termínu (bez dotazníku); krátký odkaz, pokud sedí veřejný klíč */
 function dzLinkSync(only){const k=settings&&settings.dzKey&&settings.dzKey.pub,me=dzMe();if(DEMO||!k||!me)return "";
   const sh=DZ_SHORT.find(x=>x.k===k);if(sh&&/github\.io$/.test(location.hostname))return location.origin+(only?"/termin/":"/dotaznik/")+sh.c+"/";
@@ -2369,19 +2369,23 @@ function ctKind(ev){
   if(ev.calId==="primary"||ev.calId===dzMe())return "own";
   return "off"}
 const dzBlocks=ev=>!ev.allDay&&["mine","sem","own"].includes(ev.kind||ctKind(ev));
-const dzOffice=ev=>!ev.allDay&&(ev.kind||ctKind(ev))==="off";
+/* kancelář je obsazená jen tehdy, když tam kolega schůzku OSOBNĚ (ne online): „online“ v názvu, odkaz na Meet/Zoom/Teams nebo místo mimo kancelář = kancelář zůstává volná */
+function dzInPerson(ev){const t=ev.title||"",pl=(ev.place||"").trim();
+  if(/\bonline\b/i.test(t)||ev.meet||/^https?:|meet\.google|zoom\.|teams\./i.test(pl))return false;
+  return !pl||/trnit|zfp|kancel/i.test(pl)}
+const dzOffice=ev=>!ev.allDay&&(ev.kind||ctKind(ev))==="off"&&dzInPerson(ev);
 const dzBusyIv=e=>[ctMinutesOf(e.start),e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60,(e.kind||ctKind(e))==="sem"?SCHOOL_AFTER:undefined];
 /* volné bloky dne + příznak „jen online“ (kancelář v tu dobu obsazená kolegou) */
-function dzDaySlots(dayKey,evs){
+function dzDaySlots(dayKey,evs,ignoreMine){
   const iv=e=>{const a=ctMinutesOf(e.start),b=e.end&&ymd(new Date(e.end))===dayKey?ctMinutesOf(e.end):(e.end?1440:a+60);return [a,b]};
-  const busy=evs.filter(dzBlocks).map(e=>{const[a,b]=iv(e);return [a,b,(e.kind||ctKind(e))==="sem"?SCHOOL_AFTER:undefined]});
+  const busy=evs.filter(e=>dzBlocks(e)&&!(ignoreMine&&(e.kind||ctKind(e))==="mine")).map(e=>{const[a,b]=iv(e);return [a,b,(e.kind||ctKind(e))==="sem"?SCHOOL_AFTER:undefined]});
   const off=evs.filter(dzOffice).map(iv);
   return dzFreeSlots(dayKey,busy).map(({m,e})=>({m,e,online:off.some(([a,b])=>m<b&&m+DZS.len>a)}))}
 async function dzBusy(from,to){
   const sch=await schoolIds().catch(()=>[]),ids=[...new Set([calCfg().id,"primary",...sch].filter(Boolean))],out=[];
   for(const id of ids){try{const p=new URLSearchParams({timeMin:from.toISOString(),timeMax:to.toISOString(),singleEvents:"true",orderBy:"startTime",maxResults:"500"});
     const r=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(id)+"/events?"+p)).json();
-    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={id:e.id,calId:id,school:sch.includes(id),title:(e.summary||"").trim(),place:(e.location||"").trim(),allDay:false,start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};ev.kind=ctKind(ev);if(ev.kind!=="hide")out.push(ev)})}
+    (r.items||[]).forEach(e=>{if(e.status==="cancelled"||e.transparency==="transparent"||!e.start||!e.start.dateTime)return;const ev={id:e.id,calId:id,school:sch.includes(id),title:(e.summary||"").trim(),place:(e.location||"").trim(),allDay:false,meet:!!(e.hangoutLink||e.conferenceData),start:e.start.dateTime,end:e.end&&e.end.dateTime||e.start.dateTime};ev.kind=ctKind(ev);if(ev.kind!=="hide")out.push(ev)})}
     catch(e){if(id===calCfg().id||id==="primary")throw e}}
   return out}
 /* blokace z webu (tools/rezervace.gs): událost s extendedProperties.private.zfpHold=1. Když k ní do 3 h nedorazí šifrovaná rezervace
@@ -2396,15 +2400,23 @@ async function dzHoldsCleanup(){if(!settings.bkUrl||!GAuth.hasScope("calendar.ev
       if(!used.has(e.id)&&now-at>3*3600e3)try{await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events/"+encodeURIComponent(e.id),{method:"DELETE"})}catch(err){}}}}
 /* volné termíny pro klienty (rezervace 2. konzultace po dotazníku): jen časy, žádná jména – veřejně čitelné v dzslots/{tvůj e-mail} */
 let dzPubAt=0;
+/* živá kontrola kalendáře (Apps Script) opravdu vidí vlastní schůzky? – jen pak smí klient znovu vidět termín, který uvolnila zrušená schůzka */
+async function dzBkCovers(starts){const u=settings.bkUrl||"";if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u))return false;
+  try{const r=await fetch(u,{method:"POST",body:JSON.stringify({a:"busy",days:22}),credentials:"omit",referrerPolicy:"no-referrer",cache:"no-store"}),b=await r.json();
+    return !!(b&&b.ok&&Array.isArray(b.busy)&&starts.every(s=>b.busy.some(([a,e])=>a<s+DZS.block*60000&&e>s)))}catch(e){return false}}
 async function dzPublishSlots(force){
   if(DEMO||!DZI.on||!DZI.fdb||!GAuth.token()||!GAuth.hasScope("calendar"))return;
-  if(!force&&Date.now()-dzPubAt<20*60000)return;dzPubAt=Date.now();
+  if(!force&&Date.now()-dzPubAt<4*60000)return;dzPubAt=Date.now();
   try{await dzHoldsCleanup().catch(e=>console.warn("blokace rezervací",e));
     const now=new Date(),from=new Date(now.getTime()+18*3600e3),to=new Date(now.getFullYear(),now.getMonth(),now.getDate()+DZS.days);
-    const busy=await dzBusy(new Date(now.getFullYear(),now.getMonth(),now.getDate()),to),slots=[];
-    for(let i=1;i<=DZS.days;i++){const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i),k=ymd(day);
-      /* „|o“ za časem = v tu dobu je kancelář obsazená → klient si může vybrat jen online */
-      dzDaySlots(k,busy.filter(e=>ymd(new Date(e.start))===k)).forEach(({m,online})=>{const s=new Date(day.getFullYear(),day.getMonth(),day.getDate(),Math.floor(m/60),m%60);if(s>from)slots.push(s.toISOString()+(online?"|o":""))})}
+    const busy=await dzBusy(new Date(now.getFullYear(),now.getMonth(),now.getDate()),to);let slots=[];const freed=[];
+    for(let i=1;i<=DZS.days;i++){const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i),k=ymd(day),evs=busy.filter(e=>ymd(new Date(e.start))===k),free=new Set(dzDaySlots(k,evs).map(x=>x.m));
+      /* za časem: „|o“ = kancelář obsazená kolegou osobně → jen online; „|x|90“ = blokuje ho jen tvoje vlastní schůzka (třeba rezervace z webu).
+         Takový termín se klientovi ukáže jako volný, jakmile schůzku zrušíš – živá kontrola kalendáře to pozná hned, i bez otevřené Pipeline. */
+      dzDaySlots(k,evs,true).forEach(({m,online})=>{const s=new Date(day.getFullYear(),day.getMonth(),day.getDate(),Math.floor(m/60),m%60);if(s<=from)return;
+        const x=!free.has(m),f=(online?"o":"")+(x?"x":"");if(x)freed.push(s.getTime());slots.push(s.toISOString()+(f?"|"+f+(x?"|"+DZS.block:""):""))})}
+    /* bez ověřené živé kontroly (není nasazená, nevidí tvůj kalendář, výpadek) se termíny blokované vlastními schůzkami nezveřejní – jako dřív */
+    if(freed.length&&!(settings.bkUrl&&await dzBkCovers(freed)))slots=slots.filter(t=>!(t.split("|")[1]||"").includes("x"));
     const sd={slots:slots.slice(0,300),upd:new Date().toISOString(),len:DZS.len,addr:DZS.addr()},sref=DZI.F.doc(DZI.fdb,"dzslots",dzMe());
     /* pole bk (adresa živé kontroly) povolují jen novější pravidla databáze – když ho starší odmítnou, zveřejnit termíny bez něj
        (adresa je pak zapečená v odkazu pro klienta, parametr b) – jinak by klienti viděli zastaralé volné časy */
@@ -2412,6 +2424,7 @@ async function dzPublishSlots(force){
     catch(e){if(settings.bkUrl&&e&&e.code==="permission-denied")await DZI.F.setDoc(sref,sd);else throw e}
   }catch(e){console.warn("volné termíny",e)}}
 setInterval(()=>dzPublishSlots(false),5*60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(()=>dzPublishSlots(false),1500)});
 async function dzHandle(docs){
   const G=new Map();docs.forEach(x=>{if(!G.has(x.g))G.set(x.g,[]);G.get(x.g).push(x)});
   for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
@@ -5493,14 +5506,14 @@ function ctEventSheet(ev,prefill){
         await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events/"+encodeURIComponent(gid),
           {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       }
-      toast("Uloženo");$("edDlg").close();fetchCalTab(true);
+      toast("Uloženo");$("edDlg").close();fetchCalTab(true);setTimeout(()=>dzPublishSlots(true),1200);
     }catch(e){toast("Nepodařilo se uložit")}
   };
   const del=async()=>{
     if(isNew)return;
     const idx=ev.id.indexOf(":"),calId=ev.id.slice(0,idx),gid=ev.id.slice(idx+1);
     try{await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(calId)+"/events/"+encodeURIComponent(gid),{method:"DELETE"});
-      toast("Smazáno");$("edDlg").close();fetchCalTab(true)}catch(e){toast("Nepodařilo se smazat")}
+      toast("Smazáno");$("edDlg").close();fetchCalTab(true);setTimeout(()=>dzPublishSlots(true),1200)}catch(e){toast("Nepodařilo se smazat")}
   };
   openSheet(isNew?"Nová událost":"Upravit událost",[wrap,
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"),
@@ -5663,7 +5676,7 @@ function renderCalWeek(){
       const btn=el("button",{type:"button",class:"cwev"+evCls(e)+(editable?" draggable":""),style:pos+"background:"+evColor(e),title:e.title+(editable?" · přetažením přesuneš, klepnutím upravíš":"")},
         el("b",{},e.title),h>30?(e.allDay?"celý den":fmtHM(e.start))+(e.place?" · "+e.place:""):null);
       if(editable)ctSetupDrag(btn,e,i,{days,hStart,hEnd,HH,gridEl});
-      else btn.onclick=()=>toast(e.title+" · "+(e.allDay?"celý den":fmtHM(e.start))+(e.place?" · "+e.place:"")+(e.kind==="off"?" · kancelář obsazená → v tu dobu jen online":""));
+      else btn.onclick=()=>toast(e.title+" · "+(e.allDay?"celý den":fmtHM(e.start))+(e.place?" · "+e.place:"")+(e.kind==="off"?(dzOffice(e)?" · kancelář obsazená → v tu dobu jen online":" · online – kancelář je volná"):""));
       cols[i].append(btn);
     });
   });
