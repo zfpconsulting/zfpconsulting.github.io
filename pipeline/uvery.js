@@ -29,6 +29,9 @@ const fmtDs=s=>{if(!s)return"";const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);return
 const plural=(n,a,b,c)=>n===1?a:n>1&&n<5?b:c;
 const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+/* hledání v češtině: bez diakritiky, delší slova i v jiném tvaru (plomba → plombu, družstvo → družstevní nenajde, družstv- ano) */
+const stemQ=q=>fold(q).trim().split(/\s+/).filter(Boolean).map(w=>w.length>=5?w.replace(/[aeiouy]+$/,""):w);
+const hitQ=(text,q)=>{const W=stemQ(q);if(!W.length)return true;const t=fold(text);return W.every(w=>t.includes(w))};
 const jeq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const newId=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
 /* věk v celých letech k datu */
@@ -701,6 +704,43 @@ const CSS=`
 .uv-bp summary::after{content:"›";margin-left:auto;color:var(--uv-l2);transition:transform .15s}
 .uv-bp[open] summary::after{transform:rotate(90deg)}
 .uv-bp summary span{font-weight:400;color:var(--uv-l2);font-size:13px}
+.uv-kb{background:var(--uv-card);border-radius:14px;margin:0 0 8px;box-shadow:var(--card-shadow,none)}
+.uv-kb>summary{list-style:none;cursor:pointer;padding:12px 38px 12px 14px;display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap;position:relative}
+.uv-kb>summary::-webkit-details-marker{display:none}
+.uv-kb>summary::after{content:"›";position:absolute;right:15px;top:10px;color:var(--uv-l2);font-size:20px;transition:transform .15s}
+.uv-kb[open]>summary::after{transform:rotate(90deg)}
+.uv-kb .nm{font-weight:700;font-size:15.5px}
+.uv-kb .kt{font-size:12.5px;color:var(--uv-l2)}
+.uv-kb .bd{padding:0 14px 14px}
+.uv-kb .ab{font-size:14px;line-height:1.5;margin:0 0 8px}
+.uv-pc{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;margin:0 0 10px}
+.uv-pc>div{background:var(--uv-bg);border-radius:12px;padding:10px 12px;min-width:0}
+.uv-pc h4,.uv-at h4{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--uv-l2)}
+.uv-pc ul{margin:0;padding:0;list-style:none;font-size:13.5px;line-height:1.45}
+.uv-pc li{display:flex;gap:7px;margin:3px 0}
+.uv-pc li i{font-style:normal;font-weight:700;flex:none;width:14px;text-align:center}
+.uv-pc .p i{color:var(--uv-z)}
+.uv-pc .m i{color:var(--uv-l2)}
+.uv-at{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px}
+.uv-at>div{border:1px solid var(--uv-sep);border-radius:12px;padding:10px 12px;min-width:0}
+.uv-at dl{margin:0;display:grid;grid-template-columns:minmax(96px,38%) minmax(0,1fr);gap:6px 10px;font-size:13.5px;line-height:1.4}
+.uv-at dt{color:var(--uv-l2)}
+.uv-at dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}
+.uv-at dd small{display:block;font-weight:400;color:var(--uv-l2);margin-top:2px}
+.uv-dots{letter-spacing:2px;color:var(--uv-z);white-space:nowrap}
+.uv-dots s{text-decoration:none;color:var(--uv-l3)}
+.uv-gl h4{margin:16px 2px 6px;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--uv-l2)}
+.uv-gl h4:first-child{margin-top:2px}
+.uv-gl dl{margin:0 0 6px;background:var(--uv-card);border-radius:14px;padding:2px 14px;box-shadow:var(--card-shadow,none)}
+.uv-gl .t{padding:9px 0;border-bottom:1px solid var(--uv-sep)}
+.uv-gl .t:last-child{border-bottom:0}
+.uv-gl dt{font-weight:700;font-size:14.5px}
+.uv-gl dd{margin:3px 0 0;font-size:13.5px;line-height:1.5;color:var(--uv-l2)}
+.uv-tab.uv-cmp{min-width:860px}
+.uv-cmp td,.uv-cmp th{vertical-align:top;font-size:13px;line-height:1.35}
+.uv-cmp th{white-space:normal}
+.uv-cmp th:first-child,.uv-cmp td:first-child{position:sticky;left:0;z-index:1;background:var(--uv-card);color:var(--uv-l2);font-weight:600;min-width:128px;max-width:150px}
+.uv-help{display:inline-block;border:0;background:var(--uv-fill);color:var(--uv-l2);min-width:18px;height:18px;border-radius:9px;font-size:11px;font-weight:700;line-height:18px;padding:0 5px;margin-left:4px;vertical-align:1px;cursor:pointer}
 @media (max-width:760px){
   .uv-wiz{grid-template-columns:1fr}
   .uv-live{position:static;order:-1}
@@ -732,7 +772,7 @@ function mount(root,opts={}){
   const ls=opts.ls||{get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
   const clientsFn=opts.clients||(()=>[]),ensure=opts.ensure||null;
   const UIK="uv_ui_v1";
-  let ui={view:"board",id:null,tab:"dotaznik",step:0,f:"",ft:"all",...(ls.get(UIK)||{})};
+  let ui={view:"board",id:null,tab:"dotaznik",step:0,f:"",ft:"all",kseg:"inst",kf:"all",...(ls.get(UIK)||{})};ui.kq="";
   let cases=[],cfg={banks:{}},cur=null,saveT=null,newSt={q:"",pick:null,typ:"hypo",name:""},drag=null;
   const keepUi=()=>ls.set(UIK,{view:ui.view,id:ui.id,tab:ui.tab,step:ui.step,ft:ui.ft});
   const banks=()=>BANKS.map(b=>mergeBank(b,(cfg.banks||{})[b.id]));
@@ -743,7 +783,7 @@ function mount(root,opts={}){
 
   if(store){
     store.collection("uvery").onSnapshot(s=>{cases=s.docs.map(d=>({id:d.id,...d.data()}));onCases()});
-    store.doc("uvcfg/main").onSnapshot(s=>{cfg=s&&s.exists?(s.data()||{banks:{}}):{banks:{}};if(!cfg.banks)cfg.banks={};if(ui.view==="banks"||(ui.view==="case"&&(ui.tab==="banky"||ui.tab==="podklady")))draw()});
+    store.doc("uvcfg/main").onSnapshot(s=>{cfg=s&&s.exists?(s.data()||{banks:{}}):{banks:{}};if(!cfg.banks)cfg.banks={};if(ui.view==="banks"||ui.view==="katalog"||(ui.view==="case"&&(ui.tab==="banky"||ui.tab==="podklady")))draw()});
   }
   try{fetch(opts.ratesUrl||BASE+"sazby.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.fix){RATES=j;if(ui.view==="case")draw()}}).catch(()=>{})}catch(e){}
 
@@ -789,7 +829,7 @@ function mount(root,opts={}){
   function draw(){
     root.innerHTML="";const w=document.createElement("div");w.className="uv";root.append(w);
     if(ui.view==="case"&&!cur){const d=cases.find(c=>c.id===ui.id);if(d)cur=clone(d);else ui.view="board"}
-    w.innerHTML=ui.view==="case"?caseHTML():ui.view==="new"?newHTML():ui.view==="fix"?fixHTML():ui.view==="banks"?banksHTML():ui.view==="guide"?guideHTML():boardHTML();
+    w.innerHTML=ui.view==="case"?caseHTML():ui.view==="new"?newHTML():ui.view==="fix"?fixHTML():ui.view==="banks"?banksHTML():ui.view==="katalog"?katalogHTML():ui.view==="guide"?guideHTML():boardHTML();
     after(w);
   }
 
@@ -838,7 +878,7 @@ function mount(root,opts={}){
         <div class="uv-seg" role="tablist">${[["all","Vše"],["hypo","Hypotéky"],["spotr","Spotřebitelské"]].map(([k,t])=>`<button type="button" data-a="ft" data-v="${k}" class="${ui.ft===k?"on":""}">${t}</button>`).join("")}</div>
         <span class="sp"></span>
         <button type="button" class="btn" data-a="guide">Průvodce</button>
-        <button type="button" class="btn" data-a="banks">Parametry bank</button>
+        <button type="button" class="btn" data-a="katalog">Banky</button>
         <button type="button" class="btn pri" data-a="new">+ Nový případ</button></div>
       <div class="uv-tiles">${tile("Rozjednané",act.length,"objem "+mil(vol))}${tile("Ve schvalování a podpisu",appr.length,appr.length?mil(appr.reduce((s,c)=>s+loanOf(c),0)):"nic nečeká")}${tile("Načerpáno "+y,mil(done.reduce((s,c)=>s+loanOf(c),0)),done.length+" "+plural(done.length,"úvěr","úvěry","úvěrů"))}${tile("Po termínu",late,late?"nebo bez dalšího kroku":"vše naplánováno",late>0)}${tile("Konce fixací",fx.length,"do 12 měsíců · klikni",fx.some(r=>r.d<=120),"fix")}</div>
       ${cases.length?`<div class="uv-board" id="uvBoard">${cols}</div>`:`<div class="uv-box"><b>Zatím tu není žádný úvěr.</b><p class="uv-foot" style="margin-top:6px">Založ první případ tlačítkem „+ Nový případ“ – vyplníš s klientem dotazník a appka ti seřadí banky, připraví seznam podkladů a povede případ až po čerpání. Refinancování najdeš v „Konce fixací“ (bere fixace z karet klientů).</p></div>`}
@@ -1043,7 +1083,8 @@ function mount(root,opts={}){
   /* ---------- banky: pořadí a důvody ---------- */
   function banksTabHTML(){
     const q=cur.q,R=recommend(q,banks(),RATES),M=R.M,t=q.typ||"hypo",miss=missing(q);
-    const m=(k,v,s,bad)=>`<div class="uv-m${bad?" bad":""}"><div class="k">${k}</div><div class="v">${v}</div>${s?`<div class="s">${s}</div>`:""}</div>`;
+    const TIP={LTV:"Úvěr / hodnota zástavy. Limit ČNB 80 %, do 36 let 90 %, investiční 70 %.",DSTI:"Splátky všech úvěrů / čistý měsíční příjem. Banky obvykle do 45–50 %.",DTI:"Všechny dluhy / roční čistý příjem. ČNB: nad 8 obezřetně, investiční max. 7."};
+    const m=(k,v,s,bad)=>`<div class="uv-m${bad?" bad":""}"${TIP[k]?` title="${esc(TIP[k])}"`:""}><div class="k">${k}${TIP[k]?`<button type="button" class="uv-help" data-a="kpojem" data-v="${k}" aria-label="Co je ${k}">?</button>`:""}</div><div class="v">${v}</div>${s?`<div class="s">${s}</div>`:""}</div>`;
     const top=R.list.filter(r=>!r.ko.length&&r.verdict!=="excl");
     const tags=[...R.tags].map(k=>TAG_T[k]).filter(Boolean);
     const card=(r,i,open)=>{const b=r.b,isTop=i===0&&r.verdict!=="no"&&r.verdict!=="excl";
@@ -1055,7 +1096,7 @@ function mount(root,opts={}){
       const why=lines.length?`<div class="uv-why">${lines.join("")}</div>`:"";
       const rest=`${my?`<div class="uv-more"><b>Moje poznámka:</b> ${esc(my)}</div>`:""}
         ${!r.ko.length&&b.pros&&b.pros.length?`<div class="uv-more"><b>Obecně:</b> ${esc(b.pros.join(" · "))}${b.cons&&b.cons.length?` <br><b>Pozor:</b> ${esc(b.cons.join(" · "))}`:""}</div>`:""}
-        ${!r.ko.length?`<div class="uv-row" style="margin-top:8px"><button type="button" class="btn sm${cur.bank===b.id?" pri":""}" data-a="pickbank" data-v="${b.id}">${cur.bank===b.id?"✓ Vybraná banka":"Vybrat"}</button><button type="button" class="btn sm" data-a="offeradd" data-v="${b.id}">Do nabídek</button>${b.portal?`<span class="uv-pill">${esc(b.portal)}</span>`:""}</div>`:""}`;
+        ${!r.ko.length?`<div class="uv-row" style="margin-top:8px"><button type="button" class="btn sm${cur.bank===b.id?" pri":""}" data-a="pickbank" data-v="${b.id}">${cur.bank===b.id?"✓ Vybraná banka":"Vybrat"}</button><button type="button" class="btn sm" data-a="offeradd" data-v="${b.id}">Do nabídek</button><button type="button" class="btn ghost sm" data-a="kprof" data-v="${b.id}">Profil banky ›</button>${b.portal?`<span class="uv-pill">${esc(b.portal)}</span>`:""}</div>`:`<div class="uv-row" style="margin-top:8px"><button type="button" class="btn ghost sm" data-a="kprof" data-v="${b.id}">Profil banky ›</button></div>`}`;
       const numRow=nums?`<div class="uv-bh" style="margin-top:6px">${nums}</div>`:"";
       return open?`<div class="uv-bank${isTop?" top":""}${r.ko.length?" no":""}" data-bank="${b.id}">${head}${numRow}${why}${rest}</div>`
         :`<details class="uv-bank${r.ko.length?" no":""}" data-bank="${b.id}"><summary>${head}${numRow}</summary>${why}${rest}</details>`};
@@ -1160,7 +1201,7 @@ function mount(root,opts={}){
     ["ltv.young","Max. LTV do 36 let (výjimka ČNB)","n","%"],["spotr.typ","Spotřebitelský úvěr – orientační sazba","n","%"],["spotr.max","Spotřebitelský úvěr – max. částka","n","Kč"],["inc.dpp","Započte DPP","n","× (0–1)"],["inc.pronajem","Započte nájem","n","× (0–1)"],["inc.rodic","Započte rodičovskou","n","× (0–1)"],["inc.diety","Započte diety","n","× (0–1)"],["probation","Půjčí ve zkušební době","yn"],["myNote","Moje poznámka","t"]];
   function banksHTML(){
     const B=banks(),O=cfg.banks||{};
-    return `<div class="uv-ch"><button type="button" class="btn ghost" data-a="back">‹ Úvěry</button><div class="tt"><h2>Parametry bank</h2><div class="sub">Výchozí pravidla: stav ${esc(BANKS_ASOF)} · tvoje úpravy se synchronizují s ostatními zařízeními</div></div></div>
+    return `<div class="uv-ch"><button type="button" class="btn ghost" data-a="katalog">‹ Banky</button><div class="tt"><h2>Parametry bank</h2><div class="sub">Výchozí pravidla: stav ${esc(BANKS_ASOF)} · tvoje úpravy se synchronizují s ostatními zařízeními</div></div></div>
       <div class="uv-note gray">Banky mění metodiky často. Když se na školení nebo v HypoUP dozvíš novinku (limit, sazbu, co započítávají), přepiš ji tady – doporučení se hned přepočítá. Sazby z měsíčního „Přehledu úrokových sazeb“ v HypoUP zpřesní pořadí podle ceny.</div>
       ${B.map(b=>{const o=O[b.id]||{},n=Object.keys(o).length;
         return `<details class="uv-box uv-bp"${ui.bank===b.id?" open":""}><summary data-a="bopen" data-v="${b.id}">${esc(b.name)} <span>${esc(b.kindT||"")}${b.off?" · nepoužívám":""}${n?" · "+n+" "+plural(n,"úprava","úpravy","úprav"):""}</span></summary>
@@ -1172,6 +1213,113 @@ function mount(root,opts={}){
   }
   let cfgT=null;
   function saveCfg(){clearTimeout(cfgT);cfgT=setTimeout(()=>{cfgT=null;store&&store.doc("uvcfg/main").set(clone(cfg)).catch(()=>toast("Nepodařilo se uložit"))},400)}
+
+
+  /* ---------- Banky: profily institucí, srovnání a slovníček ---------- */
+  const facT=f=>f==null?"–":f>=1?"ano":f<=0?"ne":"z "+Math.round(f*100)+" %";
+  const ynT=v=>v?"ano":"ne";
+  const pctT=f=>Math.round(f*100)+" %";
+  const dotsH=n=>{n=Math.max(0,Math.min(5,+n||0));return `<span class="uv-dots" aria-label="${n} z 5">${"●".repeat(n)}<s>${"●".repeat(5-n)}</s></span>`};
+  function bankText(b){const S=b.spotr||{};return [b.name,b.s,b.kindT,b.about,b.prod,b.portal,...(b.pros||[]),...(b.cons||[]),...Object.values(b.good||{}),...Object.values(b.bad||{}),...Object.values(b.ended||{}),...(b.docs||[]),S.note,S.konsolNote,S.byd&&S.byd.note,S.byd&&S.byd.name,b.provize&&b.provize.note,b.ratesNote,b.costly].filter(Boolean).join(" ")}
+  function rateLine(b){if(b.rates){const ks=Object.keys(b.rates).filter(k=>isFinite(+b.rates[k])).map(Number).sort((a,c)=>a-c);
+      return ks.map(k=>k+"R "+fmtR(+b.rates[k]).replace(" %","")).join(" · ")+" %"+(b.ltv90add?" · nad 80 % LTV +"+String(b.ltv90add).replace(".",",")+" p.b.":"")}
+    const ad=+b.rateAdj||0;return "průměr trhu (Hypoindex)"+(ad?(ad>0?" +":" ")+String(ad).replace(".",",")+" p.b.":"")}
+  function attrGroups(b){const G=[],I=b.inc||{},P=b.purp||{},F=b.foreign||{},L=b.ltv||{},O=b.osvc||{},S=b.spotr||null,T=b.types||[],e=esc;
+    const hy=T.some(t=>t==="hypo"||t==="amer")&&!(b.ended&&b.ended.hypo)&&!b.model;
+    if(b.model==="druzstvo")G.push({t:"Jak to funguje",rows:[["Kdo kupuje","bytové družstvo, klient je člen a platí nájem"],["Vlastní zdroje","asi 20 % ceny"],["Příjmy","nedokládají se, posouzení individuálně"],["Pro koho","i cizinci, starší žadatelé, OSVČ s krátkou historií"],["Vlastnictví","po splacení úvěru družstva převod do osobního vlastnictví"]].map(([k,v])=>[k,e(v)])});
+    if(hy){const r=[];
+      r.push(["Max. LTV",e(L.max>=90?"80 %, do 36 let 90 % (ČNB)":(L.max||80)+" % (i pro mladé)")+(L.young?`<small>do 36 let až ${L.young} % v rámci výjimky ČNB</small>`:"")]);
+      r.push(["Investiční / americká",e((L.inv||70)+" % / "+(T.includes("amer")?(L.amer||70)+" %":"přes ZFPA ne"))]);
+      r.push(["Sazby (LTV do 80 %)",e(rateLine(b))+(b.ratesNote?`<small>${e(b.ratesNote)}</small>`:"")]);
+      if(b.amerRate)r.push(["Americká hypotéka",e("od "+fmtR(+b.amerRate))]);
+      const fk=b.rates?Math.max(...Object.keys(b.rates).map(Number)):null;
+      r.push(["Fixace",e(b.maxFix?"max. "+b.maxFix+" let":fk?"až "+fk+" let":"podle nabídky")]);
+      r.push(["Splatnost",e((b.maxYears||30)+" let"+(b.maxYearsAB?", s PENB A/B "+b.maxYearsAB+" let":"")+(T.includes("amer")?", americká "+(b.maxYearsAmer||20)+" let":""))]);
+      r.push(["Věk na konci splácení",e((b.maxAge||70)+" let"+(b.ageSoft?" (standardně "+b.ageSoft+")":"")+(b.ageByYounger?", umí podle mladšího žadatele":""))]);
+      r.push(["Výše úvěru",e((b.minLoan?"od "+mil(b.minLoan):"")+(b.maxLoan?(b.minLoan?" ":"")+"do "+mil(b.maxLoan):"")||"podle bonity")+(b.maxLoanAmer?e(" · americká max. "+mil(b.maxLoanAmer)):"")]);
+      if(b.noIncDocsLtv)r.push(["Bez dokládání příjmů",e("do LTV "+b.noIncDocsLtv+" %")]);
+      if(b.costly)r.push(["Náklady",e(b.costly)]);
+      r.push(["Výpočet bonity v appce",e("DSTI do "+(b.dsti||50)+" % při sazbě +"+String(b.stress??1).replace(".",",")+" p.b., DTI do "+String(b.dti||9).replace(".",","))+"<small>orientačně – přesně HypoUP</small>"]);
+      G.push({t:"Hypotéka",rows:r});
+      G.push({t:"Účel a zajištění",rows:[["Družstevní byt",e(P.druzstvo?(P.druzstvo===true?"ano":P.druzstvo):"jen se zástavou jiné nemovitosti")],["Dražba",e(ynT(P.drazba))],
+        ["Chata / ateliér / pozemek",e("chata "+(P.rekreace===false?"ne":"ano")+", nebytový prostor "+(P.nebytovy===false?"ne":"ano")+", samotný pozemek "+(P.pozemek===false?"ne":"ano"))],["Zástava třetí osoby",e(P.treti===false?"ne":"ano")]]})}
+    if(b.inc||b.osvc){const D=I.duchod||{},Z=I.zahr||{},r=[];
+      r.push(["Zkušební doba",e(b.probation?"půjčí":"ne (výjimka jen při kontinuitě)")]);
+      r.push(["DPČ / DPP",e("DPČ "+facT(I.dpc??1)+", DPP "+facT(I.dpp??0))]);
+      r.push(["Nájem",e(facT(I.pronajem??0.7)+" nájemného"+"; budoucí nájem "+(I.pronajemBudouci?facT(I.pronajemBudouci)+" (investiční)":"ne"))]);
+      r.push(["Rodičovská, výživné, diety",e("rodičovská "+facT(I.rodic??1)+", výživné "+facT(I.vyzivne??1)+" (soudní), diety "+facT(I.diety??0))]);
+      r.push(["Důchody",e("starobní a invalidní ano, vdovský "+facT(D.vdovsky??1)+", sirotčí "+facT(D.sirotci??1))]);
+      r.push(["Příjem ze zahraničí",e("EU "+facT(Z.EU??0)+", mimo EU "+facT(Z.X??0))]);
+      const ob=O.obrat;r.push(["OSVČ",e("z daňového základu (min. "+(O.minDp??1)+" podané DP"+(O.minMonths?" nebo "+O.minMonths+" měsíců":"")+")")+(ob?`<small>${e("obratová metoda: IT "+pctT(ob.it||0)+", svobodná povolání "+pctT(ob.svobodne||0)+", služby "+pctT(ob.sluzby||0)+", řemeslo "+pctT(ob.remeslo||0)+", obchod "+pctT(ob.obchod||0)+(O.obratMaxLtv?" (do LTV "+O.obratMaxLtv+" %"+(O.obratMaxLoan?", do "+mil(O.obratMaxLoan):"")+")":""))}</small>`:"<small>obratovou metodu nebere</small>")]);
+      r.push(["Paušální daň",e(O.pausaldan===false?"nebere":O.pdK?"~"+pctT(O.pdK)+" fakturace, min. "+(O.pdMinMonths??6)+" měsíců (řemesla a obchod méně)":"jako OSVČ, individuálně")]);
+      r.push(["Společník s.r.o.",e(b.sro?"vyplácený zisk "+facT(b.sro)+(b.sroNoPay?", nevyplácený "+facT(b.sroNoPay):", nevyplácený ne")+(b.sroMinPodil?", od "+b.sroMinPodil+" % podílu":"")+(b.sroMinMonths?" a "+Math.round(b.sroMinMonths/12)+" let":""):"zisk nebere (jen mzdu jednatele)")]);
+      r.push(["Provize ZFPA",e(b.provize&&b.provize.note?b.provize.note.replace(/^ZFPA:\s*/,""):"jako OSVČ z daňového přiznání")]);
+      G.push({t:"Jaké příjmy uzná",rows:r})}
+    if(b.foreign||(S&&S.onlyCz))G.push({t:"Cizinci",rows:S&&S.onlyCz?[["Kdo","jen občané ČR s trvalým pobytem"]]:[["EU s přechodným pobytem",e(F.euPrechodny===false?"individuálně":"ano")],["Mimo EU s trvalým pobytem",e(F.mimoTrvaly===false?"ne":"ano")],["Mimo EU bez trvalého",e(F.mimoPrechodny?"individuálně":"ne")]].concat(F.note?[["Poznámka",e(F.note)]]:[])});
+    if(S&&(T.includes("spotr")||T.includes("konsol"))){const r=[];
+      if(!S.onlyByd){r.push(["Půjčka",e((S.od?"od "+fmtR(S.od)+", ":"")+"počítám ~"+fmtR(S.typ??RATE_SPOTR))]);
+        r.push(["Částka a splatnost",e((S.min?mil(S.min)+" – ":"do ")+mil(S.max||0)+", až "+(S.years||10)+" let")]);
+        if(T.includes("konsol"))r.push(["Konsolidace",e("~"+fmtR(S.konsolTyp??S.typ??RATE_SPOTR)+(S.konsolMin?", od "+mil(S.konsolMin):"")+(S.konsolYears?", až "+S.konsolYears+" let":""))]);
+        if(S.garMin)r.push(["Garance sazby",e("jen nad "+mil(S.garMin)+" na max. "+S.garYears+" let s aktivním účtem")]);
+        if(S.warn)r.push(["Pozor",e(S.warn)]);
+        if(S.note)r.push(["Poznámka",e(S.note)]);if(S.konsolNote)r.push(["Konsolidace – jak",e(S.konsolNote)])}
+      if(S.byd){const y=S.byd;r.push([y.name||"Na bydlení bez zástavy",e("~"+fmtR(y.typ)+(y.typDruz?" (družstvo "+fmtR(y.typDruz)+")":"")+", do "+mil(y.max)+(y.max2?" (ve dvou "+mil(y.max2)+")":"")+(y.maxDruz?", družstvo do "+mil(y.maxDruz):"")+", až "+y.years+" let"+(y.yearsDruz?" (družstvo "+y.yearsDruz+")":""))+(y.note?`<small>${e(y.note)}</small>`:"")])}
+      G.push({t:S.onlyByd?"Úvěry na bydlení bez zástavy":"Spotřebitelské úvěry",rows:r})}
+    G.push({t:"Proces",rows:[["Systém / podání",e(b.portal||"–")],["Rychlost",dotsH(b.speed||3)],["Flexibilita",dotsH(b.flex||3)],["Jednoduché dokládání",dotsH(b.simple||3)],["Online",dotsH(b.online||3)]].concat((b.docs||[]).length?[["Specifika",e(b.docs.join(" · "))]]:[])});
+    return G}
+  function katalogHTML(){
+    const B=banks(),O=cfg.banks||{},seg=ui.kseg||"inst",qq=fold(ui.kq||"").trim();
+    const back=ui.ret&&ui.ret.view==="case"?`<button type="button" class="btn ghost" data-a="kback">‹ Zpět k případu</button>`:ui.ret&&ui.ret.view==="guide"?`<button type="button" class="btn ghost" data-a="kback">‹ Průvodce</button>`:`<button type="button" class="btn ghost" data-a="back">‹ Úvěry</button>`;
+    const nT=GLOSS.reduce((a,g)=>a+g[1].length,0);
+    let html=`<div class="uv-ch">${back}<div class="tt"><h2>Banky a pojmy</h2><div class="sub">Profily institucí přes ZFPA – plusy, minusy a pravidla (stav ${esc(BANKS_ASOF)}), srovnání a slovníček</div></div><button type="button" class="btn" data-a="banks">Upravit pravidla</button></div>
+      <div class="uv-bar"><div class="uv-seg" role="tablist">${[["inst","Instituce"],["cmp","Srovnání"],["pojmy","Pojmy"]].map(([k,t])=>`<button type="button" data-a="kseg" data-v="${k}" class="${seg===k?"on":""}">${t}</button>`).join("")}</div>
+      ${seg==="cmp"?"":`<input type="search" class="uv-q" data-ui="kq" placeholder="${seg==="pojmy"?"Hledat pojem… (např. LTV, plomba)":"Hledat… (např. OSVČ, cizinci, družstvo)"}" value="${esc(ui.kq||"")}" aria-label="Hledat">`}</div>`;
+    if(seg==="pojmy"){
+      const G=GLOSS.map(([cat,L])=>[cat,L.filter(([t,d])=>hitQ(t+" "+d,ui.kq||""))]).filter(([,L])=>L.length);
+      return html+(G.length?`<div class="uv-gl">${G.map(([cat,L])=>`<h4>${esc(cat)}</h4><dl>${L.map(([t,d])=>`<div class="t"><dt>${esc(t)}</dt><dd>${esc(d)}</dd></div>`).join("")}</dl>`).join("")}</div>`:`<p class="uv-empty">Nic nenalezeno – zkus jiné slovo.</p>`)
+        +`<p class="uv-foot">${nT} pojmů · stav 10/2026. Čísla bank se mění – aktuální pravidla jsou v profilech institucí.</p>`}
+    if(seg==="cmp"){
+      const H=B.filter(b=>(b.types||[]).some(t=>t==="hypo")&&!(b.ended&&b.ended.hypo)&&!b.model);
+      const row=(lab,f)=>`<tr><td>${esc(lab)}</td>${H.map(b=>`<td>${f(b)}</td>`).join("")}</tr>`;
+      const rt=(b,f)=>fmtR(bankRate(b,f,75,RATES,"hypo",3000000));
+      return html+`<div class="uv-box uv-tw" style="padding:6px 8px"><table class="uv-tab uv-cmp"><thead><tr><th></th>${H.map(b=>`<th>${esc(b.s)}${b.off?" (nepoužívám)":""}</th>`).join("")}</tr></thead><tbody>
+        ${row("Sazba 3 / 5 let (LTV do 80 %)",b=>esc(rt(b,3)+" / "+rt(b,5)))}
+        ${row("Nad 80 % LTV",b=>esc(b.rates?"+"+String(b.ltv90add??0.2).replace(".",",")+" p.b.":"–"))}
+        ${row("Max. LTV",b=>esc(((b.ltv||{}).max>=90?"90 % do 36 let":((b.ltv||{}).max||80)+" %")+((b.ltv||{}).young?", mladí až "+b.ltv.young+" %":"")))}
+        ${row("Americká hypotéka",b=>esc((b.types||[]).includes("amer")?"LTV "+((b.ltv||{}).amer||70)+" %"+(b.amerRate?", od "+fmtR(+b.amerRate):""):"ne"))}
+        ${row("Fixace max.",b=>esc(b.maxFix?b.maxFix+" let":b.rates?Math.max(...Object.keys(b.rates).map(Number))+" let":"10 let"))}
+        ${row("Splatnost / věk na konci",b=>esc((b.maxYears||30)+" let / "+(b.maxAge||70)+(b.ageSoft?" (st. "+b.ageSoft+")":"")))}
+        ${row("DPČ / DPP",b=>esc(facT((b.inc||{}).dpc??1)+" / "+facT((b.inc||{}).dpp??0)))}
+        ${row("OSVČ – obrat (služby)",b=>esc((b.osvc||{}).obrat?pctT(b.osvc.obrat.sluzby||0)+((b.osvc||{}).obratMaxLtv?" do LTV "+b.osvc.obratMaxLtv+" %":""):"ne"))}
+        ${row("Paušální daň",b=>esc((b.osvc||{}).pdK?"~"+pctT(b.osvc.pdK)+" fakturace":"individuálně"))}
+        ${row("Zisk s.r.o.",b=>esc(b.sro?facT(b.sro)+(b.sroNoPay?" (i nevyplácený)":""):"ne"))}
+        ${row("Budoucí nájem",b=>esc((b.inc||{}).pronajemBudouci?facT(b.inc.pronajemBudouci):"ne"))}
+        ${row("Cizinec EU s přechodným pobytem",b=>esc((b.foreign||{}).euPrechodny===false?"individuálně":"ano"))}
+        ${row("Družstevní byt bez jiné zástavy",b=>esc((b.purp||{}).druzstvo?"ano (předhypoteční)":"ne"))}
+        ${row("Bez dokládání příjmů",b=>esc(b.noIncDocsLtv?"do LTV "+b.noIncDocsLtv+" %":"–"))}
+        ${row("Rychlost",b=>dotsH(b.speed||3))}
+        ${row("Online",b=>dotsH(b.online||3))}
+        ${row("Nejsilnější v",b=>esc((b.pros||[])[0]||""))}
+      </tbody></table></div>
+      <p class="uv-foot">Sazby: vlastní tabulky bank (stav ${esc(BANKS_ASOF)}) nebo průměr Hypoindexu ${esc(String(RATES.period||"").split("-").reverse().join("/"))} ± odchylka, včetně tvých úprav v Parametrech bank. Stavební spořitelny, BIDLI a spotřebitelské společnosti najdeš v Institucích.</p>`}
+    const KF=[["all","Vše"],["banka","Banky"],["ss","Stavební spořitelny"],["spotr","Spotřebitelské"],["spec","Ostatní"]];
+    const list=B.filter(b=>(!ui.kf||ui.kf==="all"||b.kind===ui.kf)&&hitQ(bankText(b),ui.kq||""));
+    const card=b=>{const o=O[b.id]||{},n=Object.keys(o).filter(k=>k!=="myNote").length,open=ui.kopen===b.id||(qq&&list.length<=2);
+      const types=(b.types||[]).filter(t=>!(b.ended&&b.ended[t])).map(t=>`<span class="uv-pill">${esc(t==="spotr"&&b.spotr&&b.spotr.onlyByd?"Bydlení bez zástavy":TYPE_T[t]||t)}</span>`).join("");
+      const tagLi=(k,v,cls,ic)=>{const lab=TAG_T[k]||k,pre=fold(v).startsWith(fold(lab).split(" ")[0])?"":`<b>${esc(lab)}:</b> `;return `<li class="${cls}"><i>${ic}</i><span>${pre}${esc(v)}</span></li>`};
+      const plus=(b.pros||[]).map(x=>`<li class="p"><i>✓</i><span>${esc(x)}</span></li>`).concat(Object.entries(b.good||{}).map(([k,v])=>tagLi(k,v,"p","✓")));
+      const minus=[...Object.values(b.ended||{}),...(b.cons||[])].map(x=>`<li class="m"><i>!</i><span>${esc(x)}</span></li>`).concat(Object.entries(b.bad||{}).map(([k,v])=>tagLi(k,v,"m","!")));
+      return `<details class="uv-kb" id="kb-${b.id}"${open?" open":""}><summary data-a="kopen" data-v="${b.id}"><span class="nm">${esc(b.name)}</span><span class="kt">${esc(b.kindT||"")}${b.off?" · nepoužívám":""}${n?" · "+n+" "+plural(n,"vlastní úprava","vlastní úpravy","vlastních úprav"):""}</span><span class="uv-pills" style="margin:0;flex-basis:100%">${types}</span></summary>
+        <div class="bd">${b.about?`<p class="ab">${esc(b.about)}</p>`:""}
+          <p class="uv-more" style="margin:0 0 10px">${b.prod?`<b>Přes ZFPA:</b> ${esc(b.prod)}`:""}${b.portal?` · <b>Podání:</b> ${esc(b.portal)}`:""}</p>
+          <div class="uv-pc"><div><h4>Plusy</h4><ul>${plus.join("")||`<li>–</li>`}</ul></div><div><h4>Minusy a na co pozor</h4><ul>${minus.join("")||`<li>–</li>`}</ul></div></div>
+          <div class="uv-at">${attrGroups(b).map(g=>`<div><h4>${esc(g.t)}</h4><dl>${g.rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl></div>`).join("")}</div>
+          ${o.myNote?`<div class="uv-note gray" style="margin:10px 0 0"><b>Moje poznámka:</b> ${esc(o.myNote)}</div>`:""}
+          <div class="uv-row" style="margin-top:10px"><button type="button" class="btn sm" data-a="kedit" data-v="${b.id}">Upravit pravidla ${esc(b.s)}</button><span class="uv-foot" style="margin:0;flex:1;min-width:200px">Zdroj: ${esc(b.src||"")}</span></div></div></details>`};
+    return html+`<div class="uv-seg" style="margin:0 0 12px">${KF.map(([k,t])=>`<button type="button" data-a="kf" data-v="${k}" class="${(ui.kf||"all")===k?"on":""}">${t}</button>`).join("")}</div>
+      ${list.length?list.map(card).join(""):`<p class="uv-empty">Nic nenalezeno – zkus jiné slovo nebo filtr.</p>`}
+      <p class="uv-foot">Plusy a minusy jsou ze ZFPA metodik, školení HypoUP a webů bank (stav ${esc(BANKS_ASOF)}). Pravidla, podle kterých appka řadí banky, upravíš tlačítkem „Upravit pravidla“ – projeví se v doporučení i tady.</p>`;
+  }
 
   /* ---------- průvodce ---------- */
   function guideHTML(){
@@ -1202,7 +1350,7 @@ function mount(root,opts={}){
       "ESIS / předsmluvní informace předat a vysvětlit (§ 94). Záznamy uchovej 5 let, u zamítnuté žádosti 1 rok (§ 78).",
       "AML: identifikace, účel obchodu, původ peněz, PEP; podezřelý obchod hlásit (ne e-mailem). Úvěr nikdy nesjednáš sám sobě.",
       "Spotřebáky: ukazuj RPSN a celkovou splatnou částku; klient má 14 dní na odstoupení. Novela ZSÚ (CCD2, Senát od 21. 10. 2026, účinnost asi od 1. 2. 2027): strop RPSN ~48 %, BNPL pod zákon, domněnka úvěruschopnosti."];
-    return `<div class="uv-ch"><button type="button" class="btn ghost" data-a="back">‹ Úvěry</button><div class="tt"><h2>Průvodce hypotékou</h2><div class="sub">Postup krok za krokem a čísla, která potřebuješ u stolu (ověřeno 10/2026)</div></div></div>
+    return `<div class="uv-ch"><button type="button" class="btn ghost" data-a="back">‹ Úvěry</button><div class="tt"><h2>Průvodce hypotékou</h2><div class="sub">Postup krok za krokem a čísla, která potřebuješ u stolu (ověřeno 10/2026)</div></div><button type="button" class="btn" data-a="kpojem">Slovníček pojmů</button></div>
       <div class="uv-grid" style="align-items:start"><div><div class="uv-box"><div class="uv-h3" style="margin-top:0">Postup</div>${S.map(([t,d],i)=>`<div class="uv-kv" style="display:block"><b>${i+1}. ${esc(t)}</b><div style="color:var(--uv-l2);margin-top:2px;line-height:1.45">${esc(d)}</div></div>`).join("")}</div>
         <div class="uv-box"><div class="uv-h3" style="margin-top:0">Povinnosti vázaného zástupce</div><ul class="uv-alts">${C.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div></div>
       <div class="uv-box"><div class="uv-h3" style="margin-top:0">Čísla a pravidla</div>${N.map(([t,d])=>`<div class="uv-kv" style="display:block"><b>${esc(t)}</b><div style="color:var(--uv-l2);margin-top:2px;line-height:1.45">${esc(d)}</div></div>`).join("")}
@@ -1276,6 +1424,15 @@ function mount(root,opts={}){
     if(a==="back")return go("board");
     if(a==="ft"){ui.ft=v;keepUi();return draw()}
     if(a==="guide"||a==="banks"||a==="fix")return go(a);
+    if(a==="katalog"){if(ui.view!=="banks")ui.ret=null;return go("katalog")}
+    if(a==="kseg"){ui.kseg=v;ui.kq="";keepUi();return draw()}
+    if(a==="kf"){ui.kf=v;keepUi();return draw()}
+    if(a==="kopen"){ui.kopen=ui.kopen===v?null:v;return}
+    if(a==="kedit"){ui.bank=v;go("banks");setTimeout(()=>{const x=root.querySelector(`summary[data-v="${v}"]`);if(x)x.scrollIntoView({block:"start"})},30);return}
+    if(a==="kpojem"||a==="kprof"){ui.ret=ui.view==="case"&&cur?{view:"case",id:cur.id,tab:ui.tab}:ui.view==="guide"?{view:"guide"}:null;
+      if(a==="kprof"){ui.kseg="inst";ui.kf="all";ui.kopen=v;ui.kq=""}else{ui.kseg="pojmy";ui.kq=v||""}
+      go("katalog");if(a==="kprof")setTimeout(()=>{const x=root.querySelector("#kb-"+v);if(x)x.scrollIntoView({block:"start"})},30);return}
+    if(a==="kback"){const r=ui.ret;ui.ret=null;if(r&&r.view==="case"&&r.id&&cases.some(c=>c.id===r.id))return openCase(r.id,r.tab||"banky");if(r&&r.view==="guide")return go("guide");return go("board")}
     if(a==="npick"){newSt.pick=entries().find(e=>e.id===el.dataset.id)||null;return draw()}
     if(a==="nunpick"){newSt.pick=null;newSt.q="";return draw()}
     if(a==="ntyp"){newSt.typ=v;return draw()}
@@ -1323,6 +1480,7 @@ function mount(root,opts={}){
   function parseVal(el){const t=el.dataset.t,v=el.value;if(t==="kc"||t==="n"){const x=num(v);return v.trim()===""?"":isFinite(x)?x:v}return v}
   function onInput(ev){const el=ev.target;
     if(el.dataset.ui==="f"){ui.f=el.value;const pos=el.selectionStart;draw();const i=root.querySelector('[data-ui="f"]');if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(e){}}return}
+    if(el.dataset.ui==="kq"){ui.kq=el.value;const pos=el.selectionStart;draw();const i=root.querySelector('[data-ui="kq"]');if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(e){}}return}
     if(el.dataset.n==="q"){newSt.q=el.value;newSt.pick=null;const pos=el.selectionStart;draw();const i=root.querySelector("#uvNq");if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(e){}}return}
     if(el.dataset.b&&el.dataset.k){const o=cfg.banks[el.dataset.b]||(cfg.banks[el.dataset.b]={});const v=el.dataset.t==="n"?num(el.value):el.value;
       if(el.value.trim()==="")setPath(o,el.dataset.k,undefined);else setPath(o,el.dataset.k,el.dataset.t==="n"?(isFinite(v)?v:undefined):v);saveCfg();return}
@@ -1337,13 +1495,100 @@ function mount(root,opts={}){
     if(el.dataset.a==="task"){if(!cur)return;const T=cur.tasks||(cur.tasks={});if(el.checked)T[el.dataset.k]=new Date().toISOString();else delete T[el.dataset.k];save();return draw()}
     if(el.dataset.b)return;
     if(!cur||!el.dataset.k)return;
-    if(el.tagName==="SELECT"||el.type==="date"){setPath(cur,el.dataset.k,parseVal(el));save();draw()}
+    if(el.tagName==="SELECT"||el.type==="date"||el.dataset.t==="date"){setPath(cur,el.dataset.k,parseVal(el));save();draw()}
   }
 
   draw();
   return {refresh(){if(ui.view!=="case")draw()},refreshClients(){if(ui.view==="new"||ui.view==="fix"||ui.view==="board")draw()},open:(id,tab)=>openCase(id,tab),cases:()=>cases.slice()};
 }
 
+
+/* ================= slovníček pojmů ================= */
+const GLOSS=[
+ ["Ukazatele a regulace",[
+  ["LTV","Loan to Value – poměr úvěru k hodnotě zástavy (z odhadu, ne z kupní ceny). Počítají se všechny dluhy zajištěné stejnou nemovitostí. Limit ČNB 80 %, žadatel do 36 let při pořízení vlastního bydlení 90 %, investiční hypotéka 70 %."],
+  ["DSTI","Debt Service to Income – podíl všech měsíčních splátek na čistém měsíčním příjmu. Závazný limit ČNB zrušila 7/2023; doporučuje být velmi obezřetný nad 40 % a počítat i se sazbou o 2 p.b. vyšší. Banky běžně pustí 45–50 %."],
+  ["DTI","Debt to Income – všechny dluhy (i nevyčerpané limity karet a kontokorentů) děleno ročním čistým příjmem. Závazně zrušeno 1/2024, doporučení: nad 8 velmi obezřetně, u investičních hypoték max. 7."],
+  ["Bonita (úvěruschopnost)","Schopnost klienta splácet podle banky: příjmy, výdaje (normativy), závazky a registry. Banka ji musí posoudit (§ 86 ZSÚ). Každá banka počítá jinak – rozdíl v maximální výši úvěru bývá až 1,5–2×."],
+  ["Stresová sazba","Sazba zvýšená o 1–2 p.b., se kterou banka počítá bonitu, aby klient zvládl splátku i po růstu sazeb na konci fixace."],
+  ["Normativní výdaje","Výdaje domácnosti, které si banka sama dopočítá podle počtu dospělých a dětí (a kraje). Proto zadávej do HypoUP výdaje na bydlení jen jednou."],
+  ["Investiční hypotéka","Koupě 3. a další obytné nemovitosti nebo nemovitosti k pronájmu. Od 1. 4. 2026 doporučení ČNB: LTV max. 70 % a DTI max. 7. Započtený budoucí nájem = vždy investiční, americká se předpokládá investiční. Netýká se výstavby, rekonstrukce a refinancování bez navýšení."],
+  ["Výjimka 5 %","Banka smí čtvrtletně poskytnout do 5 % objemu nových hypoték nad limitem LTV (ČNB doporučuje max. 100 %). Na investiční hypotéky se nevztahuje. Díky ní dává UniCredit mladým až 95 %."],
+  ["Doporučení vs. opatření ČNB","Opatření obecné povahy (LTV) je závazné. Doporučení (DSTI, DTI, investiční hypotéky, splatnost max. 30 let) banky dodržují „dobrovolně“, ČNB je ale hlídá – v praxi platí."]]],
+ ["Sazby a fixace",[
+  ["Úroková sazba vs. RPSN","Sazba je cena peněz. RPSN (roční procentní sazba nákladů) zahrnuje i poplatky a povinné pojištění. Nabídky srovnávej podle RPSN a celkové zaplacené částky, ne podle „sazby od“."],
+  ["Fixace","Doba, po kterou je sazba pevná (1–20 let). Na konci banka nabídne novou sazbu a klient může bez sankce odejít jinam. Převládají tříleté fixace."],
+  ["Refixace","Nastavení nové sazby na konci fixace u stejné banky. Banka musí nabídku poslat nejpozději 3 měsíce před koncem fixace; do 3 měsíců od oznámení jde úvěr splatit bez sankce."],
+  ["Refinancování","Převedení úvěru k jiné bance – nejčastěji na konci fixace, často s navýšením. ČNB doporučuje neprodlužovat přitom splatnost."],
+  ["Hypoindex","Průměrná nabídková sazba hypoték (Swiss Life), vychází měsíčně kolem 5. dne. Skutečně sjednané sazby bývají nižší (ČBA Hypomonitor). Appka podle něj počítá banky bez vlastní tabulky sazeb."],
+  ["Repo sazba ČNB","Hlavní měnová sazba České národní banky (3,75 % od 19. 6. 2026). Ovlivňuje hlavně krátké fixace a spotřebitelské úvěry; dlouhé fixace víc táhnou swapové sazby."],
+  ["Anuita","Stejná měsíční splátka po celou dobu fixace. Na začátku jde většina na úroky, později na jistinu."],
+  ["Jistina","Dlužná částka bez úroků – to, co klient ještě musí bance vrátit."],
+  ["Splatnost","Celková doba splácení. Standard 30 let (ČNB doporučuje max. 30), mBank až 40, ČS u PENB A/B 35; omezuje ji i věk žadatele na konci splácení (obvykle 70 let)."],
+  ["Garance sazby","Banka drží nabídnutou sazbu po určitou dobu (ČSOB a RB 30 dní) – i když mezitím zdraží."],
+  ["Reprezentativní příklad","Povinný modelový příklad v reklamě (sazba, RPSN, celková částka). Ne každý klient ho dostane – u spotřebáků banky přiznávají, kolik procent klientů dosáhne nejnižší sazby."],
+  ["Balíček slev","Nižší sazba za účet s příjmem, pojištění, PENB A/B nebo LTV do 70 %. Bez slev bývá hypotéka dražší o 0,5–0,9 p.b. – vždy porovnávej stejné podmínky."],
+  ["PENB a zelená hypotéka","Průkaz energetické náročnosti budovy. Třída A nebo B = sleva 0,1–0,2 p.b. a u ČS splatnost až 35 let."]]],
+ ["Druhy úvěrů",[
+  ["Účelová hypotéka","Úvěr na bydlení (koupě, výstavba, rekonstrukce, refinancování, vypořádání, družstevní podíl) zajištěný zástavou nemovitosti."],
+  ["Americká hypotéka","Neúčelový úvěr zajištěný nemovitostí. LTV obvykle 70 % (mBank a Oberbank 75 %), splatnost do 20–25 let, vyšší sazba, úroky nejdou odečíst z daní. ČNB ji bere jako investiční, dokud se neprokáže opak."],
+  ["Neúčelová část hypotéky","Část účelové hypotéky na cokoliv bez dokládání (UniCredit až 40 %, max. 1 mil.; KB Hypotéka 2v1 až 2 mil.)."],
+  ["Předhypoteční úvěr","Krátký úvěr na koupi družstevního podílu nebo v dražbě, dokud nemovitost nejde zastavit (max. 2 roky, platí se jen úroky). Pak se splatí hypotékou. Umí ČS."],
+  ["Úvěr ze stavebního spoření","Řádný úvěr po přidělení cílové částky (aspoň 2 roky spoření a naspořeno 35–40 %). Sazba pevná na celou dobu, nízká (od 2,99 %)."],
+  ["Překlenovací úvěr","Úvěr od stavební spořitelny hned: klient platí úroky z celé částky a souběžně spoří, po přidělení se převede na řádný úvěr. Celkově dražší."],
+  ["Nezajištěný úvěr na bydlení","Úvěr bez zástavy nemovitosti (Modrá pyramida, Rekopůjčka RSTS, Buřinka, ČSOB, UniCredit PRESTO) do 1,5–3,5 mil. na 12–25 let. Bez odhadu a katastru, rychlejší, ale dražší než hypotéka."],
+  ["Spotřebitelský úvěr","Neúčelová půjčka bez zástavy. Klient má 14 dní na odstoupení bez udání důvodu. Klientovi s hypotékou max. na 8 let (doporučení ČNB)."],
+  ["Konsolidace","Sloučení více úvěrů a karet do jednoho s nižší sazbou a jednou splátkou. Pozor: delší splatnost často znamená víc zaplaceno celkem."],
+  ["Hypotéka předem","Schválení bonity a sazby ještě před výběrem nemovitosti (ČSOB 9 měsíců, UniCredit 12 měsíců, KB až 3 roky)."],
+  ["Družstevní podíl","Členský podíl v bytovém družstvu – byt nepatří klientovi, a proto ho nejde zastavit. Řeší se zástavou jiné nemovitosti, předhypotečním úvěrem, nezajištěným úvěrem nebo modelem BIDLI."],
+  ["Cizoměnová / eurová hypotéka","Pro příjmy v cizí měně: UniCredit dá úvěr v korunách s kurzovou pojistkou, Oberbank i úvěr v eurech."]]],
+ ["Proces a smlouvy",[
+  ["Rezervační smlouva","Blokuje nemovitost (obvykle 30–60 dní) za rezervační poplatek. U realitky jde poplatek do úschovy. Hypoteční doložka = poplatek se vrací, když banka úvěr zamítne."],
+  ["Smlouva o smlouvě budoucí kupní","Uzavírá se u developera nebo když nemovitost ještě nejde převést. Banky ji berou jako podklad k žádosti."],
+  ["Odhad (tržní / zástavní hodnota)","Ocenění nemovitosti pro banku – z něj se počítá LTV. U bytů často online, platí obvykle 6 měsíců. Když vyjde nízko: jiná banka, dozajištění nebo jednání o ceně."],
+  ["ESIS","Evropský standardizovaný informační přehled – předsmluvní informace k hypotéce (sazba, RPSN, splátky, poplatky). Klient ho musí dostat s předstihem a ty mu ho vysvětlíš."],
+  ["Úvěrová a zástavní smlouva","Úvěrová smlouva s bankou; zástavní smlouva zřizuje zástavu k nemovitosti (podepisují vlastníci, podpisy ověřené)."],
+  ["Úschova","Kupní cena leží u advokáta, notáře nebo banky a prodávající ji dostane až po zápisu do katastru. Chrání obě strany."],
+  ["Podmínky čerpání","Co musí klient doložit, než banka pošle peníze: návrh na vklad zástavy, pojištění nemovitosti s vinkulací, zaplacení vlastních zdrojů, případně další podle smlouvy."],
+  ["Čerpání na plombu","Banka pošle peníze hned po podání návrhu na vklad zástavy, ještě před zápisem do katastru. Některé banky si za to účtují 1–2,2 tis., KB zdarma."],
+  ["Tranše","Postupné čerpání u výstavby a rekonstrukce po etapách, obvykle po kontrole odhadce."],
+  ["Dočerpání a poplatek za nečerpání","Termín, do kdy se musí vyčerpat celý úvěr (obvykle 24 měsíců). Když klient nečerpá včas, platí rezervační / kompenzační poplatek (ČS 0,5 % p.a., UniCredit 0,3 %, Oberbank 5 %)."],
+  ["Mimořádná splátka","Splátka navíc. Zdarma do 25 % celkové výše úvěru v měsíci před výročím smlouvy, u KB 25 % ročně."],
+  ["Předčasné splacení","Zdarma: do 3 měsíců od oznámení nové sazby, při prodeji nebo vypořádání SJM po 24 měsících, při smrti, invaliditě, dlouhodobé nemoci a z PSS. Jinak max. 0,25 % za každý započatý rok zbývající fixace, celkem max. 1 % (smlouvy od 9/2024)."],
+  ["Vinkulace pojištění","Plnění z pojištění nemovitosti jde při škodě přednostně bance. Banka ji chce doložit před čerpáním."],
+  ["Dozajištění","Zástava další nemovitosti (vlastní nebo třetí osoby, např. rodičů), když chybí vlastní zdroje. Po 3–5 letech splácení jde obvykle vyvázat."],
+  ["Kolaudace","Povolení k užívání stavby. U výstavby ji banka chce doložit obvykle 6–12 měsíců po dočerpání."],
+  ["Povolení záměru","Dřív stavební povolení (zákon 283/2021 Sb.). Pravomocné ho banky chtějí před prvním čerpáním na stavbu."]]],
+ ["Katastr",[
+  ["List vlastnictví (LV)","Výpis z katastru nemovitostí: vlastník, zástavy, věcná břemena, exekuce a plomby."],
+  ["Návrh na vklad","Podání do katastru, kterým se zapisuje vlastnictví nebo zástava. Správní poplatek 2 000 Kč (kolky skončily 2024). Katastr rozhodne nejdřív za 20 dní, v průměru za 22 dní."],
+  ["Plomba","Značka na listu vlastnictví, že u nemovitosti probíhá řízení (byl podán návrh)."],
+  ["Věcné břemeno, předkupní právo","Zatížení nemovitosti (např. právo cesty nebo dožití). Banka ho posuzuje, protože snižuje hodnotu zástavy."],
+  ["Prohlášení vlastníka","Dokument, kterým v domě vznikají jednotky (byty) jako samostatné nemovitosti – důležité u developerských projektů."]]],
+ ["Příjmy",[
+  ["Daňový základ","U OSVČ příjmy minus výdaje (řádek 101 − 102 přiznání). Banky z něj po odečtení daně a pojistného počítají čistý příjem – pro OSVČ nejpřísnější metoda."],
+  ["Obratová metoda","Banka uzná podíl z obratu (příjmů) podle oboru, typicky 30–65 %, místo daňového základu. Umí ji ČS (do LTV 80 %), RB, ČSOB HB z výpisů a RSTS (až 65 %)."],
+  ["Výdajový paušál","OSVČ si odečte paušální výdaje 80 / 60 / 40 / 30 % podle druhu činnosti místo skutečných výdajů."],
+  ["Paušální daň","OSVČ platí jednu měsíční platbu (daň + pojistné) a nepodává přiznání. Banky berou podíl fakturace z výpisů za 6 měsíců – modelovému paušalistovi se 70 tis. měsíčně uzná mBank 49 tis., ČS a UniCredit 42 tis., ČSOB HB 38,5 tis."],
+  ["DPP a DPČ","Dohody mimo pracovní poměr. DPP započte jen ČS (a Buřinka), DPČ většina bank, RB ani jednu."],
+  ["Zkušební a výpovědní doba","Ve zkušební době (první 3 měsíce, u vedoucích 6) většina bank nepůjčí – žádost se pošle den po jejím skončení. Ve výpovědní lhůtě úvěr neprojde."],
+  ["Lohnzettel","Roční potvrzení o příjmu a dani v Rakousku a Německu – dokládá se u pendlerů spolu s výplatními páskami a výpisy."],
+  ["Vedlejší příjmy","Nájem, výživné, diety, rodičovská. Banky je berou jen částečně (nájem obvykle 70 %) a nejvýš do výše hlavních příjmů."],
+  ["Provize ZFPA","Příjem poradce jako OSVČ. Některé banky mají se ZFPA vlastní výpočet: UniCredit 60 % (paušál) / 40 % (skutečné výdaje), mBank 60 % průměru, RSTS 70 % (max. 180 tis. měsíčně)."]]],
+ ["Registry, zákon a pojištění",[
+  ["BRKI a NRKI","Bankovní a nebankovní registr klientských informací. Data drží po dobu smlouvy a 4 roky po ní, neúspěšnou žádost 1 rok (BRKI), resp. 6 měsíců (NRKI). Výpis z obou přes kolikmam.cz s Bank iD."],
+  ["SOLUS","Registr dlužníků (i telefony a energie). Negativní záznam od 500 Kč a 30 dní prodlení, po zaplacení zůstává 3 roky (telco a energie 1 rok)."],
+  ["AML","Zákon proti praní peněz: identifikace klienta, účel obchodu, původ vlastních zdrojů a kontrola politicky exponované osoby. Podezřelý obchod se hlásí."],
+  ["PEP","Politicky exponovaná osoba (politik, vysoký úředník a jejich blízcí) – přísnější kontrola původu peněz."],
+  ["ZSÚ","Zákon č. 257/2016 Sb., o spotřebitelském úvěru – hlavní pravidla pro hypotéky i půjčky: informace, úvěruschopnost, předčasné splacení, povinnosti zprostředkovatele."],
+  ["Rada podle § 85 ZSÚ","Doporučení konkrétního produktu na základě analýzy klienta s písemným záznamem. ZFPA radu neposkytuje – klient dostává přehled zpracovaných nabídek a vybírá sám."],
+  ["Vázaný zástupce","Zprostředkovatel, který pracuje pro jednoho zastoupeného (u tebe ZFP akademie) a je zapsaný v registru ČNB. Za jeho chyby odpovídá zastoupený."],
+  ["HypoUP","Srovnávač hypoték a výpočet bonity pro poradce (ČS, ČSOB HB, KB, mBank, RB, UniCredit). Výstup slouží i jako příloha k provizi."],
+  ["PSS","Pojištění schopnosti splácet. Sleví sazbu o 0,1–0,2 p.b., ale obvykle stojí víc, než ušetří, a zaniká s úvěrem. Lepší je vlastní životní pojištění (smrt, invalidita, pracovní neschopnost)."],
+  ["SJM a vypořádání","Společné jmění manželů – manžel bývá spoludlužníkem. Při rozvodu se SJM vypořádá a jeden z manželů úvěr přebírá (rozsudek s právní mocí a dohoda o vypořádání)."],
+  ["Odpočet úroků","Úroky z hypotéky na vlastní bydlení snižují základ daně: max. 150 tis. Kč ročně na domácnost (300 tis. u bydlení pořízeného před 2021). U americké hypotéky ne."],
+  ["NZÚ – Nová zelená úsporám","Státní program na úspory energií. Od 6/2026 bezúročný úvěr na renovace rodinných domů (dílčí až 750 tis., komplexní až 2 mil.) přes banky; od 19. 10. 2026 ČSOB."]]]
+];
 /* ================= banky a spořitelny (přes ZFPA) ================= */
 /* Pole: types = typy úvěrů, které přes ZFPA zprostředkuješ · ltv.max / .amer · maxAge (věk při splatnosti) · maxYears · dsti/dti = interní limity bonity (orientačně)
    stress = přirážka k sazbě při výpočtu bonity · inc = koeficienty započtení příjmů · osvc.obrat = obratová metoda (podíl obratu podle oboru) · good/bad = silné a slabé stránky
@@ -1351,7 +1596,7 @@ function mount(root,opts={}){
 const BANKS_ASOF="10/2026";
 const ZAHR_EU={DE:1,AT:1,SK:1,PL:1,EU:1,X:0};
 const BANKS=[
-  {id:"cs",name:"Česká spořitelna",s:"ČS",kind:"banka",kindT:"banka",types:["hypo","amer","spotr","konsol","podnik"],portal:"Expert24",
+  {id:"cs",name:"Česká spořitelna",s:"ČS",kind:"banka",kindT:"banka",types:["hypo","amer","spotr","konsol","podnik"],portal:"Expert24",about:"Největší banka na trhu. Sazba stojí na balíčku slev (účet, PSS, PENB), umí ale i nestandardní případy: obratovou metodu pro OSVČ, Předhypoteční úvěr na družstva a dražby a nejdelší fixace na trhu. Přes ZFPA i spotřebitelské úvěry.",prod:"Hypotéka, americká hypotéka, překlenovací financování, úvěry pro BD a SVJ; Půjčka a Konsolidace (od 5/2025); firmy jen tipem",
     ltv:{max:90,amer:70,inv:70},maxAge:70,maxYears:30,maxYearsAB:35,maxYearsAmer:20,dsti:50,dti:9,stress:1,
     rates:{1:5.59,2:5.59,3:5.59,4:5.69,5:5.79,8:5.99,10:6.19,15:6.39,20:6.59},ltv90add:.2,amerRate:5.89,ratesNote:"se slevou za účet, bez PSS a PENB A/B (od 11. 9. 2026)",
     inc:{zam:1,dpc:1,dpp:1,rodic:1,vyzivne:1,diety:0,pronajem:.7,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
@@ -1362,7 +1607,7 @@ const BANKS=[
     good:{vystavba:"výstavba: poplatek za rezervaci (0,5 % p.a.) až po 24 měsících čerpání",dpp:"započítá i DPP",dlouhaFix:"fixace až 20 let (8, 10, 15, 20)",zelena:"Hypotéka pro budoucnost (PENB A/B): −0,1 p.b. a splatnost až 35 let",refin:"převod hypotéky bez poplatků, odhad zdarma",osvc:"OSVČ obratovou metodou do 10 mil. Kč (LTV do 80 %)",amer:"americká hypotéka od 5,89 % (vyřízení 6 000 Kč)",konsolidace:"konsoliduje i nebankovní půjčky"},
     bad:{},pros:["bez poplatku za vyřízení; první čerpání zdarma, další 500 Kč","nejdelší fixace na trhu (až 20 let)","online v Georgi, Předhypoteční úvěr na družstva i dražby"],cons:["sazba stojí na slevách (účet 0,5 p.b., PSS a PENB po 0,1 p.b.) – bez nich +0,7 p.b.","rezervační poplatek 0,5 % p.a. u koupě po 6 měsících","změny smlouvy 3–5 tis. Kč"],
     docs:["žádost přes Expert24, ID ZFPxxxxx","OSVČ: daňová přiznání za 2 roky (do 5 mil. Kč může stačit poslední)"],src:"MP ZFPA 25. 9. 2025; sazby od 11. 9. 2026 (finance.cz), ceník ČS od 21. 8. 2026, csas.cz 20. 10. 2026; HypoUP"},
-  {id:"kb",name:"Komerční banka",s:"KB",kind:"banka",kindT:"banka",types:["hypo","amer","spotr","konsol"],portal:"NOBY",
+  {id:"kb",name:"Komerční banka",s:"KB",kind:"banka",kindT:"banka",types:["hypo","amer","spotr","konsol"],portal:"NOBY",about:"Konzervativní banka s pohodlným procesem přes poradce: smlouvy podepíšeš s klientem u sebe a čerpat jde už na návrh na vklad zdarma. Tří- a pětileté fixace bývají dražší, nejlepší sazba váže příjem na účet a pojištění u Komerční pojišťovny.",prod:"Hypotéka (NOBY), úvěry pro BD a SVJ, Osobní úvěr / Optimální půjčka (KB Share)",
     ltv:{max:90,amer:70,inv:70},maxAge:70,maxYears:30,maxYearsAmer:20,maxFix:5,dsti:50,dti:9,stress:1,
     rates:{1:5.69,2:5.99,3:6.14,4:6.29,5:6.49},ltv90add:.4,amerRate:6.09,ratesNote:"s příjmem na účet KB a pojištěním nemovitosti, bez PENB A/B (od 5. 10. 2026)",
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.75,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
@@ -1373,7 +1618,7 @@ const BANKS=[
     bad:{dpp:"DPP nezapočítá",sro:"podíl na zisku ze s.r.o. nebere (jen mzdu jednatele)",dlouhaFix:"fixace jen do 5 let",osvc:"obratovou metodu nebere – OSVČ ze základu daně (výhodněji jen vybrané profese)"},
     pros:["čerpání zdarma i na návrh na vklad, 25 % ročně mimořádně zdarma","Hypotéka 2v1 (neúčelová část až 2 mil.) a Hypotéka bez nemovitosti (3 roky na výběr)","podpis mimo pobočku přes poradce"],cons:["dražší 3 a 5leté fixace, fixace jen do 5 let","poplatek za poskytnutí 4 900 Kč (zdarma u udržitelného bydlení a refinancování)","přirážka za LTV 80–90 % +0,4 p.b.; nejlepší sazba váže pojištění u Komerční pojišťovny"],
     docs:["žádost v systému NOBY, identifikace osobním číslem ZFPA + IČO","k provizi výstup HypoUP nebo 3 modelace"],src:"MP ZFPA 29. 5. 2025; oznámení o sazbách KB od 5. 10. 2026; kb.cz 20. 10. 2026; HypoUP"},
-  {id:"csob",name:"ČSOB Hypoteční banka",s:"ČSOB",kind:"banka",kindT:"banka (ČSOB HB)",types:["hypo","amer","spotr","konsol"],portal:"Informatorium / HypoUP API",
+  {id:"csob",name:"ČSOB Hypoteční banka",s:"ČSOB",kind:"banka",kindT:"banka (ČSOB HB)",types:["hypo","amer","spotr","konsol"],portal:"Informatorium / HypoUP API",about:"Hypoteční banka skupiny ČSOB s nejlepším online procesem: žádost jde z HypoUP přes API, posouzení do 5 pracovních dnů a podpis přes Bank iD. Jako jediná dává slevu za životní pojištění; bez balíčku slev je dražší.",prod:"Hypotéka (ČSOB HB); přes pobočku ČSOB Půjčka na cokoliv, Půjčka na lepší bydlení a konsolidace",
     ltv:{max:90,amer:70,inv:70},maxAge:70,ageSoft:65,ageByYounger:true,maxYears:30,maxYearsAmer:20,dsti:50,dti:9,stress:1,minLoan:500000,maxLoanAmer:15000000,
     rates:{1:6.14,3:6.24,5:6.59,7:6.95,10:7.3},ltv90add:.15,amerRate:6.59,smallAdd:{lt:2000000,add:.2},ratesNote:"s aktivním účtem, bez pojištění u ČSOB a PENB A/B (od 12. 10. 2026, dopočet)",
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.7,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
@@ -1385,7 +1630,7 @@ const BANKS=[
     bad:{dpp:"DPP nezapočítá",senior:"věk při splatnosti standardně do 65 let (podle profese až 70)"},
     pros:["jediná banka se slevou za životní pojištění","nejlepší online proces (API z HypoUP, podpis Bank iD), garance sazby 30 dní, Hypotéka bez nemovitosti 9 měsíců","online odhad i odhadce u účelových hypoték zdarma; po 6 měsících jde snížit splátku až o 30 %"],cons:["drahá bez balíčku slev (účet 0,5, pojištění 0,2, PENB 0,2 p.b.) a +0,2 p.b. pod 2 mil.","čerpání na návrh na vklad 2 200 Kč, prodloužení čerpání 4 900 Kč","věk standardně do 65 let"],
     docs:["provizní číslo z Informatoria (např. 1291HU46)","OSVČ: alternativně výpisy s kreditními obraty"],src:"MP ZFPA 29. 5. 2025; sazby ČSOB od 12. 10. 2026; sazebník ČSOB HB od 22. 9. 2025; HypoUP; video Výstavba"},
-  {id:"rb",name:"Raiffeisenbank",s:"RB",kind:"banka",kindT:"banka",types:["hypo","amer","spotr","konsol","podnik"],portal:"FA portál (HYFE)",
+  {id:"rb",name:"Raiffeisenbank",s:"RB",kind:"banka",kindT:"banka",types:["hypo","amer","spotr","konsol","podnik"],portal:"FA portál (HYFE)",about:"Nejrychlejší schvalování (do 3 dnů) a nejnižší sazby u krátkých fixací. Silná na OSVČ (obratová metoda), investiční byty (Hypotéka na pronájem) a refinancování až 24 měsíců dopředu. Nebere DPP, DPČ ani vdovský důchod.",prod:"Hypotéka (FA portál – HYFE, garance sazby 30 dní), spotřebitelské úvěry, Micro, firmy",
     ltv:{max:90,amer:70,inv:70},maxAge:70,maxYears:30,maxYearsAmer:20,dsti:50,dti:9,stress:1,maxLoan:20000000,maxLoanAmer:12000000,
     rates:{1:5.29,3:5.49,5:5.74,7:6.1,10:6.39,15:6.49},ltv90add:.2,amerRate:6.19,ratesNote:"základní sazby (Měšec 26. 9. 2026); v Hypodnech do 20. 12. 2026 −0,1 p.b. a odhad zdarma",
     inc:{zam:1,dpc:0,dpp:0,rodic:1,vyzivne:1,diety:1,pronajem:.7,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:0,sirotci:1},jiny:0},
@@ -1396,7 +1641,7 @@ const BANKS=[
     bad:{dpp:"DPP ani DPČ nezapočítá",cizinec:"cizinci mimo EU s přísnější bonitou a přirážkou"},
     pros:["nejnižší 1–3leté fixace, Hypodny do 20. 12. 2026 (−0,1 p.b. za PENB, odhad zdarma)","nejrychlejší schválení a online podpis v IB","Hypotéka naruby, na pronájem, montované domy"],cons:["čerpání na vklad 1 900 Kč, každé další 800 Kč; rezervace 29 900 Kč při čerpání pod 50 %","nezapočítá vdovský důchod; DPP/DPČ ne","Klasik max. 20 mil., americká max. 12 mil."],
     docs:["kopie ověřuj: OVĚŘENO DLE ORIGINÁLU + jméno, podpis, datum","zaměstnanci: výpisy za 6 měsíců; paušální daň: výpisy za 6 měsíců"],src:"MP ZFPA 25. 9. 2025; rb.cz 20. 10. 2026, ceník RB od 1. 5. 2026, Hypodny 2026; HypoUP; video Výstavba"},
-  {id:"ucb",name:"UniCredit Bank",s:"UCB",kind:"banka",kindT:"banka",types:["hypo","spotr","konsol","podnik"],portal:"pobočka (tištěná žádost)",
+  {id:"ucb",name:"UniCredit Bank",s:"UCB",kind:"banka",kindT:"banka",types:["hypo","spotr","konsol","podnik"],portal:"pobočka (tištěná žádost)",about:"Banka pro nestandardní klienty: mladým do 36 let půjčí až 95 % ceny, má cizoměnovou hypotéku pro příjmy v cizí měně a uzná DPČ, provize i obrat. Proces je papírový přes pobočky a nejnižší sazba stojí na placeném pojištění.",prod:"Hypotéka, PRESTO půjčka a PRESTO na bydlení, Small business",
     ltv:{max:90,amer:70,inv:70,young:95},maxAge:70,maxYears:30,dsti:50,dti:9,stress:1,
     rates:{3:5.49,5:5.89,7:6.1,10:6.35},ltv90add:.5,ratesNote:"odhad bez PSS: web „od 5,29 %“ (s placeným pojištěním −0,2 p.b.), repr. příklad 3R 5,69 %; podmínka příjem na účet 1,5× splátky + 3 platby kartou (20. 10. 2026)",
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.7,pronajemBudouci:0,zahr:{DE:1,AT:1,SK:1,PL:1,EU:1,X:1},duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
@@ -1409,7 +1654,7 @@ const BANKS=[
     bad:{dpp:"DPP nezapočítá",rychle:"papírová žádost a podpis jen na pobočce – počítej s 2–4 týdny",invest:"nemovitost k pronájmu a nájem v bonitě spíš ne (stav 2025) – ověř"},
     pros:["neúčelová část až 40 % (max. 1 mil.) bez dokládání","Hypotéka předem: 12 měsíců na výběr nemovitosti (LTV do 80 %)","vstřícná k nestandardním příjmům (DPČ, provize, obrat), zvýhodnění lékařů a advokátů"],cons:["nízká sazba stojí na placeném pojištění (PSS −0,2 p.b.)","poskytnutí 2 900 Kč, odhad 5 700 (byt) / 7 000 Kč (RD), čerpání na plombu 1 900 Kč – vstup ~10 tis.","kompenzační poplatek 0,3 % při nedodržení plánu čerpání"],
     docs:["kopie OP: „souhlasí s originálem“ + vlastnoruční souhlas klienta","průvodní list / předávací protokol z pobočky"],src:"MP ZFPA 29. 5. 2025; unicreditbank.cz 20. 10. 2026, sazebník FO od 1. 6. 2026; Hypoindex 24. 9. 2026; martinstratil.cz 7/2026; bonita z provizí ZFPA 2024"},
-  {id:"mb",name:"mBank",s:"mBank",kind:"banka",kindT:"banka",types:["hypo","spotr","konsol"],portal:"e-žádost (link ZFPA) + papír",
+  {id:"mb",name:"mBank",s:"mBank",kind:"banka",kindT:"banka",types:["hypo","spotr","konsol"],portal:"e-žádost (link ZFPA) + papír",about:"Online banka s nulovými poplatky. Do 50 % LTV nechce dokládat příjmy, paušalistům uzná nejvíc ze všech bank a dá splatnost až 40 let. Sazby bývají nad průměrem a fixace jen 1, 3 a 5 let.",prod:"mHypotéka (Light), mPůjčka a konsolidace – jen fyzické osoby",
     ltv:{max:90,amer:75,inv:70},maxAge:70,maxYears:40,minLoan:200000,maxFix:5,dsti:50,dti:9,stress:1,noIncDocsLtv:50,
     rates:{1:5.99,3:5.59,5:5.79},ltv90add:.2,ratesNote:"úrokový lístek od 1. 10. 2026, LTV do 80 % (nad 80 % +0,2 p.b.); stávající klienti −0,3 p.b.",
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.7,pronajemBudouci:.7,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
@@ -1421,7 +1666,7 @@ const BANKS=[
     bad:{dlouhaFix:"fixace jen 1, 3 a 5 let"},
     pros:["do LTV 50 % bez dokládání příjmů – ideální pro OSVČ s větším vkladem","splatnost až 40 let (nižší splátka = vyšší bonita), nulové poplatky, online odhad 1 900 Kč","jen fyzické osoby, jednoduchý proces"],cons:["sazby nad průměrem trhu, fixace jen 1/3/5 let","formuláře, odhad a LV v originále","americká hypotéka (LTV 75 %) jen do 4 mil. – přes ZFPA ověř"],
     docs:["formuláře banky, odhad a LV v originále; ostatní kopie ověří SPU","do LTV 50 % stačí výpis z účtu / prohlášení o příjmu"],src:"MP ZFPA 29. 5. 2025; mbank.cz 20. 10. 2026, úrokový lístek od 1. 10. 2026, sazebník od 1. 6. 2026; E15 6/2025 (paušální daň); bonita z provizí ZFPA 2024"},
-  {id:"ober",name:"Oberbank",s:"Oberbank",kind:"banka",kindT:"banka",types:["hypo","amer"],portal:"pobočky (osobní návštěva)",
+  {id:"ober",name:"Oberbank",s:"Oberbank",kind:"banka",kindT:"banka",types:["hypo","amer"],portal:"pobočky (osobní návštěva)",about:"Rakouská banka na speciality: eurové hypotéky a příjmy z Rakouska, Německa a Slovenska, variabilní sazba, zástava v zahraničí a investiční hypotéky do 50 mil. Pro běžného klienta s příjmem v korunách je drahá (procentní poplatky) a LTV dává max. 80 %.",prod:"StandardHypotéka (Plus), Investiční hypotéka, FlexiHypotéka (americká), Hypotéka bez hranic",
     ltv:{max:80,amer:75,inv:70},maxAge:75,ageSoft:70,minLoan:250000,maxYears:30,maxYearsAmer:20,dsti:50,dti:9.5,stress:1,rateAdj:.4,costly:"vstupní náklady: zpracování 0,7–1,5 % úvěru (min. 8 000 Kč), vedení účtu 150 Kč měsíčně",ratesNote:"sazby individuálně (srovnávače „od 6,10 %“, 2025) – vždy poptat",
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.8,pronajemBudouci:.6,zahr:{DE:1,AT:1,SK:1,PL:1,EU:1,X:0},duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
     osvc:{dz:1,obrat:null,minDp:1},sro:.8,purp:{druzstvo:false,drazba:false,rekreace:true,nebytovy:true,pozemek:true,treti:true},foreign:{euPrechodny:true,mimoTrvaly:true,mimoPrechodny:true,note:"rakouská banka – EU občané žijící v ČR, eurová hypotéka"},
@@ -1430,7 +1675,7 @@ const BANKS=[
     bad:{vystavba:"poplatek 5 % z nevyčerpané částky (když zůstane nad 20 %)",rychle:"nutná osobní návštěva pobočky, pomalejší proces"},
     pros:["jediná eurová hypotéka a variabilní sazba (3M PRIBOR / EURIBOR) na trhu","Hypotéka bez hranic – zástava v Rakousku, Německu, na Slovensku","Investiční hypotéka až 50 mil., americká do LTV 75 %"],cons:["LTV max. 80 % – ani mladým 90 % nedá","zpracování 0,7–1,5 % (min. 8 000 Kč), vedení 150 Kč/měs., změna podmínek 0,2–1 % ze zůstatku","sazby netransparentní, v HypoUP jen metodika"],
     docs:["vyřízení přes pobočku, identifikace jménem + ZFPA","potvrzení o příjmu i v němčině / angličtině"],src:"MP ZFPA 11/2022; oberbank.cz 20. 10. 2026, sazebník FO od 1. 10. 2025; HypoGO 9/2026; hyponamiru 2024; školení HypoUP"},
-  {id:"mp",name:"Modrá pyramida",s:"MP",kind:"ss",kindT:"stavební spořitelna (KB)",types:["ss","hypo","spotr"],portal:"eFormuláře",
+  {id:"mp",name:"Modrá pyramida",s:"MP",kind:"ss",kindT:"stavební spořitelna (KB)",types:["ss","hypo","spotr"],portal:"eFormuláře",about:"Stavební spořitelna skupiny KB. Hypotéky pro nové klienty už zřejmě nedělá – zůstává Půjčka na bydlení bez zástavy nemovitosti, nejvýhodnější na družstevní a udržitelné bydlení (až 3,5 mil. na 25 let).",prod:"Půjčka na bydlení (bez zástavy), stavební spoření a úvěr ze SS",
     ended:{hypo:"Hypoúvěr pro nové klienty zřejmě skončil (úrokový lístek od 4. 9. 2026 ho nemá) – hypotéky dělá KB, ověř v systému ZFPA"},
     maxAge:75,dsti:50,dti:9,stress:1,
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.7,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
@@ -1440,7 +1685,7 @@ const BANKS=[
     good:{druzstvo:"družstevní byt bez zástavy až 3,5 mil. na 25 let (5,79 %)",rekonstrukce:"Půjčka na bydlení bez zástavy do 2,5 mil."},bad:{},
     pros:["Půjčka na družstevní a udržitelné bydlení bez zástavy (až 3,5 mil., 25 let)","úvěr ze stavebního spoření ALFA 3,49 % (po přidělení)","200+ poradenských center"],cons:["Hypoúvěr zřejmě ukončen – na hypotéky KB","předčasné splacení Půjčky na bydlení není zdarma; správa 300 Kč/rok"],
     docs:["9místné číslo VZ (osobní číslo ZFPA doplněné nulami)"],src:"MP ZFPA 29. 5. 2025; úrokový lístek MP od 4. 9. 2026; peníze.cz; banky.cz"},
-  {id:"rsts",name:"Raiffeisen stavební spořitelna",s:"RSTS",kind:"ss",kindT:"stavební spořitelna",types:["ss","hypo","spotr"],portal:"Cibis",
+  {id:"rsts",name:"Raiffeisen stavební spořitelna",s:"RSTS",kind:"ss",kindT:"stavební spořitelna",types:["ss","hypo","spotr"],portal:"Cibis",about:"Stavební spořitelna skupiny Raiffeisen. Zajištěné úvěry od dubna 2026 nedělá (Hyposplátka skončila), má ale nejsilnější nezajištěné úvěry: Rekopůjčku a Půjčku na družstevní bydlení. OSVČ uzná až 65 % obratu a poradcům ZFPA nejlépe započítá provize.",prod:"Rekopůjčka, Půjčka na družstevní bydlení, úvěr ze SS, úvěry pro OSVČ, BD a SVJ",
     ended:{hypo:"Hyposplátka skončila 1. 4. 2026 – zajištěné úvěry nad 2,5 mil. vyřizuje hypoteční centrum Raiffeisenbank"},
     maxAge:70,dsti:50,dti:9,stress:1,
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.7,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
@@ -1451,7 +1696,7 @@ const BANKS=[
     good:{osvc:"OSVČ: uzná až 65 % obratu",druzstvo:"družstevní byt bez zástavy až 3,5 mil. na 25 let",rekonstrukce:"Rekopůjčka bez zajištění do 2–2,5 mil.",provize:"provize ZFPA: 70 % (max. 180 000 Kč/měs.)"},bad:{},
     pros:["nejlepší nástroj pro OSVČ (až 65 % obratu) a družstevní byty","široké účely Rekopůjčky (vypořádání, nebankovní dluhy), elektronicky s podpisem SMS","úvěr ze stavebního spoření od 2,99 % pevně na celou dobu","pro poradce ZFPA nejlepší zápočet provizí"],cons:["Hyposplátka skončila 4/2026 – zajištěné úvěry jen přes RB","„od 4,9 %“ jen s pojištěním a účtem u RB, reálně kolem 5,85 %; poplatek 1 %"],
     docs:["provozní číslo regionu + osobní číslo ZFPA","klient s výplatou na účet u RB příjmy nedokládá"],src:"MP ZFPA 29. 5. 2025; rsts.cz 20. 10. 2026; bonita z provizí ZFPA 2024"},
-  {id:"sscs",name:"Stavební spořitelna ČS (Buřinka)",s:"Buřinka",kind:"ss",kindT:"stavební spořitelna (ČS)",types:["ss","hypo","spotr"],portal:"Expert24",
+  {id:"sscs",name:"Stavební spořitelna ČS (Buřinka)",s:"Buřinka",kind:"ss",kindT:"stavební spořitelna (ČS)",types:["ss","hypo","spotr"],portal:"Expert24",about:"Stavební spořitelna České spořitelny. Úvěry zajištěné nemovitostí od 10/2024 nedělá; má rychlé nezajištěné úvěry na rekonstrukci a úsporné bydlení – peníze do 2 dnů, místo faktur fotky.",prod:"Úvěr na rekonstrukci, Úvěr od Buřinky pro budoucnost, úvěr ze SS, úvěr pro SVJ a BD",
     ended:{hypo:"Buřinka od 10/2024 nedává úvěry zajištěné nemovitostí – hypotéky ČS"},
     maxAge:70,dsti:50,dti:9,stress:1,
     inc:{zam:1,dpc:1,dpp:1,rodic:1,vyzivne:1,diety:0,pronajem:.7,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
@@ -1462,18 +1707,18 @@ const BANKS=[
     good:{rekonstrukce:"nejrychlejší peníze na rekonstrukci (do 2 dnů, fotky místo faktur)"},bad:{},
     pros:["Úvěr na rekonstrukci až 2,5 mil. bez zástavy, i na nábytek a spotřebiče","Úvěr od Buřinky pro budoucnost (úsporné bydlení) do 3 mil.","úvěr pro SVJ a bytová družstva bez zástavy (až 500 tis. na byt)"],cons:["žádné zajištěné financování – na velké částky banky","produkt „Obnova“ na webu není – ověř v Expert24"],
     docs:["ID z ČS (stejné jako u ČS)"],src:"MP ZFPA 29. 5. 2025; burinka.csas.cz a ceník FO od 1. 6. 2026; peníze.cz; bonita z provizí ZFPA 2024"},
-  {id:"bidli",name:"BIDLI – družstevní bydlení",s:"BIDLI",kind:"spec",kindT:"bydlení přes bytové družstvo",types:["hypo"],portal:"intranet BIDLI",model:"druzstvo",
+  {id:"bidli",name:"BIDLI – družstevní bydlení",s:"BIDLI",kind:"spec",kindT:"bydlení přes bytové družstvo",types:["hypo"],portal:"intranet BIDLI",about:"Model družstevního bydlení: nemovitost koupí bytové družstvo, klient v ní bydlí za nájem a po splacení úvěru družstva ji převede do vlastnictví. Bez dokládání příjmů, stačí asi 20 % vlastních zdrojů – řešení pro ty, kterým banky nepůjčí.",prod:"Družstevní bydlení BIDLI (koupě přes družstvo)",model:"druzstvo",
     speed:3,flex:3,simple:5,online:3,good:{},bad:{},
     pros:["nemovitost koupí družstvo, klient platí nájem a po splacení ji převede do vlastnictví (převod smluvně zajištěný)","bez dokládání příjmů, i cizinci a starší – stačí ~20 % vlastních zdrojů","novostavby i starší byty a domy v ČR"],cons:["do převodu klient není vlastník a nese riziko hospodaření družstva","nájem, marže a poplatky nejsou veřejné – vždy chtít kalkulaci","úroky nejspíš nepůjdou odečíst z daní"],
     docs:["kalkulace na intranetu BIDLI"],src:"MP ZFPA 1. 8. 2023; bidli.cz 20. 10. 2026"},
-  {id:"trinity",name:"Trinity Bank",s:"Trinity",kind:"spotr",kindT:"spotřebitelské úvěry",types:["spotr","konsol"],portal:"Portál 3P",
+  {id:"trinity",name:"Trinity Bank",s:"Trinity",kind:"spotr",kindT:"spotřebitelské úvěry",types:["spotr","konsol"],portal:"Portál 3P",about:"Online spotřebitelské úvěry: Lepší půjčka až 1,5 mil. na 12 let s odměnou za včasné splácení (3,97 % místo 9,99 %). Celé online přes PSD2 výpis a Bank iD, jen pro občany ČR.",prod:"Lepší půjčka, převod úvěrů (přes ZFPA od 10/2026)",
     maxAge:75,dstiSpotr:50,
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.5,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
     osvc:{dz:1,obrat:{it:.5,svobodne:.5,sluzby:.45,remeslo:.35,obchod:.3,jine:.35},minDp:1},sro:.8,foreign:{euPrechodny:false,mimoTrvaly:false,mimoPrechodny:false},
     spotr:{typ:3.97,max:1500000,min:20000,years:12,onlyCz:true,konsolTyp:3.97,warn:"3,97 % jen při včasném splácení všech splátek – jinak 9,99 % (ukaž klientovi obě varianty)",note:"Lepší půjčka 20 tis.–1,5 mil. až na 12 let, peníze do 5 minut (schválení výjimečně do 3 dnů); OSVČ podle příjmů na účet",konsolNote:"převod úvěrů – staré úvěry banka vypoví a splatí, peníze do 3 dnů"},
     speed:5,flex:4,simple:5,online:5,good:{konsolidace:"převod úvěrů – načte je sama z registrů"},bad:{},
     pros:["Lepší půjčka – celé online (PSD2 výpis, Bank iD, SMS podpis)","nejdelší splatnost spotřebáku na trhu (144 měsíců)"],cons:["klient musí mít internetové bankovnictví s Bank iD","jen občané ČR s trvalým pobytem","bez odměny za včasné splácení 9,99 % (v příkladu banky 430 tis. místo 338 tis. zaplaceno)"],docs:["PSD2 výpis + Bank iD + souhlas s ověřením u operátora"],src:"MP ZFPA 9/2026; trinitybank.cz (srovnání k 7. 10. 2026)"},
-  {id:"inbank",name:"Inbank",s:"Inbank",kind:"spotr",kindT:"spotřebitelské úvěry",types:["spotr","konsol"],portal:"Partner portál",
+  {id:"inbank",name:"Inbank",s:"Inbank",kind:"spotr",kindT:"spotřebitelské úvěry",types:["spotr","konsol"],portal:"Partner portál",about:"Estonská banka se spotřebitelskými úvěry: Osobní půjčka 20–300 tis. na 1–7 let, peníze do 1 pracovního dne, účet u Inbank není potřeba.",prod:"Osobní půjčka (přes ZFPA od 9/2026)",
     maxAge:75,dstiSpotr:50,
     inc:{zam:1,dpc:1,dpp:0,rodic:1,vyzivne:1,diety:0,pronajem:.5,zahr:ZAHR_EU,duchod:{starobni:1,invalidni:1,vysluha:1,vdovsky:1,sirotci:1},jiny:0},
     osvc:{dz:1,obrat:null,minDp:1},sro:.8,foreign:{euPrechodny:true,mimoTrvaly:true,mimoPrechodny:false},
@@ -1482,5 +1727,5 @@ const BANKS=[
 ];
 /* stavební spořitelny a spotřebitelské společnosti nemají hypoteční LTV pravidla – u spotřebitelských úvěrů se LTV neřeší */
 
-window.Uvery={mount,math:{payment,balanceAfter,principalFor,fixCost,marketRate,osvcNet,incomeFor,incomeTotal,metrics,ltvLimit,isInvest,evalBank,recommend,docsList,clientDocsText,caseTags,ageAt,setRates:r=>{if(r&&r.fix)RATES=r}},BANKS,STAGES,TYPES,INC,VERSION};
+window.Uvery={GLOSS,mount,math:{payment,balanceAfter,principalFor,fixCost,marketRate,osvcNet,incomeFor,incomeTotal,metrics,ltvLimit,isInvest,evalBank,recommend,docsList,clientDocsText,caseTags,ageAt,setRates:r=>{if(r&&r.fix)RATES=r}},BANKS,STAGES,TYPES,INC,VERSION};
 })();

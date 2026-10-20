@@ -2022,7 +2022,7 @@ function renderUv(then){
       openLead:(e,c)=>{const l=e&&e.lead&&leads.find(x=>x.id===e.lead.id);if(l){openEdit(l);toast("Přidej k leadu produkt Hypotéka / Úvěr – body se spočítají podle provizní přílohy");return}
         openEdit(null);$("f_name").value=c.name||"";$("f_phone").value=c.phone||"";$("f_email").value=c.email||"";toast("Nový lead – přidej produkt Hypotéka / Úvěr, body se spočítají samy")}});fire()};
   if(window.Uvery)return go();
-  uvLoading=true;const sc=document.createElement("script");sc.src="uvery.js?v=1";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  uvLoading=true;const sc=document.createElement("script");sc.src="uvery.js?v=2";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* úvěr z načerpaného případu → produkt v kartě klienta (hlídání konce fixace v „Co tě dneska čeká“); stejný případ se jen aktualizuje */
 async function uvSaveProduct(e,p){

@@ -235,6 +235,69 @@ const tests = {
     eq(errors, [], "bez chyb v konzoli");
     await ctx.close();
   },
+  async "Banky: profily s plusy, minusy a parametry, srovnání, slovníček a návrat do případu"() {
+    const { ctx, page, errors } = await open({ docs: { "uvery/x1": CASE } });
+    await click(page, '.uv-bar [data-a="katalog"]');
+    await page.waitForSelector(".uv-kb");
+    eq(await page.$$eval(".uv-kb", x => x.length), 13, "všechny instituce");
+    await page.click('#kb-mb summary');
+    const mb = await page.textContent("#kb-mb");
+    assert(/Plusy/.test(mb) && /Minusy/.test(mb) && /Paušální daň/.test(mb) && /~70 % fakturace/.test(mb) && /40 let/.test(mb), "profil mBank: " + mb.slice(0, 300));
+    await shot(page, "08-katalog");
+    await page.fill('[data-ui="kq"]', "cizoměn"); await page.dispatchEvent('[data-ui="kq"]', "input"); await page.waitForTimeout(80);
+    eq(await page.$$eval(".uv-kb", x => x.map(d => d.id)), ["kb-ucb"], "hledání");
+    assert(await page.$eval("#kb-ucb", d => d.open), "jediný výsledek se rozbalí");
+    await page.fill('[data-ui="kq"]', ""); await page.dispatchEvent('[data-ui="kq"]', "input");
+    await click(page, '[data-a="kf"][data-v="ss"]');
+    const ss = await page.$$eval(".uv-kb", x => x.map(d => d.id));
+    eq(ss, ["kb-mp", "kb-rsts", "kb-sscs"], "filtr stavebních spořitelen");
+    await page.click('#kb-rsts summary');
+    assert(/Hyposplátka skončila/.test(await page.textContent("#kb-rsts")) && /65 %/.test(await page.textContent("#kb-rsts")), "RSTS: konec hypoték a OSVČ");
+    await click(page, '[data-a="kseg"][data-v="cmp"]');
+    const heads = await page.$$eval(".uv-cmp thead th", x => x.map(t => t.textContent.trim()).filter(Boolean));
+    eq(heads, ["ČS", "KB", "ČSOB", "RB", "UCB", "mBank", "Oberbank"], "srovnání hypotečních bank");
+    assert((await page.textContent(".uv-cmp")).includes("mladí až 95 %"), "UniCredit 95 % ve srovnání");
+    await shot(page, "09-srovnani");
+    await click(page, '[data-a="kseg"][data-v="pojmy"]');
+    const n = await page.$$eval(".uv-gl .t", x => x.length);
+    assert(n >= 70, "pojmů: " + n);
+    await page.fill('[data-ui="kq"]', "plomba"); await page.dispatchEvent('[data-ui="kq"]', "input"); await page.waitForTimeout(80);
+    const hits = await page.$$eval(".uv-gl dt", x => x.map(t => t.textContent));
+    assert(hits.includes("Plomba") && hits.includes("Čerpání na plombu") && hits.length < 6, "hledání pojmu: " + hits);
+    await shot(page, "10-pojmy");
+    await click(page, '[data-a="back"]');
+    await click(page, '.uv-card[data-id="x1"]');
+    await click(page, '[data-a="tab"][data-v="banky"]');
+    await click(page, '.uv-bank [data-a="kprof"][data-v="rb"]');
+    await page.waitForSelector("#kb-rb[open]");
+    await click(page, '[data-a="kback"]');
+    await page.waitForSelector('.uv-tabs [data-v="banky"].on');
+    await click(page, '.uv-m [data-a="kpojem"][data-v="DSTI"]');
+    assert((await page.textContent(".uv-gl")).includes("Debt Service to Income"), "vysvětlivka DSTI z ukazatele");
+    await click(page, '[data-a="kback"]');
+    await page.waitForSelector(".uv-mgrid");
+    await click(page, '[data-a="back"]');
+    await click(page, '.uv-bar [data-a="guide"]');
+    await click(page, '.uv-ch [data-a="kpojem"]');
+    await page.waitForSelector(".uv-gl");
+    await click(page, '[data-a="kback"]');
+    assert((await page.textContent(".uv-ch h2")).includes("Průvodce"), "zpět do průvodce");
+    eq(errors, [], "bez chyb");
+    await ctx.close();
+  },
+  async "Banky na mobilu a v tmavém režimu: instituce, srovnání a pojmy bez přetečení stránky"() {
+    for (const dark of [false, true]) {
+      const { ctx, page, errors } = await open({ width: 390, height: 844, dark });
+      const over = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      await click(page, '.uv-bar [data-a="katalog"]');
+      for (const id of ["cs", "ucb", "rsts", "bidli", "trinity"]) await page.click(`#kb-${id} summary`);
+      eq(await over(), 0, "instituce"); await shot(page, `m-${dark ? "dark" : "light"}-katalog`);
+      await click(page, '[data-a="kseg"][data-v="cmp"]'); eq(await over(), 0, "srovnání");
+      await click(page, '[data-a="kseg"][data-v="pojmy"]'); eq(await over(), 0, "pojmy");
+      eq(errors, [], "bez chyb");
+      await ctx.close();
+    }
+  },
   async "UI: konce fixací z karet klientů → založení refinancování"() {
     const { ctx, page, errors } = await open();
     await click(page, '[data-a="fix"]');
@@ -249,12 +312,15 @@ const tests = {
   },
   async "UI: parametry bank – úprava se projeví v doporučení"() {
     const { ctx, page, errors } = await open({ docs: { "uvery/x1": CASE } });
-    await click(page, '[data-a="banks"]');
+    await click(page, '.uv-bar [data-a="katalog"]');
+    await click(page, '.uv-ch [data-a="banks"]');
     await page.click('summary[data-v="kb"]');
     await page.click('[data-b="kb"][data-k="off"][data-v="1"]');
     await page.waitForTimeout(500);
     const cfg = await page.evaluate(() => docs["uvcfg/main"]);
     eq(cfg.banks.kb.off, true, "KB vypnutá");
+    await click(page, '.uv-ch [data-a="katalog"]');
+    assert(/nepoužívám/.test(await page.textContent("#kb-kb summary")), "v profilech je KB označená jako nepoužívaná");
     await click(page, '[data-a="back"]');
     await click(page, '.uv-card[data-id="x1"]');
     await click(page, '[data-a="tab"][data-v="banky"]');
@@ -266,7 +332,7 @@ const tests = {
   async "UI: průvodce, parametry bank, konce fixací a nový případ se vykreslí i na mobilu"() {
     const { ctx, page, errors } = await open({ width: 390, height: 844, docs: { "uvery/x1": CASE } });
     const over = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    for (const v of ["guide", "banks", "fix"]) {
+    for (const v of ["guide", "katalog", "fix"]) {
       await click(page, `.uv-bar [data-a="${v}"], .uv-tile[data-a="${v}"]`); await page.waitForTimeout(60);
       eq(await over(), 0, "bez přetečení: " + v); await shot(page, "m-" + v);
       await click(page, '[data-a="back"]');
