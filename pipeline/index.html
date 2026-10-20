@@ -2042,12 +2042,12 @@ function renderDb(){
   if(dbUI){dbUI.refresh();return}
   if(dbLoading)return;
   const go=()=>{dbLoading=false;if(!window.Databaze){$("dbBox").textContent="Databázi se nepodařilo načíst – zkontroluj připojení.";return}
-    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},addLeads:dbAddLead,
+    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},addLeads:dbAddLead,lostLeads:dbLostLead,
       leadExists:id=>leads.some(x=>x.id===id),openLead:id=>{const l=leads.find(x=>x.id===id);if(l)openEdit(l);else toast("Lead už v pipeline není")},
       findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
         const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=7";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=8";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* Databáze → pipeline: nový lead (fáze Nový lead, zdroj „Databáze“) s telefonem a e-mailem ze smlouvy a PDF v dokumentech; poznámky se nepíšou.
    Stejný člověk už v pipeline → PDF se přidá k němu (poznámky ani zdroj se nemění). */
@@ -2057,6 +2057,19 @@ async function dbAddLead(g){
     await db.doc("leads/"+l.id).update({log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{})})}
   else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,source:"Databáze"});
     await db.doc("leads/"+l.id).update({log:[{d:now,t:"Založeno z Databáze smluv (NN Stela)"+(sm?" · "+sm:"")}],updatedAt:now})}
+  if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
+  return l.id}
+/* Databáze → Lost (tlačítko −): nový lead rovnou ve fázi Lost, nebo existující lead (stejný člověk) přesunout do Lost. Podepsané a sdílené obchody se nepřesouvají. */
+async function dbLostLead(g){
+  const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;const sm=(g.contracts||[]).filter(Boolean).join(", ");
+  if(l){
+    if(SIGNED(l.stage)){toast("Podepsaný obchod nejde do Lost – "+(l.name||""));throw new Error("signed")}
+    if(l.shared){toast("Stav sdíleného obchodu mění jen vlastník – "+(l.name||""));throw new Error("shared")}
+    if(l.stage!=="lost")await moveTo(l,"lost");
+    const log=[...(l.log||[]),{d:now,t:"Přesunuto do Lost z Databáze (NN Stela)"+(sm?" · "+sm:"")}].slice(-100);
+    await db.doc("leads/"+l.id).update({log,updatedAt:now})}
+  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,source:"Databáze"});
+    await db.doc("leads/"+l.id).update({stage:"lost",stageAt:now,log:[{d:now,t:"Založeno z Databáze smluv (NN Stela) rovnou jako Lost"+(sm?" · "+sm:"")}],updatedAt:now})}
   if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
   return l.id}
 /* ===== Vstupní dotazník od klienta: šifrovaná schránka → lead + finanční plán + IOLDP v dokumentech =====

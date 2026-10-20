@@ -227,8 +227,10 @@ const CSS=`
 .dbx th.a{text-align:center;cursor:default}
 .dbx td.c,.dbx th.c{width:40px;text-align:center;padding-left:8px;padding-right:2px;cursor:default}
 .dbx td.c input,.dbx th.c input{width:19px;height:19px;accent-color:var(--orange);cursor:pointer;margin:0;vertical-align:middle}
-.dbx td.a{width:52px;text-align:center;white-space:nowrap}
+.dbx td.a{width:96px;text-align:center;white-space:nowrap}
 .dbx .db-plus{width:34px;height:34px;border-radius:50%;border:0;background:var(--orange);color:#fff;font-size:21px;font-weight:600;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.dbx .db-minus{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--sep);background:var(--bg2,#fff);color:var(--label2);font-size:21px;font-weight:600;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;margin-left:6px}
+.dbx .db-minus:hover{color:var(--red);border-color:var(--red)}
 .dbx .db-plus:hover{filter:brightness(1.08)}
 .dbx .db-in{height:30px;border-radius:999px;border:1px solid var(--green,#F37520);background:none;color:var(--green,#F37520);font:inherit;font-size:12.5px;font-weight:600;padding:0 10px;cursor:pointer;white-space:nowrap}
 .dbx tr.sel td{background:var(--orange-soft,rgba(243,117,32,.10))}
@@ -260,12 +262,13 @@ function mount(root,opts={}){
   const top=h("div",{class:"db-top"});
   const title=h("h3",{});
   const bImp=h("button",{type:"button",class:"db-btn pri",onclick:()=>fileI.click()},"Nahrát PDF ze Stely");
-  const canLead=typeof opts.addLeads==="function";
+  const canLead=typeof opts.addLeads==="function",canLost=typeof opts.lostLeads==="function";
   const sel=new Set();
   const bLead=h("button",{type:"button",class:"db-btn pri",hidden:!canLead,onclick:()=>toPipeline([...sel].map(id=>rows.find(r=>r.id===id)).filter(Boolean))},"＋ Do pipeline");
+  const bLost=h("button",{type:"button",class:"db-btn",hidden:!canLost,onclick:()=>toPipeline([...sel].map(id=>rows.find(r=>r.id===id)).filter(Boolean),true)},"− Do Lost");
   const bCsv=h("button",{type:"button",class:"db-btn",onclick:()=>exportCsv()},"Export CSV");
   const bClr=h("button",{type:"button",class:"db-btn danger",onclick:()=>{if(rows.length&&confirm("Smazat celou databázi ("+rows.length+" smluv) z tohoto zařízení?")){rows=[];sel.clear();pdfStore.clear();persist();msg=null;draw()}}},"Smazat vše");
-  top.append(title,bImp,bLead,bCsv,bClr);
+  top.append(title,bImp,bLead,bLost,bCsv,bClr);
   const search=h("input",{type:"search",class:"db-search",placeholder:"Hledat podle jména…",autocomplete:"off","aria-label":"Hledat v databázi"});
   search.addEventListener("input",()=>{q=search.value;drawTable()});
   const msgBox=h("div",{});
@@ -315,7 +318,7 @@ function mount(root,opts={}){
     title.textContent="Databáze"+(rows.length?" · "+rows.length+(rows.length===1?" smlouva":rows.length<5?" smlouvy":" smluv"):"");
     bCsv.disabled=bClr.disabled=!rows.length;search.hidden=!rows.length;
     [...sel].forEach(id=>{if(!rows.some(r=>r.id===id))sel.delete(id)});
-    bLead.disabled=!sel.size||busy;bLead.textContent=sel.size?"＋ Do pipeline ("+sel.size+")":"＋ Do pipeline";
+    bLead.disabled=!sel.size||busy;bLead.textContent=sel.size?"＋ Do pipeline ("+sel.size+")":"＋ Do pipeline";bLost.disabled=!sel.size||busy;bLost.textContent=sel.size?"− Do Lost ("+sel.size+")":"− Do Lost";
     if(!rows.length){tblBox.replaceChildren(h("div",{class:"db-empty"},"Zatím prázdno.",h("br"),"Nahraj PDF s detailem smlouvy ze Stely (nebo je sem přetáhni) – přečtu z nich jméno, datum narození, pojistné, odkupné a datum technického počátku."));return}
     if(!list.length){tblBox.replaceChildren(h("div",{class:"db-empty"},"Nic nenalezeno."));return}
     const inP=r=>!!(r.leadId&&(!opts.leadExists||opts.leadExists(r.leadId)));
@@ -327,7 +330,8 @@ function mount(root,opts={}){
       cb.addEventListener("change",()=>{cb.checked?sel.add(r.id):sel.delete(r.id);drawTable()});
       const inPipe=r.leadId&&(!opts.leadExists||opts.leadExists(r.leadId));
       const act=!canLead?null:h("td",{class:"a"},inPipe?h("button",{type:"button",class:"db-in",title:"Otevřít lead v pipeline",onclick:()=>opts.openLead&&opts.openLead(r.leadId)},"✓ lead")
-        :h("button",{type:"button",class:"db-plus",title:"Do pipeline jako Nový lead","aria-label":"Do pipeline: "+(r.name||""),onclick:()=>toPipeline([r])},"+"));
+        :h("button",{type:"button",class:"db-plus",title:"Do pipeline jako Nový lead","aria-label":"Do pipeline: "+(r.name||""),onclick:()=>toPipeline([r])},"+"),
+        canLost?h("button",{type:"button",class:"db-minus",title:"Do pipeline do fáze Lost","aria-label":"Do Lost: "+(r.name||""),onclick:()=>toPipeline([r],true)},"−"):null);
       const nm=cell(r,"name");
       return h("tr",{class:sel.has(r.id)?"sel":""},canLead?h("td",{class:"c"},cb):null,COLS.map(([k,,n])=>h("td",{class:n?"num":""},k==="name"?nm:cell(r,k))),act,
       h("td",{class:"x"},h("button",{type:"button",title:"Smazat řádek","aria-label":"Smazat řádek "+(r.name||""),onclick:()=>{if(confirm("Smazat řádek"+(r.name?" „"+r.name+"“":"")+"?")){rows=rows.filter(x=>x!==r);sel.delete(r.id);pdfStore.del(r.id);persist();drawTable()}}},"×")))});
@@ -346,9 +350,10 @@ function mount(root,opts={}){
   function draw(){drawMsg();drawTable()}
 
   /* do pipeline jako „Nový lead“: víc smluv stejného člověka (jméno + datum narození) = jeden lead; PDF jdou do Dokumentů leadu */
-  async function toPipeline(list){
-    if(!canLead||busy)return;list=list.filter(r=>!(r.leadId&&(!opts.leadExists||opts.leadExists(r.leadId))));
+  async function toPipeline(list,lost){
+    if(!canLead||busy)return;if(lost&&!canLost)return;if(!lost)list=list.filter(r=>!(r.leadId&&(!opts.leadExists||opts.leadExists(r.leadId))));
     if(!list.length){toast("Vybrané kontakty už v pipeline jsou");return}
+    const add=lost?opts.lostLeads:opts.addLeads;
     const noName=list.filter(r=>!clean(r.name));if(noName.length){toast("Doplň jméno u "+noName.length+" "+(noName.length===1?"řádku":"řádků")+" (oranžové pole)");return}
     const key=r=>fold(clean(r.name))+"|"+((r.info||{}).narozen||"");
     const G=new Map();list.forEach(r=>{const k=key(r);if(!G.has(k))G.set(k,[]);G.get(k).push(r)});
@@ -357,15 +362,15 @@ function mount(root,opts={}){
       const I=g[0].info||{},files=[];for(const r of g){const b=await pdfStore.get(r.id);if(b)files.push(b instanceof File?b:new File([b],r.pdf||("Smlouva_"+(r.key||r.id)+".pdf"),{type:"application/pdf"}))}
       groups.push({rows:g,name:niceName(g[0].name),phone:I.telefon||"",email:I.email||"",contracts:g.map(r=>(r.info||{}).cislo||r.key||""),files,existing:sib?sib.leadId:(opts.findLead?opts.findLead(clean(g[0].name),I.telefon||""):null)||null})}
     const ex=groups.filter(g=>g.existing).length;
-    if(list.length>1&&!confirm("Založit v pipeline "+(groups.length-ex)+" "+(groups.length-ex===1?"nový lead":groups.length-ex<5?"nové leady":"nových leadů")+(ex?" a "+ex+"× doplnit smlouvu k existujícímu":"")+"? (fáze Nový lead, zdroj Databáze, PDF smluv do dokumentů)"))return;
+    if(list.length>1&&!confirm("Založit v pipeline "+(groups.length-ex)+" "+(groups.length-ex===1?"nový lead":groups.length-ex<5?"nové leady":"nových leadů")+(ex?" a "+ex+"× doplnit smlouvu k existujícímu":"")+"? ("+(lost?"fáze Lost":"fáze Nový lead")+", zdroj Databáze, PDF smluv do dokumentů)"))return;
     busy=true;bLead.disabled=true;bLead.textContent="Zakládám…";
     let ok=0,bad=0,files=0,miss=0;
     try{for(let i=0;i<groups.length;i++){const g=groups[i];
       msgBox.replaceChildren(h("div",{class:"db-prog"},"Do pipeline "+(i+1)+" / "+groups.length+"…"));
-      try{const id=await opts.addLeads(g);if(!id)throw 0;g.rows.forEach(r=>{const cur=rows.find(x=>x.id===r.id)||r;cur.leadId=id;sel.delete(r.id)});ok++;files+=g.files.length;miss+=g.rows.length-g.files.length}catch(e){console.warn(e);bad++}
+      try{const id=await add(g);if(!id)throw 0;g.rows.forEach(r=>{const cur=rows.find(x=>x.id===r.id)||r;cur.leadId=id;sel.delete(r.id)});ok++;files+=g.files.length;miss+=g.rows.length-g.files.length}catch(e){console.warn(e);bad++}
       persist()}}
     finally{busy=false}
-    msg=[{t:"V pipeline: "+ok+" "+(ok===1?"lead":ok<5?"leady":"leadů")+" ve fázi Nový lead"+(files?" · "+files+" PDF v dokumentech":"")+"."}];
+    msg=[{t:"V pipeline: "+ok+" "+(ok===1?"lead":ok<5?"leady":"leadů")+(lost?" ve fázi Lost":" ve fázi Nový lead")+(files?" · "+files+" PDF v dokumentech":"")+"."}];
     if(miss)msg.push({warn:true,t:miss+"× bez PDF – smlouva byla nahraná dřív, než se PDF začala ukládat. Nahraj ji znovu a PDF se doplní."});
     if(bad)msg.push({warn:true,t:"Nepodařilo se založit "+bad+"× – zkus to znovu."});
     draw();
