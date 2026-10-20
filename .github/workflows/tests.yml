@@ -37,6 +37,8 @@ jobs:
         run: node tests/fp.run.mjs
       - name: Testy rezervace (volné termíny, kancelář a kolegové, uvolnění zrušené schůzky)
         run: node tests/booking.run.mjs
+      - name: Testy odkazů poradců (jméno v náhledu – obrázek, odkazy)
+        run: node tests/advimg.run.mjs
       - name: Testy v prohlížeči (celá appka – všechny záložky bez chyb, synchronizace dat)
         run: node tests/run.mjs
         env:

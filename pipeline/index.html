@@ -1364,6 +1364,8 @@ html.locked body{overflow:hidden}
         <button type="button" class="dbtn" id="dTasks" hidden>Povolit zápis úkolů do kalendáře</button>
         <label>Rezervace – živá kontrola kalendáře <input id="dBk" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" inputmode="url"></label>
         <p class="hint">Adresa tvého skriptu (tools/rezervace.gs). S ní stránka rezervace ukazuje jen časy, které jsou v kalendáři opravdu volné, a vybraný termín hned zablokuje – nikdo si nevybere obsazený čas, ani když Pipeline nemáš otevřenou. Zrušenou schůzku v kalendáři skript pozná hned a termín se v rezervaci znovu nabídne. Schůzky kolegů ve společném kalendáři tě neblokují: osobní schůzka kolegy v kanceláři ti nechá jen online, jeho online schůzka nic nemění. Po aktualizaci tools/rezervace.gs ho nasaď znovu (Nasadit → Spravovat nasazení → Nová verze).</p>
+        <label>Jméno v odkazech pro klienty <input id="dAdvName" placeholder="např. Jan Novák" autocomplete="off"></label>
+        <p class="hint" id="dAdvHint"></p>
       </div>
       <div class="dcfg keepas">
         <label>Tapeta<select id="dWp"><option value="auto">Automaticky (podle měsíce)</option><option value="1">Leden – zima</option><option value="2">Únor – zima</option><option value="3">Březen – tání</option><option value="4">Duben – déšť a duha</option><option value="5">Květen – rozkvetlé stromy</option><option value="6">Červen – léto</option><option value="7">Červenec – léto</option><option value="8">Srpen – západ slunce</option><option value="9">Září – javorové listí</option><option value="10">Říjen – podzim</option><option value="11">Listopad – Halloween</option><option value="12">Prosinec – Vánoce</option></select></label>
@@ -2039,9 +2041,35 @@ async function dzLinkInfo(){if(DEMO)return null;const me=dzMe();if(!me)return nu
 /* krátké odkazy na dotazník (/dotaznik/<kód>/) – platí jen, dokud sedí veřejný klíč; jinak se použije dlouhý odkaz */
 const DZ_SHORT=[{"c":"vk","k":"BLuX42kajBu-1zXVvdCDa89b2HToLwbBocLU7UY4cbvINbAiDzDXfmkCOG_GzuvH0tU98sQl72Z1rGj5jS7LSHI"}];
 /* odkaz pro klienta: only=true → jen rezervace termínu (bez dotazníku); krátký odkaz, pokud sedí veřejný klíč */
+/* Jméno poradce v odkazech: vlastní pole v Nastavení („Jméno v odkazech“), jinak první část podpisu. Podle něj se v Pipeline
+   nakreslí náhledový obrázek (advimg.js), nahraje na prostředníka a odkaz /t/<kód>, /d/<kód> pak ukazuje jméno poradce. */
+const advName=()=>String(settings&&(settings.advName||(settings.sign||"").split(",")[0])||"").replace(/\s+/g," ").trim().slice(0,60);
+function advContact(){const sg=(settings&&settings.sign)||"";return {e:(sg.match(/[^\s,;<>]+@[^\s,;<>]+\.[a-z]{2,}/i)||[])[0]||"",t:(sg.match(/(?:\+420\s?)?\d{3}\s?\d{3}\s?\d{3}/)||[])[0]||""}}
+const advBk=()=>/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(settings.bkUrl||"")?settings.bkUrl:"";
+const advSigNow=()=>{const c=advContact();return JSON.stringify([advName(),(settings.dzKey&&settings.dzKey.pub)||"",advBk(),c.e,c.t])};
+let advBusy=false,advTry=0;
+function advLib(){return window.AdvImg?Promise.resolve():new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="advimg.js?v=1";sc.onload=res;sc.onerror=rej;document.head.append(sc)})}
+/* nahraje jméno + náhledové obrázky na prostředníka (jen když se něco změnilo, nebo force); vrací true, když je odkaz aktuální */
+async function advPublish(force){
+  if(DEMO||advBusy||!PUSH_URL||!navigator.onLine||!GAuth.token()||!settings)return false;
+  const nm=advName(),k=settings.dzKey&&settings.dzKey.pub,sg=advSigNow();if(nm.length<2||!k)return false;
+  const ap=settings.advPub;if(!force&&ap&&ap.sig===sg&&ap.url===PUSH_URL)return true;
+  if(!force&&Date.now()-advTry<60000)return false;
+  advBusy=true;advTry=Date.now();
+  try{await advLib();const img=await AdvImg.render(nm),c=advContact();
+    const r=await pushApi("/adv/publish",{body:{p:nm,k,b:advBk(),e:c.e,t:c.t,img}});
+    const v={code:r.code,sig:sg,at:r.at,url:PUSH_URL};settings={...settings,advPub:v};await db.doc("settings/main").update({advPub:v});return true}
+  catch(e){console.warn("advPublish",e);return false}
+  finally{advBusy=false}}
+function advHint(){const h=$("dAdvHint");if(!h)return;const ap=settings.advPub,nm=advName(),cur=ap&&ap.sig===advSigNow()&&ap.url===PUSH_URL;
+  const base="Jméno se ukáže v náhledu odkazu (WhatsApp, iMessage, e-mail) a na stránce pro klienta. Obrázek se vytvoří a nahraje sám po uložení. Prázdné = první část podpisu.";
+  h.textContent=base+" "+(DEMO?"":!nm?"Bez jména se v náhledu ukáže jen ZFP Consulting.":cur?"Hotovo – odkazy pro klienty ukazují „"+nm+"“.":GAuth.token()?"Zveřejňuju…":"Přihlas se Googlem, ať se jméno zveřejní.")}
+/* odkaz pro klienta: only=true → jen rezervace termínu (bez dotazníku); krátký odkaz, pokud sedí veřejný klíč, jinak odkaz s jménem poradce z prostředníka */
 function dzLinkSync(only){const k=settings&&settings.dzKey&&settings.dzKey.pub,me=dzMe();if(DEMO||!k||!me)return "";
   const sh=DZ_SHORT.find(x=>x.k===k);if(sh&&/github\.io$/.test(location.hostname))return location.origin+(only?"/termin/":"/dotaznik/")+sh.c+"/";
-  const h=new URLSearchParams({v:"1",to:me,k});const nm=(settings.sign||"").split(",")[0].trim();if(nm)h.set("p",nm);if(only)h.set("m","r");{const sg=settings.sign||"",em=(sg.match(/[^\s,;<>]+@[^\s,;<>]+\.[a-z]{2,}/i)||[])[0],tl=(sg.match(/(?:\+420\s?)?\d{3}\s?\d{3}\s?\d{3}/)||[])[0];if(em)h.set("e",em);if(tl)h.set("t",tl)}if(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(settings.bkUrl||""))h.set("b",settings.bkUrl);
+  const ap=settings.advPub;if(advName()&&ap&&ap.code&&ap.url===PUSH_URL){if(ap.sig!==advSigNow())setTimeout(()=>advPublish(false),0);return ap.url+(only?"/t/":"/d/")+ap.code}
+  if(advName())setTimeout(()=>advPublish(false),0);
+  const h=new URLSearchParams({v:"1",to:me,k});const nm=advName();if(nm)h.set("p",nm);if(only)h.set("m","r");{const c=advContact();if(c.e)h.set("e",c.e);if(c.t)h.set("t",c.t)}if(advBk())h.set("b",advBk());
   return location.origin+location.pathname.replace(/[^/]*$/,"")+"dotaznik.html#"+h.toString()}
 /* výroční schůzka: odkaz na dotazník předvyplněný z posledního plánu klienta (za #r=… – deflate + base64url, bez serveru).
    Bez Úspor a investic a Pojištění (vedeme u nás); klient jen přepíše, co se změnilo. Údaje jsou v odkazu – posílat jen klientovi. */
@@ -2459,7 +2487,7 @@ async function dzStart(){
     DZI.unsub=F.onSnapshot(F.query(F.collection(fdb,"dzinbox"),F.where("to","==",me)),sn=>dzHandle(sn.docs.map(x=>({id:x.id,...x.data()}))),e=>{console.warn("dotazník – schránka",e&&e.code);DZI.on=false;try{DZI.unsub&&DZI.unsub()}catch(x){}});
   }catch(e){console.warn("dotazník – schránka",e);DZI.on=false}
 }
-setInterval(()=>{if(!DZI.on&&navigator.onLine!==false)dzStart()},60000);setTimeout(dzStart,4000);
+setInterval(()=>{if(!DZI.on&&navigator.onLine!==false)dzStart()},60000);setTimeout(dzStart,4000);setTimeout(()=>advPublish(false),8000);setInterval(()=>advPublish(false),120000);
 /* iniciály na začátku názvu schůzky z kalendáře: „VK: Novák“ → VK, „MB a VK: Novák“ / „MB+VK Novák“ / „VK a MB: Novák“ → VK+MB.
    Bere se jen název, který začíná iniciály a obsahuje tvoje (z prefixu, tedy VK); „Konzultace VK“, porady a cizí události se nepočítají. */
 function meetInitials(title,mine){
@@ -7774,7 +7802,7 @@ async function updateEurRate(){
       const a=document.activeElement;if(a&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))return;e.preventDefault();go(k==="y"||e.shiftKey?1:-1)})}
   const saveCal=async patch=>{try{await db.doc("settings/main").set({...settings,...patch});lsSet("cal_cache",null);lsSet("cal_hist",null);calHist=null;calEvents=null;calState="loading";render();refreshCalendar().then(()=>fetchCalHistory(true))}catch(e){toast("Nepodařilo se uložit")}};
   sb.addEventListener("click",async()=>{
-    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dBk").value=settings.bkUrl||"";$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
+    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dBk").value=settings.bkUrl||"";$("dAdvName").value=settings.advName||"";advHint();$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
     const me=lsGet("g_owner");$("dataInfo").textContent=(me&&!DEMO?"Účet "+me+" · ":"")+($("syncBtn").title||"");
     if(!GAuth.token()){sel.replaceChildren(new Option(c.name,c.id));return}
     try{const cals=await listCalendars();sel.replaceChildren(...cals.map(k=>new Option((k.primary?"★ ":"")+(k.summary||k.id),k.id)));sel.value=cals.some(k=>k.id===c.id)?c.id:(cals.find(k=>k.primary)?.id||"primary")}catch(e){sel.replaceChildren(new Option(c.name,c.id))}
@@ -7782,7 +7810,9 @@ async function updateEurRate(){
   $("dCal").onchange=e=>{const o=e.target.selectedOptions[0];saveCal({calId:o.value,calName:o.textContent.replace(/^★ /,"")})};
   $("dPrefix").onchange=e=>saveCal({calPrefix:e.target.value.trim()});
   $("dBk").onchange=async e=>{const v=e.target.value.trim();if(v&&!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(v)){toast("Adresa musí být …script.google.com/macros/s/…/exec");return}
-    settings={...settings,bkUrl:v};try{await db.doc("settings/main").update({bkUrl:v});toast(v?"Živá kontrola kalendáře zapnutá":"Živá kontrola vypnutá");dzPublishSlots(true)}catch(err){toast("Nepodařilo se uložit")}};
+    settings={...settings,bkUrl:v};try{await db.doc("settings/main").update({bkUrl:v});toast(v?"Živá kontrola kalendáře zapnutá":"Živá kontrola vypnutá");dzPublishSlots(true);advPublish(false).then(advHint)}catch(err){toast("Nepodařilo se uložit")}};
+  $("dAdvName").onchange=async e=>{const v=e.target.value.replace(/\s+/g," ").trim().slice(0,60);settings={...settings,advName:v};
+    try{await db.doc("settings/main").update({advName:v});toast("Uloženo");advHint();advPublish(true).then(advHint)}catch(err){toast("Nepodařilo se uložit")}};
   $("dTasks").onclick=()=>GAuth.login(false);
   {const s=$("dWp");try{s.value=localStorage.getItem("wp_month")||"auto"}catch(e){}s.onchange=()=>{try{localStorage.setItem("wp_month",s.value)}catch(e){}if(window.__wpSet)window.__wpSet(s.value)}}
   const err=lsGet("g_err");if(err){localStorage.removeItem("g_err");if(err!=="interaction_required"&&err!=="login_required"&&err!=="consent_required")toast("Přihlášení se nepovedlo ("+err+")")}

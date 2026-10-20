@@ -52,7 +52,11 @@ globalThis.PushCrypto=api;
    - Další appky (Škola – kudla2002.github.io/skola): zařízení se přihlásí Googlem jednou (/dev/subscribe), dál nahrává
      svůj plán (/dev/plan) bez tokenu – prokazuje se tajemstvím vlastního odběru (auth), které zná jen to zařízení a KV.
      Plán je vázaný na jedno zařízení, takže se appky ani zařízení navzájem nepřepisují.
-   KV klíče: vapid · subs:<e-mail> · rem:<e-mail> · users (seznam e-mailů / dev:<id> s připomínkami) · rl:<e-mail>:<minuta> · rd:<e-mail>:<den>
+   Odkazy poradců s jejich jménem v náhledu: poradce si v Pipeline zadá jméno (Nastavení → Podpis), Pipeline z něj vyrobí náhledové
+   obrázky a nahraje je sem (/adv/publish, ověřeno Google přihlášením – poradce může psát jen pod svůj e-mail). Prostředník pak podává
+   /t/<kód> (rezervace) a /d/<kód> (dotazník): stránku s náhledem (og:image se jménem) a okamžitým přesměrováním na dotazník v Pipeline.
+   KV klíče: adv:<kód> (údaje z odkazu) · advmail:<e-mail> (kód poradce) · advimg:<druh>:<kód> (JPEG v base64) · advrl:<e-mail>:<den>
+             vapid · subs:<e-mail> · rem:<e-mail> · users (seznam e-mailů / dev:<id> s připomínkami) · rl:<e-mail>:<minuta> · rd:<e-mail>:<den>
              dev:<id> (odběr zařízení jiné appky) · rem:dev:<id> · dsd:<id>:<den> (okamžitá odeslání) */
 const PC=globalThis.PushCrypto;
 const ORIGINS=["https://zfpconsulting.github.io"];
@@ -62,6 +66,8 @@ const SUBJECT="https://zfpconsulting.github.io/pipeline/";
 const PING={dz:{t:"Nový vstupní dotazník",b:"Klient odeslal dotazník. Otevři Pipeline – založí se lead a plán."},
   bk:{t:"Nová rezervace schůzky",b:"Klient si vybral termín. Otevři Pipeline – zapíše se do kalendáře."}};
 const MAX_SUBS=10,MAX_REM=400,PING_MIN=4,PING_DAY=60;
+const ADV_BK=/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/,ADV_CODE=/^[a-z0-9-]{3,40}$/,ADV_APP="https://zfpconsulting.github.io/pipeline/dotaznik.html#";
+const esc=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
 const cors=o=>({"Access-Control-Allow-Origin":ALL_ORIGINS.includes(o)?o:ORIGINS[0],"Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Authorization,Content-Type","Access-Control-Max-Age":"86400","Vary":"Origin"});
 const J=(o,x,st=200)=>new Response(JSON.stringify(x),{status:st,headers:{...cors(o),"Content-Type":"application/json","Cache-Control":"no-store"}});
@@ -93,13 +99,67 @@ async function devDrop(env,id){await env.KV.delete("dev:"+id);await env.KV.delet
   const U=(await env.KV.get("users",{type:"json"}))||[];if(U.includes("dev:"+id))await env.KV.put("users",JSON.stringify(U.filter(x=>x!=="dev:"+id)))}
 async function addUser(env,m){const U=(await env.KV.get("users",{type:"json"}))||[];if(!U.includes(m)){U.push(m);await env.KV.put("users",JSON.stringify(U.slice(-500)))}}
 
+/* ---------- odkazy poradců se jménem v náhledu ---------- */
+/* rozměry JPEG ze záhlaví (SOF) – [šířka, výška] nebo null, když to není JPEG */
+function jpegSize(u){if(u.length<4||u[0]!==0xFF||u[1]!==0xD8)return null;let i=2;
+  while(i+9<u.length){if(u[i]!==0xFF){i++;continue}const mk=u[i+1];if(mk===0xFF){i++;continue}
+    if(mk>=0xC0&&mk<=0xCF&&mk!==0xC4&&mk!==0xC8&&mk!==0xCC)return [(u[i+7]<<8)|u[i+8],(u[i+5]<<8)|u[i+6]];
+    if(mk===0xD8||mk===0x01||(mk>=0xD0&&mk<=0xD7)){i+=2;continue}
+    i+=2+((u[i+2]<<8)|u[i+3])}
+  return null}
+const unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function advPublish(o,env,m,b){
+  const day=new Date().toISOString().slice(0,10),rk="advrl:"+m+":"+day,n=+(await env.KV.get(rk)||0);if(n>=30)return J(o,{error:"rate"},429);
+  const p=String(b.p||"").replace(/[\u0000-\u001f<>]/g,"").replace(/\s+/g," ").trim();
+  if(p.length<2||p.length>60||!/\p{L}/u.test(p))return J(o,{error:"name"},400);
+  const k=String(b.k||"");if(!/^[A-Za-z0-9_-]{60,200}$/.test(k))return J(o,{error:"key"},400);
+  const bk=String(b.b||"");if(bk&&!ADV_BK.test(bk))return J(o,{error:"bk"},400);
+  const e=String(b.e||"");if(e&&!okMail(e))return J(o,{error:"mail"},400);
+  const t=String(b.t||"");if(t&&!/^[+\d\s]{6,20}$/.test(t))return J(o,{error:"tel"},400);
+  const img=b.img||{},raw={};
+  for(const kind of ["termin","dotaznik"]){let u;try{u=unb64(String(img[kind]||""))}catch(x){return J(o,{error:"img"},400)}
+    const z=jpegSize(u);if(u.length>150000||!z||z[0]!==1200||z[1]!==630)return J(o,{error:"img"},400);raw[kind]=String(img[kind])}
+  let code=await env.KV.get("advmail:"+m);
+  if(!code){const h=new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(m))),hex=[h[0],h[1]].map(x=>x.toString(16).padStart(2,"0")).join("");
+    const slug=p.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,24).replace(/-+$/,"")||"poradce";
+    code=slug+"-"+hex;await env.KV.put("advmail:"+m,code)}
+  const at=Date.now();
+  await env.KV.put("adv:"+code,JSON.stringify({to:m,k,p,b:bk,e,t,at}));
+  await env.KV.put("advimg:termin:"+code,raw.termin);await env.KV.put("advimg:dotaznik:"+code,raw.dotaznik);
+  await env.KV.put(rk,String(n+1),{expirationTtl:172800});
+  return J(o,{ok:true,code,at})}
+/* stránka s náhledem (jméno poradce v og:image) – člověka hned přesměruje na dotazník / rezervaci v Pipeline; za # předá i případná data (#r=… u výroční schůzky) */
+async function advPage(req,env,p){
+  const [,w,code]=p.split("/"),a=await env.KV.get("adv:"+code,{type:"json"});
+  if(!a)return new Response("Odkaz neexistuje",{status:404,headers:{"Content-Type":"text/plain; charset=utf-8"}});
+  const only=w==="t",kind=only?"termin":"dotaznik",origin=new URL(req.url).origin,url=origin+"/"+w+"/"+code,img=origin+"/i/"+kind+"/"+code+".jpg?v="+a.at;
+  const h=new URLSearchParams({v:"1",to:a.to,k:a.k,p:a.p});if(a.b)h.set("b",a.b);if(a.e)h.set("e",a.e);if(a.t)h.set("t",a.t);if(only)h.set("m","r");
+  const target=ADV_APP+h.toString(),title=(only?"Rezervace konzultace – ":"Vstupní dotazník – ")+a.p,
+    desc=only?"Vyberte si termín konzultace – osobně v Brně (Trnitá 500/9) nebo online. ZFP Consulting":"Podklady k finančnímu plánu – vyplnění zabere asi 15 minut, odpovědi se šifrují. ZFP Consulting";
+  const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><meta name="referrer" content="strict-origin">
+<title>${esc(title)} | ZFP Consulting</title>
+<meta property="og:type" content="website"><meta property="og:site_name" content="ZFP Consulting"><meta property="og:locale" content="cs_CZ"><meta property="og:url" content="${esc(url)}">
+<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}">
+<meta property="og:image" content="${esc(img)}"><meta property="og:image:secure_url" content="${esc(img)}"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="${esc(title)} · ZFP Consulting">
+<meta name="twitter:card" content="summary_large_image"><meta name="description" content="${esc(desc)}">
+<style>body{margin:0;background:#000;color:#f2f2f2;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}a{color:#F37520}</style></head>
+<body><p>Otevírám… <a href="${esc(target)}">Pokračovat</a></p>
+<script>var T=${JSON.stringify(target).replace(/</g,"\\u003c")};location.replace(T+(location.hash.length>1?"&"+location.hash.slice(1):""))</script></body></html>`;
+  return new Response(html,{status:200,headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=300","Referrer-Policy":"strict-origin"}})}
+async function advImage(env,p){
+  const [,,kind,f]=p.split("/"),b64=await env.KV.get("advimg:"+kind+":"+f.slice(0,-4));
+  if(!b64)return new Response("Obrázek neexistuje",{status:404,headers:{"Content-Type":"text/plain; charset=utf-8"}});
+  return new Response(unb64(b64),{status:200,headers:{"Content-Type":"image/jpeg","Cache-Control":"public, max-age=86400"}})}
+
 async function handle(req,env){
   const o=req.headers.get("Origin")||"",u=new URL(req.url),p=u.pathname.replace(/\/+$/,"")||"/";
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(o)});
   if(req.method==="GET"&&p==="/vapid")return J(o,{pub:(await vapid(env)).pub});
   if(req.method==="GET"&&p==="/")return J(o,{ok:true,service:"zfp-push"});
+  if(req.method==="GET"){const q=/^\/(t|d)\/([a-z0-9-]{3,40})$/.test(p),i=/^\/i\/(termin|dotaznik)\/([a-z0-9-]{3,40})\.jpg$/.test(p);
+    if(q)return advPage(req,env,p);if(i)return advImage(env,p)}
   if(req.method!=="POST"&&!(req.method==="GET"&&p==="/subs"))return J(o,{error:"method"},405);
-  let body={};if(req.method==="POST"){const t=await req.text();if(t.length>200000)return J(o,{error:"big"},413);try{body=t?JSON.parse(t):{}}catch(e){return J(o,{error:"json"},400)}}
+  let body={};if(req.method==="POST"){const t=await req.text();if(t.length>(p==="/adv/publish"?700000:200000))return J(o,{error:"big"},413);try{body=t?JSON.parse(t):{}}catch(e){return J(o,{error:"json"},400)}}
   /* ---------- zařízení dalších appek (Škola) ---------- */
   if(p.startsWith("/dev/")){
     if(p==="/dev/subscribe"){const app=DEV_APPS[body.app];if(!app||o!==app.origin)return J(o,{error:"app"},403);
@@ -130,6 +190,7 @@ async function handle(req,env){
     await sendAll(env,m,{...PING[k],u:"./?push="+k,tag:"ping-"+k+"-"+Date.now()},{ttl:86400});
     return J(o,{ok:true})}
   const m=await who(req);if(!m)return J(o,{error:"auth"},401);
+  if(p==="/adv/publish"&&ORIGINS.includes(o))return advPublish(o,env,m,body);
   if(p==="/subscribe"){const s=body.sub||{},k=s.keys||{};
     if(typeof s.endpoint!=="string"||!/^https:\/\//.test(s.endpoint)||s.endpoint.length>1000||typeof k.p256dh!=="string"||typeof k.auth!=="string")return J(o,{error:"sub"},400);
     try{if(PC.unb64u(k.p256dh).length!==65||PC.unb64u(k.auth).length!==16)throw 0}catch(e){return J(o,{error:"sub"},400)}
