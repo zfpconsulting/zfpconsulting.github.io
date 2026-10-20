@@ -80,7 +80,7 @@ const MAP=[
   ["zdroj","—","—","Lead → Zdroj: Databáze"],
   ["telefon","Pojistník","Telefon","Lead → Telefon"],
   ["email","Pojistník","Email / E-mail","Lead → E-mail"],
-  ["narozen","Pojistník","Datum narození","jen v Databázi"],
+  ["narozen","Pojistník","Datum narození","Databáze (tabulka)"],
   ["bydliste","Pojistník","Trvalé bydliště","jen v Databázi"],
   ["adresa","Pojistník","Kontaktní adresa","jen v Databázi"],
   ["produkt","Hlavička","„2010 - ZFP DŮCHOD - číslo“","jen v Databázi"],
@@ -187,7 +187,7 @@ const parseNum=s=>{const t=String(s??"").replace(/[\s  ]/g,"").replace(/Kč/g
 const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 const czDate=s=>{const m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(s||"");return m?m[3]+"."+m[2]+"."+m[1]:""};
 const csvCell=v=>{let s=String(v??"");if(/^[=+\-@\t\r]/.test(s))s="'"+s;return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
-const toCsv=rows=>"﻿"+["Jméno a příjmení;Pojistné;Odkupné;Datum technického počátku"].concat(rows.map(r=>[r.name,r.premium==null?"":String(r.premium).replace(".",","),r.surrender==null?"":String(r.surrender).replace(".",","),czDate(r.start)].map(csvCell).join(";"))).join("\r\n");
+const toCsv=rows=>"﻿"+["Jméno a příjmení;Datum narození;Pojistné;Odkupné;Datum technického počátku"].concat(rows.map(r=>[r.name,czDate(r.narozen),r.premium==null?"":String(r.premium).replace(".",","),r.surrender==null?"":String(r.surrender).replace(".",","),czDate(r.start)].map(csvCell).join(";"))).join("\r\n");
 
 /* ================= vzhled ================= */
 const CSS=`
@@ -204,7 +204,7 @@ const CSS=`
 .dbx .db-prog{font-size:13.5px;line-height:1.45;border-radius:10px;padding:9px 12px;margin:0 0 12px;background:var(--bg,#f2f2f7);color:var(--label2)}
 .dbx .db-msg.warn{background:var(--orange-soft,rgba(243,117,32,.12))}
 .dbx .db-wrap{overflow:auto;border:1px solid var(--sep);border-radius:12px}
-.dbx table{border-collapse:collapse;width:100%;min-width:640px;font-size:14.5px}
+.dbx table{border-collapse:collapse;width:100%;min-width:760px;font-size:14.5px}
 .dbx th{position:sticky;top:0;background:var(--bg,#f2f2f7);text-align:left;font-size:12.5px;font-weight:600;color:var(--label2);padding:10px 10px;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--sep)}
 .dbx th.num,.dbx td.num{text-align:right}
 .dbx th .ar{color:var(--orange);margin-left:4px}
@@ -245,7 +245,7 @@ function mount(root,opts={}){
   if(!document.getElementById("dbxCss")){const s=document.createElement("style");s.id="dbxCss";s.textContent=CSS;document.head.append(s)}
   const toast=opts.toast||(m=>console.log(m));
   const ls=opts.ls||{get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
-  const load=()=>{const L=(ls.get(LS)||[]).filter(r=>r&&typeof r==="object");let ch=false;L.forEach(r=>{const n=niceName(r.name);if(r.name&&n!==r.name){r.name=n;ch=true}});if(ch)ls.set(LS,L);return L};
+  const load=()=>{const L=(ls.get(LS)||[]).filter(r=>r&&typeof r==="object");let ch=false;L.forEach(r=>{if(r.narozen==null){r.narozen=(r.info&&r.info.narozen)||"";if(r.narozen)ch=true}});L.forEach(r=>{const n=niceName(r.name);if(r.name&&n!==r.name){r.name=n;ch=true}});if(ch)ls.set(LS,L);return L};
   let rows=load();
   let q="",sortK="name",sortDir=1,msg=null;
   const persist=()=>{if(ls.set(LS,rows)===false)toast("Nepodařilo se uložit – plné úložiště prohlížeče")};
@@ -276,7 +276,7 @@ function mount(root,opts={}){
     h("p",{class:"db-note"},"Jméno se vždy převede na „Jméno Příjmení“ (bez kapitálek). Hodnota se bere za popiskem až po další popisek na stejném řádku (Stela má dva sloupce vedle sebe). Jméno jen ze sekce Pojistník. Rodné číslo se záměrně nepřebírá. Víc smluv stejného člověka (stejné jméno + datum narození) = jeden lead."));
   box.append(top,search,msgBox,tblBox,note,map);
 
-  const COLS=[["name","Jméno a příjmení",false],["premium","Pojistné",true],["surrender","Odkupné",true],["start","Datum technického počátku",false]];
+  const COLS=[["name","Jméno a příjmení",false],["narozen","Datum narození",false],["premium","Pojistné",true],["surrender","Odkupné",true],["start","Datum technického počátku",false]];
 
   function exportCsv(){
     if(!rows.length)return;
@@ -294,7 +294,7 @@ function mount(root,opts={}){
   function save(r,k,v){r[k]=v;persist()}
 
   function cell(r,k){
-    const inp=h("input",{type:k==="start"?"date":"text",autocomplete:"off","aria-label":COLS.find(c=>c[0]===k)[1]+" – "+(r.name||"řádek")});
+    const inp=h("input",{type:k==="start"||k==="narozen"?"date":"text",autocomplete:"off","aria-label":COLS.find(c=>c[0]===k)[1]+" – "+(r.name||"řádek")});
     const money=k==="premium"||k==="surrender";
     if(money)inp.setAttribute("inputmode","decimal");
     const show=()=>{inp.value=money?kc(r[k]):(r[k]||"");inp.classList.toggle("miss",r[k]==null||r[k]==="");inp.placeholder=r[k]==null||r[k]===""?"doplnit":""};
@@ -302,7 +302,7 @@ function mount(root,opts={}){
     if(money)inp.addEventListener("focus",()=>{inp.value=r[k]==null?"":String(r[k]).replace(".",",");inp.select()});
     inp.addEventListener("change",()=>{
       if(money){const n=parseNum(inp.value);if(Number.isNaN(n)){toast("Zadej částku číslem");show();return}save(r,k,n)}
-      else save(r,k,k==="name"?clean(inp.value):inp.value);
+      else{save(r,k,k==="name"?clean(inp.value):inp.value);if(k==="narozen"){r.info=Object.assign({},r.info||{});if(inp.value)r.info.narozen=inp.value;else delete r.info.narozen;persist()}}
       show();
     });
     inp.addEventListener("blur",show);
@@ -316,7 +316,7 @@ function mount(root,opts={}){
     bCsv.disabled=bClr.disabled=!rows.length;search.hidden=!rows.length;
     [...sel].forEach(id=>{if(!rows.some(r=>r.id===id))sel.delete(id)});
     bLead.disabled=!sel.size||busy;bLead.textContent=sel.size?"＋ Do pipeline ("+sel.size+")":"＋ Do pipeline";
-    if(!rows.length){tblBox.replaceChildren(h("div",{class:"db-empty"},"Zatím prázdno.",h("br"),"Nahraj PDF s detailem smlouvy ze Stely (nebo je sem přetáhni) – přečtu z nich jméno, pojistné, odkupné a datum technického počátku."));return}
+    if(!rows.length){tblBox.replaceChildren(h("div",{class:"db-empty"},"Zatím prázdno.",h("br"),"Nahraj PDF s detailem smlouvy ze Stely (nebo je sem přetáhni) – přečtu z nich jméno, datum narození, pojistné, odkupné a datum technického počátku."));return}
     if(!list.length){tblBox.replaceChildren(h("div",{class:"db-empty"},"Nic nenalezeno."));return}
     const inP=r=>!!(r.leadId&&(!opts.leadExists||opts.leadExists(r.leadId)));
     const vis=list.filter(r=>!inP(r)).map(r=>r.id),allOn=vis.length&&vis.every(id=>sel.has(id));
@@ -336,7 +336,7 @@ function mount(root,opts={}){
     const sum=Math.round(withS.reduce((a,r)=>a+r.surrender,0)*100)/100;
     const foot=h("tfoot",{},h("tr",{class:"db-total"},
       h("td",{},"Celkem"+(f.length?" (vyhledané)":""),no?h("span",{class:"db-sub"}," · "+no+" bez odkupného nezapočteno"):null),
-      h("td",{}),h("td",{class:"num"},kc(sum)),h("td",{}),h("td",{}),canLead?h("td",{}):null));
+      h("td",{}),h("td",{}),h("td",{class:"num"},kc(sum)),h("td",{}),h("td",{}),canLead?h("td",{}):null));
     if(canLead)foot.firstChild.prepend(h("td",{}));
     tblBox.replaceChildren(h("div",{class:"db-wrap"},h("table",{},h("thead",{},head),h("tbody",{},body),foot)));
   }
@@ -370,7 +370,7 @@ function mount(root,opts={}){
     if(bad)msg.push({warn:true,t:"Nepodařilo se založit "+bad+"× – zkus to znovu."});
     draw();
   }
-  const LBL={name:"jméno",premium:"pojistné",surrender:"odkupné",start:"datum technického počátku"};
+  const LBL={name:"jméno",narozen:"datum narození",premium:"pojistné",surrender:"odkupné",start:"datum technického počátku"};
   let busy=false;
   const cap=(arr,n)=>arr.length>n?[...arr.slice(0,n),"… a dalších "+(arr.length-n)]:arr;
   async function importFiles(files){
@@ -389,8 +389,8 @@ function mount(root,opts={}){
         try{res=parseStelaFull(await pdfText(f))}catch(e){bad.push(f.name);continue}
         if(!res.ok){bad.push(f.name);continue}
         const r=res.rec,ex=r.key&&rows.find(x=>x.key===r.key);let row;
-        if(ex){for(const k of["name","premium","surrender","start","asOf"])if(r[k]!=null&&r[k]!=="")ex[k]=r[k];ex.info=Object.assign({},ex.info||{},res.info);row=ex;updated++}
-        else{row={id:uid(),key:r.key,name:r.name,premium:r.premium,surrender:r.surrender,start:r.start,asOf:r.asOf,info:res.info,added:Date.now()};rows.push(row);added++}
+        if(ex){for(const k of["name","premium","surrender","start","asOf"])if(r[k]!=null&&r[k]!=="")ex[k]=r[k];ex.info=Object.assign({},ex.info||{},res.info);if(res.info.narozen)ex.narozen=res.info.narozen;else if(ex.narozen==null)ex.narozen="";row=ex;updated++}
+        else{row={id:uid(),key:r.key,name:r.name,premium:r.premium,surrender:r.surrender,start:r.start,narozen:res.info.narozen||"",asOf:r.asOf,info:res.info,added:Date.now()};rows.push(row);added++}
         row.pdf=f.name;await pdfStore.put(row.id,f);
         if(res.missing.length)miss.push({name:f.name,fields:res.missing});
         if(i%20===19){persist();drawTable()}             /* průběžně uložit i ukázat, ať se nic neztratí */

@@ -2047,7 +2047,7 @@ function renderDb(){
       findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
         const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=6";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=7";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* Databáze → pipeline: nový lead (fáze Nový lead, zdroj „Databáze“) s telefonem a e-mailem ze smlouvy a PDF v dokumentech; poznámky se nepíšou.
    Stejný člověk už v pipeline → PDF se přidá k němu (poznámky ani zdroj se nemění). */

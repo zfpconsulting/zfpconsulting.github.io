@@ -11,14 +11,14 @@ const base = url.replace(/index\.html$/, "");
 /* ---------- fiktivní PDF ve tvaru „Detail smlouvy“ ze Stely ---------- */
 const row = (l1, v1, l2, v2) => `<tr><td class="l">${l1}</td><td class="v">${v1 ?? ""}</td><td class="l">${l2}</td><td class="v">${v2 ?? ""}</td></tr>`;
 function stelaHtml(o) {
-  const d = { name: "Jana Nováková", name2: "Petr Novák", premium: "500 Kč", freq: "měsíčně", start: "20.01.2009", surrender: "123456,78 Kč", key: "9900000001", asOf: "14.10.2026", ...o };
+  const d = { name: "Jana Nováková", name2: "Petr Novák", premium: "500 Kč", freq: "měsíčně", start: "20.01.2009", surrender: "123456,78 Kč", key: "9900000001", asOf: "14.10.2026", birth: "", ...o };
   return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><style>
     body{font:11px Arial,sans-serif;margin:24px}table{width:100%;border-collapse:collapse;margin-bottom:8px}td{border:1px solid #ccc;padding:5px 6px;vertical-align:top}
     td.l{width:22%}td.v{width:28%}h4{margin:10px 0 4px}</style></head><body>
     <div>14.10.26 12:12 NN Stela 2.0</div><h3>Detail smlouvy</h3><b>2010 - ZFP DŮCHOD - ${d.key}</b>
     <h4>Pojistník</h4><table>
     ${row("Jméno a příjmení", d.name, "Trvalé bydliště", "Fiktivní 1, Brno")}
-    ${row("Datum narození", "", "Kontaktní adresa", "")}
+    ${row("Datum narození", d.birth, "Kontaktní adresa", "")}
     ${row("Telefon", "", "Email", "")}</table>
     <h4>Údaje o pojištění</h4><table>
     ${row("Pojistné", d.premium, "Datum sepsání smlouvy", "01.12.2008")}
@@ -113,8 +113,8 @@ const tests = {
   async "import PDF: čtyři sloupce se naplní z reálně vygenerovaného PDF"() {
     const { ctx, page, errors } = await open();
     await upload(page, [file("detail.pdf", await stelaPdf())]);
-    eq(await table(page), [["Jana Nováková", "500 Kč", "123 456,78 Kč", "2009-01-20"]], "řádek");
-    eq((await page.$$eval("th", ths => ths.map(t => t.textContent.replace(/[▲▼]/g, "").trim()))).slice(0, 4), ["Jméno a příjmení", "Pojistné", "Odkupné", "Datum technického počátku"], "hlavičky");
+    eq(await table(page), [["Jana Nováková", "", "500 Kč", "123 456,78 Kč", "2009-01-20"]], "řádek");
+    eq((await page.$$eval("th", ths => ths.map(t => t.textContent.replace(/[▲▼]/g, "").trim()))).slice(0, 5), ["Jméno a příjmení", "Datum narození", "Pojistné", "Odkupné", "Datum technického počátku"], "hlavičky");
     const st = await stored(page);
     eq([st.length, st[0].key, st[0].asOf], [1, "9900000001", "2026-10-14"], "uložený záznam");
     assert(!errors.length, "chyby: " + errors.join(" | "));
@@ -123,7 +123,7 @@ const tests = {
   async "import PDF: prázdné jméno a datum → oranžová pole, ruční doplnění se při dalším nahrání nepřepíše"() {
     const { ctx, page } = await open();
     await upload(page, [file("a.pdf", await stelaPdf({ name: "", start: "" }))]);
-    eq(await table(page), [["", "500 Kč", "123 456,78 Kč", ""]], "řádek");
+    eq(await table(page), [["", "", "500 Kč", "123 456,78 Kč", ""]], "řádek");
     eq(await page.$$eval("input.miss", i => i.length), 2, "počet oranžových polí");
     assert((await page.textContent(".dbx")).includes("chybí jméno, datum technického počátku"), "hláška o chybějících polích");
     /* ruční doplnění */
@@ -133,7 +133,7 @@ const tests = {
     await page.evaluate(() => { document.querySelector(".db-msg")?.remove(); });
     await page.setInputFiles('input[type="file"]', [file("b.pdf", await stelaPdf({ name: "", start: "", surrender: "160000,10 Kč" }))]);
     await page.waitForFunction(() => /aktualizovan/.test(document.querySelector(".dbx").textContent));
-    eq(await table(page), [["Ručně Doplněný", "500 Kč", "160 000,1 Kč", ""]], "po aktualizaci");
+    eq(await table(page), [["Ručně Doplněný", "", "500 Kč", "160 000,1 Kč", ""]], "po aktualizaci");
     eq((await stored(page)).length, 1, "pořád jeden řádek");
     await ctx.close();
   },
@@ -145,7 +145,7 @@ const tests = {
       file("2.pdf", await stelaPdf({ key: "9900000012", name: "Alena Dvořáková", premium: "800 Kč", surrender: "9 999 Kč", start: "20.07.2012" })),
       file("3.pdf", junk)
     ]);
-    eq(await table(page), [["Alena Dvořáková", "800 Kč", "9 999 Kč", "2012-07-20"], ["Zdeněk Čermák", "1 250 Kč", "45 678,9 Kč", "2015-03-01"]], "seřazeno podle jména (česky)");
+    eq(await table(page), [["Alena Dvořáková", "", "800 Kč", "9 999 Kč", "2012-07-20"], ["Zdeněk Čermák", "", "1 250 Kč", "45 678,9 Kč", "2015-03-01"]], "seřazeno podle jména (česky)");
     eq(await foot(page), "Celkem55 677,9 Kč", "součet odkupného (45 678,9 + 9 999)");
     const t = await page.textContent(".dbx");
     assert(/Načteno 2 z 3 PDF/.test(t) && t.includes("Nerozpoznáno 1×") && t.includes("3.pdf"), "hlášky: " + t.slice(0, 300));
@@ -158,7 +158,7 @@ const tests = {
       file("2.pdf", await stelaPdf({ key: "9900000022", name: "Alena Dvořáková", premium: "800 Kč", surrender: "9 999 Kč", start: "20.07.2012" }))
     ]);
     /* úprava odkupného: při zaměření se ukáže surové číslo, po změně znovu formátované */
-    const cell = page.locator("tbody tr").nth(1).locator("input").nth(2);
+    const cell = page.locator("tbody tr").nth(1).locator("input").nth(3);
     await cell.focus(); eq(await cell.inputValue(), "45678,9", "surová hodnota při zaměření");
     await cell.fill("50 000,5"); await cell.press("Tab");
     eq((await stored(page)).find(r => r.key === "9900000021").surrender, 50000.5, "uloženo");
@@ -244,13 +244,23 @@ const tests = {
     eq(p, "Zdeněk Čermák", "ze Stely");
     await ctx.close();
   },
+  async "datum narození se načte z PDF a jde ručně upravit"() {
+    const { ctx, page } = await open();
+    await upload(page, [file("n.pdf", await stelaPdf({ birth: "15.05.1985" }))]);
+    eq((await table(page))[0][1], "1985-05-15", "z PDF");
+    const c = page.locator("tbody tr").first().locator("input").nth(1);
+    await c.fill("1990-01-02"); await c.press("Tab");
+    const st = await stored(page);
+    eq([st[0].narozen, st[0].info.narozen], ["1990-01-02", "1990-01-02"], "uloženo");
+    await ctx.close();
+  },
   async "CSV export: BOM, středník, desetinná čárka a ochrana před vzorcem"() {
     const { ctx, page } = await open();
     const csv = await page.evaluate(() => Databaze.math.toCsv([
-      { name: "Čermák; Zdeněk", premium: 1250, surrender: 45678.9, start: "2015-03-01" },
+      { name: "Čermák; Zdeněk", narozen: "1980-02-29", premium: 1250, surrender: 45678.9, start: "2015-03-01" },
       { name: "=SUM(A1)", premium: null, surrender: 9999, start: "" }
     ]));
-    eq(csv, "﻿Jméno a příjmení;Pojistné;Odkupné;Datum technického počátku\r\n\"Čermák; Zdeněk\";1250;45678,9;01.03.2015\r\n'=SUM(A1);;9999;", "csv");
+    eq(csv, "﻿Jméno a příjmení;Datum narození;Pojistné;Odkupné;Datum technického počátku\r\n\"Čermák; Zdeněk\";29.02.1980;1250;45678,9;01.03.2015\r\n'=SUM(A1);;;9999;", "csv");
     await ctx.close();
   },
   async "UI: mobil a tmavý režim bez chyb a bez vodorovného přetečení stránky"() {
