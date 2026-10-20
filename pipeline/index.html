@@ -1542,8 +1542,16 @@ const LStore=(()=>{
   let s=lsGet("crm_store_v1");
   if(!s||typeof s!=="object"||!s.docs)s={docs:{}};
   const subs=new Set();
-  const save=()=>{if(!lsSet("crm_store_v1",s))console.warn("Uložení do zařízení selhalo")};
-  const emit=()=>subs.forEach(f=>{try{f()}catch(e){console.error(e)}});
+  /* zápis celého úložiště (~800 kB) do localStorage trvá 30–80 ms – při dávce změn se dělá jednou (po 400 ms klidu) a okamžitě při zavření/skrytí stránky */
+  let saveT=null;
+  const flushSave=()=>{if(saveT==null)return;clearTimeout(saveT);saveT=null;if(!lsSet("crm_store_v1",s))console.warn("Uložení do zařízení selhalo")};
+  const save=()=>{if(saveT==null)saveT=setTimeout(flushSave,400)};
+  addEventListener("pagehide",flushSave);addEventListener("beforeunload",flushSave);document.addEventListener("visibilitychange",()=>{if(document.hidden)flushSave()});
+  /* odběratelé se zavolají jednou za dávku změn a jen pro kolekce, které se změnily (dřív každý zápis překreslil appku pro všechny kolekce) */
+  let dirty=new Set(),dirtyAll=false,emitQ=false;
+  const emit=col=>{if(col==null)dirtyAll=true;else dirty.add(col);if(emitQ)return;emitQ=true;
+    queueMicrotask(()=>{emitQ=false;const all=dirtyAll,d=dirty;dirtyAll=false;dirty=new Set();
+      [...subs].forEach(o=>{if(all||d.has(o.col))try{o.f()}catch(e){console.error(e)}})})};
   const clean=v=>{const o={...v};delete o._u;delete o._f;return o};
   const plain=d=>JSON.parse(JSON.stringify(d));
   /* krok zpět / vpřed: zapisují se jen změny, které udělal uživatel (do 3 s po kliknutí nebo psaní),
@@ -1555,7 +1563,7 @@ const LStore=(()=>{
     if(g&&g.act===lastAct){const o=g.ops.find(x=>x.path===path);if(o)o.after=after;else g.ops.push({path,before,after});g.t=now}
     else{undoSt.push({t:now,act:lastAct,ops:[{path,before,after}]});if(undoSt.length>60)undoSt.shift()}
     redoSt=[];hemit()};
-  const put=(path,val)=>{const old=s.docs[path];if(!val._del)val._f=stampDoc(old,val,val._u);record(path,dclone(old),dclone(val));s.docs[path]=val;save();emit();GSync.soon()};
+  const put=(path,val)=>{const old=s.docs[path];if(!val._del)val._f=stampDoc(old,val,val._u);record(path,dclone(old),dclone(val));s.docs[path]=val;save();emit(path.split("/")[0]);GSync.soon()};
   const apply=(g,dir)=>{replaying=true;try{(dir==="undo"?[...g.ops].reverse():g.ops).forEach(o=>{const tgt=dir==="undo"?o.before:o.after;
       put(o.path,!tgt||tgt._del?{_del:true,_u:Date.now()}:{...clean(tgt),_u:Date.now()})})}finally{replaying=false}};
   const label=g=>{const o=g.ops[0],d=(o.after&&!o.after._del?o.after:o.before)||{},col=o.path.split("/")[0],
@@ -1565,11 +1573,11 @@ const LStore=(()=>{
   const inCol=(name)=>Object.entries(s.docs).filter(([k,v])=>k.startsWith(name+"/")&&k.indexOf("/",name.length+1)<0&&!v._del);
   const api={
     collection(name){return{
-      onSnapshot(cb){const f=()=>cb({docs:inCol(name).map(([k,v])=>({id:k.slice(name.length+1),data:()=>clean(v)}))});subs.add(f);queueMicrotask(f);return()=>subs.delete(f)},
+      onSnapshot(cb){const f=()=>cb({docs:inCol(name).map(([k,v])=>({id:k.slice(name.length+1),data:()=>clean(v)}))}),o={f,col:name};subs.add(o);queueMicrotask(f);return()=>subs.delete(o)},
       async add(data){const id=newId();put(name+"/"+id,{...plain(data),_u:Date.now()});return{id}}
     }},
     doc(path){return{
-      onSnapshot(cb){const f=()=>{const v=s.docs[path],ok=!!v&&!v._del;cb({id:path.split("/").pop(),exists:ok,data:()=>ok?clean(v):undefined})};subs.add(f);queueMicrotask(f);return()=>subs.delete(f)},
+      onSnapshot(cb){const f=()=>{const v=s.docs[path],ok=!!v&&!v._del;cb({id:path.split("/").pop(),exists:ok,data:()=>ok?clean(v):undefined})},o={f,col:path.split("/")[0]};subs.add(o);queueMicrotask(f);return()=>subs.delete(o)},
       async set(data){put(path,{...plain(data),_u:Date.now()})},
       async update(patch){const cur=s.docs[path];if(!cur||cur._del)throw new Error("Záznam neexistuje");put(path,{...clean(cur),...plain(patch),_u:Date.now()})},
       async delete(){put(path,{_del:true,_u:Date.now()})}
@@ -1582,7 +1590,8 @@ const LStore=(()=>{
     canUndo:()=>undoSt.length>0, canRedo:()=>redoSt.length>0, onHist(f){hsubs.add(f)},
     peek:()=>({u:undoSt.length?label(undoSt[undoSt.length-1]):"",r:redoSt.length?label(redoSt[redoSt.length-1]):""}),
     docs:()=>s.docs,
-    replace(docs){s.docs=docs;save();emit()},
+    replace(docs){s.docs=docs;save();flushSave();emit()},
+    flush:flushSave,
     count:()=>Object.values(s.docs).filter(v=>!v._del).length
   };
 })();
@@ -3594,13 +3603,25 @@ function sameName(a,b){const A=nameToks(a),B=nameToks(b);if(!A.length||!B.length
 const LINK_F=["phone","email","note"];
 function linkNameHits(name,arr,nameOf){const h=arr.filter(x=>sameName(nameOf(x),name));if(h.length<2)return h;
   const full=h.filter(x=>nameToks(nameOf(x)).length>1&&nameToks(name).length>1);return nameToks(name).length>1?full:[]}
-function leadsOfClient(c){if(!c)return [];const out=new Map();
+/* mezipaměť platí, dokud se nezmění pole leads/clients (každý snapshot je vytvoří znovu); výsledek se kopíruje, ať ho volající může řadit */
+let _lcL=null,_lcC=null,_lcM=new Map();
+function leadsOfClient(c){if(!c)return [];
+  if(_lcL!==leads||_lcC!==clients){_lcL=leads;_lcC=clients;_lcM=new Map()}
+  const k=c.id+"|"+(c.leadId||"")+"|"+(c.hidden?1:0)+"|"+(c.name||"");let r=_lcM.get(k);
+  if(!r){r=leadsOfClientRaw(c);_lcM.set(k,r)}return r.slice()}
+function leadsOfClientRaw(c){if(!c)return [];const out=new Map();
   leads.forEach(l=>{if(l.id===c.leadId||l.clientId===c.id)out.set(l.id,l)});
   const others=clients.filter(x=>x.id!==c.id&&!x.hidden);
   linkNameHits(c.name,leads.filter(l=>!l.clientId||l.clientId===c.id),l=>l.name).forEach(l=>{
     if(!others.some(o=>o.leadId===l.id||l.clientId===o.id)&&linkNameHits(l.name,[c,...others],x=>x.name).length===1)out.set(l.id,l)});
   return [...out.values()].sort((a,b)=>(SIGNED(b.stage)-SIGNED(a.stage))||String(b.updatedAt||b.createdAt||"").localeCompare(String(a.updatedAt||a.createdAt||"")))}
-function clientOfLead(l){if(!l)return null;return clients.find(c=>c.id===l.clientId)||clients.find(c=>c.leadId===l.id)||clients.find(c=>!c.hidden&&leadsOfClient(c).some(x=>x.id===l.id))||null}
+/* výsledek se pamatuje, dokud se nezmění pole leads/clients (každý snapshot je vytvoří znovu) – dřív se pro každou kartu procházeli všichni klienti i jejich leady (~14 ms na kartu) */
+let _colL=null,_colC=null,_colM=new Map();
+function clientOfLead(l){if(!l)return null;
+  if(_colL!==leads||_colC!==clients){_colL=leads;_colC=clients;_colM=new Map()}
+  const k=l.id+"|"+(l.clientId||"");if(_colM.has(k))return _colM.get(k);
+  const r=clients.find(c=>c.id===l.clientId)||clients.find(c=>c.leadId===l.id)||clients.find(c=>!c.hidden&&leadsOfClient(c).some(x=>x.id===l.id))||null;
+  _colM.set(k,r);return r}
 /* uložení klienta → stejné údaje do jeho leadů */
 async function linkPushToLeads(c,patch){const p={};LINK_F.forEach(k=>{if(k in patch)p[k]=patch[k]});if(!Object.keys(p).length)return;
   for(const l of leadsOfClient(c)){const d={};Object.keys(p).forEach(k=>{if((l[k]||"")!==(p[k]||""))d[k]=p[k]});if(!l.clientId)d.clientId=c.id;
@@ -7576,7 +7597,7 @@ function demoSwitch(on,regen){
   const wipe=pre=>Object.keys(localStorage).filter(k=>k.startsWith(pre)).forEach(k=>localStorage.removeItem(k));
   try{
     if(on==="clean"){if(regen)wipe("clean:");localStorage.setItem("demo_mode","clean")}
-    else if(on){if(regen||!localStorage.getItem("demo:crm_store_v1")){const real=DEMO?JSON.parse(localStorage.getItem("crm_store_v1")||"{}").docs:LStore.docs();
+    else if(on){if(regen||!localStorage.getItem("demo:crm_store_v1")){LStore.flush();const real=DEMO?JSON.parse(localStorage.getItem("crm_store_v1")||"{}").docs:LStore.docs();
         wipe("demo:");
         localStorage.setItem("demo:crm_store_v1",JSON.stringify({docs:demoBuild(real)}))}
       localStorage.setItem("demo_mode","1")}
