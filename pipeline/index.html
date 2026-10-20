@@ -1731,11 +1731,12 @@ const GSync=(()=>{
       if(!remote&&id){id=await findFile()}
       const rdocs=remote?.docs||{};
       const merged=mergeDocs(rdocs,LStore.docs());
-      if(!remote||JSON.stringify(merged)!==JSON.stringify(rdocs))
+      const mergedS=JSON.stringify(merged);   /* každý JSON.stringify celého úložiště stojí desítky ms – počítá se jednou */
+      if(!remote||mergedS!==JSON.stringify(rdocs))
         await upload(id,{app:"vojtova-pipeline",v:1,updatedAt:new Date().toISOString(),docs:merged});
-      const now=mergeDocs(merged,LStore.docs());
-      if(JSON.stringify(now)!==JSON.stringify(LStore.docs()))LStore.replace(now);
-      if(JSON.stringify(now)!==JSON.stringify(merged))again=true;
+      const now=mergeDocs(merged,LStore.docs()), nowS=JSON.stringify(now);
+      if(nowS!==JSON.stringify(LStore.docs()))LStore.replace(now);
+      if(nowS!==mergedS)again=true;
       last=Date.now();lsSet("g_synced",last);status("ok");try{window.Docs&&Docs.sync()}catch(e){}setTimeout(()=>{try{weeklyDriveBackup()}catch(e){}},3000);
     }catch(e){console.warn(e);status(e.code===401?"expired":"error",e.message)}
     finally{busy=false;if(again){again=false;soon()}}
