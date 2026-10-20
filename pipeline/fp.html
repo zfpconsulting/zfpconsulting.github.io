@@ -772,22 +772,31 @@ function compute0(inp, today, ext) {
   // ---------- majetek
   const maj = (inp.majetek || []).filter(a => n0(a.hodnota) > 0 || n0(a.vklad) > 0).map((a, i) => Object.assign({ id: i }, a, { typ: a.typ === DPS_OLD ? DPS : a.typ, hodnota: n0(a.hodnota), vklad: n0(a.vklad) }));
   const majCelkem = maj.reduce((s, a) => s + a.hodnota, 0);
+  /* ponechání produktu: nech = "" (dle plánu) | "vse" (nechat být) | "cast" (nechat částku nech_kc); keep = kolik Kč na produktu zůstává (účty, fondy/ETF/SS; PP jen celé) */
+  maj.forEach(a => { const m = a.nech; a.keep = CASH.includes(a.typ) || MOVE.includes(a.typ) ? (m === "vse" ? a.hodnota : m === "cast" ? Math.min(a.hodnota, Math.max(0, n0(a.nech_kc))) : 0) : a.typ === PP && m === "vse" ? a.hodnota : 0; });
   const cashAccts = maj.filter(a => CASH.includes(a.typ));
   const cash = cashAccts.reduce((s, a) => s + a.hodnota, 0);
   const moved = maj.filter(a => MOVE.includes(a.typ));
-  const movedTot = moved.reduce((s, a) => s + a.hodnota, 0);
-  const dps = maj.filter(a => a.typ === DPS || a.typ === PP);
-  const ppList = maj.filter(a => a.typ === PP);
-  const other = maj.filter(a => !CASH.includes(a.typ) && !MOVE.includes(a.typ) && a.typ !== DPS && a.typ !== PP);
+  const movedTot = moved.reduce((s, a) => s + a.hodnota - a.keep, 0);
+  const cashKeep = cashAccts.reduce((s, a) => s + a.keep, 0);
+  const keptNonCash = moved.reduce((s, a) => s + a.keep, 0) + maj.filter(a => a.typ === PP).reduce((s, a) => s + a.keep, 0);
+  const dps = maj.filter(a => a.typ === DPS || (a.typ === PP && !a.keep));
+  const ppList = maj.filter(a => a.typ === PP && !a.keep);
+  const other = maj.filter(a => !CASH.includes(a.typ) && !MOVE.includes(a.typ) && a.typ !== DPS && !(a.typ === PP && !a.keep)).map(a => a.typ === PP ? Object.assign({}, a, { trida: "dluhopisy" }) : a);
   const otherTot = other.reduce((s, a) => s + a.hodnota, 0);
   const dpsVal = dps.reduce((s, a) => s + a.hodnota, 0), dpsMes = dps.reduce((s, a) => s + a.vklad, 0), dpsOdpocet = dps.reduce((s, a) => s + n0(a.odpocet), 0);
   /* státní příspěvek (DPS i PP): 20 % z vlastního příspěvku od 500 Kč, počítá se nejvýš z 1 700 Kč měsíčně (max. 340 Kč) – připisuje se ke každé smlouvě */
   const dpsPrisp = dps.reduce((s, a) => s + dpsStatni(a.vklad), 0), dpsMesFv = dpsMes + dpsPrisp;
   if (dps.some(a => a.vklad > 0 && a.vklad < 500)) flags.push("DPS: vlastní příspěvek pod 500 Kč měsíčně nemá nárok na státní příspěvek – zvaž navýšení na 500 Kč.");
   const rezVklad = Math.min(cash, rezCil), rezChybi = rezCil - rezVklad;
-  let volne = cash - rezVklad + movedTot;
+  /* na účtech zůstane aspoň rezerva, a když klient chce nechat víc, tak ta částka */
+  const cashStay = Math.min(cash, Math.max(rezVklad, cashKeep));
+  let volne = cash - cashStay + movedTot;
+  { const kp = maj.filter(a => a.keep > 0.5); if (kp.length) flags.push("Ponecháno na přání klienta: " + kp.map(a => (a.nazev || a.typ) + (a.keep >= a.hodnota - 0.5 ? " (celé)" : " (" + Math.round(a.keep) + " Kč)")).join(", ") + ". Zbytek jde do plánu."); }
+  if (maj.some(a => a.keep > 0.5 && a.vklad > 0 && !CASH.includes(a.typ))) flags.push("U ponechaných produktů se měsíční vklad v plánu nepočítá — platby jdou z volného cash flow plánu.");
   if (rezChybi > 0) flags.push(`Rezerva: chybí ${rezChybi} Kč — doplnit z cash flow přednostně.`);
-  if (moved.some(a => a.typ === "Stavební spoření")) flags.push("Stavební spoření vypovídáme a peníze jdou do plánu.");
+  if (moved.some(a => a.typ === "Stavební spoření" && a.keep < a.hodnota)) flags.push("Stavební spoření vypovídáme a peníze jdou do plánu.");
+  if (moved.some(a => a.typ === "Stavební spoření" && a.keep > 0.5 && a.keep < a.hodnota - 0.5)) flags.push("Stavební spoření nejde vypovědět jen částečně — ověř, zda se částka nechat dá.");
   // nefinanční majetek a úvěry
   const nefin = (inp.nefin || []).filter(a => n0(a.hodnota) > 0).map(a => ({ nazev: a.nazev || a.typ || "Majetek", typ: a.typ || "Jiné", hodnota: n0(a.hodnota) }));
   const nefinCelkem = nefin.reduce((s, a) => s + a.hodnota, 0);
@@ -937,13 +946,13 @@ function compute0(inp, today, ext) {
     Object.entries(mixFrom(1)).forEach(([k, w]) => add(k, needD * w, 0));
     Object.entries(mixFrom(0)).forEach(([k, w]) => add(k, needA * w, (pmtCelkem - dip) * w));
     if (dip > 0.5) { const p = prod(dipKey); pozice.push({ k: dipKey, nazev: p.n + (/DIP/.test(p.n) ? "" : " (DIP)"), jednor: 0, mesicne: Math.round(dip), s: p.s, dip: true }); }
-    const over = pozice.reduce((a, p) => a + p.jednor, 0) - (Math.max(0, cash - rezVklad) + movedTot);
+    const over = pozice.reduce((a, p) => a + p.jednor, 0) - (Math.max(0, cash - cashStay) + movedTot);
     if (over > 0) { const big = pozice.reduce((a, b) => b.jednor > a.jednor ? b : a); big.jednor -= Math.ceil(over / 1000) * 1000; }
   }
   // ---------- kontrola realokace (našeptávač)
   const inv = [0, 0, 0]; let mesRozd = 0, dipRozd = 0;
   pozice.forEach(p => { for (let i = 0; i < 3; i++) inv[i] += p.jednor * p.s[i] / 100; mesRozd += p.mesicne; if (p.dip) dipRozd += p.mesicne; });
-  const zdroje = Math.max(0, cash - rezVklad) + movedTot;
+  const zdroje = Math.max(0, cash - cashStay) + movedTot;
   const jednorRozd = inv[0] + inv[1] + inv[2];
   const kontrola = [];
   const kc = v => Math.round(v).toLocaleString("cs-CZ").replace(/\s/g, " ") + " Kč";
@@ -957,10 +966,10 @@ function compute0(inp, today, ext) {
   else if (renta && dipRozd < Math.min(renta.prostor, pmtCelkem) - 1) kontrola.push({ ok: false, t: `DIP: využij daňový odpočet — dej do DIP ${kc(Math.min(renta.prostor, pmtCelkem))}/měs (teď ${kc(dipRozd)})` });
   if (manual) kontrola.filter(x => !x.ok).forEach(x => flags.push("Realokace: " + x.t));
   // ---------- transakce: zdroje → nové pozice (nejdřív fondy/SS, pak účty; běžný účet až nakonec)
-  const srcs = moved.map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota, uvol: a.hodnota }))
-    .concat(cashAccts.slice().sort((x, y) => (x.typ === "Běžný účet") - (y.typ === "Běžný účet") || y.hodnota - x.hodnota).map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota, uvol: 0, cash: true })));
-  let zUctu = Math.min(Math.max(0, cash - rezVklad), Math.max(0, jednorRozd - movedTot));
-  srcs.filter(s => s.cash).forEach(s => { const u = Math.min(s.puv, zUctu); s.uvol = u; zUctu -= u; });
+  const srcs = moved.map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota - a.keep, uvol: a.hodnota - a.keep, keep: a.keep }))
+    .concat(cashAccts.slice().sort((x, y) => (x.typ === "Běžný účet") - (y.typ === "Běžný účet") || y.hodnota - x.hodnota).map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota, uvol: 0, cash: true, keep: a.keep })));
+  let zUctu = Math.min(Math.max(0, cash - cashStay), Math.max(0, jednorRozd - movedTot));
+  srcs.filter(s => s.cash).forEach(s => { const u = Math.min(s.puv - s.keep, zUctu); s.uvol = u; zUctu -= u; });
   const transakce = [];
   pozice.filter(p => p.jednor > 0.5).forEach(p => {
     let need = p.jednor;
@@ -975,11 +984,11 @@ function compute0(inp, today, ext) {
   const produkty = [];
   srcs.filter(s => s.cash).forEach(s => {
     const keep = s.zbyva + transakce.filter(t => t.naUcet && t.do === s.nazev).reduce((a, t) => a + t.castka, 0);
-    produkty.push({ nazev: s.nazev, zust: keep, mes: 0, korZ: keep - s.puv, korV: 0, pozn: s.typ === "Běžný účet" ? "Provozní účet / rezerva" : "Rezerva" + (keep > rezVklad + 1 ? " + hotovost cílů" : "") });
+    produkty.push({ nazev: s.nazev, zust: keep, mes: 0, korZ: keep - s.puv, korV: 0, pozn: s.keep > 0.5 ? (s.keep >= s.puv - 0.5 ? "Ponechat (dle přání klienta)" : "Ponechat částku " + kc(s.keep)) : s.typ === "Běžný účet" ? "Provozní účet / rezerva" : "Rezerva" + (keep > rezVklad + 1 ? " + hotovost cílů" : "") });
   });
   const naNovyUcet = transakce.filter(t => t.naUcet && !cilUcet).reduce((a, t) => a + t.castka, 0);
   if (!cashAccts.length && naNovyUcet > 0) produkty.push({ nazev: "Spořicí účet", zust: naNovyUcet, mes: 0, korZ: naNovyUcet, korV: 0, pozn: "Rezerva" });
-  moved.forEach(a => produkty.push({ nazev: a.nazev || a.typ, zust: 0, mes: 0, korZ: -a.hodnota, korV: -a.vklad, pozn: a.typ === "Stavební spoření" ? "Vypovědět → do plánu" : "Převést do plánu" }));
+  moved.forEach(a => produkty.push(a.keep > 0.5 ? { nazev: a.nazev || a.typ, zust: a.keep, mes: 0, korZ: -(a.hodnota - a.keep), korV: -a.vklad, pozn: a.keep >= a.hodnota - 0.5 ? "Ponechat (dle přání klienta)" : "Ponechat částku " + kc(a.keep) + ", zbytek → do plánu" } : { nazev: a.nazev || a.typ, zust: 0, mes: 0, korZ: -a.hodnota, korV: -a.vklad, pozn: a.typ === "Stavební spoření" ? "Vypovědět → do plánu" : "Převést do plánu" }));
   ppList.forEach(a => produkty.push({ nazev: a.nazev || "Penzijní připojištění", zust: 0, mes: 0, korZ: -a.hodnota, korV: -a.vklad, pozn: "Převod do DPS bez poplatku" }));
   if (dps.length) { const dv = dps.filter(a => a.typ === DPS); produkty.push({ nazev: (dv[0] && dv[0].nazev) || "Doplňkové penzijní spoření", zust: dpsVal, mes: dpsMes, korZ: dpsVal - dv.reduce((x, a) => x + a.hodnota, 0), korV: dpsMes - dv.reduce((x, a) => x + a.vklad, 0), pozn: "Dynamická strategie – počítá se do renty" + (ppList.length ? "; převod z PP bez poplatku" : "") }); }
   other.forEach(a => produkty.push({ nazev: a.nazev || a.typ, zust: a.hodnota, mes: a.vklad, korZ: 0, korV: 0, pozn: "Ponechat" }));
@@ -991,6 +1000,7 @@ function compute0(inp, today, ext) {
   const keptCash = produkty.filter(p => !p.novy && (CASH.includes(p.nazev) || srcs.some(s => s.cash && s.nazev === p.nazev) || p.nazev === "Spořicí účet")).reduce((s, p) => s + Math.max(0, p.zust), 0);
   const nove = [inv[0] + dpsVal, inv[1], inv[2] + keptCash];
   other.forEach(o => { const t = o.trida || "hotovost"; nove[t === "akcie" ? 0 : t === "dluhopisy" ? 1 : 2] += o.hodnota; });
+  moved.forEach(a => { if (a.keep > 0.5) { const t = a.typ === "Stavební spoření" ? "hotovost" : (a.trida || "akcie"); nove[t === "akcie" ? 0 : t === "dluhopisy" ? 1 : 2] += a.keep; } });
   const struktura = { ted, tedPct: pct100(ted), nove, novePct: pct100(nove), cilPct: renta ? renta.alok : (cile[0] ? cile[cile.length - 1].alok : [0, 0, 100]) };
   const invest = pozice.filter(p => p.jednor > 0).map(p => ({ nazev: p.nazev, castka: p.jednor, k: p.k })).sort((a, b) => b.castka - a.castka);
   const invW = pct100(invest.map(p => p.castka));
@@ -1069,7 +1079,7 @@ function compute0(inp, today, ext) {
   const nnFit = nnFitOf(inp) ? null : nnSmlouva(inp, katastrofy, deti, S, today, [], "sport");
   const pojOs = pojPoOsobach(nn, pojNove, katastrofy.length), pojOsFit = nnFit ? pojPoOsobach(nnFit, pojNove > 0 && nn && nn.celkem > 0 ? Math.round(pojNove * nnFit.celkem / nn.celkem) : 0, katastrofy.length) : null;
   // ---------- časová osa
-  const hodnota = m => rezVklad + cile.reduce((s, c) => s + (m < c.months ? fvOf(c.vklad, c.pmt, c.r, m, c.fee) + fvInh(c.inh, c, m) : 0), 0) + (renta ? fvOf(renta.vklad, renta.pmt, renta.r, Math.min(m, renta.months), renta.fee) + fvInh(renta.inh, renta, Math.min(m, renta.months)) : 0);
+  const hodnota = m => cashStay + keptNonCash + cile.reduce((s, c) => s + (m < c.months ? fvOf(c.vklad, c.pmt, c.r, m, c.fee) + fvInh(c.inh, c, m) : 0), 0) + (renta ? fvOf(renta.vklad, renta.pmt, renta.r, Math.min(m, renta.months), renta.fee) + fvInh(renta.inh, renta, Math.min(m, renta.months)) : 0);
   const udalosti = [{ typ: "start", datum: T0, titul: "Start plánu", m: 0 }];
   uvery.forEach(u => {
     if (u.fixace && u.fixace > today && (!u.splatnost || u.fixace < u.splatnost)) udalosti.push({ typ: "refix", datum: u.fixace, titul: "Refixace: " + u.nazev, m: monthsBetween(T0, u.fixace), uver: u });
@@ -1079,7 +1089,7 @@ function compute0(inp, today, ext) {
   if (renta) udalosti.push({ typ: "renta", datum: renta.start, titul: "Renta", m: renta.months });
   udalosti.sort((a, b) => a.m - b.m);
   const fee0 = (needA * CA.fee + needD * CD.fee) / Math.max(1, needA + needD + cashPlan);
-  udalosti.forEach(u => u.hodnota = u.typ === "start" ? rezVklad + (majCelkem - rezVklad - dpsVal) * (1 - fee0) + dpsVal : hodnota(u.m));
+  udalosti.forEach(u => u.hodnota = u.typ === "start" ? cashStay + keptNonCash + (majCelkem - cashStay - keptNonCash - dpsVal) * (1 - fee0) + dpsVal : hodnota(u.m));
   /* měsíční vývoj finančního majetku v plánu (dnešní ceny): rezerva + cíle + renta + DPS; při výběru na cíl hodnota spadne */
   const drD = S.dps_nom - S.inflace, dmD = mr(drD);
   const dpsAt = m => dpsVal * Math.pow(1 + drD, m / 12) + dpsMesFv * (Math.abs(dmD) < 1e-12 ? m : (Math.pow(1 + dmD, m) - 1) / dmD);
@@ -1411,7 +1421,7 @@ function renderEditor(){
    <p class="hint">Ikony a popisky se vyberou automaticky podle citátu (a cílů): <span id="motPrev"></span></p>
    <label class="chk"><input type="checkbox" data-p="hodnoty_vlastni" ${I.hodnoty_vlastni?"checked":""}> Vlastní popisky místo automatických</label>
    ${I.hodnoty_vlastni?[0,1,2].map(i=>`<div class="g">${fld("Hodnota "+(i+1),`hodnoty.${i}.t`,"text")}${fld("Popis",`hodnoty.${i}.d`,"text")}</div>`).join(""):""}</details>`,
-  ()=>`<details open><summary>Finanční majetek</summary><div data-p="majetek"></div>${rows("majetek",[["Název","nazev","text","1.3fr"],["Typ","typ","text","1.3fr",TYPY],["Hodnota","hodnota","number"],["Měs. vklad","vklad","number"],["Daňový odpočet/měs (DPS, ŽP)","odpocet","number"]],{nazev:"",typ:"Spořicí účet",hodnota:0,vklad:0,odpocet:0})}
+  ()=>`<details open><summary>Finanční majetek</summary><div data-p="majetek"></div>${rows("majetek",[["Název","nazev","text","1.3fr"],["Typ","typ","text","1.3fr",TYPY],["Hodnota","hodnota","number"],["Měs. vklad","vklad","number"],["Daňový odpočet/měs (DPS, ŽP)","odpocet","number"],["Co s produktem (účty, fondy, SS, PP)","nech","text","full",[["","Podle plánu (převést do plánu)"],["vse","Ponechat celé – nechat být"],["cast","Ponechat částku…"]]],["Ponechat částku (Kč) – jen u „Ponechat částku…“","nech_kc","number"]],{nazev:"",typ:"Spořicí účet",hodnota:0,vklad:0,odpocet:0,nech:"",nech_kc:0})}
    <p class="hint">Účty → rezerva, zbytek do cílů. Fondy, ETF a stavební spoření se převádějí do plánu. DPS zůstává a počítá se do renty – i se státním příspěvkem 20 % z vlastního vkladu od 500 Kč (počítá se nejvýš z 1 700 Kč, tj. max. 340 Kč měsíčně).</p></details>
   <details open><summary>Nefinanční majetek</summary>${rows("nefin",[["Název","nazev","text"],["Typ","typ","text","",NEFIN],["Hodnota","hodnota","number"]],{nazev:"",typ:"Nemovitost k bydlení",hodnota:0})}
    <p class="hint">Nemovitosti, podíly, auta… Nejde do realokace, ukazuje se v čistém jmění.</p></details>

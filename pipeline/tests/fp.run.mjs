@@ -596,6 +596,26 @@ tests["vynechat slide: checkbox u každého slidu, vynechaný se nezobrazí v pr
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["ponechat produkt: celé / část (účet i fond) zůstane mimo plán, zbytek se převede; editor má volbu u každé položky"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Jan Novák", narozen: "1985-01-01", zam: 50000, vydaje_osobni: 30000, inv1: 8000, inv2: 12000, inv3: 20000, starobni: 18000, bez_partnera: true, hruba: 70000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [], renta: { mesicne: 30000, od_veku: "" } };
+  const run = async fond => { await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 700000 }, Object.assign({ typ: "Podílový fond (OPF)", nazev: "Fond A", hodnota: 300000 }, fond)] })); return page.evaluate(() => { compute(); const f = R.produkty.find(x => x.nazev === "Fond A"); return { zust: f.zust, korZ: f.korZ, pozn: f.pozn, zbyva: R.zbyva, tx: R.transakce.filter(t => t.z === "Fond A").reduce((a, t) => a + t.castka, 0), nove: R.struktura.nove.reduce((a, b) => a + b, 0), flags: R.flags.filter(x => /Ponecháno/.test(x)).length }; }); };
+  const std = await run({}), cast = await run({ nech: "cast", nech_kc: 100000 }), vse = await run({ nech: "vse" });
+  eq([std.zust, std.korZ], [0, -300000], "bez volby se fond převede celý");
+  eq([cast.zust, cast.korZ, cast.tx, cast.flags], [100000, -200000, 200000, 1], "nechat částku 100 000 → převede se 200 000");
+  eq([vse.zust, vse.korZ, vse.tx], [300000, 0, 0], "nechat být → nic se nepřevádí");
+  assert(vse.zbyva < std.zbyva || vse.zbyva === 0, "do plánu jde míň peněz");
+  assert(Math.abs(cast.nove - std.nove) < 2000, "celkový majetek po realokaci se nemění (kromě poplatků)");
+  /* ponechání části účtu nad rezervou */
+  await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 700000, nech: "cast", nech_kc: 650000 }] }));
+  const ucet = await page.evaluate(() => { compute(); const s = R.produkty.find(x => x.nazev === "S"); return { zust: s.zust, pozn: s.pozn }; });
+  assert(ucet.zust >= 650000, "na účtu zůstane aspoň ponechaná částka"); assert(/Ponechat/.test(ucet.pozn), "poznámka u produktu");
+  /* editor: select „Co s produktem“ u každé položky finančního majetku */
+  await page.evaluate(() => { goStep && goStep(1); });
+  eq(await page.locator('select[data-p="majetek.0.nech"]').count(), 1, "volba v editoru");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
