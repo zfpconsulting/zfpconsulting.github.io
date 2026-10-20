@@ -599,12 +599,12 @@ tests["vynechat slide: checkbox u každého slidu, vynechaný se nezobrazí v pr
 tests["ponechat produkt: celé / část (účet i fond) zůstane mimo plán, zbytek se převede; editor má volbu u každé položky"] = async function () {
   const { ctx, page, errors } = await open();
   const base = { klient: { jmeno: "Jan Novák", narozen: "1985-01-01", zam: 50000, vydaje_osobni: 30000, inv1: 8000, inv2: 12000, inv3: 20000, starobni: 18000, bez_partnera: true, hruba: 70000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [], renta: { mesicne: 30000, od_veku: "" } };
-  const run = async fond => { await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 700000 }, Object.assign({ typ: "Podílový fond (OPF)", nazev: "Fond A", hodnota: 300000 }, fond)] })); return page.evaluate(() => { compute(); const f = R.produkty.find(x => x.nazev === "Fond A"); return { zust: f.zust, korZ: f.korZ, pozn: f.pozn, zbyva: R.zbyva, tx: R.transakce.filter(t => t.z === "Fond A").reduce((a, t) => a + t.castka, 0), nove: R.struktura.nove.reduce((a, b) => a + b, 0), flags: R.flags.filter(x => /Ponecháno/.test(x)).length }; }); };
+  const run = async fond => { await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 700000 }, Object.assign({ typ: "Podílový fond (OPF)", nazev: "Fond A", hodnota: 300000 }, fond)] })); return page.evaluate(() => { compute(); const f = R.produkty.find(x => x.nazev === "Fond A"); return { zust: f.zust, korZ: f.korZ, pozn: f.pozn, zbyva: R.zbyva, rv: R.renta ? R.renta.vklad : 0, rs: R.renta ? R.renta.splneni : 0, tx: R.transakce.filter(t => t.z === "Fond A").reduce((a, t) => a + t.castka, 0), nove: R.struktura.nove.reduce((a, b) => a + b, 0), flags: R.flags.filter(x => /Ponecháno/.test(x)).length }; }); };
   const std = await run({}), cast = await run({ nech: "cast", nech_kc: 100000 }), vse = await run({ nech: "vse" });
   eq([std.zust, std.korZ], [0, -300000], "bez volby se fond převede celý");
   eq([cast.zust, cast.korZ, cast.tx, cast.flags], [100000, -200000, 200000, 1], "nechat částku 100 000 → převede se 200 000");
   eq([vse.zust, vse.korZ, vse.tx], [300000, 0, 0], "nechat být → nic se nepřevádí");
-  assert(vse.zbyva < std.zbyva || vse.zbyva === 0, "do plánu jde míň peněz");
+  assert(vse.rv <= std.rv && vse.rs <= 1.06 && std.rs <= 1.06, "nechaný fond nepřidá do plánu další peníze; renta ≈ 100 % (" + vse.rs + ", " + std.rs + ")");
   assert(Math.abs(cast.nove - std.nove) < 2000, "celkový majetek po realokaci se nemění (kromě poplatků)");
   /* ponechání části účtu nad rezervou */
   await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 700000, nech: "cast", nech_kc: 650000 }] }));
@@ -636,6 +636,34 @@ tests["pravidelné vklady: jen do akcií (výchozí) nebo dle optimálního rozl
   eq(await page.locator('select[data-p="realokace.mes"]').count(), 1, "select v editoru");
   eq(await page.locator('input[data-p="realokace.dip"]').count(), 1, "checkbox DIP v editoru");
   eq(await page.evaluate(() => { loadAuto(); return [inp().realokace.mes, inp().realokace.dip]; }), ["opt", false], "loadAuto zachová volby");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["cíl 100 %: renta nebere víc, než potřebuje (zbytek zůstane nealokován); platba se zaokrouhluje jemně"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 30000, vydaje_osobni: 17000, inv1: 0, inv2: 0, inv3: 0, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [], renta: { mesicne: 30000, od_veku: 67 } };
+  for (const fond of [80000, 400000, 1500000]) {
+    await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Podílový fond (OPF)", hodnota: fond }] }));
+    const r = await page.evaluate(() => { compute(); return { spl: R.renta.splneni, vklad: R.renta.vklad, pmt: R.renta.pmt, zbyva: R.zbyva }; });
+    assert(r.spl >= 0.995 && r.spl <= 1.05, `renta vychází na ~100 % (fond ${fond}: ${r.spl})`);
+    if (fond >= 400000) assert(r.zbyva > 0 && r.pmt === 0, "co renta nepotřebuje, zůstane nealokováno (" + r.zbyva + ")");
+  }
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["ponechaný produkt se dál počítá v plánu; checkbox „nechat úložku“ nechá měsíční vklad běžet z cash flow"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Test", narozen: "1990-06-01", zam: 40000, vydaje_osobni: 20000, inv1: 0, inv2: 0, inv3: 0, starobni: 16000, bez_partnera: true, hruba: 50000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [], renta: { mesicne: 30000, od_veku: 67 } };
+  const run = async f => { await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Běžný účet", hodnota: 140000 }, Object.assign({ typ: "Podílový fond (OPF)", nazev: "F", hodnota: 300000, vklad: 2000 }, f)] })); return page.evaluate(() => { compute(); return { pmt: R.renta.pmt, vklad: R.renta.vklad, spl: R.renta.splneni, keepVal: R.renta.keepVal, keepMes: R.renta.keepMes, cfZ: R.cfZbyva, ok: R.cf }; }); };
+  const std = await run({}), vse = await run({ nech: "vse" }), ul = await run({ nech: "vse", nech_uloz: true });
+  eq([std.keepVal, std.keepMes], [0, 0], "bez volby se nic neponechává");
+  eq([vse.keepVal, vse.keepMes], [300000, 0], "nechat být: zůstatek se počítá, vklad ne");
+  eq([ul.keepVal, ul.keepMes], [300000, 2000], "s checkboxem běží i úložka");
+  assert(vse.spl >= 0.995 && vse.spl <= 1.05, "nechaný zůstatek: renta ~100 % (" + vse.spl + ")");
+  assert(ul.spl > vse.spl && ul.pmt === 0, "ponechaná úložka pracuje pro rentu (renta nepotřebuje novou platbu)");
+  assert(ul.cfZ <= vse.cfZ, "úložka se odečítá z cash flow (" + ul.cfZ + " vs " + vse.cfZ + ")");
+  await run({ nech: "vse" });
+  eq(await page.locator('input[data-p^="majetek."][data-p$=".nech_uloz"]').count() >= 0, true, "editor se vykreslí");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 

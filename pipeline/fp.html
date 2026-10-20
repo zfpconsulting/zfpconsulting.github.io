@@ -785,6 +785,10 @@ function compute0(inp, today, ext) {
   const movedTot = moved.reduce((s, a) => s + a.hodnota - a.keep, 0);
   const cashKeep = cashAccts.reduce((s, a) => s + a.keep, 0);
   const keptNonCash = moved.reduce((s, a) => s + a.keep, 0) + maj.filter(a => a.typ === PP).reduce((s, a) => s + a.keep, 0);
+  /* ponechané produkty zůstávají, kde jsou, ale v plánu se dál počítají: zůstatek (a na přání i dosavadní měsíční vklad) pracuje pro rentu jako stávající majetek;
+     pokračující vklad se bere z cash flow */
+  const keepList = maj.filter(a => a.keep > 0.5 && !CASH.includes(a.typ));
+  const keepVal = keepList.reduce((s, a) => s + a.keep, 0), keepMes = keepList.filter(a => a.nech_uloz).reduce((s, a) => s + a.vklad, 0);
   const dps = maj.filter(a => a.typ === DPS || (a.typ === PP && !a.keep));
   const ppList = maj.filter(a => a.typ === PP && !a.keep);
   const other = maj.filter(a => !CASH.includes(a.typ) && !MOVE.includes(a.typ) && a.typ !== DPS && !(a.typ === PP && !a.keep)).map(a => a.typ === PP ? Object.assign({}, a, { trida: "dluhopisy" }) : a);
@@ -798,7 +802,8 @@ function compute0(inp, today, ext) {
   const cashStay = Math.min(cash, Math.max(rezVklad, cashKeep));
   let volne = cash - cashStay + movedTot;
   { const kp = maj.filter(a => a.keep > 0.5); if (kp.length) flags.push("Ponecháno na přání klienta: " + kp.map(a => (a.nazev || a.typ) + (a.keep >= a.hodnota - 0.5 ? " (celé)" : " (" + Math.round(a.keep) + " Kč)")).join(", ") + ". Zbytek jde do plánu."); }
-  if (maj.some(a => a.keep > 0.5 && a.vklad > 0 && !CASH.includes(a.typ))) flags.push("U ponechaných produktů se měsíční vklad v plánu nepočítá — platby jdou z volného cash flow plánu.");
+  if (maj.some(a => a.keep > 0.5 && a.vklad > 0 && !CASH.includes(a.typ) && !a.nech_uloz)) flags.push("U ponechaných produktů bez zaškrtnutého „nechat úložku“ se měsíční vklad v plánu nepočítá — platby jdou z volného cash flow plánu.");
+  if (keepMes > 0) flags.push(`Ponechané úložky ${Math.round(keepMes)} Kč/měs pokračují a ubírají z cash flow.`);
   if (rezChybi > 0) flags.push(`Rezerva: chybí ${rezChybi} Kč — doplnit z cash flow přednostně.`);
   if (moved.some(a => a.typ === "Stavební spoření" && a.keep < a.hodnota)) flags.push("Stavební spoření vypovídáme a peníze jdou do plánu.");
   if (moved.some(a => a.typ === "Stavební spoření" && a.keep > 0.5 && a.keep < a.hodnota - 0.5)) flags.push("Stavební spoření nejde vypovědět jen částečně — ověř, zda se částka nechat dá.");
@@ -852,15 +857,18 @@ function compute0(inp, today, ext) {
     /* státní důchod už požadovanou rentu pokrývá (a renta nezačíná před důchodem) → není co spořit; renta se do plánu nedává */
     if (kap <= 1) flags.push(`Renta ${Math.round(rentaMes)} Kč/měs už pokrývá státní důchod (${Math.round(starobni)} Kč/měs) — renta se do plánu nezapočítává.`);
     else {
-    const vklad = volne; volne = 0;
     const dr = S.dps_nom - S.inflace, dm = mr(dr);
-    const dpsFv = dpsVal * Math.pow(1 + dr, months / 12) + dpsMesFv * (Math.abs(dm) < 1e-12 ? months : (Math.pow(1 + dm, months) - 1) / dm);
+    let dpsFv = dpsVal * Math.pow(1 + dr, months / 12) + dpsMesFv * (Math.abs(dm) < 1e-12 ? months : (Math.pow(1 + dm, months) - 1) / dm);
+    /* jednorázový vklad do renty jen v potřebné výši (cílíme na 100 %, ne na 150 %); co renta nepotřebuje, zůstane nealokováno */
+    const keepFv = keepVal * Math.pow(1 + r, months / 12) + keepMes * (Math.abs(mr(r)) < 1e-12 ? months : (Math.pow(1 + mr(r), months) - 1) / mr(r));
+    dpsFv += keepFv;
+    const vklad = Math.min(volne, ceil(lumpFor(Math.max(0, kap - dpsFv), r, months, fee), 1000)); volne -= vklad;
     const pmt = pmtFor(Math.max(0, kap - dpsFv), vklad, r, months, fee);
     const vysledek = fvOf(vklad, pmt, r, months, fee) + dpsFv;
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
     const dip = Math.min(prostor, pmt);
     if (useDip && prostor < S.dip_strop) flags.push(`DIP: daňový strop částečně čerpá DPS/ŽP — do DIP jen ${prostor} Kč/měs.`);
-    renta = { auto: rentaAuto, mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
+    renta = { auto: rentaAuto, mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal: dpsVal + keepVal, keepVal, keepMes, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
     flags.push(`Renta: kapitál se vyčerpá v ${S.doziti} letech (reálný výnos při čerpání ${(S.renta_r * 100).toFixed(1).replace(".", ",")} %).`);
     }
   }
@@ -887,7 +895,7 @@ function compute0(inp, today, ext) {
       g.vysledek = fvOf(g.vklad, g.pmt, g.r, g.months, g.fee) + inh + (isR ? g.dpsFv : 0);
       g.splneni = (isR ? g.kap : g.castka) > 0 ? g.vysledek / (isR ? g.kap : g.castka) : 1;
       Sx = g.inh + g.pmt; mPrev = Math.max(mPrev, g.months); }); };
-  const availCf = Math.max(0, cf - pojNove), sumPmt = () => chain.reduce((a, g) => a + g.pmt, 0);
+  const availCf = Math.max(0, cf - pojNove - keepMes), sumPmt = () => chain.reduce((a, g) => a + g.pmt, 0);
   let kaskada = 0;
   for (; kaskada < chain.length - 1; kaskada++) { calcChain(kaskada); if (sumPmt() <= availCf + 0.5) break; }
   calcChain(kaskada);
@@ -933,7 +941,7 @@ function compute0(inp, today, ext) {
   const mesA = cile.reduce((s, c) => s + c.pmt * c.alok[0] / 100, 0) + (renta ? renta.pmt * renta.alok[0] / 100 : 0);
   const mesD = cile.reduce((s, c) => s + c.pmt * c.alok[1] / 100, 0) + (renta ? renta.pmt * renta.alok[1] / 100 : 0);
   const mesH = Math.max(0, pmtCelkem - mesA - mesD);
-  const cfZbyva = cf - pmtCelkem - pojNove;
+  const cfZbyva = cf - pmtCelkem - pojNove - keepMes;
   if (cfZbyva < 0) flags.push(`Cash flow nestačí: chybí ${-cfZbyva} Kč/měs.`);
   // ---------- cílová struktura (třídy)
   const split = (v, a) => [v * a[0] / 100, v * a[1] / 100, v * a[2] / 100];
@@ -1436,7 +1444,7 @@ function renderEditor(){
    <p class="hint">Ikony a popisky se vyberou automaticky podle citátu (a cílů): <span id="motPrev"></span></p>
    <label class="chk"><input type="checkbox" data-p="hodnoty_vlastni" ${I.hodnoty_vlastni?"checked":""}> Vlastní popisky místo automatických</label>
    ${I.hodnoty_vlastni?[0,1,2].map(i=>`<div class="g">${fld("Hodnota "+(i+1),`hodnoty.${i}.t`,"text")}${fld("Popis",`hodnoty.${i}.d`,"text")}</div>`).join(""):""}</details>`,
-  ()=>`<details open><summary>Finanční majetek</summary><div data-p="majetek"></div>${rows("majetek",[["Název","nazev","text","1.3fr"],["Typ","typ","text","1.3fr",TYPY],["Hodnota","hodnota","number"],["Měs. vklad","vklad","number"],["Daňový odpočet/měs (DPS, ŽP)","odpocet","number"],["Co s produktem (účty, fondy, SS, PP)","nech","text","full",[["","Podle plánu (převést do plánu)"],["vse","Ponechat celé – nechat být"],["cast","Ponechat částku…"]]],["Ponechat částku (Kč) – jen u „Ponechat částku…“","nech_kc","number"]],{nazev:"",typ:"Spořicí účet",hodnota:0,vklad:0,odpocet:0,nech:"",nech_kc:0})}
+  ()=>`<details open><summary>Finanční majetek</summary><div data-p="majetek"></div>${rows("majetek",[["Název","nazev","text","1.3fr"],["Typ","typ","text","1.3fr",TYPY],["Hodnota","hodnota","number"],["Měs. vklad","vklad","number"],["Daňový odpočet/měs (DPS, ŽP)","odpocet","number"],["Co s produktem (účty, fondy, SS, PP)","nech","text","full",[["","Podle plánu (převést do plánu)"],["vse","Ponechat celé – nechat být"],["cast","Ponechat částku…"]]],["Ponechat částku (Kč) – jen u „Ponechat částku…“","nech_kc","number"],["Nechat úložku stejně jako zůstatek (měs. vklad dál běží a počítá se do plánu)","nech_uloz","check"]],{nazev:"",typ:"Spořicí účet",hodnota:0,vklad:0,odpocet:0,nech:"",nech_kc:0})}
    <p class="hint">Účty → rezerva, zbytek do cílů. Fondy, ETF a stavební spoření se převádějí do plánu. DPS zůstává a počítá se do renty – i se státním příspěvkem 20 % z vlastního vkladu od 500 Kč (počítá se nejvýš z 1 700 Kč, tj. max. 340 Kč měsíčně).</p></details>
   <details open><summary>Nefinanční majetek</summary>${rows("nefin",[["Název","nazev","text"],["Typ","typ","text","",NEFIN],["Hodnota","hodnota","number"]],{nazev:"",typ:"Nemovitost k bydlení",hodnota:0})}
    <p class="hint">Nemovitosti, podíly, auta… Nejde do realokace, ukazuje se v čistém jmění.</p></details>
@@ -1803,7 +1811,7 @@ function buildFrames(I,R){
       h+=`<div class="k" data-k="ch${j}" style="position:absolute;left:${X}px;top:${Y}px;width:190px;height:44px;border-radius:22px;background:#F37520;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;opacity:${cur?1:0};transition:all 1.1s cubic-bezier(.5,0,.2,1)">${x.k==="p"?fmt(x.a)+"/měs":x.k==="f"?"+ "+fmt(x.a)+"/měs":fmt(x.a)+NB+"Kč"}</div>`});
     const r=t?PR[t.i]:null,partTxt=t&&t.dps?` <span class="mut">· samo pokryje ${r.sd} % renty</span>`:t&&t.k==="v"&&r.pmt>0.5&&r.s!=null?` <span class="mut">· vklad pokryje ${r.sj} %, zbytek z cash flow</span>`:t&&t.k==="p"&&FL.some(f=>f.to===t.i)?` <span class="mut">· zbytek doplní platba splněného cíle</span>`:t&&t.k==="p"&&r.s!=null?` <span class="mut">· cíl splněn na ${r.s} %</span>`:"";
     const nKr=PR.filter(x=>x.kr).length;
-    h+=`<div class="k" data-k="ptxt" style="position:absolute;left:80px;top:812px;width:1440px;font-size:19px">${fin?`<b class="o">Cash flow ${kcm(R.cf)} nestačí na plné cíle.</b> <span class="mut">S platbami, které zvládnete, dosáhnete na 100 % oranžových částek.</span>`:over?`<b class="o">Cash flow ${kcm(R.cf)} se po splnění každého cíle přelévá do dalšího.</b> <span class="mut">Dřív splněný cíl uvolní svou platbu a další cíl na ni naváže.</span>`:t&&t.k==="f"?`<b class="o">${kcm(t.a)}</b> z cíle <b>${PR[t.from].n}</b> poteče po jeho splnění (za ${letTxt(t.let)}) do cíle <b>${r.n}</b> <span class="mut">· k vlastním ${kcm(r.pmt)} se přidá → společně <b class="o">${kcm(r.pmt+t.a)}</b>${t.uvol>0.5?`; zbytek ${kcm(t.uvol)} cíl nepotřebuje (míříme na 100 %), uvolní se do cash flow`:""} · cíl splněn na ${r.s} %</span>`:t?`<b class="o">${t.k==="v"?kc(t.a):kcm(t.a)}</b> ${t.dps?"stávající DPS – zůstává a pracuje pro rentu":t.k==="v"?"z finančního majetku jako jednorázový vklad":"z cash flow jako pravidelná platba"} → <b>${r.n}</b>${partTxt}`:withIns?`<span class="mut">Volné cash flow po investicích: ${kcm(R.cf-R.pmtCelkem)}.</span>`:`<span class="mut">Finanční majetek ${kc(M0)} a volné cash flow ${kcm(R.cf)} rozdělíme krok za krokem.</span>`}</div>
+    h+=`<div class="k" data-k="ptxt" style="position:absolute;left:80px;top:812px;width:1440px;font-size:19px">${fin?`<b class="o">Cash flow ${kcm(R.cf)} nestačí na plné cíle.</b> <span class="mut">S platbami, které zvládnete, dosáhnete na 100 % oranžových částek.</span>`:over?`<b class="o">Cash flow ${kcm(R.cf)} se po splnění každého cíle přelévá do dalšího.</b> <span class="mut">Dřív splněný cíl uvolní svou platbu a další cíl na ni naváže.</span>`:t&&t.k==="f"?`<b class="o">${kcm(t.a)}</b> z cíle <b>${PR[t.from].n}</b> poteče po jeho splnění (za ${letTxt(t.let)}) do cíle <b>${r.n}</b> <span class="mut">· k vlastním ${kcm(r.pmt)} se přidá → společně <b class="o">${kcm(r.pmt+t.a)}</b>${t.uvol>0.5?`; zbytek ${kcm(t.uvol)} cíl nepotřebuje (míříme na 100 %), uvolní se do cash flow`:""} · cíl splněn na ${r.s} %</span>`:t?`<b class="o">${t.k==="v"?kc(t.a):kcm(t.a)}</b> ${t.dps?"stávající DPS a ponechané produkty – zůstávají a pracují pro rentu":t.k==="v"?"z finančního majetku jako jednorázový vklad":"z cash flow jako pravidelná platba"} → <b>${r.n}</b>${partTxt}`:withIns?`<span class="mut">Volné cash flow po investicích: ${kcm(R.cf-R.pmtCelkem)}.</span>`:`<span class="mut">Finanční majetek ${kc(M0)} a volné cash flow ${kcm(R.cf)} rozdělíme krok za krokem.</span>`}</div>
       <div class="foot">Vstupní poplatky produktů jsou započteny v každém vkladu. Renta: do starobního důchodu celá, potom dorovnání ke státnímu důchodu do ${R.S.doziti} let. Cíle v dnešních cenách.${FL.length?" Platba splněného cíle se přelévá do dalšího cíle.":""}</div>`;
     out.push({g:G,h,lbl:(withIns?"Plán + pojištění":"Plán")+(fin?": dosažitelné cíle":over?": hotovo":t&&t.k==="f"?": navazující platba":step>pre?": krok "+(step-pre):"")});
   }
