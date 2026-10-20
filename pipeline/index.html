@@ -1105,7 +1105,7 @@ html.locked body{overflow:hidden}
         <div class="group" id="cliList"></div>
       </div>
       <div class="cli-col">
-        <div class="chips" style="margin:0 0 10px"><button type="button" class="chipbtn" id="stafleBtn">Štafle</button><button type="button" class="chipbtn" id="stafleBtnX">Výstup do Numbers</button></div>
+        <div class="chips" style="margin:0 0 10px"><button type="button" class="chipbtn" id="stafleBtn">Štafle</button><button type="button" class="chipbtn" id="stafleBtnM" aria-pressed="false" title="Klienti, jejichž měsíc podle poslední schůzky (Štafle) je právě teď">Aktuální měsíc</button><button type="button" class="chipbtn" id="stafleBtnX">Výstup do Numbers</button></div>
         <h3 class="sechead">Servis podle poslední schůzky</h3>
         <div class="seg fseg" id="sFilter" role="tablist" aria-label="Filtr servisu"></div>
         <div class="srvcol" id="srvList"></div>
@@ -3506,7 +3506,7 @@ function openMember(m0){
 }
 
 /* ================= KLIENTI + SERVIS ================= */
-let clients=[], calHist=null, cliQ="", cliFilter="all", srvFilter="todo", cliShow=10, srvShow=6;
+let clients=[], calHist=null, cliQ="", cliFilter="all", srvFilter="todo", cliShow=10, srvShow=6, srvMonth=false;
 function moreBtn(left,on){return left>0?el("button",{type:"button",class:"morebtn",onclick:on},"Zobrazit další ("+left+")"):null}
 const PTYPES={
   "ŽP":{c:"var(--red)",unit:"Kč/měs",vars:ZP_VARS},
@@ -3606,7 +3606,7 @@ function docDecor(e,node){
   return node}
 function docSection(e){try{return window.Docs?Docs.section(docOwnerClient(e,true)):null}catch(err){console.warn("soubory",err);return null}}
 function renderClients(){
-  {const b=$("stafleBtn");if(b){b.onclick=openStafle;$("stafleBtnX").onclick=stafleExport}}
+  {const b=$("stafleBtn");if(b){b.onclick=openStafle;$("stafleBtnX").onclick=stafleExport;$("stafleBtnM").onclick=()=>{srvMonth=!srvMonth;srvShow=6;renderClients()}}}
   const E=clientEntries();
   const red=E.filter(e=>e.band==="red"&&!e.snooze).length, orange=E.filter(e=>e.band==="orange"&&!e.snooze).length;
   if(view==="cli")$("sub").textContent=E.length+" "+plural(E.length,"klient","klienti","klientů")+" · servis podle poslední schůzky v kalendáři";
@@ -3632,9 +3632,13 @@ function renderServis(E){
   const today=todayStr();
   const F={todo:e=>!e.snooze&&(e.band==="red"||e.band==="orange"),red:e=>e.band==="red",orange:e=>e.band==="orange",green:e=>e.band==="green",all:()=>true};
   const cnt=k=>E.filter(F[k]).length;
-  $("sFilter").replaceChildren(...[["todo","K řešení"],["red","Přes rok"],["orange","Přes půl roku"],["green","Do půl roku"],["all","Vše"]].map(([k,t])=>el("button",{type:"button","aria-selected":String(srvFilter===k),onclick:()=>{srvFilter=k;srvShow=6;renderClients()}},t+" "+cnt(k))));
-  const list=E.filter(F[srvFilter]).filter(e=>e.days!=null||e.next||e.products.length).sort((a,b)=>(!!a.snooze-!!b.snooze)||((b.days??-1)-(a.days??-1)));
-  $("srvList").replaceChildren(...(list.length?[...list.slice(0,srvShow).map(srvCard),moreBtn(list.length-srvShow,()=>{srvShow+=10;renderClients()})].filter(Boolean):[el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},"Nikdo tu není – dobrá práce.")))]));
+  $("sFilter").replaceChildren(...[["todo","K řešení"],["red","Přes rok"],["orange","Přes půl roku"],["green","Do půl roku"],["all","Vše"]].map(([k,t])=>el("button",{type:"button","aria-selected":String(!srvMonth&&srvFilter===k),onclick:()=>{srvFilter=k;srvMonth=false;srvShow=6;renderClients()}},t+" "+cnt(k))));
+  /* Aktuální měsíc: klienti, jejichž měsíc ve Štafle (poslední schůzka nebo ručně přehozený) je právě teď – tehdy se jim ozvat na servis */
+  const nowM=new Date().getMonth()+1,mList=stafleData()[nowM].filter(e=>e.days!=null||e.next||e.products.length);
+  {const mb=$("stafleBtnM");if(mb){mb.textContent="Aktuální měsíc · "+mList.length;mb.classList.toggle("on",srvMonth);mb.setAttribute("aria-pressed",String(srvMonth));mb.style.cssText=srvMonth?"background:var(--tint);color:#fff":""}}
+  const list=srvMonth?mList.slice().sort((a,b)=>String(a.last||"").slice(8,10).localeCompare(String(b.last||"").slice(8,10))||surnameOf(a.name).localeCompare(surnameOf(b.name),"cs"))
+    :E.filter(F[srvFilter]).filter(e=>e.days!=null||e.next||e.products.length).sort((a,b)=>(!!a.snooze-!!b.snooze)||((b.days??-1)-(a.days??-1)));
+  $("srvList").replaceChildren(...(list.length?[...list.slice(0,srvShow).map(srvCard),moreBtn(list.length-srvShow,()=>{srvShow+=10;renderClients()})].filter(Boolean):[el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},srvMonth?"Na "+MONL_LOC[nowM-1]+" nemáš podle poslední schůzky nikoho.":"Nikdo tu není – dobrá práce.")))]));
 }
 function srvCard(e){
   const [c,bg]=BAND[e.band], pp=(k,lab)=>el("button",{type:"button",class:"pp",onclick:()=>srvPostpone(e,k)},lab);
