@@ -655,7 +655,7 @@ tests["ponechaný produkt se dál počítá v plánu; checkbox „nechat úložk
   const { ctx, page, errors } = await open();
   const base = { klient: { jmeno: "Test", narozen: "1990-06-01", zam: 40000, vydaje_osobni: 20000, inv1: 0, inv2: 0, inv3: 0, starobni: 16000, bez_partnera: true, hruba: 50000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [], renta: { mesicne: 30000, od_veku: 67 } };
   const run = async f => { await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Běžný účet", hodnota: 140000 }, Object.assign({ typ: "Podílový fond (OPF)", nazev: "F", hodnota: 300000, vklad: 2000 }, f)] })); return page.evaluate(() => { compute(); return { pmt: R.renta.pmt, vklad: R.renta.vklad, spl: R.renta.splneni, keepVal: R.renta.keepVal, keepMes: R.renta.keepMes, cfZ: R.cfZbyva, ok: R.cf }; }); };
-  const std = await run({}), vse = await run({ nech: "vse" }), ul = await run({ nech: "vse", nech_uloz: true });
+  const std = await run({}), vse = await run({ nech: "vse" }), ul = await run({ nech: "vse", nech_mes: 2000 });
   eq([std.keepVal, std.keepMes], [0, 0], "bez volby se nic neponechává");
   eq([vse.keepVal, vse.keepMes], [300000, 0], "nechat být: zůstatek se počítá, vklad ne");
   eq([ul.keepVal, ul.keepMes], [300000, 2000], "s checkboxem běží i úložka");
@@ -663,7 +663,7 @@ tests["ponechaný produkt se dál počítá v plánu; checkbox „nechat úložk
   assert(ul.spl > vse.spl && ul.pmt === 0, "ponechaná úložka pracuje pro rentu (renta nepotřebuje novou platbu)");
   assert(ul.cfZ <= vse.cfZ, "úložka se odečítá z cash flow (" + ul.cfZ + " vs " + vse.cfZ + ")");
   await run({ nech: "vse" });
-  eq(await page.locator('input[data-p^="majetek."][data-p$=".nech_uloz"]').count() >= 0, true, "editor se vykreslí");
+  eq(await page.locator('input[data-p^="majetek."][data-p$=".nech_mes"]').count() >= 0, true, "editor se vykreslí");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
@@ -677,6 +677,36 @@ tests["výnosy a poplatky produktů: rozbalovací skupiny podle správce, úprav
   const inp0 = page.locator('details.pgrp[data-grp="Conseq"] input[data-p="nastaveni.prod.cq_akc.vynos"]');
   await inp0.fill("9"); await inp0.blur();
   eq(await page.evaluate(() => (inp().nastaveni.prod.cq_akc || {}).vynos != null), true, "hodnota se uloží");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["uvolnění platby po splnění cíle: krok s animací zpět do cash flow; šipky přeskočí vynechané slidy; ‚dle rozložení‘ jen akcie+dluhopisy; bez životka při vynechaných ŽP; dál spořit v návrhu realokace"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [{ nazev: "Start podnikání", castka: 250000, za_let: 10 }, { nazev: "Akontace na bydlení", castka: 1500000, za_let: 15 }], renta: { mesicne: 30000, od_veku: 67 } };
+  const maj = [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Doplňkové penzijní spoření (DPS)", hodnota: 143000, vklad: 500 }];
+  await setPlan(page, Object.assign({}, base, { majetek: maj }));
+  const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/ /g, " "); }; const P = FR.filter(f => f.g === "p");
+    return { lbl: P.map(f => f.lbl), txt: P.filter(f => f.lbl === "Plán: uvolnění platby").map(f => t(f.h)) }; });
+  assert(o.lbl.filter(l => l === "Plán: uvolnění platby").length === 2, "uvolnění platby u obou cílů: " + o.lbl.join("|"));
+  assert(/za 10 let\) uvolní zpět do cash flow/.test(o.txt[0]) && /za 15 let\) uvolní zpět do cash flow/.test(o.txt[1]), "popis: za X let se platba vrací do cash flow");
+  assert(/po splnění → zpět do cash flow/.test(o.txt[1]), "u řádku cíle je poznámka");
+  /* šipky přeskočí vynechané slidy (i mimo celou obrazovku) */
+  const sk = await page.evaluate(() => { cur = 0; toggleSkip(1, true); cur = 0; update(); go(1); const a = cur; return [a, FR[1].skip]; });
+  eq(sk, [2, true], "šipka vpřed přeskočí vynechaný slide");
+  eq(await page.evaluate(() => { go(-1); return cur; }), 0, "šipka zpět přeskočí vynechaný slide");
+  /* pravidelné vklady dle rozložení: jen akcie + dluhopisy = 100 % */
+  await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Běžný účet", hodnota: 300000 }], realokace: { mes: "opt", dip: false } }));
+  const m = await page.evaluate(() => { compute(); const A = R.pozice.filter(p => p.mesicne > 0); return { sum: A.reduce((a, p) => a + p.mesicne, 0), hot: A.filter(p => { const d = FPE.PRODUKTY.find(x => x.k === p.k); return d && d.s[2] === 100; }).length, pmt: R.pmtCelkem }; });
+  eq(m.hot, 0, "pravidelné vklady neobsahují hotovost"); assert(Math.abs(m.sum - m.pmt) <= 5, "součet = platba plánu");
+  /* vynechané slidy životního pojištění → životko se do plánu nedává */
+  await setPlan(page, Object.assign({}, base, { majetek: maj, pojisteni: { zivotni: { navrh: 3000 } } }));
+  const z1 = await page.evaluate(() => { compute(); return R.pojNove; }); eq(z1, 3000, "s ŽP slidy je životko v plánu");
+  const z2 = await page.evaluate(() => { for (const k of FR.filter(f => /^zp\d/.test(f.g)).map(f => f.key)) toggleSkip(FR.findIndex(f => f.key === k), true); compute(); return [R.pojNove, FR.filter(f => /^zp\d/.test(f.g)).length > 0]; });
+  eq(z2, [0, true], "všechny ŽP slidy vynechané → bez životka (slidy zůstávají k odškrtnutí)");
+  /* ponechaný produkt: dál spořit částku se propíše do návrhu realokace */
+  await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Podílový fond (OPF)", nazev: "Fond X", hodnota: 200000, vklad: 3000, nech: "vse", nech_mes: 1500 }] }));
+  const f = await page.evaluate(() => { compute(); const p = R.produkty.find(x => x.nazev === "Fond X"); return [p.mes, p.korV, /dál spořit/.test(p.pozn)]; });
+  eq(f, [1500, -1500, true], "v tabulce realokace běží ponechaná úložka dál");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
