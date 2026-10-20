@@ -53,6 +53,7 @@ label.f input:focus,label.f select:focus,label.f textarea:focus{outline:2px soli
 .miss button span{color:var(--acc);white-space:nowrap}
 .miss button:hover{border-color:var(--acc)}
 .stepnav{display:flex;justify-content:space-between;margin:14px 0}
+label.f input.bad{border-color:#c0392b;outline:2px solid #c0392b;outline-offset:-1px}
 .flash{outline:3px solid var(--acc)!important;outline-offset:1px;transition:outline-color .3s}
 /* náhled */
 .nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -1314,19 +1315,27 @@ const isProdPath=p=>/^nastaveni\.(mixA|mixD|dip_prod)(\.|$)/.test(p||"");
 /* ---------------- editor ---------------- */
 function get(o,p){return p.split(".").reduce((a,k)=>a==null?a:a[k],o)}
 function set(o,p,v){const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null)a[k]={};a=a[k]});a[ks.at(-1)]=v}
-function fld(lbl,p,type="number",extra=""){const v=get(inp(),p);if(type==="number")return `<label class="f">${lbl}<input data-p="${p}" data-num="1" type="text" inputmode="decimal" autocomplete="off" value="${esc(fmtIn(v))}" ${extra}></label>`;return `<label class="f">${lbl}<input data-p="${p}" type="${type}" value="${esc(v==null?"":v)}" ${extra}></label>`}
+/* datum narození: píše se ručně (1.5.1990, 01.05.1990, 01051990), ukládá se ISO RRRR-MM-DD */
+const dmyShow=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");return m?m[3]+"."+m[2]+"."+m[1]:""};
+function dmyParse(t){const s=String(t||"").trim();let r=/^(\d{1,2})\s*[.\/\-\s]\s*(\d{1,2})\s*[.\/\-\s]\s*(\d{4})$/.exec(s)||/^(\d{2})(\d{2})(\d{4})$/.exec(s);if(!r)return null;
+  const d=+r[1],m=+r[2],y=+r[3],D=new Date(y,m-1,d);if(D.getFullYear()!==y||D.getMonth()!==m-1||D.getDate()!==d||y<1900||D>new Date())return null;
+  return y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0")}
+function dmyMask(t){const d=String(t).replace(/\D/g,"").slice(0,8);let o=d.slice(0,2);if(d.length>=2)o+=".";if(d.length>2)o+=d.slice(2,4);if(d.length>=4)o+=".";if(d.length>4)o+=d.slice(4,8);return o}
+function dmyLive(t){t=String(t).replace(/\.{2,}/g,".");if(/[^\d.]/.test(t)||/(^|\.)\d\./.test(t))return t;const m=dmyMask(t.replace(/\D/g,""));return m.length>=t.length?m:t}
+const dmyInput=(p,v)=>`<input data-p="${p}" data-dmy="1" type="text" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="DD.MM.RRRR" value="${esc(dmyShow(v))}">`;
+function fld(lbl,p,type="number",extra=""){const v=get(inp(),p);if(type==="dmy")return `<label class="f">${lbl}${dmyInput(p,v)}</label>`;if(type==="number")return `<label class="f">${lbl}<input data-p="${p}" data-num="1" type="text" inputmode="decimal" autocomplete="off" value="${esc(fmtIn(v))}" ${extra}></label>`;return `<label class="f">${lbl}<input data-p="${p}" type="${type}" value="${esc(v==null?"":v)}" ${extra}></label>`}
 /* procenta: zadávají se celá čísla (4 = 4 %), ukládají se desetinně */
 const p100=v=>v===""||v==null?"":Math.round(+v*10000)/100;
 function pfld(lbl,p,def,extra=""){const v=get(inp(),p);return `<label class="f">${lbl}<input data-p="${p}" data-pct="1" type="number" step="0.01" inputmode="decimal" value="${esc(p100(v))}" placeholder="${esc(p100(def))}" ${extra}></label>`}
 function sel(lbl,p,opts){const v=get(inp(),p);return `<label class="f">${lbl}<select data-p="${p}">${opts.map(o=>{const[val,t]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${val==v?"selected":""}>${esc(t)}</option>`}).join("")}</select></label>`}
-function person(p,t){return `<div class="g">${fld("Titul",p+".titul","text")}${fld("Jméno a příjmení",p+".jmeno","text")}${fld("Datum narození",p+".narozen","date")}${fld("Důchod (datum z IOLDP)",p+".duchod","date")}
+function person(p,t){return `<div class="g">${fld("Titul",p+".titul","text")}${fld("Jméno a příjmení",p+".jmeno","text")}${fld("Datum narození",p+".narozen","dmy")}${fld("Důchod (datum z IOLDP)",p+".duchod","date")}
  ${fld("Čistý příjem ze zaměstnání",p+".zam")}${fld("Příjem z podnikání (čistý)",p+".podnik")}${fld("Pasivní příjmy",p+".pasiv")}${fld("Pronájem",p+".pronajem")}
  ${fld("Roční bonus",p+".bonus")}${fld("Výdaje celkem / měs (bez investic a pojištění)",p+".vydaje_osobni")}${fld("z toho na domácnost (bydlení, jídlo, děti, splátky)",p+".vydaje_dom","number",'placeholder="prázdné = vše domácnost"')}${fld("Hrubá mzda (pro nemocenskou)",p+".hruba","number",'placeholder="z IOLDP, jinak z čisté"')}</div>
  <div class="hint" data-vs="${p}"></div>
  <div class="hint" style="margin-top:8px"><b>Důchody z IOLDP</b> (Kč/měs)</div>
  <div class="g">${fld("Invalidní I. stupně",p+".inv1")}${fld("Invalidní II. stupně",p+".inv2")}${fld("Invalidní III. stupně",p+".inv3")}${fld("Starobní (odhad)",p+".starobni")}${fld("Hrubý příjem z IOLDP (OVZ)",p+".ovz")}${fld("Vdovský / vdovecký",p+".vdovsky")}${fld("Sirotčí (na 1 dítě)",p+".sirotci")}</div>
  ${t?"":`<label class="chk"><input type="checkbox" data-p="${p}.bez_partnera" ${get(inp(),p+".bez_partnera")?"checked":""}> Nemá manželku / partnera</label><p class="hint">Bez partnera, dětí a úvěrů = nejsou závazky pro zajištění pro případ smrti. S úvěrem jen na jeho zůstatek.</p>`}`}
-function rows(path,cols,blank){const L=get(inp(),path)||[];return `<div class="rows">${L.map((r,i)=>`<div class="row" style="grid-template-columns:1fr 1fr">${cols.map(([lbl,k,type,w,opts])=>type==="check"?`<label class="chk" style="grid-column:1/-1"><input type="checkbox" data-p="${path}.${i}.${k}" ${r[k]?"checked":""}> ${lbl}</label>`:opts?`<label class="f"${w==="full"?' style="grid-column:1/-1"':""}>${lbl}<select data-p="${path}.${i}.${k}">${opts.map(o=>{const[val,t]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${val==r[k]?"selected":""}>${esc(t)}</option>`}).join("")}</select></label>`:type==="number"?`<label class="f">${lbl}<input data-p="${path}.${i}.${k}" data-num="1" type="text" inputmode="decimal" autocomplete="off" value="${esc(fmtIn(r[k]))}"></label>`:`<label class="f">${lbl}<input data-p="${path}.${i}.${k}" type="${type}" value="${esc(r[k]==null?"":r[k])}"></label>`).join("")}<button class="x" data-del="${path}.${i}" title="Odebrat" style="grid-column:1/-1;justify-self:end;font-size:12px">✕ odebrat</button></div>`).join("")}<button class="add" data-add="${path}" data-blank='${esc(JSON.stringify(blank))}'>+ přidat</button></div>`}
+function rows(path,cols,blank){const L=get(inp(),path)||[];return `<div class="rows">${L.map((r,i)=>`<div class="row" style="grid-template-columns:1fr 1fr">${cols.map(([lbl,k,type,w,opts])=>type==="check"?`<label class="chk" style="grid-column:1/-1"><input type="checkbox" data-p="${path}.${i}.${k}" ${r[k]?"checked":""}> ${lbl}</label>`:opts?`<label class="f"${w==="full"?' style="grid-column:1/-1"':""}>${lbl}<select data-p="${path}.${i}.${k}">${opts.map(o=>{const[val,t]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${val==r[k]?"selected":""}>${esc(t)}</option>`}).join("")}</select></label>`:type==="number"?`<label class="f">${lbl}<input data-p="${path}.${i}.${k}" data-num="1" type="text" inputmode="decimal" autocomplete="off" value="${esc(fmtIn(r[k]))}"></label>`:type==="dmy"?`<label class="f">${lbl}${dmyInput(path+"."+i+"."+k,r[k])}</label>`:`<label class="f">${lbl}<input data-p="${path}.${i}.${k}" type="${type}" value="${esc(r[k]==null?"":r[k])}"></label>`).join("")}<button class="x" data-del="${path}.${i}" title="Odebrat" style="grid-column:1/-1;justify-self:end;font-size:12px">✕ odebrat</button></div>`).join("")}<button class="add" data-add="${path}" data-blank='${esc(JSON.stringify(blank))}'>+ přidat</button></div>`}
 const UVERY=["Hypotéka","Úvěr ze stavebního spoření","Spotřebitelský úvěr","Leasing","Kreditní karta / kontokorent","Podnikatelský úvěr","Jiný"];
 const NEFIN=["Nemovitost k bydlení","Investiční nemovitost","Pozemek","Rekreační objekt","Podíl ve firmě","Auto","Umění / sbírky","Jiné"];
 let MARKET={models:[],hist:{}};
@@ -1390,7 +1399,7 @@ function renderEditor(){
   const body=[
   ()=>`${dzInfo(I)}<details open><summary>Klient</summary>${person("klient")}</details>
   <details open><summary>Partner / partnerka</summary><label class="chk"><input type="checkbox" data-p="partner.zapnuto" ${pa?"checked":""}> Plán pro pár</label>${pa?person("partner",1):""}</details>
-  <details open><summary>Děti</summary>${rows("deti",[["Jméno","jmeno","text"],["Narození","narozen","date"],["Plánuje VŠ – sirotčí a vdovský do 26 let (jinak do 18)","vs","check"]],{jmeno:"",narozen:"",vs:false})}<p class="hint">Sirotčí a vdovský důchod se počítá jen do 18 let dítěte, s vysokou školou do 26. Krytí smrti pokrývá výdaje bez finančního plánu do 26 let nejmladšího dítěte; po zániku dávek se výdaje dorovnávají celé.</p></details>
+  <details open><summary>Děti</summary>${rows("deti",[["Jméno","jmeno","text"],["Narození","narozen","dmy"],["Plánuje VŠ – sirotčí a vdovský do 26 let (jinak do 18)","vs","check"]],{jmeno:"",narozen:"",vs:false})}<p class="hint">Sirotčí a vdovský důchod se počítá jen do 18 let dítěte, s vysokou školou do 26. Krytí smrti pokrývá výdaje bez finančního plánu do 26 let nejmladšího dítěte; po zániku dávek se výdaje dorovnávají celé.</p></details>
   <details open><summary>Dočasné příjmy (nejdou do plánu)</summary>${rows("docasne",[["Název","nazev","text","2fr"],["Kč/měs","castka","number"],["Do (rok-měsíc)","do","month"],["Pak příjem Kč/měs (návrat do práce)","potom","number"]].concat(pa?[["Kdo","kdo","text","",[["klient",(I.klient&&I.klient.jmeno)||"Klient"],["partner",(I.partner&&I.partner.jmeno)||"Partner"]]]]:[]),{nazev:"",castka:0,do:"",potom:0,kdo:"klient"})}<p class="hint">Na slajdu Příjem a výdaje v čase: do konce dočasný příjem, potom „pak příjem“.</p></details>
   <details open><summary>Motivace a hodnoty (slide 2)</summary><div class="g one"><label class="f">Citát / co je pro klienta nejdůležitější<textarea data-p="motivace" rows="3">${esc(I.motivace||"")}</textarea></label></div>
    <p class="hint">Ikony a popisky se vyberou automaticky podle citátu (a cílů): <span id="motPrev"></span></p>
@@ -1450,6 +1459,10 @@ function parseIn(t){const c=String(t).replace(/[\s ]/g,"").replace(",",".");if(
 $("#ed").addEventListener("input",e=>{
   const t=e.target,p=t.dataset.p;if(!p)return;
   let v=t.type==="checkbox"?t.checked:t.type==="number"?(t.value===""?"":+String(t.value).replace(",",".")):t.value;
+  if(t.dataset.dmy){if(/^insert/.test(e.inputType||""))t.value=dmyLive(t.value);
+    const iso=t.value.trim()===""?"":dmyParse(t.value);t.classList.toggle("bad",iso===null&&/\d{4}/.test(t.value));
+    if(iso===null)return; /* neúplné / neplatné datum: model zůstane, jak byl */
+    v=iso}
   if(t.dataset.num){v=parseIn(t.value);const pos=t.selectionStart||0,dig=t.value.slice(0,pos).replace(/[^\d,.-]/g,"").length,keepDec=/[,.]$/.test(t.value)?",":"";
     const f=v===""?"":fmtIn(v)+keepDec;if(f!==t.value){t.value=f;let k=0,c=0;while(c<f.length&&k<dig){if(/[\d,.-]/.test(f[c]))k++;c++}try{t.setSelectionRange(c,c)}catch(err){}}}
   if(t.dataset.pct&&v!=="")v=Math.round(v*100)/10000;
@@ -1458,7 +1471,8 @@ $("#ed").addEventListener("input",e=>{
   if(p.endsWith(".jmeno")&&p.startsWith("klient"))renderClients();
   update();
 });
-$("#ed").addEventListener("change",e=>{if(e.target.id==="shotIn"&&e.target.files[0]){SHOT[DB.cur]=URL.createObjectURL(e.target.files[0]);update()}});
+$("#ed").addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.dmy){const iso=t.value.trim()===""?"":dmyParse(t.value);t.value=iso===null?dmyShow(get(inp(),t.dataset.p)):dmyShow(iso);t.classList.remove("bad");return}
+  if(e.target.id==="shotIn"&&e.target.files[0]){SHOT[DB.cur]=URL.createObjectURL(e.target.files[0]);update()}});
 $("#ed").addEventListener("click",e=>{
   const sb=e.target.closest("[data-step]");if(sb){goStep(+sb.dataset.step);return}
   const gb=e.target.closest("[data-go]");if(gb){const[a,b]=gb.dataset.go.split("|");goStep(+a,b);return}

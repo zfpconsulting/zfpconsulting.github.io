@@ -3733,6 +3733,13 @@ async function srvPostpone(e,k){
     await db.doc("clients/"+rec.id).update({servisNext:next,log});toast("Odloženo na "+fmtDate(next)+" "+next.slice(0,4))}catch(err){toast("Nepodařilo se uložit")}
 }
 async function hideClient(e){const h=[...new Set([...(settings.hiddenClients||[]),e.calOnly?e.key:e.id])];if(e.rec)await db.doc("clients/"+e.rec.id).update({hidden:true});else await db.doc("settings/main").set({...settings,hiddenClients:h});$("edDlg").close();toast("Skryto ze seznamu klientů")}
+/* datum narození: píše se ručně (1.5.1990, 01.05.1990, 01051990), ukládá se ISO RRRR-MM-DD */
+const dmyShow=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");return m?m[3]+"."+m[2]+"."+m[1]:""};
+function dmyParse(t){const s=String(t||"").trim();const r=/^(\d{1,2})\s*[.\/\-\s]\s*(\d{1,2})\s*[.\/\-\s]\s*(\d{4})$/.exec(s)||/^(\d{2})(\d{2})(\d{4})$/.exec(s);if(!r)return null;
+  const d=+r[1],m=+r[2],y=+r[3],D=new Date(y,m-1,d);if(D.getFullYear()!==y||D.getMonth()!==m-1||D.getDate()!==d||y<1900||D>new Date())return null;
+  return y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0")}
+function dmyMask(t){const d=String(t).replace(/\D/g,"").slice(0,8);let o=d.slice(0,2);if(d.length>=2)o+=".";if(d.length>2)o+=d.slice(2,4);if(d.length>=4)o+=".";if(d.length>4)o+=d.slice(4,8);return o}
+function dmyLive(t){t=String(t).replace(/\.{2,}/g,".");if(/[^\d.]/.test(t)||/(^|\.)\d\./.test(t))return t;const m=dmyMask(t.replace(/\D/g,""));return m.length>=t.length?m:t}
 function openClient(e0){
   const e=clientEntries().find(x=>x.id===e0.id||(e0.rec&&x.rec?.id===e0.rec.id))||e0;
   let rec=e.rec;
@@ -3741,7 +3748,9 @@ function openClient(e0){
   const nm=inp(e.name,"Jméno a příjmení",v=>{save({name:v});$("edTitle").textContent=v});
   const ph=inp(e.phone,"telefon",v=>save({phone:v}),"tel");
   const em=inp(rec?.email||e.lead?.email,"e-mail",v=>save({email:v}),"email");
-  const bd=inp(rec?.birth,"",v=>save({birth:v}),"date");
+  const bd=el("input",{type:"text",inputmode:"numeric",autocomplete:"off",maxlength:"12",placeholder:"DD.MM.RRRR","aria-label":"Datum narození"});bd.value=dmyShow(rec?.birth);
+  bd.addEventListener("input",ev=>{if(/^insert/.test(ev.inputType||""))bd.value=dmyLive(bd.value)});
+  bd.addEventListener("change",()=>{const s=bd.value.trim();if(s===""){save({birth:""});return}const iso=dmyParse(s);if(!iso){toast("Datum zadej jako DD.MM.RRRR");bd.value=dmyShow(rec?.birth);return}bd.value=dmyShow(iso);save({birth:iso})});
   const lm=inp(rec?.lastMeet?rec.lastMeet.slice(0,10):"","",v=>save({lastMeet:v||null}),"date");
   const nt=el("textarea",{placeholder:"Rodina, cíle, co řešit při výročce…"});nt.value=rec?.note||e.lead?.note||"";nt.addEventListener("change",()=>save({note:nt.value.trim()}));
   let prods=(rec?.products||e.products||[]).map(p=>({...p}));
