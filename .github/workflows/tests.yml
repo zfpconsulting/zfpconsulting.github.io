@@ -29,6 +29,8 @@ jobs:
         run: node tests/fincalc.run.mjs
       - name: Testy důchodové kalkulačky
         run: node tests/duchod.run.mjs
+      - name: Testy záložky Úvěry (dotazník, banky, podklady, nabídky, průběh)
+        run: node tests/uvery.run.mjs
       - name: Testy záložky Databáze
         run: node tests/databaze.run.mjs
       - name: Testy souborů u klientů (docs.js)

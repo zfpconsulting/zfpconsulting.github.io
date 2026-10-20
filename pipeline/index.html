@@ -1216,6 +1216,9 @@ html.locked body{overflow:hidden}
     <div id="fpBox"></div>
     <p class="secfoot">Živý finanční plán: upravíš vstupy a prezentace se okamžitě přepočítá. Plán se ukládá ke klientovi (nebo k leadu z pipeline).</p>
   </section>
+  <section id="view_uv" hidden>
+    <div id="uvBox"></div>
+  </section>
   <section id="view_duch" hidden>
     <div id="duchBox"></div>
     <p class="secfoot">Po schůzce vlož údaje z klientova IOLDP, vyber klienta a ulož. Výpočet je orientační (zákon č. 155/1995 Sb., parametry roku nároku); skutečnou výši stanoví ČSSZ.</p>
@@ -1556,7 +1559,7 @@ const LStore=(()=>{
   const apply=(g,dir)=>{replaying=true;try{(dir==="undo"?[...g.ops].reverse():g.ops).forEach(o=>{const tgt=dir==="undo"?o.before:o.after;
       put(o.path,!tgt||tgt._del?{_del:true,_u:Date.now()}:{...clean(tgt),_u:Date.now()})})}finally{replaying=false}};
   const label=g=>{const o=g.ops[0],d=(o.after&&!o.after._del?o.after:o.before)||{},col=o.path.split("/")[0],
-      what={leads:"lead",clients:"klient",team:"člen týmu",recruits:"kandidát",akvFirmy:"firma (akvizice)",akvLidi:"potenciální kolega",pfinv:"investice",funds:"fond",pfmodels:"model portfolia",fincalc:"kalkulace",duchod:"důchodová kalkulace",fplan:"finanční plán",settings:"nastavení"}[col]||"záznam";
+      what={leads:"lead",clients:"klient",team:"člen týmu",recruits:"kandidát",akvFirmy:"firma (akvizice)",akvLidi:"potenciální kolega",pfinv:"investice",funds:"fond",pfmodels:"model portfolia",fincalc:"kalkulace",duchod:"důchodová kalkulace",fplan:"finanční plán",uvery:"úvěrový případ",uvcfg:"parametry bank",settings:"nastavení"}[col]||"záznam";
     const act=!o.before||o.before._del?"přidání":!o.after||o.after._del?"smazání":"úprava";
     return act+" – "+what+(d.name&&col!=="settings"?" „"+d.name+"“":"")+(g.ops.length>1?" (+"+(g.ops.length-1)+")":"")};
   const inCol=(name)=>Object.entries(s.docs).filter(([k,v])=>k.startsWith(name+"/")&&k.indexOf("/",name.length+1)<0&&!v._del);
@@ -1975,6 +1978,7 @@ function render(){
   else if(view==="cli"){$("bigTitle").textContent="Klienti";renderClients()}
   else if(view==="cal"){$("bigTitle").textContent="Kalendář";$("sub").textContent="Schůzky z vybraných kalendářů · oranžově volné bloky po 90 min (8:30–19:00)";renderCalTab()}
   else if(view==="fp"){$("bigTitle").textContent="Finanční plán";$("sub").textContent="Živé finanční plány klientů";renderFpTab()}
+  else if(view==="uv"){$("bigTitle").textContent="Úvěry";$("sub").textContent="Hypotéky a úvěry klientů – dotazník, výběr banky, podklady a průběh až po čerpání";renderUv()}
   else if(view==="net"){$("bigTitle").textContent="Rozvoj sítě";renderNet()}
   else if(view==="tax"){$("bigTitle").textContent="Daně";renderTax()}
   else if(view==="akv"){$("bigTitle").textContent="Akvizice";$("sub").textContent="Firmy s příspěvky zaměstnavatele a potenciální kolegové";renderAkv()}
@@ -2005,6 +2009,33 @@ function renderDuch(then){
   if(window.DuchodCalc)return go();
   duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=7";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
+/* záložka Úvěry – modul uvery.js se načte až při prvním otevření; případy v kolekci „uvery“, vlastní pravidla bank v „uvcfg“ */
+let uvUI=null,uvLoading=false,uvPending=null;
+function renderUv(then){
+  if(then)uvPending=then;
+  const fire=()=>{const t=uvPending;uvPending=null;if(t&&uvUI)t(uvUI)};
+  if(uvUI){uvUI.refreshClients();fire();return}
+  if(uvLoading)return;
+  const go=()=>{uvLoading=false;if(!window.Uvery){$("uvBox").textContent="Záložku Úvěry se nepodařilo načíst – zkontroluj připojení.";return}
+    uvUI=Uvery.mount($("uvBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),ensure:ensureClient,
+      openClient:e=>openClient(e),docsFor:e=>docSection(e),saveProduct:uvSaveProduct,sign:()=>settings.sign||"",
+      openLead:(e,c)=>{const l=e&&e.lead&&leads.find(x=>x.id===e.lead.id);if(l){openEdit(l);toast("Přidej k leadu produkt Hypotéka / Úvěr – body se spočítají podle provizní přílohy");return}
+        openEdit(null);$("f_name").value=c.name||"";$("f_phone").value=c.phone||"";$("f_email").value=c.email||"";toast("Nový lead – přidej produkt Hypotéka / Úvěr, body se spočítají samy")}});fire()};
+  if(window.Uvery)return go();
+  uvLoading=true;const sc=document.createElement("script");sc.src="uvery.js?v=1";sc.onload=go;sc.onerror=go;document.head.append(sc);
+}
+/* úvěr z načerpaného případu → produkt v kartě klienta (hlídání konce fixace v „Co tě dneska čeká“); stejný případ se jen aktualizuje */
+async function uvSaveProduct(e,p){
+  const rec=await ensureClient(e),cur=(clients.find(c=>c.id===rec.id)||rec).products||[];
+  const i=cur.findIndex(x=>x.src&&x.src.uv===p.src.uv);
+  const products=i>=0?cur.map((x,j)=>j===i?{...x,...p}:x):[...cur,{id:newId(),...p}];
+  await db.doc("clients/"+rec.id).update({products});return rec;
+}
+/* úvěrové případy s dalším krokem dnes nebo po termínu (pro „Co tě dneska čeká“) – čte se přímo z úložiště, modul nemusí být načtený */
+function uvDueCases(){try{const t=todayStr(),A=["cerpano","odlozeno","zamitnuto"];
+  return Object.entries(LStore.docs()).filter(([k,v])=>k.startsWith("uvery/")&&k.indexOf("/",6)<0&&v&&!v._del&&!A.includes(v.stage)&&v.nextDate&&v.nextDate<=t)
+    .map(([k,v])=>({id:k.slice(6),...v})).sort((a,b)=>String(a.nextDate).localeCompare(String(b.nextDate)))}catch(e){return[]}}
+function openUvCase(id){setView("uv");renderUv(u=>u.open(id))}
 /* záložka Databáze (jen admin) – modul databaze.js se načte až při prvním otevření; data jen v localStorage tohoto zařízení */
 let dbUI=null,dbLoading=false;
 function renderDb(){
@@ -4016,6 +4047,7 @@ function openToday(preserve){
   nodes.push(...tdTasks("Komu zavolat",D.calls.slice(0,tdCallShow).map(l=>{const s=dueState(l);return tdTask("call:"+l.id,true,l.name||"Bez jména",(l.nextStep||ST(l.stage).t)+(l.phone?" · "+fmtPhone(l.phone):""),s==="late"?"po termínu "+fmtDate(l.nextDate):s==="today"?"dnes":"bez kroku",s==="late"?"red":s==="today"?"orange":"",()=>{$("edDlg").close();openEdit(l)},
     async()=>{const now=new Date().toISOString();try{await db.doc("leads/"+l.id).update({nextDate:addDaysFrom(todayStr(),1),nextStep:l.nextStep||"Zavolat",updatedAt:now})}catch(e){}})}),"Všechno máš naplánované."));
   if(D.calls.length>tdCallShow)nodes.push(moreBtn(D.calls.length-tdCallShow,()=>{tdCallShow+=5;const st=$("edBody").scrollTop;openToday(true);$("edBody").scrollTop=st}));
+  {const U=uvDueCases();if(U.length)nodes.push(...tdTasks("Úvěry – další kroky",U.map(c=>tdTask("uv:"+c.id+":"+c.nextDate,false,c.name||"Úvěr",(c.nextStep||"Další krok")+(c.q&&c.q.typ==="hypo"?" · hypotéka":""),c.nextDate<t?"po termínu "+fmtDate(c.nextDate):"dnes",c.nextDate<t?"red":"orange",()=>{$("edDlg").close();openUvCase(c.id)})),""))}
   if(D.rec.length)nodes.push(...tdTasks("Nábor – ozvat se",D.rec.map(r=>tdTask("rec:"+r.id,true,r.name||"Kandidát",RS(r.stage).t+(r.next?" · "+r.next:"")+(r.phone?" · "+fmtPhone(r.phone):""),r.nextDate<t?"po termínu "+fmtDate(r.nextDate):"dnes",r.nextDate<t?"red":"orange",()=>{openRecruit(r)},async()=>recUpd(r,{nextDate:addDaysFrom(todayStr(),1)}))),""));
   nodes.push(...tdTasks("Konce fixací úvěrů",D.fix.map(x=>tdTask("fix:"+x.e.id+":"+pk(x.p)+":"+x.date,false,x.e.name,(x.p.type)+(x.p.company?" · "+x.p.company:"")+" · fixace "+x.p.fix+" let od "+fmtDate(x.p.from)+" "+x.p.from.slice(0,4),x.d<0?"skončila "+fmtDate(x.date):"za "+x.d+" "+plural(x.d,"den","dny","dní"),x.d<=60?"red":"orange",()=>{$("edDlg").close();openClient(x.e)})),"V příštích 4 měsících nekončí žádná fixace. (Fixaci zadáš u hypotéky/úvěru v kartě klienta.)"));
   nodes.push(...tdTasks("Výročí smluv (14 dní)",D.ann.map(x=>tdTask("ann:"+x.e.id+":"+pk(x.p)+":"+x.date,false,x.e.name,x.p.type+(x.p.company?" · "+x.p.company:"")+" · "+x.yrs+". výročí",x.d===0?"dnes":fmtDate(x.date),x.d<=3?"orange":"",()=>{$("edDlg").close();openClient(x.e)})),"Žádné výročí v příštích 14 dnech."));
@@ -7305,7 +7337,7 @@ function pfClientSection(e,rec){
   return [el("h3",{class:"sechead"},"Portfolio"),has?pfClientCard(rec.id,{back}):el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>pfInvEdit(null,rec?{client:rec.id}:{cid:e.id},back)},"+ Sledovat investici v Portfoliích"))];
 }
 
-const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačka"],["duch","Důchodová kalkulačka"],["cal","Kalendář"],["fp","Finanční plán"],["net","Rozvoj sítě"],["tax","Daně"],["akv","Akvizice"],["pf","Portfolia"],["pp","Sazebník"]];
+const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačka"],["duch","Důchodová kalkulačka"],["cal","Kalendář"],["fp","Finanční plán"],["uv","Úvěry"],["net","Rozvoj sítě"],["tax","Daně"],["akv","Akvizice"],["pf","Portfolia"],["pp","Sazebník"]];
 /* „Uživatelé“ je speciální záložka jen pro admina – vždy úplně na konci, nejde skrýt ani přeřadit
    (proto stojí mimo TABS/nastavení pořadí), zjišťuje se přímo z uloženého přihlášeného e-mailu. */
 /* ===== prezentační režim: fiktivní poradce (jen admin) ===== */
@@ -7583,6 +7615,7 @@ const TAB_ICON={
   calc:'<rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8" y="6" width="8" height="3.5" rx="1"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.8h.01M12 16.8h.01M15.5 16.8h.01" stroke-width="2.4"/>',
   duch:'<path d="M7 3.5h10M7 20.5h10"/><path d="M8 3.5c0 4.5 4 5.5 4 8.5s-4 4-4 8.5M16 3.5c0 4.5-4 5.5-4 8.5s4 4 4 8.5"/>',
   fp:'<path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5"/><path d="M10 17v-2.5M12.75 17v-4.5M15.5 17v-3"/>',
+  uv:'<path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5v10.5h13V9.5"/><path d="M9.5 17.5l5-5"/><circle cx="10" cy="13" r="1"/><circle cx="14" cy="17" r="1"/>',
   net:'<circle cx="12" cy="5.5" r="2.3"/><circle cx="5.5" cy="18" r="2.3"/><circle cx="18.5" cy="18" r="2.3"/><path d="M12 7.8v4.2M12 12l-5.2 4M12 12l5.2 4"/>',
   tax:'<path d="M6 3.5h12v17l-2.4-1.6-2.4 1.6-1.2-.8-1.2.8-2.4-1.6L6 20.5z"/><path d="M9.5 14.5l5-5"/><circle cx="9.8" cy="9.8" r=".9"/><circle cx="14.2" cy="14.2" r=".9"/>',
   akv:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2"/>',
