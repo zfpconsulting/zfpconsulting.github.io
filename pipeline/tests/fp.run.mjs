@@ -667,6 +667,19 @@ tests["ponechaný produkt se dál počítá v plánu; checkbox „nechat úložk
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["výnosy a poplatky produktů: rozbalovací skupiny podle správce, úprava hodnoty funguje"] = async function () {
+  const { ctx, page, errors } = await open();
+  await page.evaluate(() => { goStep(5); });
+  const g = await page.evaluate(() => [...document.querySelectorAll("details.pgrp")].map(d => [d.dataset.grp, d.open]));
+  assert(g.length >= 5 && g.every(x => x[1] === false), "skupiny jsou sbalené: " + JSON.stringify(g));
+  assert(g.some(x => x[0] === "Conseq") && g.some(x => x[0] === "ZFP WI"), "podle správce");
+  await page.locator('details.pgrp[data-grp="Conseq"] > summary').click();
+  const inp0 = page.locator('details.pgrp[data-grp="Conseq"] input[data-p="nastaveni.prod.cq_akc.vynos"]');
+  await inp0.fill("9"); await inp0.blur();
+  eq(await page.evaluate(() => (inp().nastaveni.prod.cq_akc || {}).vynos != null), true, "hodnota se uloží");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
