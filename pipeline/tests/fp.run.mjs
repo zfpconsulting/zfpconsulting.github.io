@@ -616,6 +616,29 @@ tests["ponechat produkt: celé / část (účet i fond) zůstane mimo plán, zby
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["pravidelné vklady: jen do akcií (výchozí) nebo dle optimálního rozložení; checkbox DIP zapíná/vypíná DIP a daňovou úlevu"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Jan Novák", narozen: "1985-01-01", zam: 70000, vydaje_osobni: 30000, inv1: 8000, inv2: 12000, inv3: 20000, starobni: 18000, bez_partnera: true, hruba: 90000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], majetek: [], cile: [{ nazev: "Auto", castka: 600000, za_let: 6 }], renta: { mesicne: 40000, od_veku: 65 } };
+  const run = async re => { await setPlan(page, Object.assign({}, base, { realokace: re })); return page.evaluate(() => { compute(); const mes = R.pozice.filter(p => p.mesicne > 0); const cls = i => mes.reduce((a, p) => a + p.mesicne * p.s[i] / 100, 0); return { sum: mes.reduce((a, p) => a + p.mesicne, 0), pmt: R.pmtCelkem, A: cls(0), D: cls(1), H: cls(2), dipPoz: R.pozice.filter(p => p.dip).reduce((a, p) => a + p.mesicne, 0), dip: R.dip, dan: R.renta ? R.renta.danCelkem : 0, nadpis: R.pozice.some(p => p.dip) }; }); };
+  const std = await run({}), opt = await run({ mes: "opt" }), noDip = await run({ dip: false }), optNoDip = await run({ mes: "opt", dip: false });
+  assert(std.pmt > 1000, "plán má pravidelné platby");
+  eq([Math.round(std.D), Math.round(std.H)], [0, 0], "výchozí: měsíčně jen akcie");
+  assert(std.dipPoz > 0 && std.dan > 0, "DIP je ve výchozím nastavení zapnutý");
+  assert(opt.D > 0, "optimální rozložení: část měsíčně jde do dluhopisů");
+  assert(Math.abs(opt.sum - opt.pmt) <= 5, "součet vkladů = platba plánu");
+  assert(opt.A < std.A && opt.dipPoz <= opt.A + 1, "DIP je jen z akciové části");
+  eq([noDip.dipPoz, noDip.dip, noDip.dan, noDip.nadpis], [0, 0, 0, false], "DIP vypnutý: žádný DIP produkt ani daňová úleva");
+  assert(Math.abs(noDip.sum - noDip.pmt) <= 5 && Math.abs(optNoDip.sum - optNoDip.pmt) <= 5, "součty sedí i bez DIP");
+  eq(optNoDip.dipPoz, 0, "optimum bez DIP");
+  /* editor: volba + checkbox; načtení ručního návrhu volby zachová */
+  await setPlan(page, Object.assign({}, base, { realokace: { mes: "opt", dip: false } }));
+  for (let i = 0; i < 12 && !(await page.locator('select[data-p="realokace.mes"]').count()); i++) await page.evaluate(n => goStep(n), i);
+  eq(await page.locator('select[data-p="realokace.mes"]').count(), 1, "select v editoru");
+  eq(await page.locator('input[data-p="realokace.dip"]').count(), 1, "checkbox DIP v editoru");
+  eq(await page.evaluate(() => { loadAuto(); return [inp().realokace.mes, inp().realokace.dip]; }), ["opt", false], "loadAuto zachová volby");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();

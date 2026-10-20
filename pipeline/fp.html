@@ -716,6 +716,8 @@ function compute0(inp, today, ext) {
   const netR = p => p.vynos - p.sprava;
   // ---------- ruční realokace (pokud je zapnutá) určuje mix produktů v každé třídě
   const RE = inp.realokace || {};
+  /* pravidelné vklady: "" = jen do akcií, "opt" = podle optimálního rozložení cílů (akcie / dluhopisy / hotovost); DIP jde vypnout */
+  const optMes = RE.mes === "opt", useDip = RE.dip !== false;
   const rows = (RE.polozky || []).filter(r => prod(r.produkt) && (n0(r.jednor) > 0 || n0(r.mesicne) > 0));
   const manual = !!RE.rucne && rows.length > 0;
   const lumpOf = k => rows.filter(r => r.produkt === k).reduce((s, r) => s + n0(r.jednor), 0);
@@ -854,7 +856,7 @@ function compute0(inp, today, ext) {
     const vysledek = fvOf(vklad, pmt, r, months, fee) + dpsFv;
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
     const dip = Math.min(prostor, pmt);
-    if (prostor < S.dip_strop) flags.push(`DIP: daňový strop částečně čerpá DPS/ŽP — do DIP jen ${prostor} Kč/měs.`);
+    if (useDip && prostor < S.dip_strop) flags.push(`DIP: daňový strop částečně čerpá DPS/ŽP — do DIP jen ${prostor} Kč/měs.`);
     renta = { auto: rentaAuto, mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
     flags.push(`Renta: kapitál se vyčerpá v ${S.doziti} letech (reálný výnos při čerpání ${(S.renta_r * 100).toFixed(1).replace(".", ",")} %).`);
     }
@@ -912,8 +914,9 @@ function compute0(inp, today, ext) {
       g.flowIdx = nx ? (nx === renta ? -1 : cile.indexOf(nx)) : null; g.flowTake = nx ? Math.max(0, g.flowKc - g.flowUvol) : 0; });
   }
   if (renta) { /* DIP z vlastní platby renty; jakmile do renty přiteče platba splněných cílů, DIP se navýší až na strop */
-    renta.dip = Math.min(renta.prostor, renta.pmt); renta.danRok = renta.dip * 12 * S.dan;
-    renta.dipPozdeji = Math.min(renta.prostor, renta.pmt + renta.inh); renta.dipOd = renta.inh > 0 ? renta.inhOd : 0;
+    const fDip = optMes ? renta.alok[0] / 100 : 1; /* DIP je akciový → při rozložení podle alokace jen akciová část platby renty */
+    renta.dip = useDip ? Math.min(renta.prostor, Math.round(renta.pmt * fDip)) : 0; renta.danRok = renta.dip * 12 * S.dan;
+    renta.dipPozdeji = useDip ? Math.min(renta.prostor, Math.round((renta.pmt + renta.inh) * fDip)) : 0; renta.dipOd = useDip && renta.inh > 0 ? renta.inhOd : 0;
     const roky = renta.months / 12, od = renta.dipOd / 12;
     renta.danCelkem = renta.dipOd ? 12 * S.dan * (renta.dip * od + renta.dipPozdeji * Math.max(0, roky - od)) : renta.danRok * Math.round(roky);
     renta.dipRok = renta.dipOd ? T0.getFullYear() + Math.round(od) : null; }
@@ -924,6 +927,9 @@ function compute0(inp, today, ext) {
     if (act.length && volne > 0.5) roz.push({ k: "volne", nazev: "Uvolněno do cash flow", kc: volne });
     return { m, rozpad: roz }; });
   const pmtCelkem = cile.reduce((s, c) => s + c.pmt, 0) + (renta ? renta.pmt : 0);
+  const mesA = cile.reduce((s, c) => s + c.pmt * c.alok[0] / 100, 0) + (renta ? renta.pmt * renta.alok[0] / 100 : 0);
+  const mesD = cile.reduce((s, c) => s + c.pmt * c.alok[1] / 100, 0) + (renta ? renta.pmt * renta.alok[1] / 100 : 0);
+  const mesH = Math.max(0, pmtCelkem - mesA - mesD);
   const cfZbyva = cf - pmtCelkem - pojNove;
   if (cfZbyva < 0) flags.push(`Cash flow nestačí: chybí ${-cfZbyva} Kč/měs.`);
   // ---------- cílová struktura (třídy)
@@ -943,8 +949,10 @@ function compute0(inp, today, ext) {
   else {
     pozice = [];
     const add = (k, j, m) => { if (j >= 500 || m > 0.5) { const p = prod(k); const ex = pozice.find(x => x.k === k && !x.dip); if (ex) { ex.jednor += Math.round(j / 1000) * 1000; ex.mesicne += Math.round(m); } else pozice.push({ k, nazev: p.n, jednor: Math.round(j / 1000) * 1000, mesicne: Math.round(m), s: p.s }); } };
-    Object.entries(mixFrom(1)).forEach(([k, w]) => add(k, needD * w, 0));
-    Object.entries(mixFrom(0)).forEach(([k, w]) => add(k, needA * w, (pmtCelkem - dip) * w));
+    Object.entries(mixFrom(1)).forEach(([k, w]) => add(k, needD * w, optMes ? mesD * w : 0));
+    Object.entries(mixFrom(0)).forEach(([k, w]) => add(k, needA * w, ((optMes ? mesA : pmtCelkem) - dip) * w));
+    if (optMes && mesH > 0.5) add(prod(S.hot_prod) ? S.hot_prod : "wi_rez", 0, mesH);
+    if (optMes) flags.push(`Pravidelné vklady podle optimálního rozložení: akcie ${Math.round(mesA)} · dluhopisy ${Math.round(mesD)} · hotovost ${Math.round(mesH)} Kč/měs.`);
     if (dip > 0.5) { const p = prod(dipKey); pozice.push({ k: dipKey, nazev: p.n + (/DIP/.test(p.n) ? "" : " (DIP)"), jednor: 0, mesicne: Math.round(dip), s: p.s, dip: true }); }
     const over = pozice.reduce((a, p) => a + p.jednor, 0) - (Math.max(0, cash - cashStay) + movedTot);
     if (over > 0) { const big = pozice.reduce((a, b) => b.jednor > a.jednor ? b : a); big.jednor -= Math.ceil(over / 1000) * 1000; }
@@ -963,8 +971,9 @@ function compute0(inp, today, ext) {
   if (jednorRozd > zdroje + 1000) kontrola.push({ ok: false, t: `Jednorázově rozděluješ ${kc(jednorRozd)}, ale nad rezervu je k dispozici jen ${kc(zdroje)}` });
   { const d = pmtCelkem - mesRozd; kontrola.push(Math.abs(d) >= 100 ? { ok: false, t: d > 0 ? `Měsíčně: přidej ${kc(d)}/měs (máš ${kc(mesRozd)} z ${kc(pmtCelkem)})` : `Měsíčně: uber ${kc(-d)}/měs (plán potřebuje ${kc(pmtCelkem)})` } : { ok: true, t: `Měsíčně: ${kc(mesRozd)}/měs ✓` }); }
   if (renta && dipRozd > renta.prostor + 1) kontrola.push({ ok: false, t: `DIP: max ${kc(renta.prostor)}/měs pro daňový odpočet (máš ${kc(dipRozd)})` });
-  else if (renta && dipRozd < Math.min(renta.prostor, pmtCelkem) - 1) kontrola.push({ ok: false, t: `DIP: využij daňový odpočet — dej do DIP ${kc(Math.min(renta.prostor, pmtCelkem))}/měs (teď ${kc(dipRozd)})` });
+  else if (renta && useDip && dipRozd < Math.min(renta.prostor, optMes ? mesA : pmtCelkem) - 1) kontrola.push({ ok: false, t: `DIP: využij daňový odpočet — dej do DIP ${kc(Math.min(renta.prostor, optMes ? mesA : pmtCelkem))}/měs (teď ${kc(dipRozd)})` });
   if (manual) kontrola.filter(x => !x.ok).forEach(x => flags.push("Realokace: " + x.t));
+  if (renta && !useDip) flags.push("DIP vypnutý — daňová úleva se v plánu nepočítá, platby jdou do klasického portfolia.");
   // ---------- transakce: zdroje → nové pozice (nejdřív fondy/SS, pak účty; běžný účet až nakonec)
   const srcs = moved.map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota - a.keep, uvol: a.hodnota - a.keep, keep: a.keep }))
     .concat(cashAccts.slice().sort((x, y) => (x.typ === "Běžný účet") - (y.typ === "Běžný účet") || y.hodnota - x.hodnota).map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota, uvol: 0, cash: true, keep: a.keep })));
@@ -1367,7 +1376,10 @@ function prodSettings(){const P=(inp().nastaveni||{}).prod||{};
    <div class="g">${sel("Auvesta – tarif (poplatek/ážio)","nastaveni.auv_tarif",Object.entries(FPE.AUV_TARIF).map(([k,v])=>[k,k+" · "+v+" EUR"]))}${fld("Kurz EUR/Kč","nastaveni.eur_kurz","number",'step="0.01" placeholder="24.5"')}</div>
    <p class="hint">Výnos je nominální před správou; plán počítá s výnosem − správa − inflace. Prázdné pole = výchozí hodnota (šedě).</p>`}
 function realokEditor(){const I=inp(),RE=I.realokace||{};
-  return `<label class="chk"><input type="checkbox" data-p="realokace.rucne" ${RE.rucne?"checked":""}> Upravit ručně (jinak automaticky podle plánu)</label><ul class="flags" id="kontrola" style="position:sticky;top:0;background:var(--panel);z-index:2;padding:6px 0 6px 16px;margin:0"></ul>
+  return `<div class="g"><label class="f" style="grid-column:1/-1">Pravidelné vklady<select data-p="realokace.mes"><option value="" ${RE.mes==="opt"?"":"selected"}>Jen do akcií</option><option value="opt" ${RE.mes==="opt"?"selected":""}>Dle optimálního rozložení (akcie / dluhopisy / hotovost)</option></select></label>
+   <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-p="realokace.dip" ${RE.dip!==false?"checked":""}> Použít DIP (odpočet ze základu daně, 15 %)</label></div>
+   <p class="hint" style="margin:0 0 6px">Platí pro automatický návrh; v ručním režimu klikni na „Načíst automatický návrh“.</p>
+   <label class="chk"><input type="checkbox" data-p="realokace.rucne" ${RE.rucne?"checked":""}> Upravit ručně (jinak automaticky podle plánu)</label><ul class="flags" id="kontrola" style="position:sticky;top:0;background:var(--panel);z-index:2;padding:6px 0 6px 16px;margin:0"></ul>
    ${RE.rucne?`${rows("realokace.polozky",[["Produkt","produkt","text","full",PRODSEL()],["Jednorázově Kč","jednor","number"],["Měsíčně Kč","mesicne","number"]],{produkt:"cq_akc",jednor:0,mesicne:0})}
    <button class="add" id="reAuto" style="margin-bottom:6px">↺ Načíst automatický návrh</button>`:""}`}
 let STEP=0;
@@ -1498,8 +1510,8 @@ $("#ed").addEventListener("click",e=>{
   if(d){const ps=d.dataset.del.split(".");const i=+ps.pop();const L=get(inp(),ps.join("."));L.splice(i,1);save();if(isProdPath(ps.join(".")))storeProdDef();keepOpen(renderEditor);update()}
 });
 /* převezme automatický návrh realokace do ručně upravitelných řádků */
-function loadAuto(){const I=inp();const rc=I.realokace?I.realokace.rucne:false;I.realokace=I.realokace||{};I.realokace.rucne=false;
-  const RA=FPE.compute(I,new Date(),MARKET);I.realokace={rucne:true,polozky:RA.pozice.map(p=>({produkt:p.k,jednor:p.jednor,mesicne:p.mesicne,dip:p.dip||undefined}))};if(!rc&&!I.realokace.rucne)I.realokace.rucne=false}
+function loadAuto(){const I=inp();const old=I.realokace||{};const rc=old.rucne;I.realokace=Object.assign({},old,{rucne:false});
+  const RA=FPE.compute(I,new Date(),MARKET);I.realokace={mes:old.mes,dip:old.dip,rucne:true,polozky:RA.pozice.map(p=>({produkt:p.k,jednor:p.jednor,mesicne:p.mesicne,dip:p.dip||undefined}))};if(!rc&&!I.realokace.rucne)I.realokace.rucne=false}
 function keepOpen(fn){const op=[...document.querySelectorAll("#ed details")].map(x=>x.open);const st=$("#ed").scrollTop;fn();document.querySelectorAll("#ed details").forEach((x,i)=>{if(op[i]!=null)x.open=op[i]});$("#ed").scrollTop=st}
 
 /* ---------------- slidy ---------------- */
