@@ -575,6 +575,27 @@ tests["DPS: státní příspěvek 20 % z vlastního vkladu 500–1 700 Kč (max.
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["vynechat slide: checkbox u každého slidu, vynechaný se nezobrazí v prezentaci/PDF/PPTX a volba se uloží do plánu"] = async function () {
+  const { ctx, page, errors } = await open();
+  const n0 = await page.evaluate(() => FR.length);
+  assert(n0 > 3, "plán má víc slidů");
+  eq(await page.locator("#thumbs input.skp").count(), n0, "checkbox u každého slidu");
+  await page.locator("#thumbs input.skp").nth(1).check();
+  const r = await page.evaluate(() => ({ sk: FR.map(f => f.skip), vis: visFR().length, saved: Object.keys(inp().vynechat || {}), cur: $("#skipCur").checked }));
+  eq([r.sk[1], r.vis, r.saved.length], [true, n0 - 1, 1], "vynechán 1 slide");
+  await page.reload();
+  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
+  eq(await page.evaluate(() => FR[1].skip), true, "volba přežije reload");
+  await page.evaluate(() => { cur = 0; startPres(); });
+  await page.evaluate(() => go(1));
+  eq(await page.evaluate(() => cur), 2, "prezentace přeskočí vynechaný slide");
+  eq(await page.evaluate(() => $("#pc").textContent), `2 / ${n0 - 1}`, "počítadlo jen z viditelných");
+  await page.evaluate(() => stopPres());
+  await page.locator("#thumbs input.skp").nth(1).uncheck();
+  eq(await page.evaluate(() => visFR().length), n0, "po odškrtnutí zpět");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
