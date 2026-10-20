@@ -516,5 +516,6 @@ else if(RVZ){(async()=>{let pre=null;try{pre=await rvDecode(RVZ)}catch(e){consol
 else{try{const d=JSON.parse(localStorage.getItem(DRAFT)||"null");if(d&&d.plan&&!d.rv)load(d.plan)}catch(e){}render();
   if(!LINK.k)setTimeout(()=>toast("Odkaz je neúplný – dotazník půjde vyplnit, ale ne odeslat. Požádejte poradce o nový odkaz."),600)}
 </script>
+<script src="/pipeline/dmy.js?v=1"></script>
 </body>
 </html>
