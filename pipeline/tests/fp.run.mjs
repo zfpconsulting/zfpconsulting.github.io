@@ -321,7 +321,7 @@ tests["navazující platba: cíl, který vyčerpá cash flow, po splnění před
   assert(o.lbl[o.lbl.length - 1] === "Plán: hotovo", "slide končí snímkem bez bubliny, který ukáže výsledek");
   const f = o.txt[o.txt.length - 1], c = o.txt.find((_, i) => o.lbl[i] === "Plán: navazující platba");
   assert(/po splnění → Byt/.test(f), "u Auta je poznámka, kam platba po splnění teče");
-  assert(/za 3 roky už 20 \d{3} Kč\/měs/.test(f), "u Bytu je vidět, kolik bude platit po splnění Auta: " + f.match(/za \d+ roky už[^A-Z]*/));
+  assert(/za 3 roky: [\d ]+ \+ [\d ]+ = 20 \d{3} Kč\/měs/.test(f.replace(/ /g, " ")), "u Bytu je vidět, kolik bude platit po splnění Auta (vlastní + přiteklá = celkem): " + f.match(/za \d+ roky:[^A-Z]*/));
   assert(/z cíle Auto poteče po jeho splnění/.test(c), "popis kroku vysvětluje přelévání");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
