@@ -265,7 +265,7 @@ tests["demo plány: spočítají se, jsou kompletní, splnitelné a sedí s kart
       try {
         const R = FPE.compute(JSON.parse(JSON.stringify(plan)), n, {});
         r.chybi = missing(plan, R).map(m => m.t);
-        r.cf = R.cf; r.nesplnene = (R.cile || []).filter(c => c.splneni < 0.995).map(c => c.nazev);
+        r.cf = R.cf; r.nesplnene = (R.cile || []).filter(c => c.splneni < 0.9).map(c => c.nazev);
         r.rentaKracena = !!(R.renta && R.renta.kraceno); r.nedostatek = R.flags.filter(f => /nestačí/.test(f));
         r.cile = (R.cile || []).length; r.nan = JSON.stringify(R.cile.map(c => [c.vklad, c.pmt, c.splneni])).includes("null");
         r.frames = (() => { try { const d = JSON.parse(JSON.stringify(DB)); d.clients[d.cur] = plan; DB = d; compute(); return FR.length; } catch (e) { return "ERR " + e.message; } })();
@@ -645,7 +645,8 @@ tests["cíl 100 %: renta nebere víc, než potřebuje (zbytek zůstane nealokov�
   for (const fond of [80000, 400000, 1500000]) {
     await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Podílový fond (OPF)", hodnota: fond }] }));
     const r = await page.evaluate(() => { compute(); return { spl: R.renta.splneni, vklad: R.renta.vklad, pmt: R.renta.pmt, zbyva: R.zbyva }; });
-    assert(r.spl >= 0.995 && r.spl <= 1.05, `renta vychází na ~100 % (fond ${fond}: ${r.spl})`);
+    assert(r.spl >= 0.6 && r.spl <= 1.05, `renta vychází na ~100 % (fond ${fond}: ${r.spl}); platby pod 500 Kč se nedávají, takže i méně`);
+    assert(r.pmt === 0 || (r.pmt >= 500 && r.pmt % 100 === 0), `platba renty je násobek 100 a aspoň 500 (${r.pmt})`);
     if (fond >= 400000) assert(r.zbyva > 0 && r.pmt === 0, "co renta nepotřebuje, zůstane nealokováno (" + r.zbyva + ")");
   }
   eq(errors, [], "chyby v konzoli"); await ctx.close();
@@ -687,8 +688,8 @@ tests["uvolnění platby po splnění cíle: krok s animací zpět do cash flow;
   await setPlan(page, Object.assign({}, base, { majetek: maj }));
   const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/ /g, " "); }; const P = FR.filter(f => f.g === "p");
     return { lbl: P.map(f => f.lbl), txt: P.filter(f => f.lbl === "Plán: uvolnění platby").map(f => t(f.h)) }; });
-  assert(o.lbl.filter(l => l === "Plán: uvolnění platby").length === 3, "uvolnění platby u obou cílů i u renty (za 10, 15 a 46 let): " + o.lbl.join("|"));
-  assert(/za 10 let\) uvolní zpět do cash flow/.test(o.txt[0]) && /za 15 let\) uvolní zpět do cash flow/.test(o.txt[1]) && /za 46 let\) uvolní zpět do cash flow/.test(o.txt[2]), "popis: za X let se platba vrací do cash flow (chronologicky 10 → 15 → 46)");
+  assert(o.lbl.filter(l => l === "Plán: uvolnění platby").length >= 2, "uvolnění platby u obou cílů (za 10 a 15 let; u renty jen když má platbu ≥ 500 Kč): " + o.lbl.join("|"));
+  assert(/za 10 let\) uvolní zpět do cash flow/.test(o.txt[0]) && /za 15 let\) uvolní zpět do cash flow/.test(o.txt[1]), "popis: za X let se platba vrací do cash flow (chronologicky 10 → 15 → …)");
   assert(/(po splnění|✓ splněno) → zpět do cash flow/.test(o.txt[1]), "u řádku cíle je poznámka");
   /* šipky přeskočí vynechané slidy (i mimo celou obrazovku) */
   const sk = await page.evaluate(() => { cur = 0; toggleSkip(1, true); cur = 0; update(); go(1); const a = cur; return [a, FR[1].skip]; });
@@ -762,12 +763,24 @@ tests["výnos podle typu aktiva: DPS 7 %, ETF 9 %, akcie 9 %, fond 5 % … nomin
   const g = (h, nom, mo) => h * Math.pow(1 + nom - a.infl, mo / 12);
   const exp = g(80000, 0.07, a.mo) + g(43000, 0.09, a.mo) + g(20000, 0.09, a.mo);
   assert(Math.abs(a.fv - exp) / exp < 0.002, "DPS 7 % + ETF 9 % + akcie 9 % (nominálně) minus inflace: " + Math.round(a.fv) + " vs " + Math.round(exp));
-  assert(a.spl >= 0.995 && a.spl <= 1.05, "renta vychází kolem 100 %, ne 400 % (" + a.spl + ")");
+  assert(a.spl >= 0.95 && a.spl <= 1.05, "renta vychází kolem 100 %, ne 400 % (" + a.spl + ")");
   assert(a.flags.some(f => /Akcie: počítám výnos akcií 9 %/.test(f)), "u přímých akcií/dluhopisů upozornění, že dluhopisy se zadávají ručně");
   const b = await run(maj({ etf: { vynos: 5 } }));
   const exp2 = g(80000, 0.07, b.mo) + g(43000, 0.05, b.mo) + g(20000, 0.09, b.mo);
   assert(Math.abs(b.fv - exp2) / exp2 < 0.002, "vlastní výnos u položky (5 %) přebije výnos podle typu: " + Math.round(b.fv) + " vs " + Math.round(exp2));
   eq(await page.evaluate(() => ["v_bu", "v_term", "v_ss", "v_pp", "v_opf", "v_etf", "v_akcie"].map(k => FPE.DEFAULT_SET[k])), [0, 0.04, 0.02, 0.01, 0.05, 0.09, 0.09], "výchozí dlouhodobé výnosy podle typu");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["měsíční platby: zaokrouhlené na stovky, nic pod 500 Kč se do plánu nedává"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], renta: { mesicne: 30000 } };
+  const cases = [[{ nazev: "A", castka: 250000, za_let: 10 }, { nazev: "B", castka: 1500000, za_let: 15 }], [{ nazev: "C", castka: 120000, za_let: 3 }, { nazev: "D", castka: 40000, za_let: 8 }], [{ nazev: "E", castka: 333333, za_let: 7 }]];
+  for (const cile of cases) {
+    await setPlan(page, Object.assign({}, base, { cile, majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "ETF", nazev: "E", hodnota: 43000, nech: "vse" }] }));
+    const r = await page.evaluate(() => { compute(); return R.cile.concat(R.renta ? [R.renta] : []).flatMap(g => [g.pmt, g.inh || 0]); });
+    r.forEach(v => assert(v === 0 || (v >= 500 && v % 100 === 0), "platba/přítok je 0 nebo násobek 100 od 500 Kč: " + JSON.stringify(r)));
+  }
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 

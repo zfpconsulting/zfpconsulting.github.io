@@ -770,10 +770,9 @@ function compute0(inp, today, ext) {
   const rr = a => (a[0] * rA + a[1] * rD + a[2] * rH) / 100;
   const feeA = a => (a[0] * CA.fee + a[1] * CD.fee) / 100;
   const fvOf = (lump, pmt, r, months, fee) => { const m = mr(r), g = Math.pow(1 + m, months); return lump * (1 - fee) * g + pmt * (1 - fee) * (Math.abs(m) < 1e-12 ? months : (g - 1) / m); };
-  /* platba se zaokrouhluje nahoru po 100 Kč; u dlouhých horizontů ale 100 Kč měsíčně znamená statisíce navíc na konci (cíl by se přestřelil), proto se krok
-     zjemní tak, aby zaokrouhlení přidalo nejvýš ~4 % cíle – cílíme na 100 %, ne na 150 % */
+  /* měsíční platba se zaokrouhluje na nejbližších 100 Kč a cokoliv pod 500 Kč se do plánu nedává (i za cenu, že cíl vyjde lehce pod 100 %) */
   const pmtFor = (target, lump, r, months, fee) => { if (months <= 0) return 0; const m = mr(r), g = Math.pow(1 + m, months), rest = target - lump * (1 - fee) * g; if (rest <= 0) return 0;
-    const k = (Math.abs(m) < 1e-12 ? months : (g - 1) / m) * (1 - fee), step = [100, 50, 10, 5, 1].find(x => x * k <= 0.04 * target) || 1; return ceil(rest / k, step); };
+    const k = (Math.abs(m) < 1e-12 ? months : (g - 1) / m) * (1 - fee), p = Math.round(rest / k / 100) * 100; return p < 500 ? 0 : p; };
   const lumpFor = (target, r, months, fee) => months <= 0 ? target : target / ((1 - fee) * Math.pow(1 + mr(r), months));
 
   // ---------- osoby
@@ -957,6 +956,8 @@ function compute0(inp, today, ext) {
         Sx2 = g.inh + g.pmt; });
       flags.push(`Cash flow nestačí na všechny cíle (chybí ${Math.round(plne - avail)} Kč/měs) — dřívější cíle mají přednost, platby pozdějších cílů jsou zkráceny na to, co cash flow dovolí, a jejich částky přepočteny na dosažitelné.`);
     }
+    /* platby pod 500 Kč/měs se do plánu nedávají → cíl může vyjít pod 100 %; když je to víc než o 5 %, plán na to upozorní */
+    if (plne <= avail + 0.5) chain.forEach(g => { if (g.pmt === 0 && g.splneni < 0.95) flags.push(`${g === renta ? "Renta" : g.nazev}: potřebná platba je pod 500 Kč/měs, do plánu se nedává – cíl vychází na ${Math.round(g.splneni * 100)} %.`); });
     chain.forEach(g => { if (g === renta) { g.dosazitelne = g.kap * Math.min(1, g.splneni); g.dosazitelneMes = Math.floor(g.mesicne * Math.min(1, g.splneni) / 100) * 100; }
       else g.dosazitelne = Math.floor(g.castka * Math.min(1, g.splneni) / 1000) * 1000; });
     chain.forEach((g, i) => { const nx = chain.slice(i + 1).find(h => h.months > g.months); g.flowKc = g.pmt + g.inh;
