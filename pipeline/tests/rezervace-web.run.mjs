@@ -52,6 +52,32 @@ async function fill(page, { jmeno = "Jana Nováková", email = "jana@example.com
 }
 
 const tests = {
+  async "týdny: zobrazí jen jeden týden (po–ne), šipky přepínají týdny, data mají tečky"() {
+    /* tři týdny po sobě: dny +3, +10, +17 (a +4 ve stejném týdnu jako +3 jen když to kalendář dovolí) */
+    const d = [at(3), at(10), at(17)];
+    const { ctx, page, errors } = await open({ slots: d.map(iso), script });
+    const lab = () => page.$$eval("[data-day]", els => els.map(e => e.textContent.trim()));
+    const first = await lab();
+    eq(first.length, 1, "v prvním týdnu je jen jeden den");
+    assert(/^\S+ \d{1,2}\. \d{1,2}\.$/.test(first[0]), "datum s tečkami, ne „pá 23 10“: " + first[0]);
+    assert(/^\d{1,2}\. \d{1,2}\. – \d{1,2}\. \d{1,2}\.$/.test((await page.textContent(".wkl")).trim()), "popisek týdne s tečkami");
+    eq(await page.$eval('[data-wk="-1"]', e => e.disabled), true, "zpět nejde na prvním týdnu");
+    await page.click('[data-wk="1"]');
+    eq((await lab()).length, 1, "druhý týden"); eq(await page.$eval('[data-wk="-1"]', e => e.disabled), false, "zpět jde");
+    await page.click('[data-wk="1"]');
+    eq(await page.$eval('[data-wk="1"]', e => e.disabled), true, "dál nejde na posledním týdnu");
+    await page.click('[data-wk="-1"]'); await page.click('[data-wk="-1"]');
+    eq(await page.$$eval("[data-time]", e => e.length), 1, "zpět na prvním týdnu se časy vrátí");
+    eq(errors, [], "chyby v konzoli"); await ctx.close();
+  },
+  async "hotovo: datum v potvrzení má tečky"() {
+    const a = at(3, 10);
+    const { ctx, page } = await open({ slots: [iso(a)], script });
+    await page.waitForTimeout(4200);
+    await page.click("[data-time]"); await page.click('[data-mode="online"]'); await fill(page); await page.click("#bBook"); await page.waitForSelector(".done");
+    assert(/\d{1,2}\. \d{1,2}\. v \d{2}:\d{2}/.test(await page.textContent(".done")), "datum s tečkami v potvrzení: " + await page.textContent(".done p"));
+    await ctx.close();
+  },
   async "nabídne jen volné časy, čas zobrazí v pražském čase i pro návštěvníka z jiného pásma"() {
     const a = at(3, 10), b = at(3, 14);
     const { ctx, page, errors } = await open({ slots: [iso(a), iso(b)], script: q => q.a === "busy" ? { ok: true, v: 2, busy: [[b.getTime(), b.getTime() + 45 * 60000]], office: [], len: 45, buf: 15 } : { ok: true, id: "x" } });
