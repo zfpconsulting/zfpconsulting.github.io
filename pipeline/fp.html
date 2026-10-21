@@ -778,8 +778,10 @@ function compute0(inp, today, ext) {
     let p = Math.round(raw / 100) * 100; if (p < raw * 0.99) p += 100; /* zaokrouhlení dolů nesmí cíl srazit pod ~99 % */ if (p >= 500) return p;
     const rest = target - (months > 0 ? lump * (1 - fee) * Math.pow(1 + mr(r), months) : lump); const F = full || target; if (rest <= 0.05 * F) return 0;
     /* jinak 0 nebo 500 Kč – podle toho, co cíl dostane blíž ke 100 % */
-    const k = (Math.abs(mr(r)) < 1e-12 ? months : (Math.pow(1 + mr(r), months) - 1) / mr(r)) * (1 - fee), s0 = 1 - rest / F, s5 = 1 - (rest - 500 * k) / F;
-    return Math.abs(s5 - 1) < Math.abs(s0 - 1) ? 500 : 0; };
+    const k = (Math.abs(mr(r)) < 1e-12 ? months : (Math.pow(1 + mr(r), months) - 1) / mr(r)) * (1 - fee), s0 = 1 - rest / F, sp = x => 1 - (rest - x * k) / F;
+    /* malá potřeba: platí se hned po stovkách (100–400 Kč), pokud tím cíl vyjde blíž ke 100 % než s 0 nebo s 500 Kč (žádné přestřelení kvůli minimu) */
+    let best = 0, bd = Math.abs(s0 - 1); [100, 200, 300, 400, 500].forEach(x => { const d = Math.abs(sp(x) - 1); if (d < bd - 1e-9) { best = x; bd = d; } });
+    return best; };
   const lumpFor = (target, r, months, fee) => months <= 0 ? target : target / ((1 - fee) * Math.pow(1 + mr(r), months));
 
   // ---------- osoby
@@ -929,12 +931,12 @@ function compute0(inp, today, ext) {
      (L = kolik cílů po sobě smí přijímat platby dřív splněných). Teprve když nestačí ani plná kaskáda, platby se poměrně zkrátí. */
   const fvInh = (Sx, g, m) => Sx > 0 && m > g.inhOd ? fvOf(0, Sx, g.r, m - g.inhOd, g.fee) : 0;
   const chain = cile.concat(renta ? [renta] : []).sort((a, b) => a.months - b.months);
-  const calcChain = L => { let Sx = 0, mPrev = 0;
+  const calcChain = (L, tinyOn) => { let Sx = 0, mPrev = 0;
     chain.forEach((g, i) => { const isR = g === renta, target = isR ? Math.max(0, g.kap - g.dpsFv) : g.castka; g.inhOd = mPrev;
       const full = isR ? g.kap : g.castka;
       /* vlastní platba by vyšla pod 500 Kč (kvůli malé potřebě) a předchozí cíl po splnění uvolní platbu → cíl si vezme potřebnou část z ní,
          místo aby od dneška platil minimum 500 Kč (přestřelil) nebo nic (zůstal na 60 %) */
-      const tiny = i >= 1 && Sx > 0 && pmtRaw(target, g.vklad, g.r, g.months, g.fee) < 450;
+      const tiny = tinyOn && i >= 1 && Sx > 0 && pmtRaw(target, g.vklad, g.r, g.months, g.fee) < 450;
       const take = i >= 1 && (i <= L || tiny) ? Sx : 0; g.inhNab = take;
       // přítok jen v potřebné výši — co cíl nepotřebuje, uvolní se do volného cash flow (cíl se nepřeplňuje)
       const zbyva = Math.max(0, target - fvOf(g.vklad, 0, g.r, g.months, g.fee));
@@ -942,13 +944,21 @@ function compute0(inp, today, ext) {
       g.inh = Math.min(take, potreba < 500 && potreba > 0 && zbyva > 0.05 * full ? 500 : potreba < 500 ? 0 : potreba); g.uvol = Sx - g.inh;
       const inh = fvInh(g.inh, g, g.months);
       g.pmt = pmtFor(Math.max(0, target - inh), g.vklad, g.r, g.months, g.fee, full); g.fvInh = inh;
+      /* malá potřeba (vlastní platba by vyšla pod 500 Kč) a cash flow stačí → platí se 500 Kč hned a o to se sníží jednorázový vklad, takže cíl vyjde na ~100 %
+         (místo čekání na splnění jiného cíle nebo přestřelení); uvolněný majetek zůstane na spořicím účtu */
+      { const t2 = Math.max(0, target - inh), raw = pmtRaw(t2, g.vklad, g.r, g.months, g.fee), rest = t2 - g.vklad * (1 - g.fee) * Math.pow(1 + mr(g.r), g.months);
+        if (g.inh === 0 && g.vklad > 0 && raw > 0 && raw < 450 && rest > 0.05 * full && g.months > 0) {
+          const nv = ceil(lumpFor(Math.max(0, t2 - fvOf(0, 500, g.r, g.months, g.fee)), g.r, g.months, g.fee), 1000);
+          if (nv < g.vklad) { g.vkladPuv = g.vklad; g.vklad = nv; g.pmt = 500; } } }
       g.vysledek = fvOf(g.vklad, g.pmt, g.r, g.months, g.fee) + inh + (isR ? g.dpsFv : 0);
       g.splneni = (isR ? g.kap : g.castka) > 0 ? g.vysledek / (isR ? g.kap : g.castka) : 1;
       Sx = g.inh + g.pmt; mPrev = Math.max(mPrev, g.months); }); };
   const availCf = Math.max(0, cf - pojNove - keepMes), sumPmt = () => chain.reduce((a, g) => a + g.pmt, 0);
   let kaskada = 0;
-  for (; kaskada < chain.length - 1; kaskada++) { calcChain(kaskada); if (sumPmt() <= availCf + 0.5) break; }
-  calcChain(kaskada);
+  /* nejdřív bez „převzetí malé potřeby“: když cash flow stačí, cíl platí svou platbu hned (ne až po splnění předchozího cíle); přelévání jen když nestačí */
+  let tinyOn = false;
+  for (; kaskada < chain.length - 1; kaskada++) { calcChain(kaskada, false); if (sumPmt() <= availCf + 0.5) break; tinyOn = true; calcChain(kaskada, true); if (sumPmt() <= availCf + 0.5) break; tinyOn = false; }
+  calcChain(kaskada, tinyOn);
   if (kaskada > 0) flags.push("Plné platby všech cílů najednou se do cash flow nevejdou — platba splněného cíle se přelévá do dalšího (jen v nutné míře).");
   {
     /* CASH FLOW NESTAČÍ → platby se přidělují podle horizontu: dřívější cíl má přednost a platí plnou platbu (kdo se splní dřív, pak předává platbu dál),
@@ -1019,7 +1029,7 @@ function compute0(inp, today, ext) {
     if (optMes) flags.push(`Pravidelné vklady podle optimálního rozložení: akcie ${Math.round(mesA)} · dluhopisy ${Math.round(mesD)} · hotovost ${Math.round(mesH)} Kč/měs.`);
     if (dip > 0.5) { const p = prod(dipKey); pozice.push({ k: dipKey, nazev: p.n + (/DIP/.test(p.n) ? "" : " (DIP)"), jednor: 0, mesicne: Math.round(dip), s: p.s, dip: true }); }
     /* měsíční vklady do produktů na stovky (když součet na stovky nejde, aspoň na padesátky); součet zůstane, DIP se zaokrouhlí dolů (strop) */
-    { const L = pozice.filter(p => p.mesicne > 0.5), T = L.reduce((a, p) => a + p.mesicne, 0);
+    { const L = pozice.filter(p => p.mesicne > 0.5), T0 = L.reduce((a, p) => a + p.mesicne, 0), T = Math.abs(T0 - pmtCelkem) < 60 ? pmtCelkem : T0; /* drobné zaokrouhlení položek nesmí změnit krok na 50 */
       if (L.length) { const st = Math.round(T) % 100 === 0 ? 100 : 50, Tr = Math.round(T / st) * st;
         L.filter(p => p.dip).forEach(p => p.mesicne = Math.floor(p.mesicne / st) * st);
         const O = L.filter(p => !p.dip), rest = Tr - L.filter(p => p.dip).reduce((a, p) => a + p.mesicne, 0), oT = O.reduce((a, p) => a + p.mesicne, 0);

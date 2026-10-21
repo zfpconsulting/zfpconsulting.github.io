@@ -789,15 +789,27 @@ tests["případ klienta: 2 cíle + renta s ponechaným DPS/ETF/akciemi – všec
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["měsíční platby: zaokrouhlené na stovky, nic pod 500 Kč se do plánu nedává"] = async function () {
+tests["měsíční platby: zaokrouhlené na stovky (pod 500 Kč jen u malé potřeby, platí se hned)"] = async function () {
   const { ctx, page, errors } = await open();
   const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], renta: { mesicne: 30000 } };
   const cases = [[{ nazev: "A", castka: 250000, za_let: 10 }, { nazev: "B", castka: 1500000, za_let: 15 }], [{ nazev: "C", castka: 120000, za_let: 3 }, { nazev: "D", castka: 40000, za_let: 8 }], [{ nazev: "E", castka: 333333, za_let: 7 }]];
   for (const cile of cases) {
     await setPlan(page, Object.assign({}, base, { cile, majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "ETF", nazev: "E", hodnota: 43000, nech: "vse" }] }));
     const r = await page.evaluate(() => { compute(); return R.cile.concat(R.renta ? [R.renta] : []).flatMap(g => [g.pmt, g.inh || 0]); });
-    r.forEach(v => assert(v === 0 || (v >= 500 && v % 100 === 0), "platba/přítok je 0 nebo násobek 100 od 500 Kč: " + JSON.stringify(r)));
+    r.forEach(v => assert(v % 100 === 0, "platba/přítok je 0 nebo násobek 100 (u malé potřeby i pod 500 Kč): " + JSON.stringify(r)));
   }
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["renta jako v případu klienta (BÚ 140 000 + DPS 143 000, cash flow stačí): platí se hned, nepřestřelí a nečeká na přelitou platbu"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [],
+    cile: [{ nazev: "Start podnikání", castka: 250000, za_let: 10 }, { nazev: "Akontace na bydlení", castka: 1500000, za_let: 15 }], renta: { mesicne: 30000 },
+    majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Doplňkové penzijní spoření (DPS)", hodnota: 143000, vklad: 500 }], pojisteni: { zivotni: { navrh: 0 } } };
+  await setPlan(page, base);
+  const r = await page.evaluate(() => { compute(); return R.cile.concat([R.renta]).map(g => ({ n: g.nazev || "Renta", spl: g.splneni, pmt: g.pmt, inh: g.inh, vklad: g.vklad })); });
+    r.forEach(g => assert(g.spl <= 1.06, `${g.n}: přestřel ${g.spl.toFixed(3)} ` + JSON.stringify(r)));
+  assert(r[2].pmt > 0 && r[2].inh === 0, "renta začíná platit hned, nečeká na přelitou platbu " + JSON.stringify(r));
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 

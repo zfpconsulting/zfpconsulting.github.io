@@ -5813,7 +5813,10 @@ function renderCalWeek(){
     return el("div",{class:"cwday"+(k===t?" today":"")},el("div",{class:"dow"},DOWL[i]),el("div",{class:"dn"},String(d.getDate())));}));
   const allEvs=days.flatMap(k=>byDay[k]||[]), timed=allEvs.filter(e=>!e.allDay), hasAllDay=allEvs.some(e=>e.allDay);
   $("cwAllDayWrap").hidden=!hasAllDay||ctFreeOnly;
-  if(hasAllDay&&!ctFreeOnly)$("cwAllDay").replaceChildren(...days.map(k=>el("div",{},...(byDay[k]||[]).filter(e=>e.allDay).map(e=>el("div",{class:"cwad-ev"+evCls(e),style:"background:"+evColor(e),title:e.title},e.title)))));
+  if(hasAllDay&&!ctFreeOnly){/* celodenní události jako pruhy přes celé sloupce: začínají v prvním dni a končí na konci posledního (v rámci týdne), v řádcích bez překryvu */
+    const M=new Map();days.forEach((k,i)=>(byDay[k]||[]).filter(e=>e.allDay).forEach(e=>{const m=M.get(e.id);if(m)m.b=i;else M.set(e.id,{e,a:i,b:i})}));
+    const lanes=[];const bars=[...M.values()].sort((x,y)=>x.a-y.a||y.b-x.b).map(x=>{let r=lanes.findIndex(end=>end<x.a);if(r<0){r=lanes.length;lanes.push(-1)}lanes[r]=x.b;return {...x,r}});
+    $("cwAllDay").replaceChildren(...bars.map(({e,a,b,r})=>el("div",{class:"cwad-ev"+evCls(e),style:"background:"+evColor(e)+";grid-column:"+(a+1)+"/"+(b+2)+";grid-row:"+(r+1),title:e.title},e.title)))}
   /* rozsah hodin – pevný rámec 7–20 h, rozšířený, pokud nějaká událost zasahuje mimo něj */
   let hStart=7,hEnd=20;
   timed.forEach(e=>{const s=ctMinutesOf(e.start)/60, en=(e.end?ctMinutesOf(e.end):ctMinutesOf(e.start)+60)/60;hStart=Math.min(hStart,Math.floor(s));hEnd=Math.max(hEnd,Math.ceil(en))});
@@ -5830,7 +5833,7 @@ function renderCalWeek(){
   const nowD=new Date();
   days.forEach((k,i)=>{
     const dayEvs=(byDay[k]||[]).filter(e=>!e.allDay);
-    const slots=dzDaySlots(k,dayEvs).filter(({m})=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);return s>=nowD}).map(({m,e,online})=>({_slot:true,online,_sMin:m,_eMin:e}));
+    const slots=dzDaySlots(k,byDay[k]||[]).filter(({m})=>{const s=new Date(k+"T00:00:00");s.setMinutes(m);return s>=nowD}).map(({m,e,online})=>({_slot:true,online,_sMin:m,_eMin:e}));
     const items=ctLayoutDay([...(ctFreeOnly?[]:dayEvs).map(e=>({...e,_sMin:ctMinutesOf(e.start),_eMin:e.end?Math.max(ctMinutesOf(e.start)+15,ctMinutesOf(e.end)):ctMinutesOf(e.start)+60})),...slots]);
     items.forEach(e=>{
       const top=(e._sMin/60-hStart)*HH, h=Math.max(16,(e._eMin-e._sMin)/60*HH-2), w=100/e._cols, left=e._col*w;
