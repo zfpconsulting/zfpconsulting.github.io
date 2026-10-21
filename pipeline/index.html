@@ -7794,9 +7794,20 @@ function setView(v){
     if(ni>=0&&ni<ORDER.length)setView(ORDER[ni]);
   }
   let accX=0,accY=0,fired=false,endTimer=null,lockIdleTimer=null,lockMaxTimer=null;
+  /* gesto, které začalo na boardu stadií (Nový lead → … → Lost), patří boardu celé včetně setrvačnosti;
+     záložka se přepne až novým gestem (po krátké pauze) – jinak by dojezd na Lost přeskočil na Obrat */
+  let lastWheel=0,gBoard=false;
   function unlock(){fired=false;clearTimeout(lockIdleTimer);clearTimeout(lockMaxTimer)}
   window.addEventListener("wheel",e=>{
+    const now=Date.now();
+    if(now-lastWheel>250){
+      const sc0=scrollableX(e.target);
+      gBoard=!!sc0&&(e.deltaX>0?sc0.scrollLeft<sc0.scrollWidth-sc0.clientWidth-1:sc0.scrollLeft>1);
+      accX=0;accY=0;unlock();
+    }
+    lastWheel=now;
     if(Math.abs(e.deltaX)>Math.abs(e.deltaY)&&!scrollableX(e.target))e.preventDefault();
+    if(gBoard)return;
     if(fired){clearTimeout(lockIdleTimer);lockIdleTimer=setTimeout(unlock,120);return}
     clearTimeout(endTimer);endTimer=setTimeout(()=>{accX=0;accY=0},180);
     accX+=e.deltaX;accY+=e.deltaY;
@@ -7806,13 +7817,14 @@ function setView(v){
     clearTimeout(lockIdleTimer);lockIdleTimer=setTimeout(unlock,120);
     clearTimeout(lockMaxTimer);lockMaxTimer=setTimeout(unlock,900);
   },{passive:false});
-  let tx0=null,ty0=null,tFired=false;
+  let tx0=null,ty0=null,tFired=false,tSc=null,tL0=0;
   window.addEventListener("touchstart",e=>{
-    if(e.touches.length===2){tx0=(e.touches[0].clientX+e.touches[1].clientX)/2;ty0=(e.touches[0].clientY+e.touches[1].clientY)/2;tFired=false}
+    if(e.touches.length===2){tx0=(e.touches[0].clientX+e.touches[1].clientX)/2;ty0=(e.touches[0].clientY+e.touches[1].clientY)/2;tFired=false;tSc=scrollableX(e.target);tL0=tSc?tSc.scrollLeft:0}
     else{tx0=null}
   },{passive:true});
   window.addEventListener("touchmove",e=>{
     if(tx0==null||tFired||e.touches.length!==2)return;
+    if(tSc&&Math.abs(tSc.scrollLeft-tL0)>2){tFired=true;return}/* board se při gestu hýbal → gesto je jeho */
     const mx=(e.touches[0].clientX+e.touches[1].clientX)/2, my=(e.touches[0].clientY+e.touches[1].clientY)/2;
     const dx=mx-tx0, dy=my-ty0;
     if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.4)return;
