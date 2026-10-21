@@ -660,7 +660,7 @@ tests["ponechaný produkt se dál počítá v plánu; checkbox „nechat úložk
   eq([vse.keepVal, vse.keepMes], [300000, 0], "nechat být: zůstatek se počítá, vklad ne");
   eq([ul.keepVal, ul.keepMes], [300000, 2000], "s checkboxem běží i úložka");
   assert(vse.spl >= 0.995 && vse.spl <= 1.05, "nechaný zůstatek: renta ~100 % (" + vse.spl + ")");
-  assert(ul.spl > vse.spl && ul.pmt === 0, "ponechaná úložka pracuje pro rentu (renta nepotřebuje novou platbu)");
+  assert(ul.spl >= 0.995 && ul.pmt < vse.pmt, "ponechaná úložka pracuje pro rentu (renta potřebuje nejvýš tolik platby jako bez úložky)");
   assert(ul.cfZ <= vse.cfZ, "úložka se odečítá z cash flow (" + ul.cfZ + " vs " + vse.cfZ + ")");
   await run({ nech: "vse" });
   eq(await page.locator('input[data-p^="majetek."][data-p$=".nech_mes"]').count() >= 0, true, "editor se vykreslí");
@@ -749,6 +749,25 @@ tests["předání platby po splnění cíle: přes slide se protočí „za N le
   /* overlay se nevypisuje do miniatur a exportu (nemá data-k, je skrytý v .mini) a nezablokuje ovládání */
   const css = await page.evaluate(() => { const e = document.createElement("div"); e.innerHTML = '<div class="thumbs"><div class="mini"><div class="sl"><div class="ffw"></div></div></div></div>'; document.body.appendChild(e); const d = getComputedStyle(e.querySelector(".ffw")).display; e.remove(); return d; });
   eq(css, "none", "v miniaturách se overlay nezobrazuje");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["výnos podle typu aktiva: DPS 7 %, ETF 9 %, akcie 9 %, fond 5 % … nominálně minus inflace, vlastní výnos u položky ho přebije; stávající majetek nepřestřelí rentu na stovky %"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [],
+    cile: [{ nazev: "Start podnikání", castka: 250000, za_let: 10 }, { nazev: "Akontace na bydlení", castka: 1500000, za_let: 15 }], renta: { mesicne: 30000 }, pojisteni: { zivotni: { navrh: 7400 } } };
+  const maj = (o = {}) => [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Doplňkové penzijní spoření (DPS)", nazev: "DPS", hodnota: 80000, vklad: 0 }, Object.assign({ typ: "ETF", nazev: "iShares", hodnota: 43000, nech: "vse" }, o.etf), { typ: "Akcie / dluhopisy (přímé)", nazev: "Akcie", hodnota: 20000, nech: "vse" }];
+  const run = async m => { await setPlan(page, Object.assign({}, base, { majetek: m })); return page.evaluate(() => { compute(); return { fv: R.renta.dpsFv, mo: R.renta.months, spl: R.renta.splneni, infl: R.S.inflace, flags: R.flags }; }); };
+  const a = await run(maj());
+  const g = (h, nom, mo) => h * Math.pow(1 + nom - a.infl, mo / 12);
+  const exp = g(80000, 0.07, a.mo) + g(43000, 0.09, a.mo) + g(20000, 0.09, a.mo);
+  assert(Math.abs(a.fv - exp) / exp < 0.002, "DPS 7 % + ETF 9 % + akcie 9 % (nominálně) minus inflace: " + Math.round(a.fv) + " vs " + Math.round(exp));
+  assert(a.spl >= 0.995 && a.spl <= 1.05, "renta vychází kolem 100 %, ne 400 % (" + a.spl + ")");
+  assert(a.flags.some(f => /Akcie: počítám výnos akcií 9 %/.test(f)), "u přímých akcií/dluhopisů upozornění, že dluhopisy se zadávají ručně");
+  const b = await run(maj({ etf: { vynos: 5 } }));
+  const exp2 = g(80000, 0.07, b.mo) + g(43000, 0.05, b.mo) + g(20000, 0.09, b.mo);
+  assert(Math.abs(b.fv - exp2) / exp2 < 0.002, "vlastní výnos u položky (5 %) přebije výnos podle typu: " + Math.round(b.fv) + " vs " + Math.round(exp2));
+  eq(await page.evaluate(() => ["v_bu", "v_term", "v_ss", "v_pp", "v_opf", "v_etf", "v_akcie"].map(k => FPE.DEFAULT_SET[k])), [0, 0.04, 0.02, 0.01, 0.05, 0.09, 0.09], "výchozí dlouhodobé výnosy podle typu");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 

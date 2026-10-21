@@ -239,7 +239,7 @@ const PRODUKTY = [
 const AUV_TARIF = { S: 0, M: 600, L: 1200, XL: 2400 }; // poplatek (ážio) depozitu v EUR — Provizní příloha ZFP
 const PROD_IDX = Object.fromEntries(PRODUKTY.map(p => [p.k, p]));
 
-const DEFAULT_SET = { inflace: 0.03, hotovost_nom: 0.02, renta_let: 20, doziti: 85, renta_r: 0.045, dip_strop: 4000, dps_nom: 0.07, dan: 0.15, smrt_nasobek: 3,
+const DEFAULT_SET = { inflace: 0.03, hotovost_nom: 0.02, renta_let: 20, doziti: 85, renta_r: 0.045, dip_strop: 4000, dps_nom: 0.07, v_bu: 0, v_term: 0.04, v_ss: 0.02, v_pp: 0.01, v_opf: 0.05, v_etf: 0.09, v_akcie: 0.09, dan: 0.15, smrt_nasobek: 3,
   prac_inv1: 0.5, prac_inv2: 0.3, dluh_mix: 0.5, cq_mgmt: 0.01, cq_success: 0.05, auv_tarif: "M", eur_kurz: 24.5,
   akc_prod: "cq_akc", dluh_p1: "zfpi", dluh_p2: "cq_dluh", dip_prod: "cq_dip",
   nn_smrt: "klesajici", nn_inv: "klesajici" };
@@ -827,6 +827,17 @@ function compute0(inp, today, ext) {
   const dpsVal = dps.reduce((s, a) => s + a.hodnota, 0), dpsMes = dps.reduce((s, a) => s + a.vklad, 0), dpsOdpocet = dps.reduce((s, a) => s + n0(a.odpocet), 0);
   /* státní příspěvek (DPS i PP): 20 % z vlastního příspěvku od 500 Kč, počítá se nejvýš z 1 700 Kč měsíčně (max. 340 Kč) – připisuje se ke každé smlouvě */
   const dpsPrisp = dps.reduce((s, a) => s + dpsStatni(a.vklad), 0), dpsMesFv = dpsMes + dpsPrisp;
+  /* stávající majetek, který v plánu zůstává (DPS, PP, ponechané fondy/ETF/akcie/SS), se zhodnocuje svým VLASTNÍM dlouhodobým nominálním výnosem
+     (nastavení podle typu, nebo vlastní výnos u položky) minus inflace – ne jednou sazbou pro všechno. Dluhopisy, ŽP a Jiné: výnos se zadává ručně u položky. */
+  const NOMK = { "Běžný účet": "v_bu", "Spořicí účet": "hotovost_nom", "Termínovaný vklad": "v_term", "Stavební spoření": "v_ss", [PP]: "v_pp", [DPS]: "dps_nom", "Podílový fond (OPF)": "v_opf", "ETF": "v_etf", "Akcie / dluhopisy (přímé)": "v_akcie" };
+  const nomOf = a => { const v = a.vynos; if (v !== "" && v != null && isFinite(+v)) return +v / 100; const k = NOMK[a.typ]; return k && isFinite(S[k]) ? +S[k] : null; };
+  const rOfA = a => (nomOf(a) == null ? 0 : nomOf(a)) - S.inflace;
+  const fvA = (h, mes, r, m) => { const q = mr(r); return h * Math.pow(1 + r, m / 12) + mes * (Math.abs(q) < 1e-12 ? m : (Math.pow(1 + q, m) - 1) / q); };
+  const dpsGrow = dps.map(a => ({ h: a.hodnota, mes: a.vklad + dpsStatni(a.vklad), r: rOfA(a) }));
+  const growList = dpsGrow.concat(keepList.map(a => ({ h: a.keep, mes: Math.max(0, n0(a.nech_mes)), r: rOfA(a) })));
+  const growFv = (L, m) => L.reduce((t, g) => t + fvA(g.h, g.mes, g.r, m), 0);
+  keepList.concat(dps).forEach(a => { if (nomOf(a) == null) flags.push(`${a.nazev || a.typ}: doplň vlastní výnos – počítám 0 % nominálně.`); });
+  keepList.filter(a => a.typ === "Akcie / dluhopisy (přímé)" && !(a.vynos !== "" && a.vynos != null && isFinite(+a.vynos))).forEach(a => flags.push(`${a.nazev || a.typ}: počítám výnos akcií ${Math.round(S.v_akcie * 1000) / 10} % – u dluhopisů zadej vlastní výnos.`));
   if (dps.some(a => a.vklad > 0 && a.vklad < 500)) flags.push("DPS: vlastní příspěvek pod 500 Kč měsíčně nemá nárok na státní příspěvek – zvaž navýšení na 500 Kč.");
   const rezVklad = Math.min(cash, rezCil), rezChybi = rezCil - rezVklad;
   /* na účtech zůstane aspoň rezerva, a když klient chce nechat víc, tak ta částka */
@@ -888,11 +899,8 @@ function compute0(inp, today, ext) {
     /* státní důchod už požadovanou rentu pokrývá (a renta nezačíná před důchodem) → není co spořit; renta se do plánu nedává */
     if (kap <= 1) flags.push(`Renta ${Math.round(rentaMes)} Kč/měs už pokrývá státní důchod (${Math.round(starobni)} Kč/měs) — renta se do plánu nezapočítává.`);
     else {
-    const dr = S.dps_nom - S.inflace, dm = mr(dr);
-    let dpsFv = dpsVal * Math.pow(1 + dr, months / 12) + dpsMesFv * (Math.abs(dm) < 1e-12 ? months : (Math.pow(1 + dm, months) - 1) / dm);
-    /* jednorázový vklad do renty jen v potřebné výši (cílíme na 100 %, ne na 150 %); co renta nepotřebuje, zůstane nealokováno */
-    const keepFv = keepVal * Math.pow(1 + r, months / 12) + keepMes * (Math.abs(mr(r)) < 1e-12 ? months : (Math.pow(1 + mr(r), months) - 1) / mr(r));
-    dpsFv += keepFv;
+    /* stávající majetek (DPS, PP, ponechané produkty) se zhodnocuje každý svým výnosem */
+    const dpsFv = growFv(growList, months);
     const vklad = Math.min(volne, ceil(lumpFor(Math.max(0, kap - dpsFv), r, months, fee), 1000)); volne -= vklad;
     const pmt = pmtFor(Math.max(0, kap - dpsFv), vklad, r, months, fee);
     const vysledek = fvOf(vklad, pmt, r, months, fee) + dpsFv;
@@ -1144,8 +1152,7 @@ function compute0(inp, today, ext) {
   const fee0 = (needA * CA.fee + needD * CD.fee) / Math.max(1, needA + needD + cashPlan);
   udalosti.forEach(u => u.hodnota = u.typ === "start" ? cashStay + keptNonCash + (majCelkem - cashStay - keptNonCash - dpsVal) * (1 - fee0) + dpsVal : hodnota(u.m));
   /* měsíční vývoj finančního majetku v plánu (dnešní ceny): rezerva + cíle + renta + DPS; při výběru na cíl hodnota spadne */
-  const drD = S.dps_nom - S.inflace, dmD = mr(drD);
-  const dpsAt = m => dpsVal * Math.pow(1 + drD, m / 12) + dpsMesFv * (Math.abs(dmD) < 1e-12 ? m : (Math.pow(1 + dmD, m) - 1) / dmD);
+  const dpsAt = m => growFv(dpsGrow, m);
   const mEnd = Math.max(12, renta ? renta.months : 0, ...cile.map(c => c.months));
   const vyvoj = []; for (let m = 0; m <= mEnd; m++) vyvoj.push(Math.max(0, hodnota(m) + (renta ? dpsAt(Math.min(m, renta.months)) : dpsAt(m))));
   udalosti.forEach(u => { u.v = vyvoj[Math.min(mEnd, Math.max(0, u.m))]; u.vPred = u.m > 0 ? vyvoj[Math.min(mEnd, u.m - 1)] : u.v; });
@@ -1481,7 +1488,7 @@ function renderEditor(){
    <p class="hint">Ikony a popisky se vyberou automaticky podle citátu (a cílů): <span id="motPrev"></span></p>
    <label class="chk"><input type="checkbox" data-p="hodnoty_vlastni" ${I.hodnoty_vlastni?"checked":""}> Vlastní popisky místo automatických</label>
    ${I.hodnoty_vlastni?[0,1,2].map(i=>`<div class="g">${fld("Hodnota "+(i+1),`hodnoty.${i}.t`,"text")}${fld("Popis",`hodnoty.${i}.d`,"text")}</div>`).join(""):""}</details>`,
-  ()=>`<details open><summary>Finanční majetek</summary><div data-p="majetek"></div>${rows("majetek",[["Název","nazev","text","1.3fr"],["Typ","typ","text","1.3fr",TYPY],["Hodnota","hodnota","number"],["Měs. vklad","vklad","number"],["Daňový odpočet/měs (DPS, ŽP)","odpocet","number"],["Co s produktem (účty, fondy, SS, PP)","nech","text","full",[["","Podle plánu (převést do plánu)"],["vse","Ponechat celé – nechat být"],["cast","Ponechat částku…"]]],["Ponechat částku (Kč) – jen u „Ponechat částku…“","nech_kc","number"],["Dál spořit měsíčně (Kč) – u ponechaných; prázdné = vklad končí","nech_mes","number"]],{nazev:"",typ:"Spořicí účet",hodnota:0,vklad:0,odpocet:0,nech:"",nech_kc:0})}
+  ()=>`<details open><summary>Finanční majetek</summary><div data-p="majetek"></div>${rows("majetek",[["Název","nazev","text","1.3fr"],["Typ","typ","text","1.3fr",TYPY],["Hodnota","hodnota","number"],["Měs. vklad","vklad","number"],["Daňový odpočet/měs (DPS, ŽP)","odpocet","number"],["Co s produktem (účty, fondy, SS, PP)","nech","text","full",[["","Podle plánu (převést do plánu)"],["vse","Ponechat celé – nechat být"],["cast","Ponechat částku…"]]],["Ponechat částku (Kč) – jen u „Ponechat částku…“","nech_kc","number"],["Dál spořit měsíčně (Kč) – u ponechaných; prázdné = vklad končí","nech_mes","number"],["Vlastní výnos % p.a. nominálně – prázdné = podle typu (dluhopisy, ŽP, Jiné vždy ručně)","vynos","number","full"]],{nazev:"",typ:"Spořicí účet",hodnota:0,vklad:0,odpocet:0,nech:"",nech_kc:0,vynos:""})}
    <p class="hint">Účty → rezerva, zbytek do cílů. Fondy, ETF a stavební spoření se převádějí do plánu. DPS zůstává a počítá se do renty – i se státním příspěvkem 20 % z vlastního vkladu od 500 Kč (počítá se nejvýš z 1 700 Kč, tj. max. 340 Kč měsíčně).</p></details>
   <details open><summary>Nefinanční majetek</summary>${rows("nefin",[["Název","nazev","text"],["Typ","typ","text","",NEFIN],["Hodnota","hodnota","number"]],{nazev:"",typ:"Nemovitost k bydlení",hodnota:0})}
    <p class="hint">Nemovitosti, podíly, auta… Nejde do realokace, ukazuje se v čistém jmění.</p></details>
@@ -1505,10 +1512,11 @@ function renderEditor(){
    <p class="hint">Pojistné se nepočítá do výdajů – v plánu se platí z volného cash flow. Majetkové pojištění (nemovitost, domácnost, auto) se do prezentace nezahrnuje.</p>`},
   ()=>`<details open><summary>Návrh realokace</summary>${realokEditor()}</details>`,
   ()=>`<details open><summary>Nastavení výnosů a pravidel</summary><div class="g">
-   ${[["Inflace %","inflace"],["Hotovost (spořicí účet) nominálně %","hotovost_nom"],["Renta – výnos při čerpání %","renta_r"],["DPS (dynamická) nominálně %","dps_nom"],["Daňová úleva DIP %","dan"],["Invalidita I – zbylá prac. schopnost %","prac_inv1"],["Invalidita II – zbylá prac. schopnost %","prac_inv2"]].map(([l,k])=>pfld(l,"nastaveni."+k,FPE.DEFAULT_SET[k])).join("")}
+   ${[["Inflace %","inflace"],["Hotovost (spořicí účet) nominálně %","hotovost_nom"],["Renta – výnos při čerpání %","renta_r"],["DPS (dynamická) nominálně %","dps_nom"],["Běžný účet nominálně %","v_bu"],["Termínovaný vklad nominálně %","v_term"],["Stavební spoření nominálně %","v_ss"],["Penzijní připojištění (PP) nominálně %","v_pp"],["Podílový fond (OPF) nominálně %","v_opf"],["ETF nominálně %","v_etf"],["Akcie (přímé) nominálně %","v_akcie"],["Daňová úleva DIP %","dan"],["Invalidita I – zbylá prac. schopnost %","prac_inv1"],["Invalidita II – zbylá prac. schopnost %","prac_inv2"]].map(([l,k])=>pfld(l,"nastaveni."+k,FPE.DEFAULT_SET[k])).join("")}
    ${fld("Renta – do věku (dožití)","nastaveni.doziti","number",'placeholder="85"')}${fld("Úmrtí bez dětí do 18 let – roky výdajů domácnosti","nastaveni.smrt_nasobek","number",'placeholder="3"')}${fld("DIP – strop Kč/měs","nastaveni.dip_strop","number",'placeholder="4 000"')}</div>
    <label class="chk"><input type="checkbox" data-p="nastaveni.bez_hotovosti" ${(I.nastaveni||{}).bez_hotovosti?"checked":""}> Bez hotovosti mimo rezervu – cíle a renta jen v akciích a dluhopisech</label>
    <p class="hint">Hotovostní složka z alokační tabulky se přesune do dluhopisů (akciový podíl zůstává podle horizontu). Rezerva zůstává na spořicím účtu.</p>
+   <p class="hint">Dlouhodobé nominální výnosy stávajícího majetku, který v plánu zůstává (spořicí účet = „Hotovost“ výše). Reálně se zhodnocuje o tento výnos minus inflaci. <b>Dluhopisy, životní pojištění a Jiné</b> nemají výchozí výnos – zadej ho vždy ručně u položky majetku („Vlastní výnos“).</p>
    <p class="hint">Procenta zadávej celými čísly: 4 = 4 %.</p></details>
   <details open><summary>Produkty v automatickém návrhu</summary>${mixInit(I)}
    <div class="hint"><b>Akciová složka</b> – podíly uvnitř složky (součet ${mixSum(I,"mixA")} %)</div>${rows("nastaveni.mixA",[["Produkt","k","text","full",PRODSEL()],["Podíl ve složce %","w","number"]],{k:"cq_akc",w:0})}
