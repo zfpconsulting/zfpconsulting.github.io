@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zásady zpracování osobních údajů – rezervace konzultace</title>
+<meta name="description" content="Informace podle čl. 13 GDPR: kdo, proč a jak dlouho zpracovává údaje zadané při rezervaci konzultace.">
+<meta name="referrer" content="strict-origin">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'none'; base-uri 'none'">
+<link rel="icon" type="image/png" sizes="48x48" href="/og/icon-48.png?v=3">
+<style>
+:root{--acc:#E8600A;--bg:#fff;--panel:#fafafa;--line:#e6e6e6;--txt:#111;--mut:#5f5f5f}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--panel:#0f0f0f;--line:#262626;--txt:#f2f2f2;--mut:#a0a0a0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc)}
+header{border-bottom:1px solid var(--line);padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top))}
+.in{max-width:760px;margin:0 auto}
+header .in{display:flex;align-items:center;gap:12px}
+.logo{height:34px;width:auto;display:block}.logo-d{display:none}
+@media (prefers-color-scheme:dark){.logo-l{display:none}.logo-d{display:block}}
+header .sp{flex:1}
+main{max-width:760px;margin:0 auto;padding:32px 16px 72px}
+h1{font-size:28px;line-height:1.15;margin:0 0 8px;letter-spacing:-.01em}
+h2{font-size:18px;margin:32px 0 8px}
+p,li{margin:0 0 10px}ul{padding-left:20px;margin:0 0 10px}
+.mut{color:var(--mut);font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:14.5px;margin:8px 0 12px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:var(--panel)}
+.tw{overflow-x:auto}
+</style>
+</head>
+<body>
+<header><div class="in"><img src="/pipeline/zfp-consulting-logo.svg" alt="ZFP Consulting" class="logo logo-l"><img src="/pipeline/zfp-consulting-logo-white.svg" alt="ZFP Consulting" class="logo logo-d"><span class="sp"></span><a href="/rezervace/">← Zpět na rezervaci</a></div></header>
+<main>
+<h1>Zásady zpracování osobních údajů</h1>
+<p class="mut">Rezervace konzultace na zfpconsulting.github.io/rezervace · informace podle čl. 13 nařízení (EU) 2016/679 (GDPR)</p>
+
+<h2>1. Kdo údaje zpracovává</h2>
+<p><b>Vojtěch Kudlička</b>, finanční poradce spolupracující se ZFP Consulting.<br>
+E-mail: <a href="mailto:vojtech.kudlicka@zfpa.cz">vojtech.kudlicka@zfpa.cz</a>, telefon: <a href="tel:+420774222617">774 222 617</a>.<br>
+Místo konzultací: Trnitá 500/9, 602 00 Brno.</p>
+
+<h2>2. Jaké údaje a proč</h2>
+<div class="tw"><table>
+<tr><th>Údaje</th><th>Účel</th><th>Právní základ</th></tr>
+<tr><td>Jméno a příjmení, e-mail, telefon, zvolený termín a forma konzultace (osobně / online)</td><td>Domluvení konzultace, potvrzení termínu, zaslání odkazu na online schůzku, vedení záznamu o schůzce</td><td>Opatření před uzavřením smlouvy na vaši žádost (čl. 6 odst. 1 písm. b GDPR)</td></tr>
+<tr><td>Údaje, které nám při návštěvě webu předá váš prohlížeč (IP adresa, čas přístupu, typ prohlížeče)</td><td>Technický provoz a zabezpečení stránky (zpracovává poskytovatel hostingu, viz bod 4)</td><td>Oprávněný zájem na bezpečném provozu webu (čl. 6 odst. 1 písm. f GDPR)</td></tr>
+</table></div>
+<p>Vyplnění jména, e-mailu a telefonu je dobrovolné, bez nich ale nelze termín potvrdit. Žádné další údaje nesbírám. Rozhodování ani profilování neprobíhá automatizovaně.</p>
+<p>Pokud z konzultace vznikne spolupráce (např. zprostředkování pojištění, investic nebo úvěru), budu vás o zpracování údajů v tomto rámci informovat samostatně.</p>
+
+<h2>3. Jak jsou údaje chráněny</h2>
+<ul>
+<li>Jméno, e-mail a telefon se zašifrují přímo ve vašem zařízení (ECDH P-256 a AES-256-GCM) veřejným klíčem poradce. Do schránky se ukládá už jen šifrový text, který přečte jen můj soukromý klíč.</li>
+<li>Termín (bez jména a kontaktu) se hned zablokuje v kalendáři, aby ho nemohl zarezervovat někdo další.</li>
+<li>Stránka nepoužívá cookies, analytiku, reklamní ani sledovací nástroje, webové fonty ani skripty třetích stran. Nic se neukládá do úložiště vašeho prohlížeče.</li>
+<li>Mapa kanceláře (Google Maps) se načte až po vašem kliknutí na „Zobrazit mapu“. Do té doby se vašeho zařízení Google netýká.</li>
+</ul>
+
+<h2>4. Kdo se k údajům dostane</h2>
+<ul>
+<li><b>Já</b> a kolegové ze ZFP Consulting, kteří mají přístup do sdíleného kalendáře konzultací. V kalendáři se po zpracování rezervace zobrazí termín a vaše jméno.</li>
+<li><b>Google</b> (Google Ireland Limited / Google LLC) – databáze Firebase (šifrovaná schránka a seznam volných časů), Google Kalendář a Google Apps Script (kontrola a blokace termínu, uložení termínu v kalendáři). Google zpracovává údaje pro mě jako zpracovatel.</li>
+<li><b>Cloudflare</b> – zprostředkuje mi upozornění na novou rezervaci. Upozornění neobsahuje žádné vaše jméno ani kontakt.</li>
+<li><b>GitHub, Inc. (Microsoft)</b> – hosting této stránky. Při načtení stránky eviduje IP adresu a technické údaje o přístupu.</li>
+<li>Úřadům jen tehdy, když mi to ukládá právní předpis.</li>
+</ul>
+<p>Předání do USA se opírá o rozhodnutí Evropské komise o odpovídající ochraně (rámec EU–USA pro ochranu osobních údajů), popřípadě o standardní smluvní doložky poskytovatele.</p>
+
+<h2>5. Jak dlouho údaje uchovávám</h2>
+<p>Po dobu naší spolupráce. Pokud spolupráce nevznikne, údaje z rezervace smažu nejpozději do 1 roku od termínu konzultace (zrušené nebo neuskutečněné rezervace dříve). Délku uložení po vzniku spolupráce stanoví zákonné povinnosti, o nichž vás budu informovat samostatně.</p>
+
+<h2>6. Vaše práva</h2>
+<p>Můžete požádat o přístup ke svým údajům, jejich opravu, výmaz, omezení zpracování a o přenesení. Proti zpracování z oprávněného zájmu můžete vznést námitku. Stačí napsat nebo zavolat na kontakt výše. Máte také právo podat stížnost u <a href="https://uoou.gov.cz" target="_blank" rel="noopener noreferrer">Úřadu pro ochranu osobních údajů</a> (Pplk. Sochora 27, 170 00 Praha 7).</p>
+
+<p class="mut" style="margin-top:32px">Aktualizováno: 21. 10. 2026</p>
+</main>
+</body>
+</html>
