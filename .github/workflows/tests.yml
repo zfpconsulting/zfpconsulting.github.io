@@ -39,6 +39,8 @@ jobs:
         run: node tests/fp.run.mjs
       - name: Testy rezervace (volné termíny, kancelář a kolegové, uvolnění zrušené schůzky)
         run: node tests/booking.run.mjs
+      - name: Testy kalendáře a SMS potvrzení rezervace (škola, osobní kalendář, šablony)
+        run: node tests/kalendar-sms.run.mjs
       - name: Testy veřejné rezervační webovky (/rezervace/ – šifrování, GDPR, žádné cizí požadavky)
         run: node tests/rezervace-web.run.mjs
       - name: Testy odkazů poradců (jméno v náhledu – obrázek, odkazy)

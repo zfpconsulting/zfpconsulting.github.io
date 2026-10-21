@@ -1694,7 +1694,7 @@ function reloadAfter(p){let done=false;const go=()=>{if(!done){done=true;locatio
 /* --- nastavení kalendáře (per uživatel, ukládá se do settings/main) --- */
 function calCfg(){const s=(typeof settings!=="undefined"&&settings)||{};return{id:s.calId||"primary",name:s.calName||"Hlavní kalendář",prefix:(s.calPrefix??"").trim()}}
 function prefixRe(){const p=calCfg().prefix;if(!p)return null;return new RegExp("^"+p.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s*:$/,"\\s*:")+"\\s*","i")}
-async function listCalendars(){const r=await(await gfetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&fields=items(id,summary,primary)")).json();return(r.items||[]).sort((a,b)=>(b.primary?1:0)-(a.primary?1:0)||(a.summary||"").localeCompare(b.summary||""))}
+async function listCalendars(){const r=await(await gfetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&showHidden=true&maxResults=250&fields=items(id,summary,summaryOverride,primary)")).json();return(r.items||[]).map(c=>({...c,name:c.summaryOverride||c.summary||c.id})).sort((a,b)=>(b.primary?1:0)-(a.primary?1:0)||a.name.localeCompare(b.name,"cs"))}
 /* --- synchronizace přes soubor na Google Disku --- */
 const GSync=(()=>{
   let timer=null,busy=false,again=false,state="idle",last=lsGet("g_synced");
@@ -2181,7 +2181,7 @@ async function dzBooking(x){
   const kdy=start.toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"numeric"})+" "+fmtHM(start.toISOString());
   const c2=leads.find(L=>L.id===l.id)||cur;
   await db.doc("leads/"+l.id).update({log:[...(c2.log||[]),{d:now,t:(x.only?"Klient si zarezervoval schůzku: ":"Klient si zarezervoval 2. konzultaci: ")+kdy+(online?" · online":" · osobně")}].slice(-100),updatedAt:now});
-  dzNotify({ic:"cal",t:x.only?"Rezervace schůzky":"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(offBusy?" · POZOR: kancelář je v tu dobu obsazená – domluv online nebo jinou místnost":"")+(r&&r.evId?"":" · do kalendáře se zatím NEZAPSALO"+(r&&r.canWrite?" (chyba Google "+(r.evErr||"")+")":" (nejsi přihlášený ke Google kalendáři)")+" – zapíšu to sám, jakmile to půjde"),lead:l.id,cal:start.toISOString()});
+  dzNotify({ic:"cal",t:x.only?"Rezervace schůzky":"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(offBusy?" · POZOR: kancelář je v tu dobu obsazená – domluv online nebo jinou místnost":"")+(r&&r.evId?"":" · do kalendáře se zatím NEZAPSALO"+(r&&r.canWrite?" (chyba Google "+(r.evErr||"")+")":" (nejsi přihlášený ke Google kalendáři)")+" – zapíšu to sám, jakmile to půjde"),lead:l.id,cal:start.toISOString(),conf:{ph:String(x.phone||""),em:String(x.email||""),online,name,at:start.toISOString()}});
   setTimeout(()=>dzPublishSlots(true),1500);
 }
 /* ================= Push notifikace (prostředník na Cloudflare – worker/push.js) =================
@@ -2408,6 +2408,29 @@ async function dzNotify(n){const L=[{id:newId(),at:Date.now(),...n},...dzNotes()
   try{if("Notification" in window&&Notification.permission==="granted")new Notification(n.t,{body:n.s||"",icon:"icon-192.png?v=2",tag:n.id})}catch(e){}
   try{await db.doc("settings/main").update({dzNotes:L})}catch(e){}}
 async function dzDismiss(id){const L=dzNotes().filter(n=>n.id!==id);settings={...settings,dzNotes:L};renderDzNotes();try{await db.doc("settings/main").update({dzNotes:L})}catch(e){}}
+/* „Potvrdit“ u rezervace: otevře Zprávy s SMS klientovi na číslo, které zadal při rezervaci. Text je ze šablony „Potvrzení schůzky“
+   (osobně) nebo z online šablony potvrzení (název obsahuje „online“); online schůzce se hned vytvoří odkaz na Google Meet. */
+function dzConfTpl(online){const T=tpls(),conf=t=>/potvrz/i.test(t.name||""),on=t=>/online/i.test(t.name||"");
+  return (online?T.find(t=>conf(t)&&on(t)):T.find(t=>conf(t)&&!on(t)))||T.find(t=>t.id==="potvrzeni")||T[0]}
+async function dzConfirm(n){
+  const c=n.conf||{},lead=leads.find(x=>x.id===n.lead);
+  if(!lead){toast("Lead u té rezervace se nenašel");return}
+  const when=new Date(c.at||n.cal),m=(lead.meetings||[]).find(x=>x.start&&Math.abs(new Date(x.start)-when)<60000);
+  const base=leadMsgCtx(lead,m&&m.id),online=!!c.online;
+  const ctx={...base,name:c.name||lead.name,start:when.toISOString(),online,phone:c.ph||lead.phone||"",email:c.em||lead.email||"",place:online?"":(base.place||OFFICE_PLACE),meetId:m?m.id:base.meetId};
+  const tpl=dzConfTpl(online);
+  const done=r=>{logLeadMsg(lead,r);dzDismiss(n.id)};
+  let tel=String(ctx.phone).replace(/[^\d+]/g,"");if(/^\d{9}$/.test(tel))tel="+420"+tel;
+  /* bez telefonu, nebo online schůzka bez události v kalendáři (nejde vytvořit Meet) → ruční okno se zprávou, ať nic neodejde s prázdným odkazem */
+  if(!tel||(online&&!ctx.meetId)){toast(!tel?"Klient nezadal telefon":"Schůzka ještě není v kalendáři – odkaz doplň ručně");openMsg(ctx,tpl.id,done);return}
+  if(online&&!ctx.meetLink){
+    if(meetCache[ctx.meetId])ctx.meetLink=meetCache[ctx.meetId];
+    else{toast("Připravuju odkaz na Google Meet…");try{ctx.meetLink=await ensureMeet(ctx.meetId)}catch(e){}
+      if(!ctx.meetLink){toast("Odkaz na Google Meet se nepodařilo vytvořit");openMsg(ctx,tpl.id,done);return}}}
+  const text=fillTpl(tpl.text,ctx);
+  try{await navigator.clipboard.writeText(text)}catch(e){}
+  done({ch:"SMS",tpl:tpl.name,tplId:tpl.id,start:ctx.start,meetId:ctx.meetId});
+  location.href="sms:"+tel+"?&body="+encodeURIComponent(text);toast("Otevírám Zprávy · text je i ve schránce")}
 const DZ_IC={dz:'<path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5"/><path d="M10 13l2 2 3.5-4"/>',cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M9 14.5l2 2 4-4"/>'};
 let dzNotesSig="";
 function renderDzNotes(){
@@ -2419,7 +2442,7 @@ function renderDzNotes(){
       el("div",{class:"dza"},lead?el("button",{type:"button",onclick:()=>{openEdit(lead)}},"Otevřít lead"):null,
         n.plan&&lead?el("button",{type:"button",onclick:()=>{const t=fpLeadTarget(lead);openFP(t.e,t.rec)}},"Finanční plán"):null,
         n.cal?el("button",{type:"button",onclick:()=>{ctWeekA=weekStart(n.cal.slice(0,10),0);setView("cal")}},"Kalendář"):null,
-        el("button",{type:"button",class:"ok",onclick:()=>dzDismiss(n.id)},"Beru na vědomí"))),
+        n.conf?el("button",{type:"button",class:"ok",onclick:()=>dzConfirm(n)},"Potvrdit"):el("button",{type:"button",class:"ok",onclick:()=>dzDismiss(n.id)},"Beru na vědomí"))),
       el("button",{type:"button",class:"dzx","aria-label":"Zavřít",onclick:()=>dzDismiss(n.id)},"×"))}),
     L.length>4?el("div",{class:"dzmore"},"+ "+(L.length-4)+" další"):"");
 }
@@ -5434,8 +5457,11 @@ function startCalendar0(){
 const CT_COL=["var(--tint)","var(--orange)","var(--green)","var(--purple)","var(--red)","var(--teal)","var(--indigo)","var(--yellow)"];
 let ctFreeOnly=!!lsGet("ct_free_only");
 let ctEvents=null, ctState="off", ctMsg="", ctBusy=false, ctAgain=false, ctViewYm=null, ctWeekA=null, ctSel=null, ctMode="week";
-function ctIds(){return (settings.calTabIds&&settings.calTabIds.length)?settings.calTabIds:(calCfg().id?[calCfg().id]:[])}
-async function saveCalTabIds(ids){try{await db.doc("settings/main").set({...settings,calTabIds:ids});toast("Uloženo");fetchCalTab(true)}catch(e){toast("Nepodařilo se uložit")}}
+function ctIds(){const b=(settings.calTabIds&&settings.calTabIds.length)?settings.calTabIds:(calCfg().id?[calCfg().id]:[]),me=dzMe();
+  const isMe=i=>i==="primary"||(me&&String(i).toLowerCase()===me);
+  if(settings.calTabNoPrimary)return b.filter(i=>!isMe(i));
+  return b.some(isMe)?b:[...b,"primary"]}
+async function saveCalTabIds(ids,noPrimary){try{const np=noPrimary===undefined?!!settings.calTabNoPrimary:!!noPrimary;await db.doc("settings/main").set({...settings,calTabIds:ids,calTabNoPrimary:np});settings={...settings,calTabIds:ids,calTabNoPrimary:np};toast("Uloženo");fetchCalTab(true)}catch(e){toast("Nepodařilo se uložit")}}
 /* rozvrh ze školy (odběr z IS MUNI přidaný v Google Kalendáři „Z URL“): najde se sám mezi odebíranými kalendáři
    (…@import.calendar.google.com s názvem MU/MUNI/IS/rozvrh/škola), nebo ručně settings.schoolCalIds. Škola vždy blokuje volné bloky
    a po jejím konci je další schůzka až za 50 min (konec v hh:40 → nejdřív v (hh+1):30). */
@@ -5445,19 +5471,21 @@ async function schoolIds(){
   if(calSchool&&Date.now()-calSchoolAt<30*60000)return calSchool;
   if(!GAuth.token())return calSchool||[];
   try{const r=await(await gfetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250")).json();
-    calSchool=(r.items||[]).filter(c=>/@import\.calendar\.google\.com$/.test(c.id)&&/\b(mu|muni|is mu|rozvrh|škola|skola|fakulta|esf)\b/i.test((c.summaryOverride||c.summary||"")+" "+(c.description||""))).map(c=>c.id);calSchoolAt=Date.now()}catch(e){calSchool=calSchool||[]}
+    calSchool=(r.items||[]).filter(c=>/@import\.calendar\.google\.com$/.test(c.id)&&/(?<![\p{L}\p{N}])(mu|muni|is mu|rozvrh|škola|skola|fakulta|esf)(?![\p{L}\p{N}])/iu.test([c.summaryOverride,c.summary,c.description].filter(Boolean).join(" "))).map(c=>c.id);calSchoolAt=Date.now()}catch(e){calSchool=calSchool||[]}
   return calSchool}
 const SCHOOL_AFTER=50;
 async function openCalTabPicker(){
   if(!GAuth.token()){toast("Nejdřív se přihlas Googlem (tlačítko nahoře)");return}
   openSheet("Vybrat kalendáře",[el("p",{class:"hint"},"Vyber jeden nebo víc kalendářů, které se mají zobrazit v záložce Kalendář.")]);
   try{
-    const cals=await listCalendars(), sel=new Set(ctIds());
+    const cals=await listCalendars(), sel=new Set(ctIds().filter(i=>i!=="primary")), me=dzMe();
+    const isMe=c=>c.primary||c.id==="primary"||(me&&c.id.toLowerCase()===me);
     const rows=cals.map((c,i)=>{
-      const cb=el("input",{type:"checkbox",class:"switch"});cb.checked=sel.has(c.id);
-      cb.addEventListener("change",()=>{if(cb.checked)sel.add(c.id);else sel.delete(c.id);saveCalTabIds([...sel])});
+      const cb=el("input",{type:"checkbox",class:"switch"});cb.checked=isMe(c)?ctIds().some(x=>x==="primary"||x.toLowerCase()===me||x===c.id):sel.has(c.id);
+      cb.addEventListener("change",()=>{if(isMe(c)){saveCalTabIds([...sel].filter(x=>x!==c.id&&x.toLowerCase()!==me),!cb.checked);return}
+        if(cb.checked)sel.add(c.id);else sel.delete(c.id);saveCalTabIds([...sel],!!settings.calTabNoPrimary)});
       return el("div",{class:"row"},el("span",{class:"lg",style:"--c:"+CT_COL[i%CT_COL.length]}),
-        el("span",{class:"main"},el("div",{class:"t"},c.summary||c.id),c.primary?el("div",{class:"s"},"výchozí kalendář"):null),cb);
+        el("span",{class:"main"},el("div",{class:"t"},isMe(c)?"Osobní kalendář"+(c.name&&c.name!==c.id?" ("+c.name+")":""):c.name),isMe(c)?el("div",{class:"s"},c.id!=="primary"?c.id:"výchozí kalendář"):null),cb);
     });
     openSheet("Vybrat kalendáře",[el("p",{class:"hint"},"Vyber jeden nebo víc kalendářů, které se mají zobrazit v záložce Kalendář."),el("div",{class:"group"},rows)]);
   }catch(e){openSheet("Vybrat kalendáře",[el("p",{class:"hint"},"Kalendáře se nepodařilo načíst. Zkus to znovu, případně obnov přihlášení ke Googlu.")])}
@@ -5492,7 +5520,7 @@ async function fetchCalTab(force){
   if(!ctWeekA)ctWeekA=weekStart(todayStr(),0);
   if(!ctSel)ctSel=todayStr();
   if(!GAuth.token()||!navigator.onLine){if(!GAuth.token()){ctState="error";ctMsg="Přihlas se Googlem (tlačítko nahoře) a načtu vybrané kalendáře.";render()}return}
-  const sch=await schoolIds().catch(()=>[]),ids=[...new Set([...ctIds(),...sch])];
+  const sch=await schoolIds().catch(()=>[]),ids=[...new Set([...ctIds(),...sch])].filter((i,_,a)=>!(dzMe()&&i.toLowerCase()===dzMe()&&a.includes("primary")));
   if(!ids.length){ctEvents=[];ctState="ok";ctMsg="";render();return}
   ctBusy=true;if(!ctEvents||force)ctState="loading";render();
   try{
