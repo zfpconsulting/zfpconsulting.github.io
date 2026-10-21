@@ -145,7 +145,7 @@ function pipelineFns() {
   const src = readFileSync(new URL("../index.html", import.meta.url), "utf8").split("\n");
   const grab = name => { const i = src.findIndex(l => new RegExp(`^(async )?function ${name}\\(|^const ${name}=`).test(l)); assert(i >= 0, "v Pipeline chybí " + name);
     let j = i + 1; while (j < src.length && !/^(function|async function|const|let|\/\*|\/\/|document|setInterval)/.test(src[j])) j++; return src.slice(i, j).join("\n"); };
-  const code = ["DZS", "dzAfterSchool", "dzFreeSlots", "dzInPerson", "dzBlocks", "dzOffice", "dzDaySlots"].map(grab).join("\n");
+  const code = ["DZS", "dzAfterSchool", "dzFreeSlots", "dzInPerson", "dzBlocks", "dzDayOff", "dzOffice", "dzDaySlots"].map(grab).join("\n");
   return new Function("ctKind", "ctMinutesOf", "ymd", "SCHOOL_AFTER", "settings", code + "; return {dzOffice,dzDaySlots};")(
     ev => ev.kind, iso => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); }, d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"), 0, {});
 }

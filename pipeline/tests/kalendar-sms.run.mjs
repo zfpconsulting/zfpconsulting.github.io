@@ -34,8 +34,19 @@ const tests = {
   },
   "upozornění na rezervaci nese kontakt klienta a místo „Beru na vědomí“ nabízí „Potvrdit“"() {
     assert(/conf:\{ph:String\(x\.phone\|\|""\),em:String\(x\.email\|\|""\),online,name,at:start\.toISOString\(\)\}/.test(src), "dzNotify má conf");
-    assert(/n\.conf\?el\("button",\{type:"button",class:"ok",onclick:\(\)=>dzConfirm\(n\)\},"Potvrdit"\)/.test(src), "tlačítko Potvrdit");
+    assert(/\(n\.conf\|\|\(lead&&n\.cal\)\)\?el\("button",\{type:"button",class:"ok",onclick:\(\)=>dzConfirm\(n\)\},"Potvrdit"\)/.test(src), "tlačítko Potvrdit");
     assert(/location\.href="sms:"\+tel\+"\?&body="\+encodeURIComponent\(text\)/.test(src), "otevírá SMS");
+  },
+  "celodenní: New-York 29.10.–3.11. (konec výlučný) blokuje všech 6 dní, škola jen informuje"() {
+    const span = grab(/function dzSpanDays\(s,e\)\{.*?return out\}/s), off = grab(/const dzDayOff=ev=>.*?;/s), kind = grab(/function ctKind\(ev\)\{.*?return "off"\}/s);
+    const f = new Function("addDaysFrom", "ctIsMine", "dzMe", span + ";" + kind + ";" + off + "; return {dzSpanDays,dzDayOff,ctKind};");
+    const add = (s, n) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    const F = f(add, () => false, () => "me@gmail.com");
+    eq(F.dzSpanDays("2026-10-29", "2026-11-04"), ["2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03"], "rozsah");
+    eq(F.dzSpanDays("2026-10-29", "2026-10-30"), ["2026-10-29"], "jednodenní");
+    assert(F.dzDayOff({ allDay: true, calId: "primary", title: "New-York", start: "2026-10-29T00:00:00", end: "2026-11-04T00:00:00" }), "osobní celodenní blokuje");
+    const sk = { allDay: true, school: true, calId: "x@import.calendar.google.com", title: "Zkouška ESF", start: "2026-10-29T00:00:00", end: "2026-10-30T00:00:00" };
+    eq(F.ctKind(sk), "info", "škola celodenní = info"); assert(!F.dzDayOff(sk), "škola neblokuje");
   },
 };
 let fail = 0;

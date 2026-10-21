@@ -300,7 +300,7 @@ function mount(root,opts={}){
     const inp=h("input",{type:k==="start"||k==="narozen"?"date":"text",autocomplete:"off","aria-label":COLS.find(c=>c[0]===k)[1]+" – "+(r.name||"řádek")});
     const money=k==="premium"||k==="surrender";
     if(money)inp.setAttribute("inputmode","decimal");
-    const show=()=>{inp.value=money?kc(r[k]):(r[k]||"");inp.classList.toggle("miss",r[k]==null||r[k]==="");inp.placeholder=r[k]==null||r[k]===""?"doplnit":""};
+    const show=()=>{inp.value=money?kc(r[k]):(r[k]||"");inp.classList.toggle("miss",k!=="narozen"&&(r[k]==null||r[k]===""));inp.placeholder=r[k]==null||r[k]===""?"doplnit":""};
     show();
     if(money)inp.addEventListener("focus",()=>{inp.value=r[k]==null?"":String(r[k]).replace(".",",");inp.select()});
     inp.addEventListener("change",()=>{
