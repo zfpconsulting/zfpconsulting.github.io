@@ -2317,6 +2317,15 @@ async function afterMeetSave(o,noteTxt,taskTxt,due){
   for(const t of String(taskTxt||"").split(/\n+/).map(x=>x.replace(/^\s*([-•*–]|\d+[.)])\s*/,"").trim()).filter(Boolean)){
     await db.collection("mytasks").add({text:t,client:W.name||"",due:due||"",done:"",createdAt:now});out.tasks++}
   return {...out,who:W}}
+/* poznámky z bodů → hotové shrnutí pro klienta: odrážky očištěné, věty s velkým písmenem a tečkou, úkoly jako „Další kroky“ */
+function summaryMailText(name,start,notes,tasks,due){
+  const cl=t=>String(t||"").split(/\n+/).map(x=>x.replace(/^\s*([-•*–]|\d+[.)])\s*/,"").trim()).filter(Boolean).map(x=>x.charAt(0).toLocaleUpperCase("cs")+x.slice(1)).map(x=>/[.!?:;]$/.test(x)?x:x+".");
+  const N=cl(notes),T=cl(tasks),d=start?new Date(start):new Date(),dt=d.getDate()+". "+(d.getMonth()+1)+".";
+  const parts=["Dobrý den, "+salutation(name)+",","","děkuji za naši schůzku "+dt+". Shrnuji, co jsme probrali:",""];
+  N.forEach(x=>parts.push("• "+x));
+  if(T.length){parts.push("","Další kroky:","");T.forEach(x=>parts.push("• "+x))}
+  parts.push("","Kdyby Vás cokoli napadlo nebo se něco změnilo, dejte mi prosím vědět.");
+  return {subject:"Shrnutí naší schůzky "+dt,body:parts.join("\n")}}
 function afterMeetSheet(o){
   const W=afterMeetWho(o),when=W.start?meetDateTxt(W.start)+(W.start.length>10?" · "+fmtHM(W.start):""):"";
   const notes=el("textarea",{rows:"6",placeholder:"Co jsme probrali, co klient chce, na co nezapomenout…","aria-label":"Poznámky ze schůzky"});
@@ -2330,11 +2339,20 @@ function afterMeetSheet(o){
     try{const r=await afterMeetSave(o,notes.value,tasks.value,due.value);$("edDlg").close();
       toast([r.note?"Poznámka uložena":"",r.tasks?pxN(r.tasks,"úkol","úkoly","úkolů")+" přidáno":""].filter(Boolean).join(" · ")||"Uloženo")}
     catch(e){save.disabled=false;toast("Nepodařilo se uložit")}};
+  const mail=(W.l&&W.l.email)||(W.c&&W.c.email)||"";
+  const sm=el("button",{type:"button",class:"chipbtn",style:"background:var(--tint);color:#fff"},"Uložit a poslat shrnutí e-mailem");
+  sm.onclick=async()=>{if(!notes.value.trim()){toast("Napiš poznámky – ze samotných úkolů shrnutí nevznikne");notes.focus();return}
+    if(!mail){toast("Klient nemá e-mail – doplň ho v kartě");return}
+    const M=summaryMailText(W.name,W.start,notes.value,tasks.value,due.value);sm.disabled=true;
+    try{await afterMeetSave(o,notes.value,tasks.value,due.value)}catch(e){sm.disabled=false;toast("Nepodařilo se uložit");return}
+    try{await navigator.clipboard.writeText(M.body)}catch(e){}
+    const cl=W.l&&leads.find(x=>x.id===W.l.id);if(cl)try{logLeadMsg(cl,{ch:"E-mail",tpl:"Shrnutí schůzky",start:W.start})}catch(e){}
+    $("edDlg").close();location.href="mailto:"+encodeURIComponent(mail)+"?subject="+encodeURIComponent(M.subject)+"&body="+encodeURIComponent(M.body)};
   openSheet("Schůzka: "+(W.name||"klient"),[
     when||target?el("p",{class:"hint"},[when,target?"poznámka se uloží "+target+" s nadpisem „Schůzka "+meetDateTxt(W.start)+"“":"klient nenalezen – uloží se jen úkoly"].filter(Boolean).join(" · ")):null,
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámky"),notes)),
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkoly"),tasks),el("div",{class:"frow"},el("label",{},"Deadline"),due)),
-    el("div",{class:"chips"},save,W.l?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setTimeout(()=>openEdit(leads.find(x=>x.id===W.l.id)||W.l),340)}},"Otevřít lead"):null)]);
+    el("div",{class:"chips"},save,sm,W.l?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setTimeout(()=>openEdit(leads.find(x=>x.id===W.l.id)||W.l),340)}},"Otevřít lead"):null)]);
   setTimeout(()=>{try{notes.focus()}catch(e){}},350)}
 /* testová notifikace „po schůzce“ o poslední proběhlé schůzce s klientem (hledá se podle jména) – odejde hned */
 async function pushTestAfter(q){const now=Date.now(),N=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(),k=N(q),hit=[];

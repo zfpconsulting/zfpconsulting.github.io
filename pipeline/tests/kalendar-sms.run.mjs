@@ -48,6 +48,12 @@ const tests = {
     const sk = { allDay: true, school: true, calId: "x@import.calendar.google.com", title: "Zkouška ESF", start: "2026-10-29T00:00:00", end: "2026-10-30T00:00:00" };
     eq(F.ctKind(sk), "info", "škola celodenní = info"); assert(!F.dzDayOff(sk), "škola neblokuje");
   },
+  "shrnutí po schůzce: body z poznámek se přepíšou na hotový mail (velké písmeno, tečka, další kroky)"() {
+    const fn = grab(/function summaryMailText\(name,start,notes,tasks,due\)\{.*?\}\}/s);
+    const M = new Function("salutation", fn + "; return summaryMailText;")(() => "pane Nováku")("Jan Novák", "2026-10-21T10:00:00", "- chce ŽP\n* rezerva 200 tis\n\n", "poslat modelaci\n", "");
+    assert(M.subject === "Shrnutí naší schůzky 21. 10.", "předmět: " + M.subject);
+    for (const r of ["Dobrý den, pane Nováku,", "• Chce ŽP.", "• Rezerva 200 tis.", "Další kroky:", "• Poslat modelaci."]) assert(M.body.includes(r), "chybí: " + r + "\n" + M.body);
+  },
 };
 let fail = 0;
 for (const [name, fn] of Object.entries(tests)) { try { await fn(); console.log("  ok  ", name); } catch (e) { fail++; console.log("  FAIL", name, "\n      ", e.message); } }
