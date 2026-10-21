@@ -320,7 +320,7 @@ tests["navazující platba: cíl, který vyčerpá cash flow, po splnění před
   assert(o.lbl.includes("Plán: navazující platba"), "ve slidu je krok „navazující platba“ (" + o.lbl.join(" | ") + ")");
   assert(o.lbl[o.lbl.length - 1] === "Plán: hotovo", "slide končí snímkem bez bubliny, který ukáže výsledek");
   const f = o.txt[o.txt.length - 1], c = o.txt.find((_, i) => o.lbl[i] === "Plán: navazující platba");
-  assert(/po splnění → Byt/.test(f), "u Auta je poznámka, kam platba po splnění teče");
+  assert(/(po splnění|✓ splněno) → Byt/.test(f), "u Auta je poznámka, kam platba po splnění teče (v závěrečném snímku už ✓ splněno)");
   assert(/za 3 roky: [\d ]+ \+ [\d ]+ = 20 \d{3} Kč\/měs/.test(f.replace(/ /g, " ")), "u Bytu je vidět, kolik bude platit po splnění Auta (vlastní + přiteklá = celkem): " + f.match(/za \d+ roky:[^A-Z]*/));
   assert(/z cíle Auto poteče po jeho splnění/.test(c), "popis kroku vysvětluje přelévání");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
@@ -687,9 +687,9 @@ tests["uvolnění platby po splnění cíle: krok s animací zpět do cash flow;
   await setPlan(page, Object.assign({}, base, { majetek: maj }));
   const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/ /g, " "); }; const P = FR.filter(f => f.g === "p");
     return { lbl: P.map(f => f.lbl), txt: P.filter(f => f.lbl === "Plán: uvolnění platby").map(f => t(f.h)) }; });
-  assert(o.lbl.filter(l => l === "Plán: uvolnění platby").length === 2, "uvolnění platby u obou cílů: " + o.lbl.join("|"));
-  assert(/za 10 let\) uvolní zpět do cash flow/.test(o.txt[0]) && /za 15 let\) uvolní zpět do cash flow/.test(o.txt[1]), "popis: za X let se platba vrací do cash flow");
-  assert(/po splnění → zpět do cash flow/.test(o.txt[1]), "u řádku cíle je poznámka");
+  assert(o.lbl.filter(l => l === "Plán: uvolnění platby").length === 3, "uvolnění platby u obou cílů i u renty (za 10, 15 a 46 let): " + o.lbl.join("|"));
+  assert(/za 10 let\) uvolní zpět do cash flow/.test(o.txt[0]) && /za 15 let\) uvolní zpět do cash flow/.test(o.txt[1]) && /za 46 let\) uvolní zpět do cash flow/.test(o.txt[2]), "popis: za X let se platba vrací do cash flow (chronologicky 10 → 15 → 46)");
+  assert(/(po splnění|✓ splněno) → zpět do cash flow/.test(o.txt[1]), "u řádku cíle je poznámka");
   /* šipky přeskočí vynechané slidy (i mimo celou obrazovku) */
   const sk = await page.evaluate(() => { cur = 0; toggleSkip(1, true); cur = 0; update(); go(1); const a = cur; return [a, FR[1].skip]; });
   eq(sk, [2, true], "šipka vpřed přeskočí vynechaný slide");
@@ -728,6 +728,27 @@ tests["datumy: pole type=date se změní na ruční zadání dd.mm.rrrr (.value 
   eq(r.norm, ["2026-02-01", "01.02.2026"], "po opuštění se zformátuje na dd.mm.rrrr");
   eq(r.spatne, ["", true], "neplatné datum → prázdná hodnota a červený rámeček");
   eq([r.kratke, r.set], ["1985-03-07", "31.12.1999"], "zkrácený zápis ddmmrr, zápis z kódu");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["předání platby po splnění cíle: přes slide se protočí „za N let“ (jednou za rok), platba splněného cíle se vynuluje a přeteče do dalšího, kroky jdou chronologicky"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [],
+    cile: [{ nazev: "Start podnikání", castka: 250000, za_let: 10 }, { nazev: "Akontace na bydlení", castka: 1500000, za_let: 15 }], renta: { mesicne: 30000 },
+    majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Doplňkové penzijní spoření (DPS)", hodnota: 143000, vklad: 500 }], pojisteni: { zivotni: { navrh: 7400 } } };
+  await setPlan(page, base);
+  const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/\u00a0/g, " "); };
+    const P = FR.filter(f => f.g === "p");
+    return { lbl: P.map(f => f.lbl), ffw: P.map(f => { const m = f.h.match(/class="ffw"[\s\S]*?class="big" style="--n:(\d+)"/); return m ? +m[1] : null; }),
+      first: P.filter(f => f.lbl === "Plán: navazující platba").map(f => ({ ffwFirst: f.h.indexOf('class="ffw"') < f.h.indexOf("<style>"), txt: t(f.h), strike: /<s style/.test(f.h) })) }; });
+  const yrs = o.ffw.filter(x => x != null);
+  eq(yrs, [10, 15], "overlay „za N let“ jen u prvního kroku každého roku, chronologicky: " + o.lbl.join("|"));
+  assert(o.first.every(f => f.ffwFirst), "overlay je první prvek snímku (aby ~ zdržel morph tabulky)");
+  assert(/✓ splněno → Akontace na bydlení/.test(o.first[0].txt) && o.first[0].strike, "po splnění cíle se jeho platba přeškrtne a vynuluje, řádek ukazuje kam teče");
+  assert(/za 10 let: [\d ]+ \+ [\d ]+ = [\d ]+ Kč\/měs/.test(o.first[0].txt), "cíl, do kterého platba teče, ukazuje vlastní + přiteklá = celkem");
+  /* overlay se nevypisuje do miniatur a exportu (nemá data-k, je skrytý v .mini) a nezablokuje ovládání */
+  const css = await page.evaluate(() => { const e = document.createElement("div"); e.innerHTML = '<div class="thumbs"><div class="mini"><div class="sl"><div class="ffw"></div></div></div></div>'; document.body.appendChild(e); const d = getComputedStyle(e.querySelector(".ffw")).display; e.remove(); return d; });
+  eq(css, "none", "v miniaturách se overlay nezobrazuje");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
