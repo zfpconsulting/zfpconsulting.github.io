@@ -2315,6 +2315,7 @@ async function afterMeetSave(o,noteTxt,taskTxt,due){
     else if(W.l){await db.doc("leads/"+W.l.id).update({note,updatedAt:now});await linkPushToClient(W.l.id,{note});out.note=true}
     if(W.l){const cl=leads.find(x=>x.id===W.l.id)||W.l;try{await db.doc("leads/"+cl.id).update({log:[...(cl.log||[]),{d:now,t:"Zápis ze schůzky "+meetDateTxt(W.start)}].slice(-100),lastContact:now})}catch(e){}}}
   for(const t of String(taskTxt||"").split(/\n+/).map(x=>x.replace(/^\s*([-•*–]|\d+[.)])\s*/,"").trim()).filter(Boolean)){
+    if(o.tasks&&t===String(o.tasks).trim())continue;/* úkol z okna úkolu už existuje – nezakládat znovu */
     await db.collection("mytasks").add({text:t,client:W.name||"",due:due||"",done:"",createdAt:now});out.tasks++}
   return {...out,who:W}}
 /* poznámky z bodů → hotové shrnutí pro klienta: odrážky očištěné, věty s velkým písmenem a tečkou, úkoly jako „Další kroky“ */
@@ -2330,7 +2331,8 @@ function afterMeetSheet(o){
   const W=afterMeetWho(o),when=W.start?meetDateTxt(W.start)+(W.start.length>10?" · "+fmtHM(W.start):""):"";
   const notes=el("textarea",{rows:"6",placeholder:"Co jsme probrali, co klient chce, na co nezapomenout…","aria-label":"Poznámky ze schůzky"});
   const tasks=el("textarea",{rows:"4",placeholder:"Každý řádek = jeden úkol\nnapř. Poslat modelaci ŽP\nZavolat kvůli odhadu nemovitosti","aria-label":"Úkoly ze schůzky"});
-  const due=el("input",{type:"date","aria-label":"Deadline úkolů"});due.value=addWorkDays(asDefDays());
+  const due=el("input",{type:"date","aria-label":"Deadline úkolů"});due.value=o.due||addWorkDays(asDefDays());
+  if(o.tasks)tasks.value=o.tasks;/* z okna úkolu: text úkolu rovnou jako „Další krok“ */
   const save=el("button",{type:"button",class:"g"},"Uložit");
   const target=W.c?"ke klientovi "+W.c.name:W.l?"k leadu "+W.l.name:null;
   save.onclick=async()=>{if(!notes.value.trim()&&!tasks.value.trim()){toast("Napiš poznámky nebo úkoly");notes.focus();return}
@@ -8460,7 +8462,7 @@ function asOpenMine(t){
   openSheet("Můj úkol",[el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),tx),el("div",{class:"frow"},el("label",{},"Deadline"),dd),
       t.client?el("div",{class:"frow"},el("label",{},"Klient"),cl?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(cl)}},t.client+" ›"):el("span",{class:"mrate"},t.client)):null),
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:async()=>{await asMyDone(t);$("edDlg").close()}},t.st==="hotovo"?"Znovu otevřít":"Označit jako hotové"),
-      null),
+      t.client?el("button",{type:"button",class:"chipbtn",style:"background:var(--tint);color:#fff",onclick:()=>{$("edDlg").close();setTimeout(()=>afterMeetSheet({name:t.client,leadId:cl&&cl.id,tasks:t.st==="hotovo"?"":t.text,due:t.due||""}),340)}},"Poslat shrnutí e-mailem"):null),
     el("div",{class:"group"},del)]);
 }
 /* úkoly po termínu a na dnes v okně „Co tě dneska čeká“ */
