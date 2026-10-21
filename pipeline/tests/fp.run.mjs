@@ -240,10 +240,10 @@ tests["plán po krocích: nejdřív veškerý finanční majetek (i DPS u renty)
     return { cf: R.cf, kroky: FR.filter(f => /^Plán: krok/.test(f.lbl)).map(f => num(f.h)) }; });
   assert(o.kroky.length >= 5, "plán má kroky (" + o.kroky.length + ")");
   const mzEnd = o.kroky[o.kroky.length - 1][0];
-  const first = o.kroky.findIndex(k => k[1] < o.cf);
+  const cf0 = o.kroky[0][1], first = o.kroky.findIndex(k => k[1] < cf0);
   assert(first > 0, "cash flow se nakonec čerpá");
   o.kroky.forEach((k, i) => { if (i >= first) eq(k[0], mzEnd, "krok " + (i + 1) + ": než se sáhne na cash flow, musí být rozdělený veškerý majetek (zbývá " + k[0] + ")"); });
-  eq(o.kroky.slice(0, first).every(k => k[1] === o.cf), true, "před prvním krokem z cash flow se cash flow nemění");
+  eq(o.kroky.slice(0, first).every(k => k[1] === cf0), true, "před prvním krokem z cash flow se cash flow nemění");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
@@ -769,6 +769,23 @@ tests["výnos podle typu aktiva: DPS 7 %, ETF 9 %, akcie 9 %, fond 5 % … nomin
   const exp2 = g(80000, 0.07, b.mo) + g(43000, 0.05, b.mo) + g(20000, 0.09, b.mo);
   assert(Math.abs(b.fv - exp2) / exp2 < 0.002, "vlastní výnos u položky (5 %) přebije výnos podle typu: " + Math.round(b.fv) + " vs " + Math.round(exp2));
   eq(await page.evaluate(() => ["v_bu", "v_term", "v_ss", "v_pp", "v_opf", "v_etf", "v_akcie"].map(k => FPE.DEFAULT_SET[k])), [0, 0.04, 0.02, 0.01, 0.05, 0.09, 0.09], "výchozí dlouhodobé výnosy podle typu");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["případ klienta: 2 cíle + renta s ponechaným DPS/ETF/akciemi – všechny cíle ~100 %, renta si po splnění cíle vezme jen potřebnou část platby; měsíční vklady na stovky"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [],
+    cile: [{ nazev: "Start podnikání", castka: 250000, za_let: 10 }, { nazev: "Akontace na bydlení", castka: 1500000, za_let: 15 }], renta: { mesicne: 30000 },
+    majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Doplňkové penzijní spoření (DPS)", nazev: "DPS", hodnota: 80000, vklad: 0 }, { typ: "ETF", nazev: "iShares", hodnota: 43000, nech: "vse" }, { typ: "Akcie / dluhopisy (přímé)", nazev: "Akcie", hodnota: 20000, nech: "vse" }] };
+  for (const [zp, mes] of [[0, "akcie"], [7400, "akcie"], [0, "opt"], [3000, "opt"]]) {
+    await setPlan(page, Object.assign({}, base, { pojisteni: { zivotni: { navrh: zp } }, realokace: { mes, dip: false } }));
+    const r = await page.evaluate(() => { compute(); return { g: R.cile.concat([R.renta]).map(g => ({ n: g.nazev || "Renta", spl: g.splneni, kr: g.kraceno, pmt: g.pmt, inh: g.inh })), poz: R.pozice.map(p => p.mesicne), pmt: R.pmtCelkem }; });
+    r.g.forEach(g => { if (!g.kr) assert(g.spl >= 0.97 && g.spl <= 1.06, `${g.n} (ŽP ${zp}): splnění ${g.spl.toFixed(3)} má být ~100 % ` + JSON.stringify(r.g)); });
+    assert(r.g[2].spl >= 0.97 && r.g[2].spl <= 1.06, "renta ~100 % (ŽP " + zp + "): " + r.g[2].spl);
+    r.poz.filter(v => v > 0).forEach(v => assert(v % 50 === 0, "měsíční vklad do produktu na stovky / padesátky: " + JSON.stringify(r.poz)));
+    if (r.pmt % 100 === 0) r.poz.filter(v => v > 0).forEach(v => assert(v % 100 === 0, "součet je na stovky → každý vklad na stovky: " + JSON.stringify(r.poz)));
+    assert(Math.abs(r.poz.reduce((a, b) => a + b, 0) - r.pmt) <= 50, "součet vkladů sedí s platbami: " + r.poz + " vs " + r.pmt);
+  }
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 

@@ -7360,8 +7360,10 @@ async function openFP(e,rec){
   const hc=fincalcs.filter(x=>x.hypo&&(x.clientId===rec.id||x.clientId===id)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
   const hypo=hc?{...hc.hypo,at:hc.updatedAt||0,name:hc.name||""}:null;
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
+  /* kontakt z karty klienta → plán i dotazník (prázdná pole) */
+  const kontakt={telefon:e.phone||rec.phone||e.lead?.phone||"",email:rec.email||e.rec?.email||e.lead?.email||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=38#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=39#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -7369,8 +7371,11 @@ async function openFP(e,rec){
     try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now()})}catch(err){toast("Plán se nepodařilo uložit")}};
   const onMsg=ev=>{if(ev.origin!==location.origin||ev.source!==fr.contentWindow||!ev.data)return;const d=ev.data;
     if(d.type==="fp:ready"){let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
-      dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null,dz,hypo},location.origin))}
-    else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()})}
+      dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,kontakt,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null,dz,hypo},location.origin))}
+    else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()});
+      /* telefon / e-mail doplněný v plánu nebo dotazníku → do karty klienta, když tam chybí */
+      const K=d.plan.kontakt||{},up={};if(K.telefon&&!rec.phone)up.phone=K.telefon;if(K.email&&!rec.email)up.email=K.email;
+      if(Object.keys(up).length&&rec.id)db.doc("clients/"+rec.id).update(up).then(()=>Object.assign(rec,up)).catch(()=>{})}
     /* produkty v automatickém návrhu: poslední změna = výchozí pro další plány (synchronizuje se s nastavením) */
     else if(d.type==="fp:prodDef"&&d.prodDef&&typeof d.prodDef==="object"){clearTimeout(openFP._pd);openFP._pd=setTimeout(()=>{settings={...settings,fpProd:d.prodDef};db.doc("settings/main").update({fpProd:d.prodDef}).catch(()=>toast("Výchozí produkty se nepodařilo uložit"))},700)}};
   addEventListener("message",onMsg);
