@@ -1141,7 +1141,8 @@ function compute0(inp, today, ext) {
   const nnFit = nnFitOf(inp) ? null : nnSmlouva(inp, katastrofy, deti, S, today, [], "sport");
   const pojOs = pojPoOsobach(nn, pojNove, katastrofy.length), pojOsFit = nnFit ? pojPoOsobach(nnFit, pojNove > 0 && nn && nn.celkem > 0 ? Math.round(pojNove * nnFit.celkem / nn.celkem) : 0, katastrofy.length) : null;
   // ---------- časová osa
-  const hodnota = m => cashStay + keptNonCash + cile.reduce((s, c) => s + (m < c.months ? fvOf(c.vklad, c.pmt, c.r, m, c.fee) + fvInh(c.inh, c, m) : 0), 0) + (renta ? fvOf(renta.vklad, renta.pmt, renta.r, Math.min(m, renta.months), renta.fee) + fvInh(renta.inh, renta, Math.min(m, renta.months)) : 0);
+  const keepGrow = keepList.filter(a => !dps.includes(a)).map(a => ({ h: a.keep, mes: Math.max(0, n0(a.nech_mes)), r: rOfA(a) }));
+  const hodnota = m => cashStay + growFv(keepGrow, renta ? Math.min(m, renta.months) : m) + cile.reduce((s, c) => s + (m < c.months ? fvOf(c.vklad, c.pmt, c.r, m, c.fee) + fvInh(c.inh, c, m) : 0), 0) + (renta ? fvOf(renta.vklad, renta.pmt, renta.r, Math.min(m, renta.months), renta.fee) + fvInh(renta.inh, renta, Math.min(m, renta.months)) : 0);
   const udalosti = [{ typ: "start", datum: T0, titul: "Start plánu", m: 0 }];
   uvery.forEach(u => {
     if (u.fixace && u.fixace > today && (!u.splatnost || u.fixace < u.splatnost)) udalosti.push({ typ: "refix", datum: u.fixace, titul: "Refixace: " + u.nazev, m: monthsBetween(T0, u.fixace), uver: u });
@@ -1731,9 +1732,9 @@ function cfFrames(I,R){
   const {P,two,T0,mEnd,st,pts}=T,X0=150,X1=1470,Y0=196,Y1=520,W=X1-X0;
   const br=[...new Set([0,mEnd].concat(pts.map(p=>p.m)))].sort((a,b)=>a-b),seg=br.slice(0,-1).map((a,i)=>({a,b:br[i+1],s:st(a)}));
   const vmax=Math.max(...seg.map(x=>Math.max(x.s.I,x.s.E)))*1.12||1,gx=m=>X0+W*m/mEnd,gy=v=>Y1-(Y1-Y0)*v/vmax;
-  const C={ost:"#8a8a8a",loan:"#F37520",spor:"#5b8dd6",poj:"#cfcfcf",inc:"#4FB389"};
+  const C={ost:"#4a4a4a",loan:"#a8480f",spor:"#F37520",poj:"#f0c9a0",inc:"#ffffff"};
   const layers=[["ost",s=>s.ost.reduce((a,b)=>a+b,0)],["loan",s=>s.loans],["spor",s=>s.spor],["poj",s=>s.poj.reduce((a,b)=>a+b,0)+s.pojS]];
-  let rects="";seg.forEach(x=>{let base=0;layers.forEach(([k,f])=>{const v=f(x.s);if(v>0.5)rects+=`<rect x="${gx(x.a).toFixed(1)}" y="${gy(base+v).toFixed(1)}" width="${(gx(x.b)-gx(x.a)).toFixed(1)}" height="${(gy(base)-gy(base+v)).toFixed(1)}" fill="${C[k]}" opacity=".85"/>`;base+=v})});
+  let rects="";seg.forEach(x=>{let base=0;layers.forEach(([k,f])=>{const v=f(x.s);if(v>0.5)rects+=`<rect x="${gx(x.a).toFixed(1)}" y="${gy(base+v).toFixed(1)}" width="${(gx(x.b)-gx(x.a)).toFixed(1)}" height="${(gy(base)-gy(base+v)).toFixed(1)}" fill="${C[k]}" stroke="#161616" stroke-width="1.5"/>`;base+=v})});
   const inc=seg.map((x,i)=>`${i?"":`M${gx(x.a).toFixed(1)},${gy(x.s.I).toFixed(1)}`} H${gx(x.b).toFixed(1)}${i<seg.length-1?` V${gy(seg[i+1].s.I).toFixed(1)}`:""}`).join(" ");
   const nice=x=>{const p=Math.pow(10,Math.floor(Math.log10(x))),f=x/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p},sy=nice(vmax/4);
   const grid=[];for(let v=sy;v<vmax;v+=sy)grid.push(`<div style="position:absolute;left:${X0}px;top:${gy(v)}px;width:${W}px;height:1px;background:#262626"></div><div style="position:absolute;left:${X0-110}px;top:${gy(v)-10}px;width:100px;text-align:right;font-size:14px;color:#8a8a8a">${Math.round(v/1000)} tis.</div>`);
@@ -1741,10 +1742,10 @@ function cfFrames(I,R){
   const ax=`<div style="position:absolute;left:${X0}px;top:${Y1}px;width:${W}px;height:2px;background:#3a3a3a"></div>`+yrs.map(y=>`<div style="position:absolute;left:${gx((y-y0)*12-T0.getMonth())-30}px;top:${Y1+8}px;width:60px;text-align:center;font-size:13px;color:#8a8a8a">${y}</div>`).join("");
   const has={inc:1,ost:1,loan:seg.some(x=>x.s.loans>0.5),spor:seg.some(x=>x.s.spor>0.5),poj:seg.some(x=>x.s.poj.reduce((a,b)=>a+b,0)+x.s.pojS>0.5)};
   const leg=[["inc","Příjmy"],["ost","Ostatní výdaje"],["loan","Hypotéka a úvěry"],["spor","Spoření (plán)"],["poj","Pojištění"]].filter(([k])=>has[k]).map(([k,t])=>`<span style="margin-right:22px"><i style="display:inline-block;width:12px;height:12px;border-radius:${k==="inc"?"2px":"50%"};background:${C[k]};margin-right:6px;vertical-align:-1px"></i>${t}</span>`).join("");
-  const svg=`<svg width="1600" height="900" viewBox="0 0 1600 900" style="position:absolute;left:0;top:0">${rects}<path d="${inc}" fill="none" stroke="${C.inc}" stroke-width="5" stroke-linejoin="round"/></svg>`;
+  const svgOf=(op,lw)=>`<svg width="1600" height="900" viewBox="0 0 1600 900" style="position:absolute;left:0;top:0"><g opacity="${op}">${rects}</g><path d="${inc}" fill="none" stroke="${C.inc}" stroke-width="${lw}" stroke-linejoin="round" ${op<1?'stroke-dasharray="6 8"':""}/></svg>`;
   const nmF=i=>esc(P[i].jmeno.split(" ")[0]),out=[];
   pts.forEach((p,k)=>{const s=p.s,d=new Date(T0.getFullYear(),T0.getMonth()+p.m,1),cx=gx(p.m);
-    let h=chrome("Příjem a výdaje v čase","Měsíční cash flow domácnosti — v dnešních cenách")+grid.join("")+ax+svg+
+    let h=chrome("Cashflow v čase","Měsíční cash flow domácnosti — v dnešních cenách")+grid.join("")+ax+`<div style="position:absolute;left:0;top:0;width:1600px;height:900px;opacity:.22">${svgOf(1,2)}</div><div class="k" data-k="cfclip" style="position:absolute;left:0;top:0;width:${Math.max(X0+2,cx)}px;height:900px;overflow:hidden;transition:width 1.4s cubic-bezier(.45,0,.2,1)">${svgOf(1,5)}</div>`+
       `<div style="position:absolute;left:${X0}px;top:150px;font-size:14px;color:#b4b4b4">${leg}</div>`;
     pts.forEach((q,i)=>{const px=gx(q.m),act=i===k,past=i<k;
       h+=`<div class="k" data-k="cfm${i}" style="position:absolute;left:${px-(act?15:11)}px;top:${Y1+30-(act?4:0)}px;width:${act?30:22}px;height:${act?30:22}px;border-radius:50%;background:${act||past?"#F37520":"#161616"};border:2px solid ${act?"#fff":"#F37520"};color:#fff;font-size:${act?14:11}px;font-weight:900;display:flex;align-items:center;justify-content:center;opacity:${act||past?1:0.5}">${i+1}</div>`});
@@ -1793,9 +1794,9 @@ function buildFrames(I,R){
   const planFrames=(withIns,G)=>{
   const out=[];
   const PR=[{n:"Rezerva",kdy:"Ihned",cil:kc(R.rez.cil),lump:R.rez.vklad,pmt:0,vys:kc(R.rez.vklad),s:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100),sj:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100)}]
-   .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),lump:c.vklad,pmt:c.pmt,vys:kc(c.vysledek),s:Math.round(c.splneni*100),sj:Math.round(c.splneniJ*100),
+   .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),lump:c.vklad,pmt:c.pmt,vys:kc(Math.round(c.vysledek/1000)*1000),s:Math.round(c.splneni*100),sj:Math.round(c.splneniJ*100),
      kr:c.kraceno,dos:kc(c.dosazitelne)})))
-   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(R.renta.kap),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(R.renta.vysledek),s:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100),sd:Math.round(R.renta.splneniDps*100),
+   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(Math.round(R.renta.kap/1000)*1000),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(Math.round(R.renta.vysledek/1000)*1000),s:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100),sd:Math.round(R.renta.splneniDps*100),
      kr:R.renta.kraceno,dos:kc(R.renta.dosazitelne),dosSub:`renta ${kcm(R.renta.dosazitelneMes)} místo ${kcm(R.renta.mesicne)}`}]:[]);
   const anyKr=!withIns&&PR.some(r=>r.kr);
   const nGoals=PR.length;
@@ -2197,7 +2198,7 @@ function buildFrames(I,R){
        <div class="k" data-k="gct" style="position:absolute;left:${X0+44}px;top:198px;width:430px;z-index:7"><span class="pill" style="background:#F37520">${(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase()}</span>
          <div style="font-size:22px;font-weight:900;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.titul)}${isCil?` <span style="color:#DF6A6A;font-size:18px">−${kc(u.cil.kraceno?u.cil.dosazitelne:u.cil.castka)}</span>`:""}</div>
          <div class="mut" style="font-size:15px;margin-top:2px">${u.typ==="start"?"Začínáme – majetek po realokaci":isCil?`Výběr z investic na cíl · zbývá ${kc(Math.round(u.v/1000)*1000)}`:u.typ==="renta"?"Kapitál na rentu je připravený":u.typ==="refix"?"Splátka beze změny":u.typ==="splaceno"?"Úvěr splacen":""}</div></div>
-       <div class="foot">Reálné hodnoty (po inflaci). Hodnota zahrnuje rezervu, investice na cíle, rentu a DPS; po výběru na cíl hodnota klesne o vybranou částku.</div>`;
+       <div class="foot">Reálné hodnoty (po inflaci). Hodnota zahrnuje rezervu (mimo kapitál na rentu), investice na cíle, rentu, DPS a ponechané produkty; po výběru na cíl hodnota klesne o vybranou částku.</div>`;
       F.push({g:"gr",h,lbl:"Majetek: "+u.titul});
     });
   }
