@@ -2331,7 +2331,7 @@ function afterMeetSheet(o){
   const W=afterMeetWho(o),when=W.start?meetDateTxt(W.start)+(W.start.length>10?" · "+fmtHM(W.start):""):"";
   const notes=el("textarea",{rows:"6",placeholder:"Co jsme probrali, co klient chce, na co nezapomenout…","aria-label":"Poznámky ze schůzky"});
   const tasks=el("textarea",{rows:"4",placeholder:"Každý řádek = jeden úkol\nnapř. Poslat modelaci ŽP\nZavolat kvůli odhadu nemovitosti","aria-label":"Úkoly ze schůzky"});
-  const due=el("input",{type:"date","aria-label":"Deadline úkolů"});due.value=o.due||addWorkDays(asDefDays());
+  const due=el("input",{type:"date","aria-label":"Deadline úkolů"});due.value=o.due||taskDefDue();
   if(o.tasks)tasks.value=o.tasks;/* z okna úkolu: text úkolu rovnou jako „Další krok“ */
   const save=el("button",{type:"button",class:"g"},"Uložit");
   const target=W.c?"ke klientovi "+W.c.name:W.l?"k leadu "+W.l.name:null;
@@ -8394,6 +8394,8 @@ const asFirst=n=>{const w=String(n||"").trim().split(/[\s._-]+/)[0]||"";return w
 /* úklid po zrušeném režimu asistentky: smazat lokální kopie propojení, úkolů a seznamů klientů z tohoto zařízení */
 try{Object.keys(localStorage).filter(k=>/^(as_(adv|asst|flag|invites|snap_at|snap_sig|auto|inv_at|notified)|as_skip_|fl_)/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
 function asDefDays(){const n=+settings.asstDays;return isFinite(n)&&n>=0?n:3}
+/* výchozí deadline úkolu = za týden */
+function taskDefDue(){return addDays(7)}
 const asDue=t=>{if(!t.due||t.st==="hotovo")return"";const d=todayStr();return t.due<d?"late":t.due===d?"today":""};
 const asSortT=(a,b)=>(a.due||"9999").localeCompare(b.due||"9999")||(a.at||"").localeCompare(b.at||"");
 function asDueTag(t){const s=asDue(t);if(!t.due)return null;return{txt:s==="late"?"po termínu "+fmtDate(t.due):s==="today"?"dnes":fmtDate(t.due),cls:s==="late"?"red":s==="today"?"orange":""}}
@@ -8432,7 +8434,7 @@ function asAllTasks(){
 let tasksLoaded=false,leadsLoaded=false,ltTimer=null;
 const LT_SKIP=/^(schůzka( online)?|podpis)$/i;
 function leadTaskWant(l){const s=String(l.nextStep||"").trim();if(l.shared||l.example||!ACTIVE(l.stage)||!s||LT_SKIP.test(s))return null;
-  return {text:s,client:l.name||"",due:l.nextDate||"",key:s+"|"+(l.nextDate||"")}}
+  return {text:s,client:l.name||"",due:l.nextDate||(typeof taskDefDue==="function"?taskDefDue():""),key:s+"|"+(l.nextDate||"")}}
 function scheduleLeadTasks(){clearTimeout(ltTimer);ltTimer=setTimeout(()=>syncLeadTasks().catch(e=>console.warn("leadtasks",e)),1500)}
 async function syncLeadTasks(){if(!tasksLoaded||!leadsLoaded||!db)return;
   const byId=new Map(myTasks.map(t=>[t.id,t])),seen=new Set(),now=new Date().toISOString();
@@ -8473,7 +8475,7 @@ async function asMyDone(t){try{const done=t.st!=="hotovo";await db.doc("mytasks/
 function asNewTask(preset){
   preset=preset||{};
   const text=el("textarea",{placeholder:"Co je potřeba udělat?","aria-label":"Text úkolu",rows:"3"});text.value=preset.text||"";
-  const due=el("input",{type:"date","aria-label":"Deadline"});due.value=preset.due||addWorkDays(asDefDays());
+  const due=el("input",{type:"date","aria-label":"Deadline"});due.value=preset.due||taskDefDue();
   let client=preset.client?{n:preset.client}:null;
   const pk=asClientPicker(asAdvisorClients(),preset.client||"",c=>{client=c});
   const save=el("button",{type:"button",class:"g"},"Uložit");

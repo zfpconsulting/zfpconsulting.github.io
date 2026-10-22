@@ -60,12 +60,14 @@ const tests = {
     const db = { doc: p => ({ async set(d) { docs[p] = { ...d } }, async update(d) { if (!docs[p]) throw new Error("neexistuje"); Object.assign(docs[p], d) }, async delete() { delete docs[p] } }) };
     const env = { leads: [], myTasks: [] };
     const refresh = () => { env.myTasks = Object.entries(docs).filter(([k]) => k.startsWith("mytasks/")).map(([k, v]) => ({ id: k.slice(8), ...v })); env.leads = Object.entries(docs).filter(([k]) => k.startsWith("leads/")).map(([k, v]) => ({ id: k.slice(6), ...v })); };
-    const F = new Function("db", "env", "ACTIVE", fn.replace("let tasksLoaded=false,leadsLoaded=false", "let tasksLoaded=true,leadsLoaded=true") + "; return {sync:()=>{leads=env.leads;myTasks=env.myTasks;return syncLeadTasks()},back:(t,p)=>{leads=env.leads;return leadFromTask(t,p)}};".replace(/^/, "let leads=[],myTasks=[];"))(db, env, s => s !== "podpis_hotovo" && s !== "lost");
+    const F = new Function("db", "env", "ACTIVE", "taskDefDue", fn.replace("let tasksLoaded=false,leadsLoaded=false", "let tasksLoaded=true,leadsLoaded=true") + "; return {sync:()=>{leads=env.leads;myTasks=env.myTasks;return syncLeadTasks()},back:(t,p)=>{leads=env.leads;return leadFromTask(t,p)}};".replace(/^/, "let leads=[],myTasks=[];"))(db, env, s => s !== "podpis_hotovo" && s !== "lost", () => "2026-10-29");
     docs["leads/a"] = { name: "Jan Novák", stage: "probehla", nextStep: "Poslat modelaci ŽP", nextDate: "2026-10-28" };
     docs["leads/b"] = { name: "Eva Malá", stage: "schuzka", nextStep: "Schůzka online", nextDate: "2026-10-27" };
     docs["leads/c"] = { name: "Petr Starý", stage: "lost", nextStep: "Zavolat", nextDate: "2026-10-27" };
     refresh(); await F.sync(); refresh();
     eq(env.myTasks.map(t => [t.id, t.text, t.client, t.due]), [["auto_a", "Poslat modelaci ŽP", "Jan Novák", "2026-10-28"]], "jen krok, který není schůzkou, u aktivního leadu");
+    docs["leads/d"] = { name: "Ivo Bez", stage: "probehla", nextStep: "Poslat nabídku", nextDate: null }; refresh(); await F.sync(); refresh();
+    eq(docs["mytasks/auto_d"].due, "2026-10-29", "bez termínu → deadline za týden"); delete docs["leads/d"]; delete docs["mytasks/auto_d"]; refresh();
     docs["leads/a"].nextStep = "Zavolat kvůli podpisu"; docs["leads/a"].nextDate = "2026-10-29"; refresh(); await F.sync(); refresh();
     eq([env.myTasks.length, env.myTasks[0].text, env.myTasks[0].due], [1, "Zavolat kvůli podpisu", "2026-10-29"], "nový krok přepíše úkol, žádná duplicita");
     docs["mytasks/auto_a"].done = "2026-10-22T10:00:00Z"; refresh(); await F.back({ rid: "auto_a", leadId: "a" }, { done: true }); refresh(); await F.sync(); refresh();
