@@ -813,6 +813,27 @@ tests["renta jako v případu klienta (BÚ 140 000 + DPS 143 000, cash flow sta�
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["nastavení „Neřešit pojištění“: žádné slidy s pojištěním (katastrofy, ŽP, SOCKO, děti, plán s pojištěním), plán bez pojistného, v Realizaci ani na ose nic o pojištění; editor nehlásí chybějící údaje k pojištění"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Petr Novák", narozen: "1988-03-01", zam: 62000, vydaje_osobni: 30000, vydaje_dom: 20000, starobni: 21000, bez_partnera: false },
+    partner: { zapnuto: true, jmeno: "Jana Nováková", narozen: "1991-06-01", zam: 30000, vydaje_osobni: 12000, vydaje_dom: 8000, starobni: 17000 }, deti: [{ jmeno: "Anička", narozen: "2018-05-01", vs: false }], motivace: "x", uvery: [],
+    cile: [{ nazev: "Auto", castka: 400000, za_let: 5 }], renta: { mesicne: 20000 }, majetek: [{ typ: "Běžný účet", nazev: "Účet", hodnota: 300000 }] };
+  await setPlan(page, base);
+  const on = () => page.evaluate(() => { compute(); const gr = [...new Set(FR.map(f => f.g))], real = FR.find(f => f.g === "z"), txt = real ? real.h.replace(/<[^>]+>/g, " ") : "";
+    const all = FR.map(f => f.h.replace(/<[^>]+>/g, " ")).join(" ");
+    return { gr, poj: R.pojNove, real: /ojišt|ojist|Zajištěný/.test(txt), anyZp: /Návrh životního pojištění|Pojištění dětí|Proč pojištění/.test(all), miss: missing(inp(), R).filter(m => m.st === 3 || /invalidní|OVZ|krytí smrti/.test(m.t)).length, saved: !!inp().bez_zp }; });
+  const before = await on();
+  assert(before.gr.some(g => /^zp/.test(g)) && before.gr.some(g => /^kat/.test(g)) && before.gr.includes("deti") && before.gr.includes("p2"), "bez zapnutí jsou slidy s pojištěním " + before.gr.join(","));
+  assert(before.real, "bez zapnutí Realizace pojištění zmiňuje");
+  await page.evaluate(() => { set(inp(), "nastaveni.bez_pojisteni", true); save(); });
+  const after = await on();
+  eq([after.gr.filter(g => /^(zp|kat|soc|deti|p2)/.test(g)), after.poj, after.real, after.anyZp, after.miss, after.saved], [[], 0, false, false, 0, false], "zapnuto: " + after.gr.join(","));
+  assert(after.gr.includes("p") && after.gr.includes("z"), "plán a Realizace zůstávají");
+  const ui = await page.evaluate(() => { STEP = 5; renderEditor(); return !!document.querySelector('#ed input[data-p="nastaveni.bez_pojisteni"]:checked'); });
+  assert(ui, "přepínač je v Nastavení zaškrtnutý");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
