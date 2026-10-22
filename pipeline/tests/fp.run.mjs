@@ -24,22 +24,25 @@ async function setPlan(page, patch) {
 const pvAnn = (m, n, r) => { const q = Math.pow(1 + r, 1 / 12) - 1; return n > 0 && m > 0 ? m * (1 - Math.pow(1 + q, -n)) / q : 0; };
 
 const tests = {
-  async "shrnutí mailem: oslovení podle titulu, jen části ze slidů, které nejsou vynechané, další kroky"() {
+  async "shrnutí mailem: oslovení podle titulu, následné kroky (zřízení + trvalý příkaz, ŽP), termín podpisu z kalendáře"() {
     const { ctx, page, errors } = await open();
-    await setPlan(page, { klient: { jmeno: "Petr Novák", titul: "Ing.", narozen: "1988-03-01", zam: 62000, vydaje_osobni: 30000, inv1: 9000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 8000, bez_partnera: true }, partner: { zapnuto: false }, kontakt: { email: "novak@example.cz" } });
+    await page.evaluate(() => { const d = JSON.parse(JSON.stringify(DB)), c = d.clients[d.cur]; c.klient.titul = "Ing."; c.klient.jmeno = "Petr Novák"; c.kontakt = { email: "novak@example.cz" }; localStorage.setItem(LS, JSON.stringify(d)); });
+    await page.reload(); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
     await page.click("#bMail"); await page.waitForSelector("#mTxt");
     let t = await page.$eval("#mTxt", e => e.value);
-    assert(t.startsWith("Dobrý den, pane inženýre,"), "oslovení: " + t.slice(0, 40));
-    assert(/Další kroky\n1\. /.test(t) && /Podpis smluv/.test(t), "další kroky");
-    assert(/Kam půjdou peníze/.test(t), "realokace v mailu");
+    assert(t.startsWith("Dobrý den, pane inženýre,\n\nposílám shrnutí finančního plánu"), "úvod: " + t.slice(0, 80));
+    assert(/Následné kroky\nZřízení akciového portfolia Conseq \+ (jednorázový vklad [\d\s]+Kč \+ )?nastavení trvalého příkazu na [\d\s]+Kč/.test(t), "zřízení + trvalý příkaz: " + t);
+    assert(/Sjednání životního pojištění|Zrušení aktuálního životního pojištění/.test(t), "ŽP v krocích");
+    assert(/ozvu telefonicky/.test(t), "bez termínu podpisu obecná věta");
     eq(await page.$eval("#mTo", e => e.value), "novak@example.cz", "adresát z kontaktu");
     await page.click("[data-a=x]");
-    await page.evaluate(() => FR.forEach((f, i) => { if (/^(st|r2)$/.test(f.g)) toggleSkip(i, true) }));
+    /* termín z kalendáře (posílá Pipeline) */
+    const d = await page.evaluate(() => { const n = new Date(); const d = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 9, 15, 0); MAILCFG.podpis = { start: d.toISOString() }; return kdyTxt(d); });
+    assert(/^(příští týden|ve|v) /.test(d) && / v 15:00$/.test(d), "kdy: " + d);
     await page.click("#bMail"); await page.waitForSelector("#mTxt");
     t = await page.$eval("#mTxt", e => e.value);
-    assert(!/Kam půjdou peníze/.test(t), "vynechaná realokace se nepíše");
-    assert(await page.$eval("[data-s=real]", e => e.disabled), "checkbox realokace zakázaný");
-    assert(!/[<>]|&amp;|&lt;|undefined|NaN/.test(t), "čistý text: " + t);
+    assert(t.includes(d.charAt(0).toUpperCase() + d.slice(1) + " bych se Vám ozval telefonicky ohledně elektronického podpisu (záležitost 15 minut)."), "věta s termínem: " + t);
+    assert(!/[<>]|&amp;|undefined|NaN/.test(t), "čistý text");
     eq(errors, [], "bez chyb");
     await ctx.close();
   },

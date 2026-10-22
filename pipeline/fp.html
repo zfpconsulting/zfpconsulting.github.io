@@ -2413,9 +2413,9 @@ $("#bDz").onclick=()=>{
     else if(d.type==="dz:change"&&d.plan&&d.plan.klient){DB.clients[DB.cur]=JSON.parse(JSON.stringify(d.plan));save();if(d.close)close()}};
   addEventListener("message",on)};
 /* ---------------- shrnutí plánu e-mailem ----------------
-   Text se skládá z toho, co je v prezentaci: vynechané slidy se do mailu nepíšou. Oslovení podle titulu a pádu (jako šablony v Pipeline),
-   další kroky = slide Realizace + podpis smluv / odkaz na rezervaci termínu. Odesílá se přes poštovního klienta (mailto) – nic nejde na server. */
-let MAILCFG={rez:""};
+   Oslovení podle titulu a pádu (jako šablony v Pipeline), následné kroky z realokace (zřízení produktu + trvalý příkaz), ŽP a převodu PP→DPS;
+   termín elektronického podpisu z kalendáře (událost „VK: Příjmení podpis“). Odesílá se přes poštovního klienta (mailto) – nic nejde na server. */
+let MAILCFG={rez:"",podpis:null};
 const M_TITLES=[[/^prof\.?$/i,"profesore","profesorko",5],[/^doc\.?$/i,"docente","docentko",4],[/^(judr|mudr|phdr|rndr|paeddr|mvdr|pharmdr|thdr|phmr|dr)\.?$/i,"doktore","doktorko",3],[/^ing\.?$/i,"inženýre","inženýrko",2],[/^mgr\.?$/i,"magistře","magistro",2],[/^(bc|ba|bsc|mba|ph\.?d|csc|dis|llm|msc)\.?,?$/i,null,null,0]];
 function mParseName(full){const parts=(full||"").replace(/,/g," ").split(/\s+/).filter(Boolean);let title=null,words=[];
   parts.forEach(w=>{const T=M_TITLES.find(t=>t[0].test(w)||t[0].test(w.replace(/\.$/,"")));if(T){if(T[1]&&(!title||T[3]>title[3]))title=T}else words.push(w)});
@@ -2426,71 +2426,57 @@ function mVocSur(s){if(!s)return "";const l=s.toLowerCase();
   if(/[kgh]$/.test(l)||/ch$/.test(l))return s+"u"; if(/[šžčřcjťďň]$/.test(l))return s+"i"; if(/[bcdfhlmnprstvz]r$/.test(l))return s.slice(0,-1)+"ře";
   if(/e$/.test(l)||/[ouy]$/.test(l))return s; return s+"e"}
 function mSalut(full){const p=mParseName(full);if(p.title)return (p.fem?"paní ":"pane ")+(p.fem?p.title[2]:p.title[1]);if(!p.sur)return "";return p.fem?"paní "+p.sur:"pane "+mVocSur(p.sur)}
-const unesc=s=>String(s==null?"":s).replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&amp;/g,"&");
 const visG=re=>FR.some(f=>re.test(f.g)&&!f.skip);
-const zaLet=m=>"za "+letTxt(m/12);
-const jakZaplatit=(lump,pmt)=>[lump>0.5?"jednorázově "+kc(lump):null,pmt>0.5?"měsíčně "+kc(pmt):null].filter(Boolean).join(" + ");
 const vyjmenuj=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" a "+a.at(-1);
-/* které části mailu odpovídají slidům, které v prezentaci zůstaly */
-function mailSecs(){const noIns=!!((inp().nastaveni||{}).bez_pojisteni);
-  return {motiv:visG(/^h$/)&&!!(R.motivace||[]).length,plan:visG(/^p2?$/),poj:!noIns&&!!R.nn&&visG(/^(zp\d|deti)$/),real:visG(/^(st|r2)$/)&&R.pozice.some(p=>p.jednor>0.5||p.mesicne>0.5),kroky:true}}
-const MAIL_SECS=[["motiv","Co je pro klienta důležité"],["plan","Cíle a plán"],["poj","Pojištění"],["real","Kam půjdou peníze"],["kroky","Další kroky"]];
-function mailCompose(sec){
-  const P=R.persons,pair=P.length>1,pn=P.map(p=>mParseName((p.titul?p.titul+" ":"")+p.jmeno)),fem=!pair&&!!(pn[0]&&pn[0].fem);
+/* název produktu ve 2. pádě („Zřízení akciového portfolia Conseq“) */
+function prodGen(n){const dip=/DIP/.test(n),b=n.replace(/\s*(–|-)\s*DIP\b|\s*\(DIP\)/g,"").trim(),M=[[/^ZFPI Realitní fond$/i,"realitního fondu ZFPI"],[/^Conseq akciové portfolio$/i,"akciového portfolia Conseq"],[/^Conseq dluhopisové portfolio$/i,"dluhopisového portfolia Conseq"],[/^Doplňkové penzijní spoření.*$/i,"doplňkového penzijního spoření"],[/^Spořicí účet$/i,"spořicího účtu"]];
+  const m=M.find(x=>x[0].test(b));return (m?m[1]:b)+(dip?" (DIP)":"")}
+const DNY_V=["v neděli","v pondělí","v úterý","ve středu","ve čtvrtek","v pátek","v sobotu"],VE_H=new Set([0,2,3,4,12,13,14,20,21,22,23]);
+function kdyTxt(d,now=new Date()){const day=x=>{const y=new Date(x);y.setHours(0,0,0,0);return y},dd=Math.round((day(d)-day(now))/864e5);
+  const mon=x=>{const y=day(x);y.setDate(y.getDate()-((y.getDay()+6)%7));return y},wk=Math.round((mon(d)-mon(now))/(7*864e5));
+  const cas=(VE_H.has(d.getHours())?"ve ":"v ")+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");
+  const den=dd===0?"dnes":dd===1?"zítra":wk===0?"tento týden "+DNY_V[d.getDay()]:wk===1?"příští týden "+DNY_V[d.getDay()]:DNY_V[d.getDay()]+" "+d.getDate()+". "+(d.getMonth()+1)+".";
+  return den+" "+cas}
+function mailCompose(){
+  const I=inp(),P=R.persons,noIns=!!((I.nastaveni||{}).bez_pojisteni);
   const osl=P.map(p=>mSalut((p.titul?p.titul+" ":"")+p.jmeno)).filter(Boolean);
-  const mel=pair?"měli":fem?"měla":"měl";
-  const L=[`Dobrý den${osl.length?", "+vyjmenuj(osl):""},`,"",`posílám shrnutí finančního plánu, který jsme spolu prošli, ať máte vše podstatné po ruce.`];
-  if(sec.motiv){const m=R.motivace.map(x=>x.t.charAt(0).toLowerCase()+x.t.slice(1));L.push("",`Plán stojí na tom, co je pro ${pair?"Vás oba":"Vás"} nejdůležitější: ${vyjmenuj(m)}.`)}
-  if(sec.plan){L.push("","Finanční plán");
-    const rz=R.rez;L.push(`• Rezerva na nečekané situace: ${kc(rz.cil)}`+(rz.chybi>0.5?` – teď ${kc(rz.vklad)}, zbytek doplníme z cash flow`:" – k dispozici hned"));
-    R.cile.forEach(c=>{const cil=c.kraceno?c.dosazitelne:c.castka,z=jakZaplatit(c.vklad,c.pmt);L.push(`• ${c.nazev} ${zaLet(c.months)}: ${kc(Math.round(cil/1000)*1000)}`+(z?` – ${z}`:""))});
-    if(R.renta){const r=R.renta,z=jakZaplatit((r.vklad||0)+(r.dpsVal||0),r.pmt);L.push(`• Renta: ${rentaTxt(r)}`+(z?` – ${z}`:""))}
-    if(R.pmtCelkem>0.5)L.push(`Pravidelně do plánu celkem ${kcm(R.pmtCelkem)}.`)}
-  if(sec.poj){const PO=R.pojOs,nn=R.nn,dl=[];
-    nn.dospeli.forEach((o,i)=>{if(!visG(new RegExp("^zp"+i+"$")))return;const rs=o.rizika.filter(r=>r.pc>0&&!/povinné minimum|vždy u dospělých/.test(r.pozn||""));
-      const cena=PO&&PO.dosp[i]!=null?kcm(PO.dosp[i]):"";
-      dl.push(`• ${pair?o.jmeno.split(" ")[0]:"Vaše pojištění"}${cena?": "+cena:""}`+(rs.length?` – ${rs.map(r=>r.nazev.replace(/\s*\(.*?\)\s*$/,"").replace(/\s+s\s+(klesající|konstantní)\s+PČ/i,"")+" "+(r.jedn==="Kč/den"?fmt(r.pc)+NB+"Kč/den":mil(r.pc))).join(", ")}`:""))});
-    if(nn.deti.length&&visG(/^deti$/))dl.push(`• ${nn.deti.length>1?"Děti":unesc(nn.deti[0].jmeno)||"Dítě"}${PO&&PO.detiCelkem?": "+kcm(PO.detiCelkem):""} – úraz 1 mil. Kč s 10× progresí, vážná onemocnění 500 tis. Kč, 400 Kč/den při léčení úrazu`);
-    if(dl.length)L.push("","Životní pojištění – krytí příjmu, když přijde nemoc, úraz nebo invalidita",...dl)}
-  if(sec.real){L.push("","Kam půjdou peníze");
-    R.pozice.filter(p=>p.jednor>0.5||p.mesicne>0.5).sort((a,b)=>(b.jednor+b.mesicne*120)-(a.jednor+a.mesicne*120)).forEach(p=>L.push(`• ${p.nazev}: ${jakZaplatit(p.jednor,p.mesicne)}`))}
-  if(sec.kroky){const z=FR.find(f=>f.g==="z"),isPoj=s=>/poji[sš]t/i.test(s[0]);let pojDone=false;
-    /* pojištění je rozepsané výše → v krocích jen jeden řádek odkazem (ať se čísla nepletou) */
-    const st=(z&&z.steps||[]).map(s=>[unesc(s[0]),unesc(s[1]).replace(/^→\s*/,"")]).filter(s=>!isPoj(s)||sec.poj).map(s=>!isPoj(s)?s:pojDone?null:(pojDone=true,["Sjednat životní pojištění","podle návrhu výše (NN Orange Risk)"])).filter(Boolean);
-    L.push("","Další kroky");st.forEach((s,i)=>L.push(`${i+1}. ${s[0]}${s[1]?" – "+s[1]:""}`));
-    const n=st.length;L.push(`${n+1}. Podpis smluv – na další schůzce vše podepíšeme a nastavíme. S sebou prosím občanský průkaz a číslo účtu, ze kterého budou platby odcházet.`);
-    if(MAILCFG.rez)L.push("",`Termín schůzky si můžete vybrat zde: ${MAILCFG.rez}`)}
-  L.push("",`Kdybyste ${mel} k čemukoli dotaz, napište mi nebo zavolejte.`);
-  return L.join("\n").replace(/\n{3,}/g,"\n\n")}
-function mailSubject(){return "Shrnutí finančního plánu"}
-function openMail(){if(!R){return}
-  const I=inp(),K=I.kontakt=I.kontakt||{},sec=mailSecs(),has=mailSecs();
+  const K=[];
+  R.pozice.filter(p=>p.jednor>0.5||p.mesicne>0.5).sort((a,b)=>(b.mesicne*120+b.jednor)-(a.mesicne*120+a.jednor)).forEach(p=>{
+    K.push(`Zřízení ${prodGen(p.nazev)}`+(p.jednor>0.5?` + jednorázový vklad ${kc(p.jednor)}`:"")+(p.mesicne>0.5?` + nastavení trvalého příkazu na ${kc(p.mesicne)}`:""))});
+  const zpVis=!noIns&&R.pojNove>0&&visG(/^(zp\d|deti)$/);
+  if(zpVis){const ma=(R.poj&&R.poj[0]&&R.poj[0].stav>0)||(I.majetek||[]).some(a=>/Životní pojištění/.test(a.typ||""));
+    K.push(ma?"Zrušení aktuálního životního pojištění – realizace nového":"Sjednání životního pojištění")}
+  if(R.transakce.some(t=>t.bezpoplatku))K.push("Převod PP na DPS");
+  const L=[`Dobrý den${osl.length?", "+vyjmenuj(osl):""},`,"","posílám shrnutí finančního plánu, který jsme spolu prošli, ať máte vše podstatné po ruce."];
+  if(K.length)L.push("","Následné kroky",...K);
+  const pd=MAILCFG.podpis&&MAILCFG.podpis.start?new Date(MAILCFG.podpis.start):null;
+  L.push("",pd&&!isNaN(pd)?`${(s=>s.charAt(0).toUpperCase()+s.slice(1))(kdyTxt(pd))} bych se Vám ozval telefonicky ohledně elektronického podpisu (záležitost 15 minut).`:"Ohledně elektronického podpisu (záležitost 15 minut) se Vám ozvu telefonicky.");
+  return L.join("\n")}
+function openMail(){if(!R)return;
+  const I=inp(),K=I.kontakt=I.kontakt||{};
   const ov=document.createElement("div");ov.className="mailov";
   ov.innerHTML=`<div class="mailbox" role="dialog" aria-label="Shrnutí mailem"><div class="mh"><b>✉️ Shrnutí plánu mailem</b><span class="sp"></span><button class="btn" data-a="x">✕</button></div>
    <label class="f">Komu<input type="email" id="mTo" placeholder="email@klienta.cz" value="${esc(K.email||"")}"></label>
-   <label class="f">Předmět<input type="text" id="mSub" value="${esc(mailSubject())}"></label>
-   <div class="msecs">${MAIL_SECS.map(([k,t])=>`<label class="chk"><input type="checkbox" data-s="${k}" ${sec[k]?"checked":""} ${has[k]||k==="kroky"?"":"disabled"}> ${t}</label>`).join("")}</div>
+   <label class="f">Předmět<input type="text" id="mSub" value="Shrnutí finančního plánu"></label>
    <textarea id="mTxt" spellcheck="true"></textarea>
-   <div class="hint">Text vychází z prezentace – vynechané slidy v něm nejsou. Před odesláním ho můžeš upravit; podpis doplní Mail sám.</div>
+   <div class="hint">${MAILCFG.podpis?"Termín podpisu je z kalendáře (VK: … podpis).":"V kalendáři není budoucí „VK: "+esc(mParseName(R.persons[0].jmeno).sur||"Příjmení")+" podpis“ – termín doplň ručně."} Podpis doplní Mail sám.</div>
    <div class="mf"><button class="btn" data-a="copy">Kopírovat text</button><span class="sp"></span><button class="btn pri" data-a="send">✉️ Poslat shrnutí mailem</button></div></div>`;
   document.body.append(ov);
-  const ta=ov.querySelector("#mTxt"),to=ov.querySelector("#mTo"),sb=ov.querySelector("#mSub");
-  const gen=()=>{ov.querySelectorAll("[data-s]").forEach(c=>sec[c.dataset.s]=c.checked&&!c.disabled);ta.value=mailCompose(sec)};gen();
-  let edited=false;ta.addEventListener("input",()=>edited=true);
-  ov.querySelectorAll("[data-s]").forEach(c=>c.addEventListener("change",()=>{if(edited&&!confirm("Text se znovu vygeneruje a tvoje úpravy se ztratí. Pokračovat?")){c.checked=!c.checked;return}edited=false;gen()}));
-  const close=()=>{ov.remove();removeEventListener("keydown",esc_)};const esc_=e=>{if(e.key==="Escape")close()};addEventListener("keydown",esc_);
+  const ta=ov.querySelector("#mTxt"),to=ov.querySelector("#mTo"),sb=ov.querySelector("#mSub");ta.value=mailCompose();
+  const close=()=>{ov.remove();removeEventListener("keydown",onKey)};const onKey=e=>{if(e.key==="Escape")close()};addEventListener("keydown",onKey);
   ov.addEventListener("click",e=>{if(e.target===ov)close()});
-  const keepMail=()=>{const v=to.value.trim();if(v&&v!==(K.email||"")){K.email=v;save()}};
   ov.querySelector("[data-a=x]").onclick=close;
   ov.querySelector("[data-a=copy]").onclick=async e=>{const t=sb.value+"\n\n"+ta.value;try{await navigator.clipboard.writeText(t)}catch(err){ta.select();document.execCommand("copy")}e.target.textContent="✓ Zkopírováno";setTimeout(()=>e.target.textContent="Kopírovat text",1500)};
   ov.querySelector("[data-a=send]").onclick=()=>{const v=to.value.trim();if(v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){to.focus();to.style.outline="2px solid #d33";return}
-    keepMail();location.href="mailto:"+encodeURIComponent(v)+"?subject="+encodeURIComponent(sb.value)+"&body="+encodeURIComponent(ta.value)};
+    if(v&&v!==(K.email||"")){K.email=v;save()}
+    location.href="mailto:"+encodeURIComponent(v)+"?subject="+encodeURIComponent(sb.value)+"&body="+encodeURIComponent(ta.value)};
   (to.value?ta:to).focus();ta.setSelectionRange(0,0);ta.scrollTop=0}
 $("#bMail").onclick=openMail;
 function boot(){applyProdDef(inp());renderClients();renderEditor();update()}
 if(HOST){
   ["#cli","#bNew","#bDup","#bDel"].forEach(q=>$(q).style.display="none");
   const cb=document.createElement("button");cb.className="btn";cb.textContent="✕ Zavřít";cb.onclick=()=>{clearTimeout(saveT);parent.postMessage({type:"fp:save",plan:inp(),close:true},location.origin)};$(".top").prepend(cb);
+  addEventListener("message",e=>{if(e.origin===location.origin&&e.source===parent&&e.data&&e.data.type==="fp:podpis"){MAILCFG.podpis=e.data.podpis||null;return}});
   addEventListener("message",e=>{if(e.origin!==location.origin||e.source!==parent||!e.data||e.data.type!=="fp:init")return;
     const d=e.data,pl=d.plan&&d.plan.klient?d.plan:blank(),pf=d.prefill||{};if(!(d.plan&&d.plan.klient))pl.klient.jmeno="";
     /* údaje z Pipeline (jméno, narození, IOLDP) doplní prázdná pole; IOLDP z kalkulačky má přednost, když je novější */
@@ -2499,7 +2485,7 @@ if(HOST){
     if(d.kurz){pl.nastaveni=pl.nastaveni||{};if(pl.nastaveni.eur_kurz==null||pl.nastaveni.eur_kurz==="")pl.nastaveni.eur_kurz=d.kurz}
     if(d.market)MARKET={models:d.market.models||[],hist:d.market.hist||{}};
     if(d.prodDef&&typeof d.prodDef==="object")PRODDEF=d.prodDef;
-    if(d.dz&&d.dz.to&&d.dz.k)DZLINK={to:d.dz.to,k:d.dz.k};if(d.rez)MAILCFG.rez=String(d.rez);
+    if(d.dz&&d.dz.to&&d.dz.k)DZLINK={to:d.dz.to,k:d.dz.k};if(d.rez)MAILCFG.rez=String(d.rez);if(d.podpis)MAILCFG.podpis=d.podpis;
     hypoFromCalc(pl,d.hypo);
     DB={cur:"h",clients:{h:pl}};boot()});
   parent.postMessage({type:"fp:ready"},location.origin);

@@ -7412,6 +7412,15 @@ function fpMarket(){
     Object.entries(WI).forEach(([k,sl])=>{const d=pfData("wi-"+sl);if(d&&d.pts)hist[k]=thin(d.pts)})}catch(err){}
   return {models,hist};
 }
+/* termín elektronického podpisu pro shrnutí FP: nejbližší budoucí „VK: Příjmení podpis“ v kalendáři schůzek nebo v osobním (primary) */
+async function fpPodpisEv(name){const sn=surnameOf(name||"");if(sn.length<3)return null;
+  const ok=t=>/podpis/i.test(t||"")&&norm(t||"").includes(sn.slice(0,Math.max(3,sn.length-1)));const now=Date.now();
+  const mem=(calEvents||[]).filter(ev=>ev.podpis&&ok(ev.title)&&new Date(ev.start).getTime()>now).sort((a,b)=>a.start.localeCompare(b.start))[0];
+  if(mem)return {start:mem.start,title:mem.title};
+  if(DEMO)return null;const q=surnameOfDisplay(name),out=[];
+  for(const id of [...new Set([calCfg().id,"primary"])]){try{const r=await(await gfetch("https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(id)+"/events?singleEvents=true&orderBy=startTime&maxResults=20&timeMin="+encodeURIComponent(new Date().toISOString())+"&timeMax="+encodeURIComponent(new Date(now+90*864e5).toISOString())+"&q="+encodeURIComponent(q)+"&fields=items(summary,start)")).json();
+    (r.items||[]).forEach(e=>{if(e.start&&e.start.dateTime&&ok(e.summary))out.push({start:e.start.dateTime,title:e.summary})})}catch(err){}}
+  return out.sort((a,b)=>new Date(a.start)-new Date(b.start))[0]||null}
 async function openFP(e,rec){
   try{if(!rec)rec=await ensureClient(e)}catch(err){toast("Nepodařilo se založit klienta");return}
   if(!rec){toast("Klient chybí");return}
@@ -7424,14 +7433,14 @@ async function openFP(e,rec){
   /* kontakt z karty klienta → plán i dotazník (prázdná pole) */
   const kontakt={telefon:e.phone||rec.phone||e.lead?.phone||"",email:rec.email||e.rec?.email||e.lead?.email||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=40#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=41#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
   const store=async plan=>{const js=JSON.stringify(plan);if(js===last)return;last=js;
     try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now()})}catch(err){toast("Plán se nepodařilo uložit")}};
   const onMsg=ev=>{if(ev.origin!==location.origin||ev.source!==fr.contentWindow||!ev.data)return;const d=ev.data;
-    if(d.type==="fp:ready"){let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
+    if(d.type==="fp:ready"){fpPodpisEv(e.name||rec.name).then(pd=>{if(pd)fr.contentWindow.postMessage({type:"fp:podpis",podpis:pd},location.origin)}).catch(()=>{});let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
       dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,kontakt,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null,dz,hypo,rez:(()=>{try{return dzLinkSync(true)||""}catch(err){return ""}})()},location.origin))}
     else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()});
       /* telefon / e-mail doplněný v plánu nebo dotazníku → do karty klienta, když tam chybí */
