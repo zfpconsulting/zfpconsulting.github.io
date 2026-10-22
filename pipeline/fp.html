@@ -48,6 +48,14 @@ label.f input:focus,label.f select:focus,label.f textarea:focus{outline:2px soli
 .steps .sn{display:inline-flex;width:18px;height:18px;border-radius:50%;background:rgba(127,127,127,.2);align-items:center;justify-content:center;font-size:11px}
 .steps .bd{background:#DF6A6A;color:#fff;border-radius:999px;font-size:10.5px;padding:0 6px;line-height:16px}
 .chkbox details{border:1px solid var(--line);border-radius:10px;padding:2px 10px;margin:8px 0;background:var(--chip)}
+.mailov{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.mailbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(760px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;gap:8px;padding:14px 16px}
+.mailbox .mh{display:flex;align-items:center;gap:8px;font-size:15px}
+.mailbox input[type=email],.mailbox input[type=text]{background:var(--inp);border:1px solid var(--line);border-radius:7px;padding:7px 9px;color:var(--txt);width:100%}
+.mailbox textarea{flex:1;min-height:340px;background:var(--inp);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--txt);font:13.5px/1.5 Lato,system-ui,sans-serif;resize:vertical}
+.mailbox .msecs{display:flex;flex-wrap:wrap;gap:2px 14px}
+.mailbox .msecs .chk{margin:2px 0}
+.mailbox .mf{display:flex;gap:8px;align-items:center}
 .miss{list-style:none;margin:4px 0 6px;padding:0;display:flex;flex-direction:column;gap:3px}
 .miss button{width:100%;display:flex;justify-content:space-between;gap:8px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12.5px}
 .miss button span{color:var(--acc);white-space:nowrap}
@@ -160,6 +168,7 @@ table.tcf th{padding:6px 12px}table.tcf td{padding:5px 12px}
   <button class="btn" id="bExp">Export</button>
   <button class="btn" id="bPdf">PDF</button>
   <button class="btn" id="bPptx" title="Export do PowerPointu s přechody Morph">PowerPoint</button>
+  <button class="btn" id="bMail" title="Shrnutí plánu pro klienta – text podle toho, co je v prezentaci (vynechané slidy se nepíšou)">✉️ Shrnutí mailem</button>
   <button class="btn pri" id="bPres">▶ Prezentovat</button>
   <input type="file" id="fImp" accept=".json,application/json" hidden>
 </div>
@@ -2282,7 +2291,7 @@ function buildFrames(I,R){
    ${steps.map((s,i)=>`<div style="position:absolute;left:80px;top:${250+i*92}px;width:52px;height:52px;border-radius:50%;background:#F37520;color:#fff;font-weight:900;font-size:22px;display:flex;align-items:center;justify-content:center">${i+1}</div><div style="position:absolute;left:160px;top:${250+i*92}px;width:650px"><div style="font-size:21px;font-weight:900">${s[0]}</div><div class="mut" style="font-size:15px;margin-top:3px">${s[1]}</div></div>`).join("")}
    <div class="card" style="left:900px;top:220px;width:620px;height:600px;background:#232323"></div><div style="position:absolute;left:935px;top:245px;font-size:24px;font-weight:900">Co tím získáte</div>
    ${gains.map((g,i)=>`<div style="position:absolute;left:935px;top:${305+i*84}px;display:flex;gap:16px">${ICON.check}<div><div style="font-size:19px;font-weight:900">${g[0]}</div><div class="mut" style="font-size:15px">${g[1]}</div></div></div>`).join("")}
-   <div style="position:absolute;left:935px;top:735px;font-size:22px;font-weight:900;color:#F37520">Jste připraveni?</div><div style="position:absolute;left:935px;top:770px;font-size:15px;color:#9a9a9a">První krok: podpis smluv na schůzce.</div>`,lbl:"Realizace"});
+   <div style="position:absolute;left:935px;top:735px;font-size:22px;font-weight:900;color:#F37520">Jste připraveni?</div><div style="position:absolute;left:935px;top:770px;font-size:15px;color:#9a9a9a">První krok: podpis smluv na schůzce.</div>`,lbl:"Realizace",steps,gains});
   F.push({g:"e",h:`<img src="${LOGO}" style="position:absolute;left:650px;top:90px;width:300px" alt=""><div style="position:absolute;left:0;top:420px;width:1600px;text-align:center;font-size:60px;font-style:italic">Těším se na naši dlouhodobou spolupráci</div><div style="position:absolute;left:0;top:780px;width:1600px;text-align:center;color:#9a9a9a;font-size:18px">ZFP Group  |  Váš finanční partner  |  ${new Date().getFullYear()}</div>`,lbl:"Závěr"});
   return F;
 }
@@ -2403,6 +2412,81 @@ $("#bDz").onclick=()=>{
     if(d.type==="dz:ready")fr.contentWindow.postMessage({type:"dz:init",plan:inp(),dz:DZLINK},location.origin);
     else if(d.type==="dz:change"&&d.plan&&d.plan.klient){DB.clients[DB.cur]=JSON.parse(JSON.stringify(d.plan));save();if(d.close)close()}};
   addEventListener("message",on)};
+/* ---------------- shrnutí plánu e-mailem ----------------
+   Text se skládá z toho, co je v prezentaci: vynechané slidy se do mailu nepíšou. Oslovení podle titulu a pádu (jako šablony v Pipeline),
+   další kroky = slide Realizace + podpis smluv / odkaz na rezervaci termínu. Odesílá se přes poštovního klienta (mailto) – nic nejde na server. */
+let MAILCFG={rez:""};
+const M_TITLES=[[/^prof\.?$/i,"profesore","profesorko",5],[/^doc\.?$/i,"docente","docentko",4],[/^(judr|mudr|phdr|rndr|paeddr|mvdr|pharmdr|thdr|phmr|dr)\.?$/i,"doktore","doktorko",3],[/^ing\.?$/i,"inženýre","inženýrko",2],[/^mgr\.?$/i,"magistře","magistro",2],[/^(bc|ba|bsc|mba|ph\.?d|csc|dis|llm|msc)\.?,?$/i,null,null,0]];
+function mParseName(full){const parts=(full||"").replace(/,/g," ").split(/\s+/).filter(Boolean);let title=null,words=[];
+  parts.forEach(w=>{const T=M_TITLES.find(t=>t[0].test(w)||t[0].test(w.replace(/\.$/,"")));if(T){if(T[1]&&(!title||T[3]>title[3]))title=T}else words.push(w)});
+  const sur=words[words.length-1]||"",first=words.length>1?words[0]:"",fem=/(ová|á)$/i.test(sur)||(/a$/i.test(first)&&!/^(nikola|sáva|jiří)$/i.test(first)&&!/[ýí]$/.test(sur));
+  return {title,first,sur,fem}}
+function mVocSur(s){if(!s)return "";const l=s.toLowerCase();
+  if(/[ýí]$/.test(l))return s; if(/a$/.test(l))return s.slice(0,-1)+"o"; if(/ek$/.test(l))return s.slice(0,-2)+"ku"; if(/ec$/.test(l))return s.slice(0,-2)+"če";
+  if(/[kgh]$/.test(l)||/ch$/.test(l))return s+"u"; if(/[šžčřcjťďň]$/.test(l))return s+"i"; if(/[bcdfhlmnprstvz]r$/.test(l))return s.slice(0,-1)+"ře";
+  if(/e$/.test(l)||/[ouy]$/.test(l))return s; return s+"e"}
+function mSalut(full){const p=mParseName(full);if(p.title)return (p.fem?"paní ":"pane ")+(p.fem?p.title[2]:p.title[1]);if(!p.sur)return "";return p.fem?"paní "+p.sur:"pane "+mVocSur(p.sur)}
+const unesc=s=>String(s==null?"":s).replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&amp;/g,"&");
+const visG=re=>FR.some(f=>re.test(f.g)&&!f.skip);
+const zaLet=m=>"za "+letTxt(m/12);
+const jakZaplatit=(lump,pmt)=>[lump>0.5?"jednorázově "+kc(lump):null,pmt>0.5?"měsíčně "+kc(pmt):null].filter(Boolean).join(" + ");
+const vyjmenuj=a=>a.length<2?a.join(""):a.slice(0,-1).join(", ")+" a "+a.at(-1);
+/* které části mailu odpovídají slidům, které v prezentaci zůstaly */
+function mailSecs(){const noIns=!!((inp().nastaveni||{}).bez_pojisteni);
+  return {motiv:visG(/^h$/)&&!!(R.motivace||[]).length,plan:visG(/^p2?$/),poj:!noIns&&!!R.nn&&visG(/^(zp\d|deti)$/),real:visG(/^(st|r2)$/)&&R.pozice.some(p=>p.jednor>0.5||p.mesicne>0.5),kroky:true}}
+const MAIL_SECS=[["motiv","Co je pro klienta důležité"],["plan","Cíle a plán"],["poj","Pojištění"],["real","Kam půjdou peníze"],["kroky","Další kroky"]];
+function mailCompose(sec){
+  const P=R.persons,pair=P.length>1,pn=P.map(p=>mParseName((p.titul?p.titul+" ":"")+p.jmeno)),fem=!pair&&!!(pn[0]&&pn[0].fem);
+  const osl=P.map(p=>mSalut((p.titul?p.titul+" ":"")+p.jmeno)).filter(Boolean);
+  const mel=pair?"měli":fem?"měla":"měl";
+  const L=[`Dobrý den${osl.length?", "+vyjmenuj(osl):""},`,"",`posílám shrnutí finančního plánu, který jsme spolu prošli, ať máte vše podstatné po ruce.`];
+  if(sec.motiv){const m=R.motivace.map(x=>x.t.charAt(0).toLowerCase()+x.t.slice(1));L.push("",`Plán stojí na tom, co je pro ${pair?"Vás oba":"Vás"} nejdůležitější: ${vyjmenuj(m)}.`)}
+  if(sec.plan){L.push("","Finanční plán");
+    const rz=R.rez;L.push(`• Rezerva na nečekané situace: ${kc(rz.cil)}`+(rz.chybi>0.5?` – teď ${kc(rz.vklad)}, zbytek doplníme z cash flow`:" – k dispozici hned"));
+    R.cile.forEach(c=>{const cil=c.kraceno?c.dosazitelne:c.castka,z=jakZaplatit(c.vklad,c.pmt);L.push(`• ${c.nazev} ${zaLet(c.months)}: ${kc(Math.round(cil/1000)*1000)}`+(z?` – ${z}`:""))});
+    if(R.renta){const r=R.renta,z=jakZaplatit((r.vklad||0)+(r.dpsVal||0),r.pmt);L.push(`• Renta: ${rentaTxt(r)}`+(z?` – ${z}`:""))}
+    if(R.pmtCelkem>0.5)L.push(`Pravidelně do plánu celkem ${kcm(R.pmtCelkem)}.`)}
+  if(sec.poj){const PO=R.pojOs,nn=R.nn,dl=[];
+    nn.dospeli.forEach((o,i)=>{if(!visG(new RegExp("^zp"+i+"$")))return;const rs=o.rizika.filter(r=>r.pc>0&&!/povinné minimum|vždy u dospělých/.test(r.pozn||""));
+      const cena=PO&&PO.dosp[i]!=null?kcm(PO.dosp[i]):"";
+      dl.push(`• ${pair?o.jmeno.split(" ")[0]:"Vaše pojištění"}${cena?": "+cena:""}`+(rs.length?` – ${rs.map(r=>r.nazev.replace(/\s*\(.*?\)\s*$/,"").replace(/\s+s\s+(klesající|konstantní)\s+PČ/i,"")+" "+(r.jedn==="Kč/den"?fmt(r.pc)+NB+"Kč/den":mil(r.pc))).join(", ")}`:""))});
+    if(nn.deti.length&&visG(/^deti$/))dl.push(`• ${nn.deti.length>1?"Děti":unesc(nn.deti[0].jmeno)||"Dítě"}${PO&&PO.detiCelkem?": "+kcm(PO.detiCelkem):""} – úraz 1 mil. Kč s 10× progresí, vážná onemocnění 500 tis. Kč, 400 Kč/den při léčení úrazu`);
+    if(dl.length)L.push("","Životní pojištění – krytí příjmu, když přijde nemoc, úraz nebo invalidita",...dl)}
+  if(sec.real){L.push("","Kam půjdou peníze");
+    R.pozice.filter(p=>p.jednor>0.5||p.mesicne>0.5).sort((a,b)=>(b.jednor+b.mesicne*120)-(a.jednor+a.mesicne*120)).forEach(p=>L.push(`• ${p.nazev}: ${jakZaplatit(p.jednor,p.mesicne)}`))}
+  if(sec.kroky){const z=FR.find(f=>f.g==="z"),isPoj=s=>/poji[sš]t/i.test(s[0]);let pojDone=false;
+    /* pojištění je rozepsané výše → v krocích jen jeden řádek odkazem (ať se čísla nepletou) */
+    const st=(z&&z.steps||[]).map(s=>[unesc(s[0]),unesc(s[1]).replace(/^→\s*/,"")]).filter(s=>!isPoj(s)||sec.poj).map(s=>!isPoj(s)?s:pojDone?null:(pojDone=true,["Sjednat životní pojištění","podle návrhu výše (NN Orange Risk)"])).filter(Boolean);
+    L.push("","Další kroky");st.forEach((s,i)=>L.push(`${i+1}. ${s[0]}${s[1]?" – "+s[1]:""}`));
+    const n=st.length;L.push(`${n+1}. Podpis smluv – na další schůzce vše podepíšeme a nastavíme. S sebou prosím občanský průkaz a číslo účtu, ze kterého budou platby odcházet.`);
+    if(MAILCFG.rez)L.push("",`Termín schůzky si můžete vybrat zde: ${MAILCFG.rez}`)}
+  L.push("",`Kdybyste ${mel} k čemukoli dotaz, napište mi nebo zavolejte.`);
+  return L.join("\n").replace(/\n{3,}/g,"\n\n")}
+function mailSubject(){return "Shrnutí finančního plánu"}
+function openMail(){if(!R){return}
+  const I=inp(),K=I.kontakt=I.kontakt||{},sec=mailSecs(),has=mailSecs();
+  const ov=document.createElement("div");ov.className="mailov";
+  ov.innerHTML=`<div class="mailbox" role="dialog" aria-label="Shrnutí mailem"><div class="mh"><b>✉️ Shrnutí plánu mailem</b><span class="sp"></span><button class="btn" data-a="x">✕</button></div>
+   <label class="f">Komu<input type="email" id="mTo" placeholder="email@klienta.cz" value="${esc(K.email||"")}"></label>
+   <label class="f">Předmět<input type="text" id="mSub" value="${esc(mailSubject())}"></label>
+   <div class="msecs">${MAIL_SECS.map(([k,t])=>`<label class="chk"><input type="checkbox" data-s="${k}" ${sec[k]?"checked":""} ${has[k]||k==="kroky"?"":"disabled"}> ${t}</label>`).join("")}</div>
+   <textarea id="mTxt" spellcheck="true"></textarea>
+   <div class="hint">Text vychází z prezentace – vynechané slidy v něm nejsou. Před odesláním ho můžeš upravit; podpis doplní Mail sám.</div>
+   <div class="mf"><button class="btn" data-a="copy">Kopírovat text</button><span class="sp"></span><button class="btn pri" data-a="send">✉️ Poslat shrnutí mailem</button></div></div>`;
+  document.body.append(ov);
+  const ta=ov.querySelector("#mTxt"),to=ov.querySelector("#mTo"),sb=ov.querySelector("#mSub");
+  const gen=()=>{ov.querySelectorAll("[data-s]").forEach(c=>sec[c.dataset.s]=c.checked&&!c.disabled);ta.value=mailCompose(sec)};gen();
+  let edited=false;ta.addEventListener("input",()=>edited=true);
+  ov.querySelectorAll("[data-s]").forEach(c=>c.addEventListener("change",()=>{if(edited&&!confirm("Text se znovu vygeneruje a tvoje úpravy se ztratí. Pokračovat?")){c.checked=!c.checked;return}edited=false;gen()}));
+  const close=()=>{ov.remove();removeEventListener("keydown",esc_)};const esc_=e=>{if(e.key==="Escape")close()};addEventListener("keydown",esc_);
+  ov.addEventListener("click",e=>{if(e.target===ov)close()});
+  const keepMail=()=>{const v=to.value.trim();if(v&&v!==(K.email||"")){K.email=v;save()}};
+  ov.querySelector("[data-a=x]").onclick=close;
+  ov.querySelector("[data-a=copy]").onclick=async e=>{const t=sb.value+"\n\n"+ta.value;try{await navigator.clipboard.writeText(t)}catch(err){ta.select();document.execCommand("copy")}e.target.textContent="✓ Zkopírováno";setTimeout(()=>e.target.textContent="Kopírovat text",1500)};
+  ov.querySelector("[data-a=send]").onclick=()=>{const v=to.value.trim();if(v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){to.focus();to.style.outline="2px solid #d33";return}
+    keepMail();location.href="mailto:"+encodeURIComponent(v)+"?subject="+encodeURIComponent(sb.value)+"&body="+encodeURIComponent(ta.value)};
+  (to.value?ta:to).focus();ta.setSelectionRange(0,0);ta.scrollTop=0}
+$("#bMail").onclick=openMail;
 function boot(){applyProdDef(inp());renderClients();renderEditor();update()}
 if(HOST){
   ["#cli","#bNew","#bDup","#bDel"].forEach(q=>$(q).style.display="none");
@@ -2415,7 +2499,7 @@ if(HOST){
     if(d.kurz){pl.nastaveni=pl.nastaveni||{};if(pl.nastaveni.eur_kurz==null||pl.nastaveni.eur_kurz==="")pl.nastaveni.eur_kurz=d.kurz}
     if(d.market)MARKET={models:d.market.models||[],hist:d.market.hist||{}};
     if(d.prodDef&&typeof d.prodDef==="object")PRODDEF=d.prodDef;
-    if(d.dz&&d.dz.to&&d.dz.k)DZLINK={to:d.dz.to,k:d.dz.k};
+    if(d.dz&&d.dz.to&&d.dz.k)DZLINK={to:d.dz.to,k:d.dz.k};if(d.rez)MAILCFG.rez=String(d.rez);
     hypoFromCalc(pl,d.hypo);
     DB={cur:"h",clients:{h:pl}};boot()});
   parent.postMessage({type:"fp:ready"},location.origin);

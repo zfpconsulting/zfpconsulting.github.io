@@ -24,6 +24,25 @@ async function setPlan(page, patch) {
 const pvAnn = (m, n, r) => { const q = Math.pow(1 + r, 1 / 12) - 1; return n > 0 && m > 0 ? m * (1 - Math.pow(1 + q, -n)) / q : 0; };
 
 const tests = {
+  async "shrnutí mailem: oslovení podle titulu, jen části ze slidů, které nejsou vynechané, další kroky"() {
+    const { ctx, page, errors } = await open();
+    await setPlan(page, { klient: { jmeno: "Petr Novák", titul: "Ing.", narozen: "1988-03-01", zam: 62000, vydaje_osobni: 30000, inv1: 9000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 8000, bez_partnera: true }, partner: { zapnuto: false }, kontakt: { email: "novak@example.cz" } });
+    await page.click("#bMail"); await page.waitForSelector("#mTxt");
+    let t = await page.$eval("#mTxt", e => e.value);
+    assert(t.startsWith("Dobrý den, pane inženýre,"), "oslovení: " + t.slice(0, 40));
+    assert(/Další kroky\n1\. /.test(t) && /Podpis smluv/.test(t), "další kroky");
+    assert(/Kam půjdou peníze/.test(t), "realokace v mailu");
+    eq(await page.$eval("#mTo", e => e.value), "novak@example.cz", "adresát z kontaktu");
+    await page.click("[data-a=x]");
+    await page.evaluate(() => FR.forEach((f, i) => { if (/^(st|r2)$/.test(f.g)) toggleSkip(i, true) }));
+    await page.click("#bMail"); await page.waitForSelector("#mTxt");
+    t = await page.$eval("#mTxt", e => e.value);
+    assert(!/Kam půjdou peníze/.test(t), "vynechaná realokace se nepíše");
+    assert(await page.$eval("[data-s=real]", e => e.disabled), "checkbox realokace zakázaný");
+    assert(!/[<>]|&amp;|&lt;|undefined|NaN/.test(t), "čistý text: " + t);
+    eq(errors, [], "bez chyb");
+    await ctx.close();
+  },
   async "příjem a výdaje v čase: rodičovská → návrat do práce, nová hypotéka nahradí starou, důchody, splacení; rozpis za každého"() {
     const { ctx, page, errors } = await open();
     await setPlan(page, {
