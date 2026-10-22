@@ -54,6 +54,29 @@ const tests = {
     assert(M.subject === "Shrnutí naší schůzky 21. 10.", "předmět: " + M.subject);
     for (const r of ["Dobrý den, pane Nováku,", "• Chce ŽP.", "• Rezerva 200 tis.", "Další kroky:", "• Poslat modelaci."]) assert(M.body.includes(r), "chybí: " + r + "\n" + M.body);
   },
+  async "další krok u leadu → automaticky úkol; nový krok úkol přepíše, hotovo vyčistí krok u leadu, schůzky ne"() {
+    const fn = grab(/let tasksLoaded=false,leadsLoaded=false,ltTimer=null;.*?try\{if\(!patch\.done\)await db\.doc\("mytasks\/"\+t\.rid\)\.update\(\{key\}\);await db\.doc\("leads\/"\+id\)\.update\(lp\)\}catch\(e\)\{\}\}/s);
+    const docs = {};
+    const db = { doc: p => ({ async set(d) { docs[p] = { ...d } }, async update(d) { if (!docs[p]) throw new Error("neexistuje"); Object.assign(docs[p], d) }, async delete() { delete docs[p] } }) };
+    const env = { leads: [], myTasks: [] };
+    const refresh = () => { env.myTasks = Object.entries(docs).filter(([k]) => k.startsWith("mytasks/")).map(([k, v]) => ({ id: k.slice(8), ...v })); env.leads = Object.entries(docs).filter(([k]) => k.startsWith("leads/")).map(([k, v]) => ({ id: k.slice(6), ...v })); };
+    const F = new Function("db", "env", "ACTIVE", fn.replace("let tasksLoaded=false,leadsLoaded=false", "let tasksLoaded=true,leadsLoaded=true") + "; return {sync:()=>{leads=env.leads;myTasks=env.myTasks;return syncLeadTasks()},back:(t,p)=>{leads=env.leads;return leadFromTask(t,p)}};".replace(/^/, "let leads=[],myTasks=[];"))(db, env, s => s !== "podpis_hotovo" && s !== "lost");
+    docs["leads/a"] = { name: "Jan Novák", stage: "probehla", nextStep: "Poslat modelaci ŽP", nextDate: "2026-10-28" };
+    docs["leads/b"] = { name: "Eva Malá", stage: "schuzka", nextStep: "Schůzka online", nextDate: "2026-10-27" };
+    docs["leads/c"] = { name: "Petr Starý", stage: "lost", nextStep: "Zavolat", nextDate: "2026-10-27" };
+    refresh(); await F.sync(); refresh();
+    eq(env.myTasks.map(t => [t.id, t.text, t.client, t.due]), [["auto_a", "Poslat modelaci ŽP", "Jan Novák", "2026-10-28"]], "jen krok, který není schůzkou, u aktivního leadu");
+    docs["leads/a"].nextStep = "Zavolat kvůli podpisu"; docs["leads/a"].nextDate = "2026-10-29"; refresh(); await F.sync(); refresh();
+    eq([env.myTasks.length, env.myTasks[0].text, env.myTasks[0].due], [1, "Zavolat kvůli podpisu", "2026-10-29"], "nový krok přepíše úkol, žádná duplicita");
+    docs["mytasks/auto_a"].done = "2026-10-22T10:00:00Z"; refresh(); await F.back({ rid: "auto_a", leadId: "a" }, { done: true }); refresh(); await F.sync(); refresh();
+    eq([docs["leads/a"].nextStep, docs["leads/a"].nextDate, !!docs["mytasks/auto_a"]], ["", null, true], "hotovo → krok u leadu vyčištěn, úkol zůstane hotový");
+    docs["leads/a"].nextStep = "Poslat smlouvy"; docs["leads/a"].nextDate = "2026-11-02"; refresh(); await F.sync(); refresh();
+    eq([docs["mytasks/auto_a"].text, docs["mytasks/auto_a"].done], ["Poslat smlouvy", ""], "další nový krok úkol znovu otevře");
+    await F.back({ rid: "auto_a", leadId: "a" }, { due: "2026-11-05" }); refresh(); await F.sync(); refresh();
+    eq([docs["leads/a"].nextDate, docs["mytasks/auto_a"].text], ["2026-11-05", "Poslat smlouvy"], "změna termínu u úkolu → u leadu");
+    docs["leads/a"].stage = "lost"; refresh(); await F.sync(); refresh();
+    assert(!docs["mytasks/auto_a"], "lead mimo hru → otevřený úkol pryč");
+  },
 };
 let fail = 0;
 for (const [name, fn] of Object.entries(tests)) { try { await fn(); console.log("  ok  ", name); } catch (e) { fail++; console.log("  FAIL", name, "\n      ", e.message); } }

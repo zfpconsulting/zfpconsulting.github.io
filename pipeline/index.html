@@ -7935,7 +7935,7 @@ async function updateEurRate(){
   updateEurRate();
   /* soubory u klientů (docs.js se načítá odděleně a může naběhnout o chvilku později než tahle appka) */
   {let tries=0;const start=()=>{if(window.Docs){Docs.init({db,newId,toast,gfetch,token:()=>GAuth.token(),demo:DEMO});Docs.onChange(()=>{try{render()}catch(e){}})}else if(tries++<60)setTimeout(start,100)};start()}
-  db.collection("leads").onSnapshot(snap=>{leads=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();render();scheduleSync();scheduleTasks();if(typeof Deals!=="undefined")Deals.tick()});
+  db.collection("leads").onSnapshot(snap=>{leads=snap.docs.map(d=>({id:d.id,...d.data()}));leadsLoaded=true;if(typeof scheduleLeadTasks==="function")scheduleLeadTasks();linkSyncSoon();render();scheduleSync();scheduleTasks();if(typeof Deals!=="undefined")Deals.tick()});
   db.collection("clients").onSnapshot(snap=>{clients=snap.docs.map(d=>({id:d.id,...d.data()}));linkSyncSoon();stafleOv.clear();if(view==="cli"||view==="duch")render();pfSyncClientsSoon()});
   db.collection("duchod").onSnapshot(snap=>{duchod=snap.docs.map(d=>({id:d.id,...d.data()}))});
   db.collection("fplan").onSnapshot(snap=>{fplans=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="fp")renderFpTab()});
@@ -8425,8 +8425,29 @@ function asAdvisorClients(){ /* klienti a leady poradce – plná jména */
 
 /* =====================  ÚKOLY  ===================== */
 function asAllTasks(){
-  return myTasks.map(t=>({id:"m:"+t.id,rid:t.id,own:true,text:t.text,client:t.client||"",due:t.due||"",st:t.done?"hotovo":"nový",done:t.done||"",at:t.createdAt||""}));
+  return myTasks.filter(t=>!t.hidden).map(t=>({id:"m:"+t.id,rid:t.id,own:true,text:t.text,client:t.client||"",due:t.due||"",st:t.done?"hotovo":"nový",done:t.done||"",at:t.createdAt||"",leadId:t.leadId||""}));
 }
+/* další krok u klienta/leadu → automaticky úkol (mytasks/auto_<lead>): jeden otevřený úkol na lead, nový krok úkol přepíše a znovu otevře.
+   Hotovo / změna u úkolu se propíše zpět do dalšího kroku leadu. Kroky, které jsou schůzkou v kalendáři („Schůzka“, „Podpis“), úkol nedělají. */
+let tasksLoaded=false,leadsLoaded=false,ltTimer=null;
+const LT_SKIP=/^(schůzka( online)?|podpis)$/i;
+function leadTaskWant(l){const s=String(l.nextStep||"").trim();if(l.shared||l.example||!ACTIVE(l.stage)||!s||LT_SKIP.test(s))return null;
+  return {text:s,client:l.name||"",due:l.nextDate||"",key:s+"|"+(l.nextDate||"")}}
+function scheduleLeadTasks(){clearTimeout(ltTimer);ltTimer=setTimeout(()=>syncLeadTasks().catch(e=>console.warn("leadtasks",e)),1500)}
+async function syncLeadTasks(){if(!tasksLoaded||!leadsLoaded||!db)return;
+  const byId=new Map(myTasks.map(t=>[t.id,t])),seen=new Set(),now=new Date().toISOString();
+  for(const l of leads){const id="auto_"+l.id,t=byId.get(id),w=leadTaskWant(l);seen.add(id);
+    if(!w){if(t&&!t.done&&!t.hidden)await db.doc("mytasks/"+id).delete().catch(()=>{});continue}
+    if(!t)await db.doc("mytasks/"+id).set({text:w.text,client:w.client,due:w.due,done:"",createdAt:now,leadId:l.id,auto:true,key:w.key}).catch(()=>{});
+    else if(t.key!==w.key)await db.doc("mytasks/"+id).update({text:w.text,client:w.client,due:w.due,done:"",hidden:false,key:w.key}).catch(()=>{});
+    else if(t.client!==w.client)await db.doc("mytasks/"+id).update({client:w.client}).catch(()=>{})}
+  for(const t of myTasks)if(t.auto&&!seen.has(t.id)&&!t.done)await db.doc("mytasks/"+t.id).delete().catch(()=>{})}
+/* úkol → zpět do leadu (text = další krok, deadline = termín; hotovo = krok splněn → lead čeká na nový krok) */
+async function leadFromTask(t,patch){const id=t.leadId||(String(t.rid).startsWith("auto_")?String(t.rid).slice(5):"");if(!id)return;const l=leads.find(x=>x.id===id);if(!l||l.shared)return;
+  const lp={updatedAt:new Date().toISOString()};if("text" in patch)lp.nextStep=patch.text;if("due" in patch)lp.nextDate=patch.due||null;
+  if(patch.done){lp.nextStep="";lp.nextDate=null}
+  const key=("nextStep" in lp?lp.nextStep:String(l.nextStep||"").trim())+"|"+(("nextDate" in lp?lp.nextDate:l.nextDate)||"");
+  try{if(!patch.done)await db.doc("mytasks/"+t.rid).update({key});await db.doc("leads/"+id).update(lp)}catch(e){}}
 function asPipeTasks(){ /* otevřené + čerstvě hotové (1 den), seřazené podle termínu */
   const L=asAllTasks().filter(t=>t.st!=="hotovo"||(t.done&&Date.parse(t.done)>=Date.now()-864e5));
   return L.sort((a,b)=>(a.st==="hotovo")-(b.st==="hotovo")||asSortT(a,b));
@@ -8446,7 +8467,7 @@ function asPipeNodes(){
   return [...inv,...shown.map(asTaskRow),
     L.length>asPipeShow?el("button",{type:"button",class:"row row-btn",style:"color:var(--tint);font-weight:500;justify-content:center",onclick:()=>{asPipeShow+=5;render()}},"Další úkoly ("+(L.length-asPipeShow)+")"):null].filter(Boolean);
 }
-async function asMyDone(t){try{await db.doc("mytasks/"+t.rid).update({done:t.st==="hotovo"?"":new Date().toISOString()})}catch(e){toast("Nepodařilo se uložit")}}
+async function asMyDone(t){try{const done=t.st!=="hotovo";await db.doc("mytasks/"+t.rid).update({done:done?new Date().toISOString():""});if(done)await leadFromTask(t,{done:true})}catch(e){toast("Nepodařilo se uložit")}}
 
 /* nový vlastní úkol */
 function asNewTask(preset){
@@ -8466,11 +8487,12 @@ function asNewTask(preset){
     el("h3",{class:"sechead"},"Klient"),pk.node,el("div",{class:"chips"},save)]);
 }
 function asOpenMine(t){
-  const tx=el("textarea",{rows:"3","aria-label":"Text úkolu"});tx.value=t.text;tx.onchange=async()=>{try{await db.doc("mytasks/"+t.rid).update({text:tx.value.trim()||t.text});toast("Uloženo")}catch(e){toast("Nepodařilo se uložit")}};
-  const dd=el("input",{type:"date","aria-label":"Deadline"});dd.value=t.due||"";dd.onchange=async()=>{try{await db.doc("mytasks/"+t.rid).update({due:dd.value});toast("Uloženo")}catch(e){}};
+  const tx=el("textarea",{rows:"3","aria-label":"Text úkolu"});tx.value=t.text;tx.onchange=async()=>{try{const v=tx.value.trim()||t.text;await db.doc("mytasks/"+t.rid).update({text:v});await leadFromTask(t,{text:v});toast("Uloženo")}catch(e){toast("Nepodařilo se uložit")}};
+  const dd=el("input",{type:"date","aria-label":"Deadline"});dd.value=t.due||"";dd.onchange=async()=>{try{await db.doc("mytasks/"+t.rid).update({due:dd.value});await leadFromTask(t,{due:dd.value});toast("Uloženo")}catch(e){}};
   const cl=t.client?(leads.find(l=>asNorm(l.name)===asNorm(t.client))||null):null;
   const del=el("button",{type:"button",class:"danger-row"},"Smazat úkol");
-  del.onclick=async()=>{if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="Opravdu smazat?";return}try{await db.doc("mytasks/"+t.rid).delete();$("edDlg").close();toast("Smazáno")}catch(e){}};
+  del.onclick=async()=>{if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="Opravdu smazat?";return}try{if(String(t.rid).startsWith("auto_"))await db.doc("mytasks/"+t.rid).update({hidden:true});/* automatický úkol jen skrýt – jinak by ho další krok leadu založil znovu */
+      else await db.doc("mytasks/"+t.rid).delete();$("edDlg").close();toast("Smazáno")}catch(e){}};
   openSheet("Můj úkol",[el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),tx),el("div",{class:"frow"},el("label",{},"Deadline"),dd),
       t.client?el("div",{class:"frow"},el("label",{},"Klient"),cl?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(cl)}},t.client+" ›"):el("span",{class:"mrate"},t.client)):null),
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:async()=>{await asMyDone(t);$("edDlg").close()}},t.st==="hotovo"?"Znovu otevřít":"Označit jako hotové"),
@@ -8528,7 +8550,7 @@ async function asNotify(title,body,tag){
 /* =====================  START  ===================== */
 function asStart(){
   if(AsNet.enabled())AsNet.start();   /* připojení k databázi (sdílené obchody) hned po startu */
-  db.collection("mytasks").onSnapshot(snap=>{myTasks=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="pipe")render()});
+  db.collection("mytasks").onSnapshot(snap=>{myTasks=snap.docs.map(d=>({id:d.id,...d.data()}));tasksLoaded=true;scheduleLeadTasks();if(view==="pipe")render()});
   setInterval(()=>{if(AsNet.enabled()&&!AsNet.on)AsNet.start()},5000);
   $("addTask").onclick=()=>asNewTask();
 }
