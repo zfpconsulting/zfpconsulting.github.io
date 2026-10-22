@@ -43,6 +43,10 @@ const tests = {
     t = await page.$eval("#mTxt", e => e.value);
     assert(t.includes(d.charAt(0).toUpperCase() + d.slice(1) + " bych se Vám ozval telefonicky ohledně elektronického podpisu (záležitost 15 minut)."), "věta s termínem: " + t);
     assert(!/[<>]|&amp;|undefined|NaN/.test(t), "čistý text");
+    /* příloha PPTX: připraví se v okně, bez sdílení (Chromium) se stáhne a otevře se mailto */
+    await page.waitForFunction(() => /Příloha: FP_.*\.pptx/.test(document.querySelector("#mAtt").textContent), null, { timeout: 60000 });
+    const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 20000 }), page.click("[data-a=send]")]);
+    assert(/^FP_.*\.pptx$/.test(dl.suggestedFilename()), "stažená příloha: " + dl.suggestedFilename());
     eq(errors, [], "bez chyb");
     await ctx.close();
   },

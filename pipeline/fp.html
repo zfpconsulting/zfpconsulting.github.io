@@ -56,6 +56,7 @@ label.f input:focus,label.f select:focus,label.f textarea:focus{outline:2px soli
 .mailbox .msecs{display:flex;flex-wrap:wrap;gap:2px 14px}
 .mailbox .msecs .chk{margin:2px 0}
 .mailbox .mf{display:flex;gap:8px;align-items:center}
+.mailbox .matt{font-size:13px;color:var(--mut)}
 .miss{list-style:none;margin:4px 0 6px;padding:0;display:flex;flex-direction:column;gap:3px}
 .miss button{width:100%;display:flex;justify-content:space-between;gap:8px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12.5px}
 .miss button span{color:var(--acc);white-space:nowrap}
@@ -1352,14 +1353,19 @@ const PPTX = (() => {
   const REL = (items) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${items.map(([id, t, tg]) => `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${t}" Target="${tg}"/>`).join("")}</Relationships>`;
   async function build(frames, renderInto, title, onProgress) {
     const files = [], slides = [];
-    let mediaN = 0;
+    let mediaN = 0; const mediaMap = new Map();
+    const picKey = async d => { try { const u = d instanceof Uint8Array ? d : new Uint8Array(d instanceof Blob ? await d.arrayBuffer() : d); const h = new Uint8Array(await crypto.subtle.digest("SHA-256", u)); return u.length + ":" + Array.from(h, b => b.toString(16).padStart(2, "0")).join(""); } catch (e) { return Math.random() + ""; } };
     for (let i = 0; i < frames.length; i++) {
       const root = renderInto(frames[i]);
       await new Promise(r => requestAnimationFrame(() => r()));
       const shapes = await slideShapes(root);
       const bg = parseColor(getComputedStyle(root).backgroundColor) || { hex: "161616", a: 1 };
       const trans = i > 0 && frames[i - 1].g === frames[i].g ? "morph" : "fade";
-      const pics = shapes.filter(s => s.t === "pic").map(s => { mediaN++; files.push({ name: `ppt/media/image${mediaN}.png`, data: s.png }); return `../media/image${mediaN}.png`; });
+      /* stejné obrázky (logo, ikony, opakované grafy) jen jednou → menší soubor (příloha mailu) */
+      const pics = [];
+      for (const sh of shapes.filter(s => s.t === "pic")) { const key = await picKey(sh.png); let tg = mediaMap.get(key);
+        if (!tg) { mediaN++; tg = `../media/image${mediaN}.png`; mediaMap.set(key, tg); files.push({ name: `ppt/media/image${mediaN}.png`, data: sh.png }); }
+        pics.push(tg); }
       files.push({ name: `ppt/slides/slide${i + 1}.xml`, data: slideXml(shapes, bg, trans) });
       files.push({ name: `ppt/slides/_rels/slide${i + 1}.xml.rels`, data: REL([["rId1", "slideLayout", "../slideLayouts/slideLayout1.xml"]].concat(pics.map((p, j) => ["rId" + (2 + j), "image", p]))) });
       slides.push(i + 1);
@@ -2376,11 +2382,15 @@ let tx0=null;$("#pres").addEventListener("touchstart",e=>tx0=e.touches[0].client
 /* PDF: každý snímek jako stránka */
 $("#bPdf").onclick=()=>{const p=$("#print");p.innerHTML=visFR().map(f=>`<div class="pp"><div class="stage"><div class="sl">${f.h}</div></div></div>`).join("");setTimeout(()=>window.print(),300)};
 /* PowerPoint: každý snímek nativně (tvary + texty), mezi snímky stejné skupiny přechod Morph */
+/* PPTX prezentace (jen nevynechané slidy) → {blob, name}; používá tlačítko PowerPoint i shrnutí mailem (příloha) */
+async function makePptx(onProgress){const host=document.createElement("div");host.style.cssText="position:fixed;left:-30000px;top:0;width:1600px;height:900px;overflow:hidden;pointer-events:none";document.body.appendChild(host);
+  try{const blob=await PPTX.build(visFR(),f=>{host.innerHTML=`<div class="stage" style="transform:none"><div class="sl">${f.h}</div></div>`;return host.querySelector(".sl")},"Finanční plán – "+(inp().klient.jmeno||""),onProgress);
+    const sur=((inp().klient.jmeno||"klient").trim().split(/\s+/).pop()||"klient").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9_-]/g,"")||"klient";
+    return {blob,name:"FP_"+sur+".pptx"}}finally{host.remove()}}
+function dlBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 $("#bPptx").onclick=async()=>{const b=$("#bPptx"),t0=b.textContent;b.disabled=true;
-  const host=document.createElement("div");host.style.cssText="position:fixed;left:-30000px;top:0;width:1600px;height:900px;overflow:hidden;pointer-events:none";document.body.appendChild(host);
-  try{const blob=await PPTX.build(visFR(),f=>{host.innerHTML=`<div class="stage" style="transform:none"><div class="sl">${f.h}</div></div>`;return host.querySelector(".sl")},"Finanční plán – "+(inp().klient.jmeno||""),(i,n)=>{b.textContent=`PowerPoint ${i}/${n}`});
-    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="FP_"+((inp().klient.jmeno||"klient").split(" ").pop())+".pptx";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
-  catch(err){console.error(err);alert("Export se nepovedl: "+err.message)}finally{host.remove();b.disabled=false;b.textContent=t0}};
+  try{const r=await makePptx((i,n)=>{b.textContent=`PowerPoint ${i}/${n}`});dlBlob(r.blob,r.name)}
+  catch(err){console.error(err);alert("Export se nepovedl: "+err.message)}finally{b.disabled=false;b.textContent=t0}};
 /* klienti */
 function renderClients(){$("#cli").innerHTML=Object.entries(DB.clients).map(([id,c])=>`<option value="${id}" ${id===DB.cur?"selected":""}>${esc((c.klient&&c.klient.jmeno)||"Bez jména")}</option>`).join("")}
 $("#cli").onchange=e=>{DB.cur=e.target.value;applyProdDef(inp());save();cur=0;renderEditor();update()};
@@ -2459,6 +2469,7 @@ function openMail(){if(!R)return;
    <label class="f">Komu<input type="email" id="mTo" placeholder="email@klienta.cz" value="${esc(K.email||"")}"></label>
    <label class="f">Předmět<input type="text" id="mSub" value="Shrnutí finančního plánu"></label>
    <textarea id="mTxt" spellcheck="true"></textarea>
+   <div class="matt" id="mAtt">📎 Připravuju přílohu PowerPoint…</div>
    <div class="hint">${MAILCFG.podpis?"Termín podpisu je z kalendáře (VK: … podpis).":"V kalendáři není budoucí „VK: "+esc(mParseName(R.persons[0].jmeno).sur||"Příjmení")+" podpis“ – termín doplň ručně."} Podpis doplní Mail sám.</div>
    <div class="mf"><button class="btn" data-a="copy">Kopírovat text</button><span class="sp"></span><button class="btn pri" data-a="send">✉️ Poslat shrnutí mailem</button></div></div>`;
   document.body.append(ov);
@@ -2467,9 +2478,21 @@ function openMail(){if(!R)return;
   ov.addEventListener("click",e=>{if(e.target===ov)close()});
   ov.querySelector("[data-a=x]").onclick=close;
   ov.querySelector("[data-a=copy]").onclick=async e=>{const t=sb.value+"\n\n"+ta.value;try{await navigator.clipboard.writeText(t)}catch(err){ta.select();document.execCommand("copy")}e.target.textContent="✓ Zkopírováno";setTimeout(()=>e.target.textContent="Kopírovat text",1500)};
-  ov.querySelector("[data-a=send]").onclick=()=>{const v=to.value.trim();if(v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){to.focus();to.style.outline="2px solid #d33";return}
+  /* příloha: PPTX se staví hned po otevření okna, ať je při kliknutí na Poslat hotová (sdílení souboru musí proběhnout hned po kliknutí) */
+  const att=ov.querySelector("#mAtt");let file=null,fail=false;
+  makePptx((i,n)=>{if(att.isConnected)att.textContent=`📎 Připravuju přílohu PowerPoint… ${i}/${n}`}).then(r=>{file=new File([r.blob],r.name,{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"});
+    att.textContent=`📎 Příloha: ${r.name} (${Math.max(1,Math.round(r.blob.size/1024))} kB)`}).catch(err=>{console.error(err);fail=true;att.textContent="📎 Přílohu se nepodařilo vytvořit – mail půjde bez ní."});
+  const canShare=f=>{try{return !!(f&&navigator.canShare&&navigator.canShare({files:[f]}))}catch(e){return false}};
+  ov.querySelector("[data-a=send]").onclick=async()=>{const v=to.value.trim();if(v&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){to.focus();to.style.outline="2px solid #d33";return}
     if(v&&v!==(K.email||"")){K.email=v;save()}
-    location.href="mailto:"+encodeURIComponent(v)+"?subject="+encodeURIComponent(sb.value)+"&body="+encodeURIComponent(ta.value)};
+    if(!file&&!fail){att.textContent="📎 Příloha se ještě připravuje – chvilku počkej a klikni znovu.";return}
+    const mailto=()=>{location.href="mailto:"+encodeURIComponent(v)+"?subject="+encodeURIComponent(sb.value)+"&body="+encodeURIComponent(ta.value)};
+    /* Safari / iPhone: systémové sdílení → Mail s přílohou i textem (adresát se do sdílení předat nedá → zkopíruje se do schránky) */
+    if(canShare(file)){try{if(v)navigator.clipboard&&navigator.clipboard.writeText(v).catch(()=>{});
+        await navigator.share({files:[file],title:sb.value,text:ta.value});att.textContent="📎 Odesláno přes sdílení"+(v?" – adresu "+v+" máš ve schránce, vlož ji do pole Komu.":".");return}
+      catch(err){if(err&&err.name==="AbortError")return}}
+    /* jinde mailto přílohu neumí: PPTX se stáhne a otevře se koncept mailu – soubor přetáhni ze Stažených */
+    if(file){dlBlob(file,file.name);att.textContent=`📎 ${file.name} je ve Stažených – přetáhni ho do mailu.`;setTimeout(mailto,900)}else mailto()};
   (to.value?ta:to).focus();ta.setSelectionRange(0,0);ta.scrollTop=0}
 $("#bMail").onclick=openMail;
 function boot(){applyProdDef(inp());renderClients();renderEditor();update()}
