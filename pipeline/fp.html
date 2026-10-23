@@ -900,13 +900,16 @@ function compute0(inp, today, ext) {
     /* renta: do starobního důchodu celá částka, potom jen dorovnání ke státnímu důchodu až do věku dožití */
     const starobni = persons.reduce((s, p) => s + p.starobni, 0), duchK = K.duch;
     const vekDuch = yearsBetween(K.nar, duchK), vekStart0 = yearsBetween(K.nar, start);
-    const dor = Math.max(0, rentaMes - starobni);
+    /* _min_plna / _min_dor: interní minimum renty pro fázi (dopočítá prezentace), aby cash flow domácnosti nikdy nebylo záporné
+       (např. hypotéka nebo výdaje partnera, když klient skončí s prací dřív) */
+    const mesPlna = Math.max(rentaMes, Math.ceil(n0(RT._min_plna) / 100) * 100);
+    const dor = Math.max(0, rentaMes - starobni, Math.ceil(n0(RT._min_dor) / 100) * 100);
     const faze = [];
     let kap;
     if (start < duchK) {
       const yA = yearsBetween(start, duchK), yB = Math.max(0, S.doziti - vekDuch);
-      kap = pvAnn(rentaMes, yA, S.renta_r) + pvAnn(dor, yB, S.renta_r) / Math.pow(1 + S.renta_r, yA);
-      faze.push({ od: start, vekOd: vekStart0, vekDo: vekDuch, mes: rentaMes, typ: "plna" });
+      kap = pvAnn(mesPlna, yA, S.renta_r) + pvAnn(dor, yB, S.renta_r) / Math.pow(1 + S.renta_r, yA);
+      faze.push({ od: start, vekOd: vekStart0, vekDo: vekDuch, mes: mesPlna, typ: "plna" });
       if (yB > 0 && dor > 0) faze.push({ od: duchK, vekOd: vekDuch, vekDo: S.doziti, mes: dor, typ: "dorovnani" });
     } else {
       const yB = Math.max(0, S.doziti - vekStart0);
@@ -925,7 +928,7 @@ function compute0(inp, today, ext) {
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
     const dip = Math.min(prostor, pmt);
     if (useDip && prostor < S.dip_strop) flags.push(`DIP: daňový strop částečně čerpá DPS/ŽP — do DIP jen ${prostor} Kč/měs.`);
-    renta = { auto: rentaAuto, mesicne: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal: dpsVal + keepVal, keepVal, keepMes, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
+    renta = { auto: rentaAuto, mesicne: start < duchK ? mesPlna : rentaMes, mesicnePuv: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal: dpsVal + keepVal, keepVal, keepMes, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
     flags.push(`Renta: kapitál se vyčerpá v ${S.doziti} letech (reálný výnos při čerpání ${(S.renta_r * 100).toFixed(1).replace(".", ",")} %).`);
     }
   }
@@ -2331,12 +2334,43 @@ function markSkip(fr){const sk=inp().vynechat||{},n={};fr.forEach(f=>{n[f.g]=(n[
 const visFR=()=>{const v=FR.filter(f=>!f.skip);return v.length?v:FR};
 function toggleSkip(i,on){const f=FR[i];if(!f||!f.key)return;const I=inp();I.vynechat=I.vynechat||{};if(on)I.vynechat[f.key]=true;else delete I.vynechat[f.key];save();update()}
 function zpVynechano(){const sk=inp().vynechat||{};const k=Object.keys(sk).filter(x=>/^zp\d+#/.test(x));return FR.some(f=>/^zp\d/.test(f.g))&&FR.filter(f=>/^zp\d/.test(f.g)).every(f=>f.skip)}
+/* PRAVIDLO: cash flow domácnosti nesmí v průběhu plánu nikdy vyjít záporně. Po výpočtu se projde časová osa cash flow (cfTimeline);
+   když ve fázi renty (renta před důchodem / dorovnání po důchodu) chybí peníze, renta té fáze se navýší přesně o chybějící částku
+   a plán se přepočítá (víc spoření dnes). Co nejde pokrýt (cash flow na spoření nestačí, nebo deficit mimo rentu), plán výrazně označí. */
+function computeR(I){
+  let R=FPE.compute(I,new Date(),MARKET);
+  const minCf=(I,R)=>{const T=cfTimeline(I,R);let w={d:0,m:null};for(let m=0;m<T.mEnd;m++){const x=T.st(m),d=x.I-x.E;if(d<w.d)w={d,m}}return {T,w}};
+  let chk=minCf(I,R);if(chk.w.d>-50)return fin(R,chk,null);
+  const orig={R,chk};let Ic=I,raised=null;
+  for(let it=0;it<4;it++){
+    /* renta vyšla nulová (státní důchod pokryje požadovanou rentu), ale po důchodu chybí peníze → doplní se renta „dorovnání“ */
+    const K0=R.persons[0],RT=R.renta||{faze:[],start:K0.duch,doziti:R.S.doziti},T=chk.T,mOf=d=>(d.getFullYear()-T.T0.getFullYear())*12+d.getMonth()-T.T0.getMonth(),rE=mOf(new Date(K0.nar.getFullYear()+RT.doziti,K0.nar.getMonth(),1));
+    const add={};let any=false;
+    /* státní důchod rentu po důchodu sám pokryje (fáze dorovnání chybí) → i tak se období po důchodu kontroluje */
+    const FZ=RT.faze.concat(RT.faze.some(f=>f.typ==="dorovnani")||(RT.faze.length&&!(K0.duch>RT.start))?[]:[{od:K0.duch,mes:0,typ:"dorovnani"}]);
+    FZ.forEach((f,i)=>{const a=Math.max(0,mOf(f.od)),b=i+1<FZ.length?mOf(FZ[i+1].od):rE;let need=0;
+      for(let m=a;m<Math.min(b,T.mEnd);m++){const x=T.st(m);need=Math.max(need,x.E-x.I)}
+      if(need>=50){any=true;add[f.typ==="plna"?"_min_plna":"_min_dor"]=f.mes+need}});
+    if(!any)break;
+    Ic=Object.assign({},Ic,{renta:Object.assign({},Ic.renta||{},add)});raised=Object.assign({},raised||{},add);
+    R=FPE.compute(Ic,new Date(),MARKET);chk=minCf(Ic,R);if(chk.w.d>-50||(R.renta&&R.renta.kraceno))break}
+  /* navýšení renty se použije, jen když cash flow opravdu vyrovná; když na vyšší rentu nestačí cash flow na spoření (renta krácena),
+     zůstane původní plán a plán ukáže varování se zápornou částkou — žádné nesmyslně nafouknuté renty */
+  if(chk.w.d<=-50){R=orig.R;chk=orig.chk;raised=null}
+  return fin(R,chk,raised)}
+function fin(R,chk,raised){
+  if(raised){const fz=R.renta.faze.map(f=>`${f.typ==="plna"?"do důchodu":"po důchodu"} ${kcm(f.mes)}`).join(", ");
+    R.flags.push(`Renta navýšena, aby cash flow domácnosti nikdy nebylo záporné: ${fz}.`)}
+  if(chk.w.d<=-50){const d=new Date(chk.T.T0.getFullYear(),chk.T.T0.getMonth()+chk.w.m,1);
+    R.cfZaporne={m:chk.w.m,kc:Math.round(-chk.w.d)};
+    R.flags.unshift(`⚠ ZÁPORNÉ CASH FLOW: ${FPE.MES[d.getMonth()]} ${d.getFullYear()} chybí ${kcm(Math.round(-chk.w.d))} — plán to nepokryje (cash flow na spoření nestačí). Uprav vstupy: pozdější konec práce, nižší výdaje nebo splátky.`)}
+  return R}
 function compute(){try{
   /* nastavení „Neřešit pojištění“: plán bez životka, žádné slidy s pojištěním ani zmínky v realizaci (kopie vstupů – do plánu klienta se nic nezapisuje) */
-  if((inp().nastaveni||{}).bez_pojisteni){const I2=Object.assign({},withHypo(inp()),{bez_zp:true});R=FPE.compute(I2,new Date(),MARKET);FR=buildFrames(I2,R);markSkip(FR);return}
-  R=FPE.compute(withHypo(inp()),new Date(),MARKET);FR=buildFrames(inp(),R);markSkip(FR);
+  if((inp().nastaveni||{}).bez_pojisteni){const I2=Object.assign({},withHypo(inp()),{bez_zp:true});R=computeR(I2);FR=buildFrames(I2,R);markSkip(FR);return}
+  R=computeR(withHypo(inp()));FR=buildFrames(inp(),R);markSkip(FR);
   /* všechny slidy životního pojištění vynechané → přepočítat plán bez životka (slidy ŽP zůstanou ve výčtu, jen přeskočené) */
-  if(zpVynechano()){const I2=withHypo(inp());I2.bez_zp=true;R=FPE.compute(I2,new Date(),MARKET);FR=buildFrames(I2,R);markSkip(FR)}}catch(e){console.error(e);FR=[{g:"err",h:`<div style="padding:60px;font-size:28px;color:#DF6A6A">Chyba ve vstupech: ${esc(e.message)}</div>`,lbl:"Chyba"}]}}
+  if(zpVynechano()){const I2=withHypo(inp());I2.bez_zp=true;R=computeR(I2);FR=buildFrames(I2,R);markSkip(FR)}}catch(e){console.error(e);FR=[{g:"err",h:`<div style="padding:60px;font-size:28px;color:#DF6A6A">Chyba ve vstupech: ${esc(e.message)}</div>`,lbl:"Chyba"}]}}
 function scaleStage(boxEl,stageEl){const w=boxEl.clientWidth;stageEl.style.transform=`scale(${w/1600})`}
 function show(stageEl,i,animate){
   const f=FR[i];if(!f)return;
