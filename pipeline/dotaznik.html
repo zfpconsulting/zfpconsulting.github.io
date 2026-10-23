@@ -263,7 +263,8 @@ let SEC=[
    `<h3>Bydlení</h3><div class="g">${ask("Plánujete koupi bydlení (byt, dům) – třeba i výměnu za větší?","kontakt.hypo_ma")}</div>
    ${yes("hypo_ma")?`<div class="g">${money("Cena nové nemovitosti","hypo.cena",{u:"Kč"})}${num("Za kolik let","hypo.za_let",{ph:"0 = co nejdřív"})}
      ${sel("Co se současným bydlením",'hypo.stavajici',[["","Vyberte…"],["prodej","Prodáme – peníze půjdou do nového"],["zastava","Necháme si ho (může sloužit jako zástava)"],["najem","Bydlíme v nájmu / u rodičů"]],{full:1})}
-     ${money("Kolik teď platíte za energie a služby (inkaso)","hypo.inkaso_ted",{h:"elektřina, plyn, voda, internet, fond oprav…"})}${get(P,"hypo.stavajici")==="najem"?money("Nájem, který po koupi odpadne","hypo.odpadne"):"<span></span>"}</div>`:""}`+
+     ${money("Kolik teď platíte za energie a služby (inkaso)","hypo.inkaso_ted",{h:"elektřina, plyn, voda, internet, fond oprav…"})}${money("Kolik budete platit v novém bydlení",'hypo.inkaso_po',{h:"odhad – třeba z inzerátu nebo od prodávajícího (nevíte? nechte prázdné, odhadneme)"})}
+     ${get(P,"hypo.stavajici")==="najem"?money("Nájem, který po koupi odpadne","hypo.odpadne"):""}</div>`:""}`+
    `<h3>Renta – příjem bez práce</h3><div class="g">${ask("Chcete si vybudovat rentu – pravidelný příjem, až nebudete chtít pracovat?","kontakt.renta_ma")}</div>
    ${yes("renta_ma")?(odd()?renta1("renta",pNm("klient"))+renta1("renta2",pNm("partner")):renta1("renta")):""}`,
   miss:M=>{if(K().cile_ma==null)M("kontakt.cile_ma","Odpovězte prosím");if(yes("cile_ma")){if(!(P.cile||[]).length)M("cile","Přidejte cíl");(P.cile||[]).forEach((c,i)=>{if(!c.nazev)M(`cile.${i}.nazev`,"Název cíle");if(!(+c.castka>0))M(`cile.${i}.castka`,"Částka");if(!(+c.za_let>0))M(`cile.${i}.za_let`,"Za kolik let")});kdoMiss(M,"cile")}

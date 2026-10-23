@@ -1585,7 +1585,7 @@ function hypoEditor(I){const h=I.hypo||{},on=!!h.zapnuto,H=hypoOf(I),nf=I.nefin|
     ${(I.uvery||[]).length?sel(mode==="zastava"?"Stávající úvěr převést do nové hypotéky":"Stávající úvěr splatit z prodeje / nahradit","hypo.nahrazuje",[["","— ne —"]].concat((I.uvery||[]).map((u,j)=>[String(j),(u.typ||"Úvěr")+(u.nazev?" – "+u.nazev:"")]))):""}
     ${fld("Výše úvěru (prázdné = automaticky)","hypo.uver","number",H&&!(+h.uver>0)?`placeholder="${fmtIn(Math.round(H.uver))}"`:"")}${fld("Úroková sazba % (prázdné = nejlepší banka)","hypo.sazba","number",H&&!(+h.sazba>0)?`placeholder="${String(H.sazba).replace(".",",")}"`:"")}
     ${fld("Splatnost (let)","hypo.let","number",H&&!(+h.let>0)?`placeholder="${H.let}"`:"")}${fld("Fixace (let)","hypo.fix","number",'placeholder="5"')}
-    ${fld("Inkaso teď Kč/měs (energie, služby)","hypo.inkaso_ted")}${fld("Inkaso po koupi Kč/měs","hypo.inkaso_po","number",H&&H.inkOdhad?`placeholder="odhad ${fmtIn(H.inkOdhad)}"`:"")}
+    ${fld("Inkaso teď Kč/měs (energie, služby)","hypo.inkaso_ted")}${fld("Inkaso v novém bydlení Kč/měs (prázdné = odhad)","hypo.inkaso_po","number",H&&H.inkOdhad?`placeholder="odhad ${fmtIn(H.inkOdhad)}"`:"")}
     ${fld("Odpadne nájem Kč/měs","hypo.odpadne")}${fld("Další nové náklady Kč/měs (fond oprav, pojištění, daň)","hypo.naklady")}</div>
     ${+h.uver>0&&h.financ?`<p class="hint">Úvěr je zadaný ručně / z Kalkulačky – pro automatický výpočet podle akontace nebo zástavy pole vymaž.</p>`:""}
     ${H?`<p class="hint" id="hypoPrev">${hypoPrevTxt(H)}</p>`:""}${cmp}
@@ -1842,7 +1842,7 @@ function hypoFrames(I,R){const H0=hypoOf(I);if(!H0)return [];
    <div style="position:absolute;left:120px;top:634px;font-size:56px;font-weight:900;color:#F37520">${kcm(H.pmt)}</div>
    ${H.za>0?`<div style="position:absolute;left:120px;top:722px;font-size:16px;color:#b4b4b4">Koupě plánovaná za ${String(H.za).replace(".",",")} ${H.za<=1?"rok":H.za<5?"roky":"let"}</div>`:""}`;
   const out=[];
-  const wf=[["Výdaje dnes",kc(vyd0)]].concat(H0.odp?[["− nájem / bydlení, které odpadne","−"+fmt(H0.odp)+NB+"Kč","grn"]]:[],[["+ splátka hypotéky","+"+fmt(H.pmt)+NB+"Kč","o"]],H0.inkD?[[(H0.inkD>0?"+ ":"− ")+"inkaso (energie, služby)",(H0.inkD>0?"+":"−")+fmt(Math.abs(H0.inkD))+NB+"Kč",H0.inkD<0?"grn":""]]:[],H0.nak?[["+ další nové náklady","+"+fmt(H0.nak)+NB+"Kč"]]:[],[["Výdaje po koupi",kc(vydPo)]]);
+  const wf=[["Výdaje dnes",kc(vyd0)]].concat(H0.odp?[["− nájem / bydlení, které odpadne","−"+fmt(H0.odp)+NB+"Kč","grn"]]:[],[["+ splátka hypotéky","+"+fmt(H.pmt)+NB+"Kč","o"]],H0.inkD?[[(H0.inkD>0?"+ ":"− ")+`inkaso ${fmt(H0.ink0)} → ${fmt(H0.ink1)}${NB}Kč${H0.inkaso_po===""||H0.inkaso_po==null?" (odhad)":""}`,(H0.inkD>0?"+":"−")+fmt(Math.abs(H0.inkD))+NB+"Kč",H0.inkD<0?"grn":""]]:[],H0.nak?[["+ další nové náklady","+"+fmt(H0.nak)+NB+"Kč"]]:[],[["Výdaje po koupi",kc(vydPo)]]);
   for(const st of [0,1]){const vb=st?Math.max(0,vyd0-H.odp):vyd0,cf=st?cf1:cf0;
     const right=`<div class="card" style="left:740px;top:180px;width:780px;height:620px"></div>
      <div style="position:absolute;left:780px;top:208px;font-size:24px;font-weight:900">Měsíční cash flow</div>
@@ -2633,7 +2633,7 @@ function mergeDz(I,D){let n=0;const val=v=>v!==""&&v!=null&&!(typeof v==="number
   return n}
 $("#bDz").onclick=()=>{
   const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:200;background:var(--bg)";
-  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=19#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
+  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=20#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
   ov.append(fr);document.body.append(ov);
   const close=()=>{removeEventListener("message",on);ov.remove();renderClients();renderEditor();update()};
   const on=e=>{if(e.origin!==location.origin||e.source!==fr.contentWindow||!e.data)return;const d=e.data;
