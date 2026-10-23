@@ -195,7 +195,7 @@ const DOC=[["materska","Peněžitá pomoc v mateřství (mateřská)"],["rodicov
 const STAV=[["","Vyberte…"],["svobodny","svobodný / svobodná"],["zenaty","ženatý / vdaná"],["partner","žijeme s partnerem / partnerkou"],["rozvedeny","rozvedený / rozvedená"],["vdovec","vdovec / vdova"]];
 const ESSZ="https://eportal.cssz.cz/web/portal/-/sluzby/informativni-duchodova-aplikace";
 const blank=()=>({klient:{jmeno:"",narozen:"",zam:"",podnik:"",pasiv:"",pronajem:"",bonus:"",hruba:"",vydaje_osobni:"",vydaje_dom:"",povolani:"",sport:"",prace:"",sporty:[]},partner:{zapnuto:false},kontakt:{telefon:"",email:"",stav:""},fin:{},
-  deti:[],motivace:"",docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:"",od_veku:""},pojisteni:{zivotni:{stav:""}},poznamka:""});
+  deti:[],motivace:"",docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:"",od_veku:""},pojisteni:{zivotni:{stav:""}},vydaje:{vcetne:true},poznamka:""});
 let P=blank();
 const FILES={};          /* IOLDP: jen v paměti (do konceptu se neukládá) */
 let tried=false,sending=false,sent=false;
@@ -240,7 +240,8 @@ const prijmy=k=>{const pr=((k==="klient"?P.klient:P.partner)||{}).prace,zO=!pr||
  return `${zO?money("Čistý příjem ze zaměstnání",k+".zam",{h:"„na ruku“, průměr za měsíc (0, pokud nemáte)"})+(get(P,k+".zam")>0?money("Hrubá mzda",k+".hruba",{h:"z výplatní pásky – podle ní spočítáme nemocenskou"}):`<span></span>`):""}
  ${oO?money("Příjem z podnikání (čistý)",k+".podnik",{h:"po zaplacení daní a odvodů, průměr za měsíc"}):""}${money("Pasivní příjmy",k+".pasiv",{h:"dividendy, úroky, renty…"})}
  ${money("Příjem z pronájmu",k+".pronajem")}${money("Bonusy / 13. plat za rok",k+".bonus",{u:"Kč/rok"})}`};
-const vydaje=k=>`${money("Měsíční výdaje celkem",k+".vydaje_osobni",{h:"bydlení, jídlo, doprava, děti, splátky, volný čas… <b>bez</b> spoření, investic a pojistného"})}
+const VYH=()=>"bydlení, jídlo, doprava, děti, splátky, volný čas…"+(get(P,"vydaje.vcetne")===true?" <b>včetně</b> toho, co teď platíte na spoření, investice a pojištění":" <b>bez</b> spoření, investic a pojistného");
+const vydaje=k=>`${money("Měsíční výdaje celkem",k+".vydaje_osobni",{h:VYH()})}
  ${money("Z toho na společnou domácnost",k+".vydaje_dom",{h:"co by domácnost platila dál, i kdybyste tu nebyl/a (bydlení, jídlo, děti, splátky)"})}`;
 const ioldpBox=k=>{const f=FILES[k],m=(P.ioldp||{})[k];return `<div class="file${ec(k+".ioldp")}" data-segp="${k}.ioldp"><span class="nm"><b>IOLDP – ${esc(pNm(k))}</b>
    <small>${f?`<span class="ok">✓ ${esc(f.name)}</span> · ${Math.max(1,Math.round(f.size/1024))} kB`:m&&m.pozdeji?"pošlu později":"Výpis důchodového pojištění z ePortálu ČSSZ (PDF)"}</small></span>
@@ -308,7 +309,7 @@ let SEC=[
       if(!FILES[k]&&!get(P,"ioldp."+k+".pozdeji")&&!EMB)M(k+".ioldp","Vložte IOLDP, nebo zaškrtněte, že ho pošlete později")})}},
  {id:"vydaje",t:"Výdaje",why:"Kolik měsíčně utratíte. Spoření, investice a pojistné sem nepatří – ty v plánu nastavíme znovu.",
   /* společná domácnost páru: výdaje jedním číslem za oba; finance zvlášť nebo jen pro mě: za každého */
-  h:()=>(spolD()?`<div class="g">${money("Měsíční výdaje domácnosti celkem – za oba dohromady","vydaje.domacnost",{full:1,h:"bydlení, jídlo, doprava, děti, splátky, volný čas… <b>bez</b> spoření, investic a pojistného"})}</div>`
+  h:()=>`<div style="margin-bottom:12px">${chk("Částka zahrnuje všechno – i to, co teď platíte na spoření, investice a pojištění","vydaje.vcetne")}</div>`+(spolD()?`<div class="g">${money("Měsíční výdaje domácnosti celkem – za oba dohromady","vydaje.domacnost",{full:1,h:VYH()})}</div>`
     :ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${vydaje(k)}</div>`).join(""))+
    `<p class="hint" style="margin-top:12px">Nevíte přesně? Stačí odhad – průměr z výpisu za posledních pár měsíců.</p>`,
   miss:M=>{if(spolD()){if(!(+get(P,"vydaje.domacnost")>0)&&!(EMB&&ppl().every(k=>+PO(k).vydaje_osobni>0)))M("vydaje.domacnost","Výdaje domácnosti");return}
@@ -474,7 +475,7 @@ let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>{
   if(EMB)parent.postMessage({type:"dz:change",plan:P},location.origin);
   else if(!sent)try{localStorage.setItem(DRAFT,JSON.stringify({at:Date.now(),plan:P,rv:REV?REV.id:""}))}catch(e){}},EMB?250:400)}
-const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu|\w+\.prace|hypo\.stavajici)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|majetek\.\d+\.typ|kontakt\.stav)$/.test(p)||(EMB&&/^\w+\.sporty\.\d+\.uroven$/.test(p));
+const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu|\w+\.prace|hypo\.stavajici|vydaje\.vcetne)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|majetek\.\d+\.typ|kontakt\.stav)$/.test(p)||(EMB&&/^\w+\.sporty\.\d+\.uroven$/.test(p));
 function autoDo(p){const m=/^docasne\.(\d+)\.(typ|dite|castka)$/.exec(p);if(!m)return false;const r=P.docasne[+m[1]];if(r.typ!=="materska"&&r.typ!=="rodicovska")return false;const c=docasneDo(r);r.do=c?c.do:"";
   const h=document.querySelector(`[data-p="docasne.${m[1]}.do"]`),hint=h&&h.parentElement.querySelector(".hint");if(hint)hint.innerHTML=c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte";return true}
 document.addEventListener("input",e=>{const t=e.target;
@@ -537,7 +538,10 @@ async function send(){
 
 /* ---------- start ---------- */
 let DZ=null;   /* v plánu: {to,k} pro odkaz klientovi (posílá Pipeline) */
-function load(pl){const b=blank();P=Object.assign(b,JSON.parse(JSON.stringify(pl||{})));P.klient=Object.assign(blank().klient,P.klient||{});P.kontakt=Object.assign(blank().kontakt,P.kontakt||{});
+function load(pl){const b=blank();P=Object.assign(b,JSON.parse(JSON.stringify(pl||{})));
+  /* starší koncepty a plány: výdaje byly zadané bez investic a pojištění */
+  if(pl&&(!pl.vydaje||pl.vydaje.vcetne==null)&&[pl.klient,pl.partner].some(o=>o&&(+o.vydaje_osobni>0||+o.vydaje_dom>0)||+((pl.vydaje||{}).domacnost)>0))P.vydaje=Object.assign({},P.vydaje,{vcetne:false});
+  else if(!P.vydaje||P.vydaje.vcetne==null)P.vydaje=Object.assign({},P.vydaje,{vcetne:true});   /* výchozí: výdaje včetně všeho */P.klient=Object.assign(blank().klient,P.klient||{});P.kontakt=Object.assign(blank().kontakt,P.kontakt||{});
   P.partner=P.partner||{zapnuto:false};P.renta=P.renta||{mesicne:"",od_veku:""};P.pojisteni=P.pojisteni||{};P.pojisteni.zivotni=P.pojisteni.zivotni||{};
   ["deti","docasne","majetek","nefin","uvery","cile"].forEach(k=>{if(!Array.isArray(P[k]))P[k]=[]});
   if(P.partner.zapnuto)P.klient.bez_partnera=false;

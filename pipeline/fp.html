@@ -825,7 +825,19 @@ function compute0(inp, today, ext) {
   // ---------- CF
   const prijmy = persons.reduce((s, p) => s + p.zam + p.podnik + p.pasiv + p.pronajem + p.bonus / 12, 0);
   /* výdaje = osobní výdaje osob BEZ investic a pojištění (ty se v plánu přenastavují) */
-  const vydCelkem = spolVyd ? n0(inp.vydaje.domacnost) : persons.reduce((s, p) => s + p.vydaje, 0) || n0((inp.vydaje || {}).celkem) - n0((inp.vydaje || {}).pojistne) - n0((inp.vydaje || {}).sporeni);
+  /* výdaje „včetně všeho“ (vydaje.vcetne): odečtou se současné měsíční vklady (spoření, investice, DPS…) a pojistné ŽP – plán je nastaví znovu.
+     Odečet jde z osobní části výdajů (výdaje domácnosti zůstanou, nejvýš do výše celkových). */
+  const VY = inp.vydaje || {}, vcetne = VY.vcetne === true;
+  const odInv = (inp.majetek || []).filter(a => a.typ !== ZPT).reduce((s, a) => s + Math.max(0, n0(a.vklad)), 0);
+  const odPoj = VY._odecetPoj != null ? n0(VY._odecetPoj) : Math.max(n0(((inp.pojisteni || {}).zivotni || {}).stav != null ? inp.pojisteni.zivotni.stav : (inp.pojisteni || {}).stavajici), (inp.majetek || []).filter(a => a.typ === ZPT).reduce((s, a) => s + Math.max(0, n0(a.vklad)), 0));
+  const odecet = vcetne ? odInv + odPoj : 0;
+  let vydSpol = spolVyd ? n0(inp.vydaje.domacnost) : 0;
+  if (odecet > 0) {
+    if (spolVyd) vydSpol = Math.max(0, vydSpol - odecet);
+    else { const sum = persons.reduce((s, p) => s + p.vydaje, 0); if (sum > 0) persons.forEach(p => { p.vydaje = Math.max(0, Math.round(p.vydaje - odecet * p.vydaje / sum)); p.vydDom = Math.min(p.vydDom, p.vydaje); }); }
+    flags.push(`Výdaje jsou zadané včetně investic a pojištění — odečteno ${Math.round(odecet)} Kč/měs (vklady ${Math.round(odInv)} Kč, pojistné ${Math.round(odPoj)} Kč); plán je nastaví znovu.`);
+  }
+  const vydCelkem = spolVyd ? vydSpol : persons.reduce((s, p) => s + p.vydaje, 0) || n0((inp.vydaje || {}).celkem) - n0((inp.vydaje || {}).pojistne) - n0((inp.vydaje || {}).sporeni);
   const docasne = (inp.docasne || []).filter(d => n0(d.castka) > 0).map(d => ({ nazev: d.nazev || ({ materska: "Mateřská", rodicovska: "Rodičovská", vyzivne: "Výživné", jine: "Dočasný příjem" })[d.typ] || "Dočasný příjem", castka: n0(d.castka), do: parseDate(d.do) }));
   const cf = floorTo(prijmy - vydCelkem, 1000);
   docasne.forEach(d => flags.push(`Dočasný příjem „${d.nazev}“ ${d.castka} Kč/měs (do ${d.do ? MES[d.do.getMonth()] + " " + d.do.getFullYear() : "?"}) není v cash flow ani ve scénářích katastrof.`));
@@ -1494,12 +1506,16 @@ const p100=v=>v===""||v==null?"":Math.round(+v*10000)/100;
 function pfld(lbl,p,def,extra=""){const v=get(inp(),p);return `<label class="f">${lbl}<input data-p="${p}" data-pct="1" type="number" step="0.01" inputmode="decimal" value="${esc(p100(v))}" placeholder="${esc(p100(def))}" ${extra}></label>`}
 function sel(lbl,p,opts){const v=get(inp(),p);return `<label class="f">${lbl}<select data-p="${p}">${opts.map(o=>{const[val,t]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${val==v?"selected":""}>${esc(t)}</option>`}).join("")}</select></label>`}
 /* společná domácnost páru (ne oddělené finance): výdaje jedním číslem, po osobách se nezadávají */
+const vcetneOf=I=>!!(I&&I.vydaje&&I.vydaje.vcetne===true);
+function vcetneBox(I){const inv=(I.majetek||[]).filter(a=>a.typ!==FPE.ZAMP[3]).reduce((s,a)=>s+Math.max(0,+a.vklad||0),0),pj=Math.max(+(((I.pojisteni||{}).zivotni||{}).stav)||0,(I.majetek||[]).filter(a=>a.typ===FPE.ZAMP[3]).reduce((s,a)=>s+Math.max(0,+a.vklad||0),0));
+  return `<label class="chk"><input type="checkbox" data-p="vydaje.vcetne" ${vcetneOf(I)?"checked":""}> Výdaje jsou včetně všeho – i současných investic, spoření a pojištění</label>
+   <p class="hint">${vcetneOf(I)?`Od výdajů se odečte ${kc(inv+pj)}/měs (vklady z Majetku ${kc(inv)} + pojistné ŽP ${kc(pj)}) – plán je nastaví znovu.`:"Výdaje jsou bez investic a pojištění – nic se neodečítá."}</p>`}
 const spolDom=I=>!!(I&&I.partner&&I.partner.zapnuto)&&!oddFin(I);
 const PRACE=[["","—"],["zam","Zaměstnanec"],["osvc","Podnikatel / OSVČ"],["zam_osvc","Zaměstnanec i podnikatel"],["student","Student"],["rodicovska","Mateřská / rodičovská"],["bez","Bez práce"],["duchodce","Důchodce"]];
 function person(p,t){return `<div class="g">${fld("Titul",p+".titul","text")}${fld("Jméno a příjmení",p+".jmeno","text")}${fld("Datum narození",p+".narozen","dmy")}${fld("Důchod (datum z IOLDP)",p+".duchod","date")}
  ${sel("Pracuje jako (rezerva, nemocenská)",p+".prace",PRACE)}<span></span>
  ${fld("Čistý příjem ze zaměstnání",p+".zam")}${fld("Příjem z podnikání (čistý)",p+".podnik")}${fld("Pasivní příjmy",p+".pasiv")}${fld("Pronájem",p+".pronajem")}
- ${fld("Roční bonus",p+".bonus")}${spolDom(inp())?"":fld("Výdaje celkem / měs (bez investic a pojištění)",p+".vydaje_osobni")+fld("z toho na domácnost (bydlení, jídlo, děti, splátky)",p+".vydaje_dom","number",'placeholder="prázdné = vše domácnost"')}${fld("Hrubá mzda (pro nemocenskou)",p+".hruba","number",'placeholder="z IOLDP, jinak z čisté"')}</div>
+ ${fld("Roční bonus",p+".bonus")}${spolDom(inp())?"":fld("Výdaje celkem / měs "+(vcetneOf(inp())?"(vč. investic a pojištění)":"(bez investic a pojištění)"),p+".vydaje_osobni")+fld("z toho na domácnost (bydlení, jídlo, děti, splátky)",p+".vydaje_dom","number",'placeholder="prázdné = vše domácnost"')}${fld("Hrubá mzda (pro nemocenskou)",p+".hruba","number",'placeholder="z IOLDP, jinak z čisté"')}</div>
  <div class="hint" data-vs="${p}"></div>
  <div class="hint" style="margin-top:8px"><b>Důchody z IOLDP</b> (Kč/měs)</div>
  <div class="g">${fld("Invalidní I. stupně",p+".inv1")}${fld("Invalidní II. stupně",p+".inv2")}${fld("Invalidní III. stupně",p+".inv3")}${fld("Starobní (odhad)",p+".starobni")}${fld("Hrubý příjem z IOLDP (OVZ)",p+".ovz")}${fld("Vdovský / vdovecký",p+".vdovsky")}${fld("Sirotčí (na 1 dítě)",p+".sirotci")}</div>
@@ -1598,14 +1614,16 @@ function hypoEditor(I){const h=I.hypo||{},on=!!h.zapnuto,H=hypoOf(I),nf=I.nefin|
     <label class="chk"><input type="checkbox" data-p="hypo.promitnout" ${h.promitnout!==false?"checked":""}> Promítnout do plánu (výdaje po koupi vč. inkasa, vlastní zdroje jako cíl, úvěr do krytí smrti)</label>
     ${h.promitnout!==false&&hypoGoal(I)?`<p class="hint">Cíl „${esc(hypoGoal(I).nazev)}“ už v plánu je – vlastní zdroje podruhé nepřidávám. Zkontroluj, že jeho částka (${kc(hypoGoal(I).castka)}) odpovídá vlastním zdrojům${H?" ("+kc(H.own)+")":""}.</p>`:""}`:""}</details>`}
 const hypoPrevTxt=H=>`${H.bank&&H.bank.name?"Nejlepší banka: "+H.bank.name+" "+String(H.sazba).replace(".",",")+" % · ":""}Úvěr ${kc(H.uver)}${H.ltv!=null?" (LTV "+Math.round(H.ltv*100)+" %)":""} · splátka ${kcm(H.pmt)} · vlastní zdroje ${kc(H.own)}${H.prodejNet?" · z prodeje "+kc(H.prodejNet):""} · inkaso ${H.inkD>=0?"+":"−"}${kc(Math.abs(H.inkD))} · výdaje se změní o ${sgn(H.delta)}/měs`;
+/* výdaje „včetně všeho“ je výchozí; starší plány s už vyplněnými výdaji zůstávají „bez investic a pojištění“ (tak byly zadané) */
+function migVyd(I){const V=I.vydaje=I.vydaje||{};if(V.vcetne!=null)return;const filled=[I.klient,I.partner].some(o=>o&&(+o.vydaje_osobni>0||+o.vydaje_dom>0))||+V.domacnost>0;V.vcetne=!filled}
 function renderEditor(){
-  const I=inp(),pa=I.partner&&I.partner.zapnuto;
+  const I=inp(),pa=I.partner&&I.partner.zapnuto;migVyd(I);
   const body=[
-  ()=>`${dzInfo(I)}<details open><summary>Klient</summary>${person("klient")}<div class="g">${fld("Telefon","kontakt.telefon","tel")}${fld("E-mail","kontakt.email","email")}</div></details>
+  ()=>`${dzInfo(I)}<details open><summary>Výdaje</summary>${vcetneBox(I)}</details><details open><summary>Klient</summary>${person("klient")}<div class="g">${fld("Telefon","kontakt.telefon","tel")}${fld("E-mail","kontakt.email","email")}</div></details>
   <details open><summary>Partner / partnerka</summary><label class="chk"><input type="checkbox" data-p="partner.zapnuto" ${pa?"checked":""}> Plán pro pár</label>
    ${pa?`<label class="chk"><input type="checkbox" data-p="fin.spolecne" ${oddFin(I)?"":"checked"}> Společné finance – cash flow i finanční majetek dohromady (jeden plán)</label>
    <p class="hint">${oddFin(I)?"Oddělené finance: každý má vlastní finanční plán (cash flow, majetek, cíle, renta, realokace). Pojištění, hypotéka a úvodní slidy jsou společné. U majetku, cílů a úvěrů vyber, čí jsou – nevyplněné nebo „Společné“ se dělí napůl.":"Vypnuto = každému vlastní finanční plán, pojištění a společné slidy pro oba."}</p>`:""}
-   ${pa&&!oddFin(I)?`<div class="g">${fld("Výdaje domácnosti celkem / měs – oba dohromady (bez investic a pojištění)","vydaje.domacnost","number",(()=>{const s0=(+I.klient.vydaje_osobni||0)+(+I.partner.vydaje_osobni||0);return s0>0&&!(+((I.vydaje||{}).domacnost)>0)?`placeholder="zatím po osobách: ${fmtIn(s0)}"`:""})())}</div>
+   ${pa&&!oddFin(I)?`<div class="g">${fld("Výdaje domácnosti celkem / měs – oba dohromady "+(vcetneOf(I)?"(vč. investic a pojištění)":"(bez investic a pojištění)"),"vydaje.domacnost","number",(()=>{const s0=(+I.klient.vydaje_osobni||0)+(+I.partner.vydaje_osobni||0);return s0>0&&!(+((I.vydaje||{}).domacnost)>0)?`placeholder="zatím po osobách: ${fmtIn(s0)}"`:""})())}</div>
    <p class="hint">Společná domácnost: výdaje jedním číslem. Pro katastrofy se rozpočítají podle podílu na příjmech (každý „nese“ svou část domácnosti). ${(+I.klient.vydaje_osobni||0)+(+I.partner.vydaje_osobni||0)>0&&!(+((I.vydaje||{}).domacnost)>0)?"Dokud pole nevyplníš, počítá se se staršími výdaji po osobách.":""}</p>`:""}
    ${pa?person("partner",1):""}</details>
   <details open><summary>Děti</summary>${rows("deti",[["Jméno","jmeno","text"],["Narození","narozen","dmy"],["Plánuje VŠ – sirotčí a vdovský do 26 let (jinak do 18)","vs","check"]],{jmeno:"",narozen:"",vs:false})}<p class="hint">Sirotčí a vdovský důchod se počítá jen do 18 let dítěte, s vysokou školou do 26. Krytí smrti pokrývá výdaje bez finančního plánu do 26 let nejmladšího dítěte; po zániku dávek se výdaje dorovnávají celé.</p></details>
@@ -1688,7 +1706,7 @@ $("#ed").addEventListener("input",e=>{
     const f=v===""?"":fmtIn(v)+keepDec;if(f!==t.value){t.value=f;let k=0,c=0;while(c<f.length&&k<dig){if(/[\d,.-]/.test(f[c]))k++;c++}try{t.setSelectionRange(c,c)}catch(err){}}}
   if(t.dataset.pct&&v!=="")v=Math.round(v*100)/10000;
   set(inp(),p,v);save();if(isProdPath(p))storeProdDef();
-  if(["partner.zapnuto","realokace.rucne","hodnoty_vlastni","hypo.zapnuto","hypo.financ","hypo.zastava","hypo.prodej","fin.spolecne"].includes(p)){if(p==="realokace.rucne"&&v&&!((inp().realokace||{}).polozky||[]).length)loadAuto();keepOpen(renderEditor)}
+  if(["partner.zapnuto","realokace.rucne","hodnoty_vlastni","hypo.zapnuto","hypo.financ","hypo.zastava","hypo.prodej","fin.spolecne","vydaje.vcetne"].includes(p)){if(p==="realokace.rucne"&&v&&!((inp().realokace||{}).polozky||[]).length)loadAuto();keepOpen(renderEditor)}
   if(p.endsWith(".jmeno")&&p.startsWith("klient"))renderClients();
   update();
 });
@@ -2508,6 +2526,7 @@ function splitPlan(I,who,Rh){const J=JSON.parse(JSON.stringify(I)),me=who==="par
   J.renta=JSON.parse(JSON.stringify(who==="partner"?(I.renta2||{}):(I.renta||{})));
   /* pojistné osoby (její připojištění + polovina dětí) z výpočtu domácnosti – v jejím cash flow se platí jen to */
   const PO=Rh&&Rh.pojOs,i=who==="partner"?1:0,pm=PO&&PO.dosp?(PO.dosp[i]||0)+Math.round((PO.detiCelkem||0)/2):Math.round((Rh&&Rh.pojNove||0)/2);
+  J.vydaje=Object.assign({},I.vydaje||{},{_odecetPoj:Math.round((+(((I.pojisteni||{}).zivotni||{}).stav)||0)/2)});
   J.pojisteni=Object.assign({},I.pojisteni||{},{zivotni:{stav:0,navrh:pm>0?pm:""}});if(!(pm>0)||I.bez_zp)J.bez_zp=true;
   /* hypotéka: podíl osoby (společná = napůl) z výpočtu domácnosti – výdaje už withHypo rozdělil stejně */
   const Hh=hypoOf(I),kd=(I.hypo||{}).kdo||"spolecne",f=kd==="spolecne"?0.5:kd===who?1:0;
@@ -2619,7 +2638,7 @@ $("#bPptx").onclick=async()=>{const b=$("#bPptx"),t0=b.textContent;b.disabled=tr
 /* klienti */
 function renderClients(){$("#cli").innerHTML=Object.entries(DB.clients).map(([id,c])=>`<option value="${id}" ${id===DB.cur?"selected":""}>${esc((c.klient&&c.klient.jmeno)||"Bez jména")}</option>`).join("")}
 $("#cli").onchange=e=>{DB.cur=e.target.value;applyProdDef(inp());save();cur=0;renderEditor();update()};
-const blank=()=>({klient:{titul:"",jmeno:"Nový klient",narozen:"",duchod:"",zam:0,podnik:0,pasiv:0,pronajem:0,bonus:0,vydaje_osobni:0,vydaje_dom:"",inv1:0,inv2:0,inv3:0,vdovsky:0,sirotci:0,hruba:"",bez_partnera:false},partner:{zapnuto:false},deti:[],motivace:"",vydaje:{celkem:0,splatky:0,pojistne:0,sporeni:0},docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},pojisteni:{stavajici:0,navrh:0},realokace:{rucne:false,polozky:[]}});
+const blank=()=>({klient:{titul:"",jmeno:"Nový klient",narozen:"",duchod:"",zam:0,podnik:0,pasiv:0,pronajem:0,bonus:0,vydaje_osobni:0,vydaje_dom:"",inv1:0,inv2:0,inv3:0,vdovsky:0,sirotci:0,hruba:"",bez_partnera:false},partner:{zapnuto:false},deti:[],motivace:"",vydaje:{celkem:0,splatky:0,pojistne:0,sporeni:0,vcetne:true},docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},pojisteni:{stavajici:0,navrh:0},realokace:{rucne:false,polozky:[]}});
 $("#bNew").onclick=()=>{const id="c"+Date.now();DB.clients[id]=blank();DB.cur=id;applyProdDef(inp());save();cur=0;renderClients();renderEditor();update()};
 $("#bDup").onclick=()=>{const id="c"+Date.now();DB.clients[id]=JSON.parse(JSON.stringify(inp()));DB.clients[id].klient.jmeno+=" (kopie)";DB.cur=id;save();renderClients();renderEditor();update()};
 $("#bDel").onclick=()=>{if(Object.keys(DB.clients).length<2)return;if(!confirm("Smazat klienta "+(inp().klient.jmeno||"")+"?"))return;delete DB.clients[DB.cur];DB.cur=Object.keys(DB.clients)[0];save();renderClients();renderEditor();update()};
@@ -2642,7 +2661,7 @@ function mergeDz(I,D){let n=0;const val=v=>v!==""&&v!=null&&!(typeof v==="number
   return n}
 $("#bDz").onclick=()=>{
   const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:200;background:var(--bg)";
-  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=21#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
+  const fr=document.createElement("iframe");fr.src="dotaznik.html?v=22#fp";fr.title="Vstupní dotazník";fr.style.cssText="border:0;width:100%;height:100%;display:block";
   ov.append(fr);document.body.append(ov);
   const close=()=>{removeEventListener("message",on);ov.remove();renderClients();renderEditor();update()};
   const on=e=>{if(e.origin!==location.origin||e.source!==fr.contentWindow||!e.data)return;const d=e.data;

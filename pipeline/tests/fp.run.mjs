@@ -960,6 +960,18 @@ tests["společná domácnost páru: výdaje jedním číslem za oba (do katastro
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["výdaje včetně všeho (výchozí u nových plánů): odečtou se současné vklady a pojistné ŽP; starší plány zůstávají bez investic a pojištění"] = async function () {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(() => { const base = { klient: { jmeno: "Jan Novák", narozen: "1985-01-01", zam: 50000, vydaje_osobni: 35000, vydaje_dom: 30000, inv1: 8000, inv2: 12000, inv3: 20000, starobni: 18000, bez_partnera: true, hruba: 70000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [],
+      majetek: [{ typ: "Stavební spoření", nazev: "SS", hodnota: 100000, vklad: 1700 }, { typ: "Spořicí účet", nazev: "S", hodnota: 200000 }], pojisteni: { zivotni: { stav: 1300, navrh: 1500 } }, renta: { mesicne: 30000 } };
+    const a = FPE.compute(base, new Date()), b = FPE.compute(Object.assign({}, base, { vydaje: { vcetne: true } }), new Date());
+    const pair = FPE.compute(Object.assign({}, base, { partner: { zapnuto: true, jmeno: "Eva Nová", narozen: "1987-01-01", zam: 40000 }, vydaje: { domacnost: 60000, vcetne: true } }), new Date());
+    const I = { klient: { vydaje_osobni: 30000 } }; migVyd(I); const J = {}; migVyd(J);
+    return { a: a.vydCelkem, b: b.vydCelkem, dom: b.persons[0].vydDom, pair: pair.vydCelkem, old: I.vydaje.vcetne, nov: J.vydaje.vcetne }; });
+  eq(r, { a: 35000, b: 32000, dom: 30000, pair: 57000, old: false, nov: true }, "odečet 1 700 vklad + 1 300 pojistné; výdaje domácnosti zůstanou; u společné domácnosti z celku");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
