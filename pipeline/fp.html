@@ -2207,7 +2207,7 @@ function buildFrames(I,R){
   const TK=R.toky||[],FK=[],FN={};TK.forEach(t=>t.rozpad.forEach(r=>{if(!FK.includes(r.k))FK.push(r.k);FN[r.k]=r.nazev}));
   const FCOL=k=>k==="renta"?"#F37520":k==="volne"?"#6a6a6a":["#5b8dd6","#C2508D","#2E9C8F","#D9A441","#6BAA45"][(+k.slice(1))%5];
   const FTOT=Math.max(1,...TK.map(t=>t.rozpad.reduce((a,r)=>a+r.kc,0)));
-  const flowBar=u=>{let cur=TK[0]?TK[0].rozpad:[];TK.forEach(t=>{if(t.m<=u.m)cur=t.rozpad});const cm=Object.fromEntries(cur.map(r=>[r.k,r.kc])),tot=cur.reduce((a,r)=>a+r.kc,0);
+  const flowBar=u=>{let cur=TK[0]?TK[0].rozpad:[];TK.forEach(t=>{if(t.m<=u.m)cur=t.rozpad});const cm=Object.fromEntries(cur.map(r=>[r.k,r.kc])),tot=cur.filter(r=>r.k!=="volne").reduce((a,r)=>a+r.kc,0); /* uvolněné do cash flow už není platba do plánu */
     const X0=900,W0=440,Y=420;let x=X0;
     const segs=FK.map(k=>{const v=cm[k]||0,w=W0*v/FTOT,o=`<div class="k" data-k="fl_${k}" style="position:absolute;left:${x}px;top:${Y+34}px;width:${Math.max(0,w-3)}px;height:30px;border-radius:4px;background:${FCOL(k)};opacity:${v>0?1:0}"></div>`;x+=w;return o}).join("");
     return `<div class="k" data-k="fl_hdr" style="position:absolute;left:${X0}px;top:${Y}px;width:${W0}px;font-size:16px">${tot?`<span class="mut">Měsíční platby:</span> <b>${kcm(tot)}</b>`:`<span class="mut">Platby skončily —</span> <b>renta se vyplácí</b>`}</div>${segs}
