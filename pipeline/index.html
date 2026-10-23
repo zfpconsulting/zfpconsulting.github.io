@@ -2127,8 +2127,8 @@ function dzLinkSync(only){const k=settings&&settings.dzKey&&settings.dzKey.pub,m
   return location.origin+location.pathname.replace(/[^/]*$/,"")+"dotaznik.html#"+h.toString()}
 /* výroční schůzka: odkaz na dotazník předvyplněný z posledního plánu klienta (za #r=… – deflate + base64url, bez serveru).
    Bez Úspor a investic a Pojištění (vedeme u nás); klient jen přepíše, co se změnilo. Údaje jsou v odkazu – posílat jen klientovi. */
-const RV_KEYS=["klient","partner","kontakt","deti","motivace","docasne","nefin","uvery","cile","renta","poznamka"];
-const RV_PERS=["titul","jmeno","narozen","zam","podnik","pasiv","pronajem","bonus","hruba","vydaje_osobni","vydaje_dom","povolani","sport","bez_partnera","zapnuto"];
+const RV_KEYS=["klient","partner","kontakt","deti","motivace","docasne","nefin","uvery","cile","renta","renta2","fin","poznamka"];
+const RV_PERS=["titul","jmeno","narozen","zam","podnik","pasiv","pronajem","bonus","hruba","vydaje_osobni","vydaje_dom","povolani","sport","sporty","sport_ma","prace","bez_partnera","zapnuto"];
 function rvPlan(plan){const o={};RV_KEYS.forEach(k=>{if(plan[k]!=null)o[k]=JSON.parse(JSON.stringify(plan[k]))});
   ["klient","partner"].forEach(k=>{if(o[k]){const x={};RV_PERS.forEach(f=>{if(o[k][f]!=null&&o[k][f]!=="")x[f]=o[k][f]});o[k]=x}});
   if(o.partner&&!o.partner.zapnuto)o.partner={zapnuto:false};return o}
@@ -2146,7 +2146,8 @@ $("fpBkBtn")?.addEventListener("click",async()=>{const u=await dzClientLink(true
 $("fpDzBtn")?.addEventListener("click",async()=>{try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission()}catch(e){}const u=await dzClientLink();if(!u){toast(DEMO?"V ukázkovém režimu nejde":"Nejdřív se přihlas Googlem");return}
   try{await navigator.clipboard.writeText(u);toast("Odkaz na dotazník zkopírovaný – pošli ho klientovi")}catch(e){prompt("Zkopíruj odkaz pro klienta:",u)}});
 function dzMerge(I,D){const val=v=>v!==""&&v!=null&&!(typeof v==="number"&&isNaN(v));const setp=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=="object")a[k]={};a=a[k]});a[ks.at(-1)]=v};
-  ["klient","partner","kontakt","renta","pojisteni.zivotni"].forEach(path=>{const src=path.split(".").reduce((a,k)=>a&&a[k],D);if(!src||typeof src!=="object")return;
+  ["klient","partner"].forEach(k=>{const L=((D[k]||{}).sporty||[]).filter(r=>r&&String(r.nazev||"").trim());if(L.length){I[k]=I[k]||{};I[k].sporty=JSON.parse(JSON.stringify(L))}});
+  ["klient","partner","kontakt","renta","renta2","pojisteni.zivotni","fin","hypo"].forEach(path=>{const src=path.split(".").reduce((a,k)=>a&&a[k],D);if(!src||typeof src!=="object")return;
     Object.entries(src).forEach(([k,v])=>{if(typeof v==="object"&&v!==null)return;if(typeof v==="boolean"&&k==="zapnuto"&&!v)return;if(val(v))setp(I,path+"."+k,v)})});
   ["motivace","poznamka"].forEach(k=>{if(val(D[k]))I[k]=D[k]});if(D.ioldp)I.ioldp=D.ioldp;
   ["deti","docasne","majetek","nefin","uvery","cile"].forEach(k=>{const L=(D[k]||[]).filter(r=>r&&Object.values(r).some(val));if(L.length)I[k]=JSON.parse(JSON.stringify(L))});
@@ -7433,7 +7434,7 @@ async function openFP(e,rec){
   /* kontakt z karty klienta → plán i dotazník (prázdná pole) */
   const kontakt={telefon:e.phone||rec.phone||e.lead?.phone||"",email:rec.email||e.rec?.email||e.lead?.email||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=42#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=43#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};

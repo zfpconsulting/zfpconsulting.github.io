@@ -150,6 +150,7 @@ body.emb .hero h1{font-size:22px}
 <div class="toast" id="toast"></div>
 <script>window.DZ_LINK=decodeURIComponent(escape(atob("dj0xJnRvPWt1ZGxpY2thLnZvanRlY2gyMDAyJTQwZ21haWwuY29tJms9Qkx1WDQya2FqQnUtMXpYVnZkQ0RhODliMkhUb0x3YkJvY0xVN1VZNGNidklOYkFpRHpEWGZta0NPR19HenV2SDB0VTk4c1FsNzJaMXJHajVqUzdMU0hJJnA9Vm9qdCVDNCU5QmNoK0t1ZGxpJUM0JThEa2EmYj1odHRwcyUzQSUyRiUyRnNjcmlwdC5nb29nbGUuY29tJTJGbWFjcm9zJTJGcyUyRkFLZnljYnlfSXJTRzlsSXdzWlYtTUl3blhVdG12TzN1Rjg4eTg2Q2lLaHdOOEtXenNyXzlRSHNMZW16YnE1aGMzMXl0eVYzYyUyRmV4ZWMmZT12b2p0ZWNoLmt1ZGxpY2thJTQwemZwYS5jeiZ0PTc3NCsyMjIrNjE3Jm09cg==")));</script>
 <script src="/pipeline/dzcrypto.js?v=2"></script>
+<script src="/pipeline/nnrs.js?v=1"></script>
 <script>
 "use strict";
 const EMB=location.hash==="#fp"&&window.parent!==window;
@@ -193,7 +194,7 @@ const UVERY=["Hypotéka","Úvěr ze stavebního spoření","Spotřebitelský úv
 const DOC=[["materska","Peněžitá pomoc v mateřství (mateřská)"],["rodicovska","Rodičovský příspěvek (rodičovská)"],["vyzivne","Výživné"],["jine","Jiný příjem, který skončí"]];
 const STAV=[["","Vyberte…"],["svobodny","svobodný / svobodná"],["zenaty","ženatý / vdaná"],["partner","žijeme s partnerem / partnerkou"],["rozvedeny","rozvedený / rozvedená"],["vdovec","vdovec / vdova"]];
 const ESSZ="https://eportal.cssz.cz/web/portal/-/sluzby/informativni-duchodova-aplikace";
-const blank=()=>({klient:{jmeno:"",narozen:"",zam:"",podnik:"",pasiv:"",pronajem:"",bonus:"",hruba:"",vydaje_osobni:"",vydaje_dom:"",povolani:"",sport:""},partner:{zapnuto:false},kontakt:{telefon:"",email:"",stav:""},
+const blank=()=>({klient:{jmeno:"",narozen:"",zam:"",podnik:"",pasiv:"",pronajem:"",bonus:"",hruba:"",vydaje_osobni:"",vydaje_dom:"",povolani:"",sport:"",prace:"",sporty:[]},partner:{zapnuto:false},kontakt:{telefon:"",email:"",stav:""},fin:{},
   deti:[],motivace:"",docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:"",od_veku:""},pojisteni:{zivotni:{stav:""}},poznamka:""});
 let P=blank();
 const FILES={};          /* IOLDP: jen v paměti (do konceptu se neukládá) */
@@ -222,7 +223,7 @@ const em=p=>tried&&MISS.has(p)?`<span class="emsg">${esc(MISS.get(p))}</span>`:"
 const ec=p=>tried&&MISS.has(p)?" err":"";
 const money=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}</span><span class="money"><input class="${ec(p)}" data-p="${p}" data-num="1" inputmode="numeric" autocomplete="off" value="${esc(fmtIn(get(P,p)))}" placeholder="${esc(o.ph||"")}"><span>${o.u||"Kč/měs"}</span></span>${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`;
 const num=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}</span><input class="${ec(p)}" data-p="${p}" data-num="1" inputmode="decimal" autocomplete="off" value="${esc(fmtIn(get(P,p)))}" placeholder="${esc(o.ph||"")}">${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`;
-const txt=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}</span><input class="${ec(p)}" data-p="${p}" type="${o.type||"text"}" ${o.ac?`autocomplete="${o.ac}"`:""} ${o.im?`inputmode="${o.im}"`:""} value="${esc(get(P,p)==null?"":get(P,p))}" placeholder="${esc(o.ph||"")}">${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`;
+const txt=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}</span><input class="${ec(p)}" data-p="${p}" type="${o.type||"text"}" ${o.ac?`autocomplete="${o.ac}"`:""} ${o.im?`inputmode="${o.im}"`:""} ${o.list?`list="${o.list}" autocomplete="off"`:""} value="${esc(get(P,p)==null?"":get(P,p))}" placeholder="${esc(o.ph||"")}">${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`;
 const area=(q,p,o={})=>`<label class="f full"><span class="q">${q}</span><textarea class="${ec(p)}" data-p="${p}" rows="${o.rows||4}" placeholder="${esc(o.ph||"")}">${esc(get(P,p)||"")}</textarea>${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`;
 const sel=(q,p,opts,o={})=>{const v=get(P,p);return `<label class="f ${o.full?"full":""}"><span class="q">${q}</span><select class="${ec(p)}" data-p="${p}">${opts.map(x=>{const[val,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(val)}" ${String(val)===String(v==null?"":v)?"selected":""}>${esc(t)}</option>`}).join("")}</select>${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`};
 const chk=(t,p)=>`<label class="chk"><input type="checkbox" data-p="${p}" ${get(P,p)?"checked":""}><span>${t}</span></label>`;
@@ -234,9 +235,11 @@ function rows(path,blankRow,title,fields){const L=get(P,path)||[];TITLES[path]=t
 const yes=k=>K()[k]===true;
 
 /* ---------- osoba ---------- */
-const prijmy=k=>`${money("Čistý příjem ze zaměstnání",k+".zam",{h:"„na ruku“, průměr za měsíc (0, pokud nemáte)"})}${get(P,k+".zam")>0?money("Hrubá mzda",k+".hruba",{h:"z výplatní pásky – podle ní spočítáme nemocenskou"}):`<span></span>`}
- ${money("Příjem z podnikání (čistý)",k+".podnik")}${money("Pasivní příjmy",k+".pasiv",{h:"dividendy, úroky, renty…"})}
- ${money("Příjem z pronájmu",k+".pronajem")}${money("Bonusy / 13. plat za rok",k+".bonus",{u:"Kč/rok"})}`;
+/* podle „Pracuji jako“ (část Pojištění, práce a sport) se ukáže jen příjem ze zaměstnání, nebo z podnikání; vyplněné hodnoty se nikdy neschovají */
+const prijmy=k=>{const pr=((k==="klient"?P.klient:P.partner)||{}).prace,zO=!pr||pr==="zam"||pr==="zam_osvc"||+get(P,k+".zam")>0,oO=!pr||pr==="osvc"||pr==="zam_osvc"||+get(P,k+".podnik")>0;
+ return `${zO?money("Čistý příjem ze zaměstnání",k+".zam",{h:"„na ruku“, průměr za měsíc (0, pokud nemáte)"})+(get(P,k+".zam")>0?money("Hrubá mzda",k+".hruba",{h:"z výplatní pásky – podle ní spočítáme nemocenskou"}):`<span></span>`):""}
+ ${oO?money("Příjem z podnikání (čistý)",k+".podnik",{h:"po zaplacení daní a odvodů, průměr za měsíc"}):""}${money("Pasivní příjmy",k+".pasiv",{h:"dividendy, úroky, renty…"})}
+ ${money("Příjem z pronájmu",k+".pronajem")}${money("Bonusy / 13. plat za rok",k+".bonus",{u:"Kč/rok"})}`};
 const vydaje=k=>`${money("Měsíční výdaje celkem",k+".vydaje_osobni",{h:"bydlení, jídlo, doprava, děti, splátky, volný čas… <b>bez</b> spoření, investic a pojistného"})}
  ${money("Z toho na společnou domácnost",k+".vydaje_dom",{h:"co by domácnost platila dál, i kdybyste tu nebyl/a (bydlení, jídlo, děti, splátky)"})}`;
 const ioldpBox=k=>{const f=FILES[k],m=(P.ioldp||{})[k];return `<div class="file${ec(k+".ioldp")}" data-segp="${k}.ioldp"><span class="nm"><b>IOLDP – ${esc(pNm(k))}</b>
@@ -247,68 +250,95 @@ const ioldpBox=k=>{const f=FILES[k],m=(P.ioldp||{})[k];return `<div class="file$
 
 /* ---------- sekce: h = obsah, miss = co chybí [cesta, text] (vše povinné, kromě poznámky) ---------- */
 const digits=s=>String(s||"").replace(/\D/g,"");
+const PRACE=[["","Vyberte…"],["zam","Zaměstnanec"],["osvc","Podnikatel / OSVČ"],["zam_osvc","Zaměstnanec i podnikatel"],["student","Student"],["rodicovska","Na mateřské / rodičovské"],["bez","Bez práce"],["duchodce","V důchodu"]];
+const PO=k=>(k==="klient"?P.klient:P.partner)||{};
+const pracuje=k=>["zam","osvc","zam_osvc"].includes(PO(k).prace);
+const odd=()=>ma()&&P.fin&&P.fin.spolecne===false;           /* oddělené finance: každý má vlastní plán */
+const kdoSel=b=>odd()?sel("Čí je to?",b+".kdo",[["","Vyberte…"],["klient",pNm("klient")],["partner",pNm("partner")],["spolecne","Společné"]]):"";
+const kdoMiss=(M,path)=>{if(odd())(P[path]||[]).forEach((r,i)=>{if(!r.kdo)M(`${path}.${i}.kdo`,"Čí je to?")})};
+/* riziková skupina NN – jen pro poradce (v plánu), klientovi se neukazuje */
+const rsHint=k=>{if(!EMB||!window.NNRS)return "";const o=NNRS.osoba(PO(k));return `<p class="hint full" style="margin:0"><b>Riziková skupina NN: ${NNRS.RS_TXT(o.rs)}</b>${o.pov?" · povolání "+esc(o.pov.nazev)+" ("+NNRS.RS_TXT(o.pov.rs)+")":""}${o.sporty.length?" · "+o.sporty.map(s=>esc(s.nazev)+" "+(s.rs?NNRS.RS_TXT(s.rs):"?")).join(", "):""}${o.pozn.length?"<br>"+o.pozn.map(esc).join("<br>"):""}</p>`};
+const renta1=(p,lbl)=>`${lbl?`<span class="who">${esc(lbl)}</span>`:""}<div class="g">${money("Kolik měsíčně (dnešní ceny)",p+".mesicne",{h:"státní důchod do toho započítáme"})}${num("Od kolika let",p+".od_veku",{ph:"prázdné = od důchodu"})}</div>`;
 let SEC=[
- {id:"rodina",t:"Rodina",why:"Podle rodiny počítáme, koho je potřeba zajistit – vdovský a sirotčí důchod, krytí úmrtí.",
-  h:()=>`<div class="g">${sel("Rodinný stav","kontakt.stav",STAV)}<span></span>
-   ${ask("Máte manžela / manželku nebo partnera / partnerku?","klient.bez_partnera",[[false,"Ano"],[true,"Ne"]])}</div>
-   ${P.klient.bez_partnera===false?`<div style="margin-top:4px">${chk("Plán chceme dělat <b>společně</b> – vyplním i jeho / její příjmy a výdaje","partner.zapnuto")}</div>
-    ${ma()?`<div class="g" style="margin-top:10px">${txt("Jméno a příjmení partnera / partnerky","partner.jmeno")}${txt("Datum narození","partner.narozen",{type:"date"})}</div>`:""}`:""}
-   <div class="g" style="margin-top:14px">${ask("Máte děti?","kontakt.deti_ma")}</div>
-   ${yes("deti_ma")?rows("deti",{jmeno:"",narozen:"",vs:false},(r,i)=>r.jmeno||"Dítě "+(i+1),b=>`${txt("Jméno",b+".jmeno")}${txt("Datum narození",b+".narozen",{type:"date",h:"u čekaného miminka předpokládaný termín"})}<div class="full">${chk("Plánuje vysokou školu",b+".vs")}</div>`):""}`,
-  miss:M=>{if(!K().stav)M("kontakt.stav","Vyberte rodinný stav");if(P.klient.bez_partnera==null)M("klient.bez_partnera","Odpovězte prosím");
-    if(ma()){if(!/\S+\s+\S+/.test(P.partner.jmeno||""))M("partner.jmeno","Jméno i příjmení");if(!P.partner.narozen)M("partner.narozen","Datum narození")}
-    if(K().deti_ma==null)M("kontakt.deti_ma","Odpovězte prosím");
-    if(yes("deti_ma")){if(!(P.deti||[]).length)M("deti","Přidejte dítě");(P.deti||[]).forEach((d,i)=>{if(!d.jmeno)M(`deti.${i}.jmeno`,"Jméno");if(!d.narozen)M(`deti.${i}.narozen`,"Datum narození")})}}},
- {id:"o-vas",t:"O vás",why:"Základní údaje pro výpočet důchodového věku a délky plánu.",
-  h:()=>`<div class="g">${txt("Jméno a příjmení","klient.jmeno",{ac:"name"})}${txt("Datum narození","klient.narozen",{type:"date"})}
-   ${txt("Telefon","kontakt.telefon",{type:"tel",ac:"tel",im:"tel"})}${txt("E-mail","kontakt.email",{type:"email",ac:"email",im:"email"})}</div>`,
-  miss:M=>{if(!/\S+\s+\S+/.test(P.klient.jmeno||""))M("klient.jmeno","Jméno i příjmení");if(!P.klient.narozen)M("klient.narozen","Datum narození");
-    if(digits(K().telefon).length<9)M("kontakt.telefon","Telefon (9 číslic)");if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(K().email||""))M("kontakt.email","Platný e-mail")}},
  {id:"motivace",t:"Co je pro vás důležité",why:"Vaše slova dáme na začátek plánu – podle nich stavíme priority.",
-  h:()=>`<div class="g">${area("Co je pro vás v životě nejdůležitější? Čeho chcete finančním plánem dosáhnout?","motivace",{ph:"Např. Chci, aby rodina měla jistotu, a jednou bydlet ve vlastním bez velké hypotéky."})}</div>`,
-  miss:M=>{if(String(P.motivace||"").trim().length<10)M("motivace","Napište pár slov")}},
- {id:"prijmy",t:"Příjmy",why:"Pravidelné měsíční příjmy po zdanění, za každého zvlášť – při výpadku příjmu jde vždy o konkrétního člověka.",
-  h:()=>ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${prijmy(k)}</div>${chk("Teď nemám žádný příjem",k+".bez_prijmu")}${em(k+".prijem")}`).join("")+
-   `<h3>Dočasné příjmy</h3><div class="g">${ask("Máte příjem, který brzy skončí? (mateřská, rodičovská, výživné…)","kontakt.docasne_ma")}</div>
-   ${yes("docasne_ma")?rows("docasne",{typ:"",dite:"",castka:"",do:""},(r,i)=>(DOC.find(x=>x[0]===r.typ)||[,"Dočasný příjem "+(i+1)])[1],(b,r)=>{const c=docasneDo(r);const deti=(P.deti||[]).map((d,j)=>[String(j),d.jmeno||"Dítě "+(j+1)]);
-     return `${sel("Co to je",b+".typ",[["","Vyberte…"],...DOC])}${money("Kolik vám chodí měsíčně",b+".castka")}
-     ${r.typ==="materska"||r.typ==="rodicovska"?(deti.length?sel("Na které dítě",b+".dite",[["","Vyberte…"],...deti]):`<span class="hint full">Nejdřív přidejte dítě v části Rodina – podle jeho věku spočítáme, do kdy dávka bude.</span>`):""}
-     ${r.typ==="materska"||r.typ==="rodicovska"?`<label class="f"><span class="q">Do kdy</span><input class="${ec(b+".do")}" data-p="${b}.do" type="month" readonly tabindex="-1" value="${esc(r.do||"")}" placeholder="spočítá se" style="background:var(--chip)"><span class="hint">${c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte"}</span>${em(b+".do")}</label>`
-       :txt("Do kdy",b+".do",{type:"month"})}`}):""}`,
-  miss:M=>{ppl().forEach(k=>{const o=k==="klient"?P.klient:P.partner;if(!(+o.zam>0||+o.podnik>0||+o.pasiv>0||+o.pronajem>0)&&!o.bez_prijmu)M(k+".prijem","Vyplňte příjem, nebo zaškrtněte, že žádný nemáte");if(+o.zam>0&&!(+o.hruba>0))M(k+".hruba","Hrubá mzda")});
-    if(K().docasne_ma==null)M("kontakt.docasne_ma","Odpovězte prosím");
-    if(yes("docasne_ma")){if(!(P.docasne||[]).length)M("docasne","Přidejte příjem");(P.docasne||[]).forEach((r,i)=>{const b=`docasne.${i}`;if(!r.typ)M(b+".typ","Vyberte");if(!(+r.castka>0))M(b+".castka","Částka");if((r.typ==="materska"||r.typ==="rodicovska")&&r.dite==="")M(b+".dite","Vyberte dítě");if(!r.do)M(b+".do","Do kdy")})}}},
- {id:"vydaje",t:"Výdaje",why:"Kolik měsíčně utratíte. Spoření, investice a pojistné sem nepatří – ty v plánu nastavíme znovu.",
-  h:()=>ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${vydaje(k)}</div>`).join("")+
-   `<p class="hint" style="margin-top:12px">Nevíte přesně? Stačí odhad – průměr z výpisu za posledních pár měsíců.</p>`,
-  miss:M=>ppl().forEach(k=>{const o=k==="klient"?P.klient:P.partner;if(!(+o.vydaje_osobni>0))M(k+".vydaje_osobni","Výdaje celkem");if(o.vydaje_dom===""||o.vydaje_dom==null)M(k+".vydaje_dom","Kolik z toho jde na domácnost (může být i 0)")})},
- {id:"majetek",t:"Úspory a investice",why:"Účty, spoření a investice. Z nich postavíme rezervu a zbytek pošleme do vašich cílů.",
-  h:()=>`<div class="g">${ask("Máte nějaké úspory, spoření nebo investice?","kontakt.majetek_ma")}</div>`+(yes("majetek_ma")?rows("majetek",{nazev:"",typ:"",hodnota:"",vklad:""},(r,i)=>r.typ||"Položka "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...TYPY])}${txt("Kde (banka / instituce)",b+".nazev",{ph:"Např. Moneta, Conseq…"})}${money("Aktuální hodnota",b+".hodnota",{u:"Kč"})}${money("Měsíčně si posílám",b+".vklad",{ph:"0"})}`):""),
-  miss:M=>{if(K().majetek_ma==null)M("kontakt.majetek_ma","Odpovězte prosím");if(yes("majetek_ma")){if(!(P.majetek||[]).length)M("majetek","Přidejte položku");(P.majetek||[]).forEach((a,i)=>{if(!a.typ)M(`majetek.${i}.typ`,"Vyberte typ");if(!(+a.hodnota>0))M(`majetek.${i}.hodnota`,"Hodnota")})}}},
- {id:"nefin",t:"Nemovitosti a jiný majetek",why:"Byt, dům, chata, auto, podíl ve firmě. Do investic ho nepřesouváme, ukáže se v čistém jmění.",
-  h:()=>`<div class="g">${ask("Vlastníte nemovitost, auto nebo jiný větší majetek?","kontakt.nefin_ma")}</div>`+(yes("nefin_ma")?rows("nefin",{nazev:"",typ:"",hodnota:""},(r,i)=>r.typ||"Majetek "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...NEFIN])}${txt("Popis",b+".nazev",{ph:"Byt 3+1 Brno"})}${money("Odhadovaná hodnota",b+".hodnota",{u:"Kč"})}`):""),
-  miss:M=>{if(K().nefin_ma==null)M("kontakt.nefin_ma","Odpovězte prosím");if(yes("nefin_ma")){if(!(P.nefin||[]).length)M("nefin","Přidejte majetek");(P.nefin||[]).forEach((a,i)=>{if(!a.typ)M(`nefin.${i}.typ`,"Vyberte typ");if(!(+a.hodnota>0))M(`nefin.${i}.hodnota`,"Hodnota")})}}},
- {id:"uvery",t:"Úvěry",why:"Zůstatek úvěrů musí být při úmrtí krytý, aby rodina nezůstala s dluhem.",
-  h:()=>`<div class="g">${ask("Splácíte nějaký úvěr, hypotéku, leasing nebo kartu?","kontakt.uvery_ma")}</div>`+(yes("uvery_ma")?rows("uvery",{typ:"",nazev:"",zustatek:"",splatka:"",fixace_do:"",splatnost:""},(r,i)=>r.typ||"Úvěr "+(i+1),(b,r)=>`${sel("Typ úvěru",b+".typ",[["","Vyberte…"],...UVERY])}${txt("Banka / věřitel",b+".nazev")}${money("Zbývá splatit",b+".zustatek",{u:"Kč"})}${money("Měsíční splátka",b+".splatka")}${r.typ==="Hypotéka"||r.typ==="Úvěr ze stavebního spoření"?txt("Konec fixace",b+".fixace_do",{type:"month"}):""}${txt("Doplaceno",b+".splatnost",{type:"month"})}`):""),
-  miss:M=>{if(K().uvery_ma==null)M("kontakt.uvery_ma","Odpovězte prosím");if(yes("uvery_ma")){if(!(P.uvery||[]).length)M("uvery","Přidejte úvěr");(P.uvery||[]).forEach((u,i)=>{const b=`uvery.${i}`;if(!u.typ)M(b+".typ","Vyberte typ");if(!(+u.zustatek>0))M(b+".zustatek","Zůstatek");if(!(+u.splatka>0))M(b+".splatka","Splátka");if(!u.splatnost)M(b+".splatnost","Kdy bude doplaceno");if((u.typ==="Hypotéka"||u.typ==="Úvěr ze stavebního spoření")&&!u.fixace_do)M(b+".fixace_do","Konec fixace")})}}},
+  h:()=>`<div class="g">${area("Co je pro vás v životě nejdůležitější? Čeho chcete finančním plánem dosáhnout?","motivace",{ph:"Např. Chci, aby rodina měla jistotu, a jednou bydlet ve vlastním bez velké hypotéky."})}</div>
+   <div class="g" style="margin-top:14px">${ask("Pro koho plán děláme?","kontakt.plan_pro",[["ja","Jen pro mě"],["dva","Pro nás dva"]])}</div>
+   ${ma()?`<div class="g">${ask("Jak to máte s penězi?","fin.spolecne",[[true,"Společné finance"],[false,"Každý zvlášť"]])}</div><p class="hint" style="margin:-6px 0 0">Společné = jeden rozpočet, společné úspory i cíle. Každý zvlášť = každému z vás uděláme vlastní plán (příjmy, výdaje, úspory, cíle), pojištění a společné věci probereme dohromady.</p>`:""}`,
+  miss:M=>{if(String(P.motivace||"").trim().length<10)M("motivace","Napište pár slov");if(!K().plan_pro)M("kontakt.plan_pro","Odpovězte prosím");if(ma()&&typeof (P.fin||{}).spolecne!=="boolean")M("fin.spolecne","Odpovězte prosím")}},
  {id:"cile",t:"Cíle",why:"Na co chcete spořit. Částky pište v dnešních cenách – inflaci v plánu započítáme sami.",
-  h:()=>`<div class="g">${ask("Máte konkrétní cíl, na který chcete spořit? (bydlení, auto, studium dětí…)","kontakt.cile_ma")}</div>`+(yes("cile_ma")?rows("cile",{nazev:"",castka:"",za_let:""},(r,i)=>r.nazev||"Cíl "+(i+1),b=>`${txt("Cíl",b+".nazev",{ph:"Vlastní bydlení, auto, studium dětí…",full:1})}${money("Kolik (dnešní ceny)",b+".castka",{u:"Kč"})}${num("Za kolik let",b+".za_let",{ph:"např. 5"})}`):"")+
+  h:()=>`<div class="g">${ask("Máte konkrétní cíl, na který chcete spořit? (auto, studium dětí, cestování…)","kontakt.cile_ma")}</div>`+(yes("cile_ma")?rows("cile",{nazev:"",castka:"",za_let:""},(r,i)=>r.nazev||"Cíl "+(i+1),b=>`${txt("Cíl",b+".nazev",{ph:"Auto, studium dětí, rekonstrukce…",full:1})}${money("Kolik (dnešní ceny)",b+".castka",{u:"Kč"})}${num("Za kolik let",b+".za_let",{ph:"např. 5"})}${kdoSel(b)}`):"")+
+   `<h3>Bydlení</h3><div class="g">${ask("Plánujete koupi bydlení (byt, dům) – třeba i výměnu za větší?","kontakt.hypo_ma")}</div>
+   ${yes("hypo_ma")?`<div class="g">${money("Cena nové nemovitosti","hypo.cena",{u:"Kč"})}${num("Za kolik let","hypo.za_let",{ph:"0 = co nejdřív"})}
+     ${sel("Co se současným bydlením",'hypo.stavajici',[["","Vyberte…"],["prodej","Prodáme – peníze půjdou do nového"],["zastava","Necháme si ho (může sloužit jako zástava)"],["najem","Bydlíme v nájmu / u rodičů"]],{full:1})}
+     ${money("Kolik teď platíte za energie a služby (inkaso)","hypo.inkaso_ted",{h:"elektřina, plyn, voda, internet, fond oprav…"})}${get(P,"hypo.stavajici")==="najem"?money("Nájem, který po koupi odpadne","hypo.odpadne"):"<span></span>"}</div>`:""}`+
    `<h3>Renta – příjem bez práce</h3><div class="g">${ask("Chcete si vybudovat rentu – pravidelný příjem, až nebudete chtít pracovat?","kontakt.renta_ma")}</div>
-   ${yes("renta_ma")?`<div class="g">${money("Kolik měsíčně (dnešní ceny)",'renta.mesicne',{h:"státní důchod do toho započítáme"})}${num("Od kolika let",'renta.od_veku',{ph:"prázdné = od důchodu"})}</div>`:""}`,
-  miss:M=>{if(K().cile_ma==null)M("kontakt.cile_ma","Odpovězte prosím");if(yes("cile_ma")){if(!(P.cile||[]).length)M("cile","Přidejte cíl");(P.cile||[]).forEach((c,i)=>{if(!c.nazev)M(`cile.${i}.nazev`,"Název cíle");if(!(+c.castka>0))M(`cile.${i}.castka`,"Částka");if(!(+c.za_let>0))M(`cile.${i}.za_let`,"Za kolik let")})}
-    if(K().renta_ma==null)M("kontakt.renta_ma","Odpovězte prosím");if(yes("renta_ma")&&!(+get(P,"renta.mesicne")>0))M("renta.mesicne","Měsíční částka")}},
- {id:"pojisteni",t:"Pojištění a důchod od státu",why:"Jen životní a úrazové pojištění (domácnost, nemovitost ani auto nevyplňujte). Kolik by vám vyplatil stát, zjistíme z výpisu IOLDP.",
+   ${yes("renta_ma")?(odd()?renta1("renta",pNm("klient"))+renta1("renta2",pNm("partner")):renta1("renta")):""}`,
+  miss:M=>{if(K().cile_ma==null)M("kontakt.cile_ma","Odpovězte prosím");if(yes("cile_ma")){if(!(P.cile||[]).length)M("cile","Přidejte cíl");(P.cile||[]).forEach((c,i)=>{if(!c.nazev)M(`cile.${i}.nazev`,"Název cíle");if(!(+c.castka>0))M(`cile.${i}.castka`,"Částka");if(!(+c.za_let>0))M(`cile.${i}.za_let`,"Za kolik let")});kdoMiss(M,"cile")}
+    if(K().hypo_ma==null)M("kontakt.hypo_ma","Odpovězte prosím");
+    if(yes("hypo_ma")){const h=P.hypo||{};if(!(+h.cena>0))M("hypo.cena","Cena");if(h.za_let===""||h.za_let==null)M("hypo.za_let","Za kolik let (0 = hned)");if(!h.stavajici)M("hypo.stavajici","Vyberte");
+      if(h.inkaso_ted===""||h.inkaso_ted==null)M("hypo.inkaso_ted","Částka (může být i odhad)");if(h.stavajici==="najem"&&(h.odpadne===""||h.odpadne==null))M("hypo.odpadne","Nájem")}
+    if(K().renta_ma==null)M("kontakt.renta_ma","Odpovězte prosím");if(yes("renta_ma")){if(!(+get(P,"renta.mesicne")>0))M("renta.mesicne","Měsíční částka");if(odd()&&!(+get(P,"renta2.mesicne")>0))M("renta2.mesicne","Měsíční částka")}}},
+ {id:"majetek",t:"Úspory a investice",why:"Účty, spoření a investice. Z nich postavíme rezervu a zbytek pošleme do vašich cílů.",
+  h:()=>`<div class="g">${ask("Máte nějaké úspory, spoření nebo investice?","kontakt.majetek_ma")}</div>`+(yes("majetek_ma")?rows("majetek",{nazev:"",typ:"",hodnota:"",vklad:""},(r,i)=>r.typ||"Položka "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...TYPY])}${txt("Kde (banka / instituce)",b+".nazev",{ph:"Např. Moneta, Conseq…"})}${money("Aktuální hodnota",b+".hodnota",{u:"Kč"})}${money("Měsíčně si posílám",b+".vklad",{ph:"0"})}${kdoSel(b)}`):""),
+  miss:M=>{if(K().majetek_ma==null)M("kontakt.majetek_ma","Odpovězte prosím");if(yes("majetek_ma")){if(!(P.majetek||[]).length)M("majetek","Přidejte položku");(P.majetek||[]).forEach((a,i)=>{if(!a.typ)M(`majetek.${i}.typ`,"Vyberte typ");if(!(+a.hodnota>0))M(`majetek.${i}.hodnota`,"Hodnota")});kdoMiss(M,"majetek")}}},
+ {id:"nefin",t:"Nemovitosti a jiný majetek",why:"Byt, dům, chata, auto, podíl ve firmě. Do investic ho nepřesouváme, ukáže se v čistém jmění.",
+  h:()=>`<div class="g">${ask("Vlastníte nemovitost, auto nebo jiný větší majetek?","kontakt.nefin_ma")}</div>`+(yes("nefin_ma")?rows("nefin",{nazev:"",typ:"",hodnota:""},(r,i)=>r.typ||"Majetek "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...NEFIN])}${txt("Popis",b+".nazev",{ph:"Byt 3+1 Brno"})}${money("Odhadovaná hodnota",b+".hodnota",{u:"Kč"})}${kdoSel(b)}`):""),
+  miss:M=>{if(K().nefin_ma==null)M("kontakt.nefin_ma","Odpovězte prosím");if(yes("nefin_ma")){if(!(P.nefin||[]).length)M("nefin","Přidejte majetek");(P.nefin||[]).forEach((a,i)=>{if(!a.typ)M(`nefin.${i}.typ`,"Vyberte typ");if(!(+a.hodnota>0))M(`nefin.${i}.hodnota`,"Hodnota")});kdoMiss(M,"nefin")}}},
+ {id:"uvery",t:"Úvěry",why:"Zůstatek úvěrů musí být při úmrtí krytý, aby rodina nezůstala s dluhem.",
+  h:()=>`<div class="g">${ask("Splácíte nějaký úvěr, hypotéku, leasing nebo kartu?","kontakt.uvery_ma")}</div>`+(yes("uvery_ma")?rows("uvery",{typ:"",nazev:"",zustatek:"",splatka:"",fixace_do:"",splatnost:""},(r,i)=>r.typ||"Úvěr "+(i+1),(b,r)=>`${sel("Typ úvěru",b+".typ",[["","Vyberte…"],...UVERY])}${txt("Banka / věřitel",b+".nazev")}${money("Zbývá splatit",b+".zustatek",{u:"Kč"})}${money("Měsíční splátka",b+".splatka")}${r.typ==="Hypotéka"||r.typ==="Úvěr ze stavebního spoření"?txt("Konec fixace",b+".fixace_do",{type:"month"}):""}${txt("Doplaceno",b+".splatnost",{type:"month"})}${kdoSel(b)}`):""),
+  miss:M=>{if(K().uvery_ma==null)M("kontakt.uvery_ma","Odpovězte prosím");if(yes("uvery_ma")){if(!(P.uvery||[]).length)M("uvery","Přidejte úvěr");(P.uvery||[]).forEach((u,i)=>{const b=`uvery.${i}`;if(!u.typ)M(b+".typ","Vyberte typ");if(!(+u.zustatek>0))M(b+".zustatek","Zůstatek");if(!(+u.splatka>0))M(b+".splatka","Splátka");if(!u.splatnost)M(b+".splatnost","Kdy bude doplaceno");if((u.typ==="Hypotéka"||u.typ==="Úvěr ze stavebního spoření")&&!u.fixace_do)M(b+".fixace_do","Konec fixace")});kdoMiss(M,"uvery")}}},
+ {id:"pojisteni",t:"Pojištění, práce a sport",why:"Jen životní a úrazové pojištění (domácnost, nemovitost ani auto nevyplňujte). Cenu pojištění ovlivňuje, co děláte a jaké sporty provozujete. Kolik by vám vyplatil stát, zjistíme z výpisu IOLDP.",
   h:()=>`<div class="g">${ask("Máte teď životní pojištění?","kontakt.zp_ma")}</div>${yes("zp_ma")?`<div class="g">${money("Kolik za něj měsíčně platíte (všichni dohromady)","pojisteni.zivotni.stav",{full:1})}</div>`:""}
-   ${ppl().map(k=>`<span class="who" data-who="${k}">${esc(pNm(k))}</span><div class="g">${txt("Povolání – co přesně děláte",k+".povolani",{ph:"Např. účetní v kanceláři, elektrikář…"})}${txt("Sporty (nepovinné)",k+".sport",{ph:"Např. běh, lyže, bojové sporty…"})}</div>
+   ${ppl().map(k=>`<span class="who" data-who="${k}">${esc(pNm(k))}</span><div class="g">${sel("Pracuji jako",k+".prace",PRACE)}
+     ${pracuje(k)||PO(k).povolani?txt("Povolání – co přesně děláte",k+".povolani",{ph:"Začněte psát – např. účetní, elektrikář…",list:"dlPov"}):"<span></span>"}
+     ${rsHint(k)}</div>
+     <div class="g" style="margin-top:14px">${ask("Sportujete pravidelně?",k+".sport_ma")}</div>
+     ${get(P,k+".sport_ma")===true?rows(k+".sporty",{nazev:"",uroven:""},(r,i)=>r.nazev||"Sport "+(i+1),b=>`${txt("Sport",b+".nazev",{ph:"Začněte psát – např. fotbal, lyže…",list:"dlSport"})}${sel("Jak",b+".uroven",[["","Vyberte…"],...(window.NNRS?NNRS.UROVNE:[])])}`):""}
+     <div class="g" style="margin-top:10px">${txt("Další sporty nebo rizikové koníčky (nepovinné)",k+".sport",{ph:"Např. motorka, potápění…",full:1})}</div>
      ${yes("zp_ma")?`<p class="hint" style="margin:12px 0 6px">Pojistné částky ze smlouvy – pokud je víte (jinak nechte prázdné, dohledáme spolu):</p>
      <div class="g">${money("Invalidita III. stupně",k+".zp_inv3",{u:"Kč"})}${money("Invalidita II. stupně",k+".zp_inv2",{u:"Kč"})}${money("Invalidita I. stupně",k+".zp_inv1",{u:"Kč"})}${money("Smrt",k+".zp_smrt",{u:"Kč"})}${money("Pracovní neschopnost",k+".zp_pn",{u:"Kč/den"})}</div>`:""}
      <div style="margin-top:14px">${ioldpBox(k)}</div>`).join("")}
    <p class="hint" style="margin-top:10px">IOLDP (Informativní osobní list důchodového pojištění) stáhnete na ePortálu ČSSZ přes bankovní identitu – služba „Moje konto“ nebo „Informativní důchodová aplikace“, tlačítko Vytisknout / Stáhnout PDF.</p>`,
   miss:M=>{if(K().zp_ma==null)M("kontakt.zp_ma","Odpovězte prosím");if(yes("zp_ma")&&!(+get(P,"pojisteni.zivotni.stav")>0))M("pojisteni.zivotni.stav","Měsíční pojistné");
-    ppl().forEach(k=>{const o=k==="klient"?P.klient:P.partner;if(!String(o.povolani||"").trim())M(k+".povolani","Povolání");if(!FILES[k]&&!get(P,"ioldp."+k+".pozdeji")&&!EMB)M(k+".ioldp","Vložte IOLDP, nebo zaškrtněte, že ho pošlete později")})}},
+    ppl().forEach(k=>{const o=PO(k);if(!o.prace)M(k+".prace","Vyberte");if(pracuje(k)&&!String(o.povolani||"").trim())M(k+".povolani","Povolání");
+      if(o.sport_ma==null)M(k+".sport_ma","Odpovězte prosím");if(o.sport_ma===true){if(!(o.sporty||[]).length)M(k+".sporty","Přidejte sport");(o.sporty||[]).forEach((s,i)=>{if(!String(s.nazev||"").trim())M(`${k}.sporty.${i}.nazev`,"Sport");if(!s.uroven)M(`${k}.sporty.${i}.uroven`,"Vyberte")})}
+      if(!FILES[k]&&!get(P,"ioldp."+k+".pozdeji")&&!EMB)M(k+".ioldp","Vložte IOLDP, nebo zaškrtněte, že ho pošlete později")})}},
+ {id:"vydaje",t:"Výdaje",why:"Kolik měsíčně utratíte. Spoření, investice a pojistné sem nepatří – ty v plánu nastavíme znovu.",
+  h:()=>ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${vydaje(k)}</div>`).join("")+
+   `<p class="hint" style="margin-top:12px">Nevíte přesně? Stačí odhad – průměr z výpisu za posledních pár měsíců.</p>`,
+  miss:M=>ppl().forEach(k=>{const o=PO(k);if(!(+o.vydaje_osobni>0))M(k+".vydaje_osobni","Výdaje celkem");if(o.vydaje_dom===""||o.vydaje_dom==null)M(k+".vydaje_dom","Kolik z toho jde na domácnost (může být i 0)")})},
+ {id:"prijmy",t:"Příjmy",why:"Pravidelné měsíční příjmy po zdanění, za každého zvlášť – při výpadku příjmu jde vždy o konkrétního člověka.",
+  h:()=>ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${prijmy(k)}</div>${chk("Teď nemám žádný příjem",k+".bez_prijmu")}${em(k+".prijem")}`).join("")+
+   `<h3>Dočasné příjmy</h3><div class="g">${ask("Máte příjem, který brzy skončí? (mateřská, rodičovská, výživné…)","kontakt.docasne_ma")}</div>
+   ${yes("docasne_ma")?rows("docasne",{typ:"",dite:"",castka:"",do:""},(r,i)=>(DOC.find(x=>x[0]===r.typ)||[,"Dočasný příjem "+(i+1)])[1],(b,r)=>{const c=docasneDo(r);const deti=(P.deti||[]).map((d,j)=>[String(j),d.jmeno||"Dítě "+(j+1)]);
+     return `${sel("Co to je",b+".typ",[["","Vyberte…"],...DOC])}${money("Kolik vám chodí měsíčně",b+".castka")}
+     ${ma()?sel("Komu",b+".kdo",[["klient",pNm("klient")],["partner",pNm("partner")]]):""}
+     ${r.typ==="materska"||r.typ==="rodicovska"?(deti.length?sel("Na které dítě",b+".dite",[["","Vyberte…"],...deti]):`<span class="hint full">Dítě přidáte v části Rodina – podle jeho věku pak spočítáme, do kdy dávka bude.</span>`):""}
+     ${r.typ==="materska"||r.typ==="rodicovska"?`<label class="f"><span class="q">Do kdy</span><input class="${ec(b+".do")}" data-p="${b}.do" type="month" readonly tabindex="-1" value="${esc(r.do||"")}" placeholder="spočítá se" style="background:var(--chip)"><span class="hint">${c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte"}</span>${em(b+".do")}</label>`
+       :txt("Do kdy",b+".do",{type:"month"})}`}):""}`,
+  miss:M=>{ppl().forEach(k=>{const o=PO(k);if(!(+o.zam>0||+o.podnik>0||+o.pasiv>0||+o.pronajem>0)&&!o.bez_prijmu)M(k+".prijem","Vyplňte příjem, nebo zaškrtněte, že žádný nemáte");if(+o.zam>0&&!(+o.hruba>0))M(k+".hruba","Hrubá mzda")});
+    if(K().docasne_ma==null)M("kontakt.docasne_ma","Odpovězte prosím");
+    if(yes("docasne_ma")){if(!(P.docasne||[]).length)M("docasne","Přidejte příjem");(P.docasne||[]).forEach((r,i)=>{const b=`docasne.${i}`;if(!r.typ)M(b+".typ","Vyberte");if(!(+r.castka>0))M(b+".castka","Částka");if((r.typ==="materska"||r.typ==="rodicovska")&&r.dite==="")M(b+".dite","Vyberte dítě");if(!r.do)M(b+".do","Do kdy")})}}},
+ {id:"rodina",t:"Rodina",why:"Podle rodiny počítáme, koho je potřeba zajistit – vdovský a sirotčí důchod, krytí úmrtí.",
+  h:()=>`<div class="g">${sel("Rodinný stav","kontakt.stav",STAV)}<span></span>
+   ${ma()?"":ask("Máte manžela / manželku nebo partnera / partnerku?","klient.bez_partnera",[[false,"Ano"],[true,"Ne"]])}</div>
+   ${ma()?`<div class="g" style="margin-top:10px">${txt("Jméno a příjmení partnera / partnerky","partner.jmeno")}${txt("Datum narození","partner.narozen",{type:"date"})}</div>`
+     :P.klient.bez_partnera===false?`<p class="hint">Plán teď děláme jen pro vás. Chcete ho i pro partnera / partnerku? Změňte volbu „Pro koho plán děláme“ v první části.</p>`:""}
+   <div class="g" style="margin-top:14px">${ask("Máte děti?","kontakt.deti_ma")}</div>
+   ${yes("deti_ma")?rows("deti",{jmeno:"",narozen:"",vs:false},(r,i)=>r.jmeno||"Dítě "+(i+1),b=>`${txt("Jméno",b+".jmeno")}${txt("Datum narození",b+".narozen",{type:"date",h:"u čekaného miminka předpokládaný termín"})}<div class="full">${chk("Plánuje vysokou školu",b+".vs")}</div>`):""}`,
+  miss:M=>{if(!K().stav)M("kontakt.stav","Vyberte rodinný stav");if(!ma()&&P.klient.bez_partnera==null)M("klient.bez_partnera","Odpovězte prosím");
+    if(ma()){if(!/\S+\s+\S+/.test(P.partner.jmeno||""))M("partner.jmeno","Jméno i příjmení");if(!P.partner.narozen)M("partner.narozen","Datum narození")}
+    if(K().deti_ma==null)M("kontakt.deti_ma","Odpovězte prosím");
+    if(yes("deti_ma")){if(!(P.deti||[]).length)M("deti","Přidejte dítě");(P.deti||[]).forEach((d,i)=>{if(!d.jmeno)M(`deti.${i}.jmeno`,"Jméno");if(!d.narozen)M(`deti.${i}.narozen`,"Datum narození")})}}},
  {id:"pozn",t:"Něco dalšího?",why:"Cokoli, co bychom měli vědět – plánované změny v práci, dědictví, péče o rodiče… (nepovinné)",optional:1,
-  h:()=>`<div class="g">${area("Doplňující poznámky (nepovinné)","poznamka",{rows:4})}</div>`,miss:()=>{}}
-];
+  h:()=>`<div class="g">${area("Doplňující poznámky (nepovinné)","poznamka",{rows:4})}</div>`,miss:()=>{}},
+ /* identifikace: v plánu (poradce) ji nevyplňujeme – klienta už máme; v odkazu pro klienta až na konec, ať víme, od koho dotazník je */
+ {id:"o-vas",t:"Kontakt na vás",why:"Ať víme, od koho dotazník je, a můžeme vám poslat plán. Datum narození potřebujeme pro důchodový věk.",
+  h:()=>`<div class="g">${txt("Jméno a příjmení","klient.jmeno",{ac:"name"})}${txt("Datum narození","klient.narozen",{type:"date"})}
+   ${txt("Telefon","kontakt.telefon",{type:"tel",ac:"tel",im:"tel"})}${txt("E-mail","kontakt.email",{type:"email",ac:"email",im:"email"})}</div>`,
+  miss:M=>{if(!/\S+\s+\S+/.test(P.klient.jmeno||""))M("klient.jmeno","Jméno i příjmení");if(!P.klient.narozen)M("klient.narozen","Datum narození");
+    if(digits(K().telefon).length<9)M("kontakt.telefon","Telefon (9 číslic)");if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(K().email||""))M("kontakt.email","Platný e-mail")}}
+].filter(s=>!(EMB&&s.id==="o-vas"));
 let MISS=new Map();
 function check(){const m=new Map(),per=[];SEC.forEach((s,i)=>{const L=[];s.miss((p,t)=>{if(!m.has(p))m.set(p,t);L.push(p)});per[i]=L});MISS=m;return per}
 
@@ -337,6 +367,7 @@ function render(){
    ${EMB?linkBox(A):A.n?`<div class="adv"><span class="av">${esc(ini)}</span><span><b>${esc(A.n)}</b><small>váš finanční poradce${A.t?" · "+esc(A.t):""}${A.e?" · "+esc(A.e):""}</small></span></div>`:""}
    ${EMB?"":`<div class="lock">${LOCK}<span>Odpovědi se před odesláním zašifrují přímo ve vašem zařízení. Přečíst je může jen váš poradce – nikdo jiný, ani provozovatel úložiště.</span></div>`}
    ${tried&&bad?`<div class="banner"><span>Ještě chybí údaje v <b>${bad}</b> ${bad===1?"části":"částech"}.</span><button type="button" id="goMiss">Ukázat</button></div>`:""}
+   <datalist id="dlPov">${(window.NNRS?NNRS.POVOLANI:[]).map(x=>`<option value="${esc(x[0])}">`).join("")}</datalist><datalist id="dlSport">${(window.NNRS?NNRS.SPORTY:[]).map(x=>`<option value="${esc(x[0])}">`).join("")}</datalist>
    ${SEC.map((s,i)=>`<section id="${s.id}"><h2><span class="n">${String(i+1).padStart(2,"0")}</span>${s.t}${!per[i].length&&!s.optional?'<span class="dn">✓</span>':""}</h2><p class="why">${s.why}</p><div class="body">${s.h()}</div></section>`).join("")}
    ${EMB?"":`<p class="priv">Rozpracované odpovědi se drží jen v tomto prohlížeči (bez příloh) a po odeslání se smažou. Data se šifrují standardem AES-256 klíčem, který má jen váš poradce.</p>${gdprBox()}`}`;
   window.scrollTo(0,sc);status(per);
@@ -437,7 +468,7 @@ let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>{
   if(EMB)parent.postMessage({type:"dz:change",plan:P},location.origin);
   else if(!sent)try{localStorage.setItem(DRAFT,JSON.stringify({at:Date.now(),plan:P,rv:REV?REV.id:""}))}catch(e){}},EMB?250:400)}
-const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|kontakt\.stav)$/.test(p);
+const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu|\w+\.prace|hypo\.stavajici)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|kontakt\.stav)$/.test(p)||(EMB&&/^\w+\.sporty\.\d+\.uroven$/.test(p));
 function autoDo(p){const m=/^docasne\.(\d+)\.(typ|dite|castka)$/.exec(p);if(!m)return false;const r=P.docasne[+m[1]];if(r.typ!=="materska"&&r.typ!=="rodicovska")return false;const c=docasneDo(r);r.do=c?c.do:"";
   const h=document.querySelector(`[data-p="docasne.${m[1]}.do"]`),hint=h&&h.parentElement.querySelector(".hint");if(hint)hint.innerHTML=c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte";return true}
 document.addEventListener("input",e=>{const t=e.target;
@@ -454,9 +485,13 @@ document.addEventListener("input",e=>{const t=e.target;
     status();if(tried){const ok=!MISS.has(p);t.classList.toggle("err",!ok);const m=t.closest("label")&&t.closest("label").querySelector(".emsg");if(m&&ok)m.remove()}}
   save()});
 /* hrubá mzda se ukáže, až je vyplněný příjem ze zaměstnání (po opuštění pole, ať se nepřekresluje při psaní) */
-document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&/\.zam$/.test(t.dataset.p||"")){const has=!!document.querySelector(`[data-p="${t.dataset.p.replace(/zam$/,"hruba")}"]`);if(has!==(+get(P,t.dataset.p)>0))render()}});
+document.addEventListener("change",e=>{const t=e.target;if(EMB&&t.dataset&&/^\w+\.(povolani|sporty\.\d+\.nazev)$/.test(t.dataset.p||"")){render();return}if(t.dataset&&/\.zam$/.test(t.dataset.p||"")){const has=!!document.querySelector(`[data-p="${t.dataset.p.replace(/zam$/,"hruba")}"]`);if(has!==(+get(P,t.dataset.p)>0))render()}});
 document.addEventListener("click",e=>{
-  const sg=e.target.closest("[data-seg]");if(sg){const p=sg.dataset.seg,v=JSON.parse(sg.dataset.v);set(P,p,v);if(p==="klient.bez_partnera"&&v===true)P.partner={...(P.partner||{}),zapnuto:false};render();save();return}
+  const sg=e.target.closest("[data-seg]");if(sg){const p=sg.dataset.seg,v=JSON.parse(sg.dataset.v);set(P,p,v);if(p==="klient.bez_partnera"&&v===true)P.partner={...(P.partner||{}),zapnuto:false};
+    /* pro koho je plán: partnera jen zapne / vypne – jeho vyplněné údaje zůstanou */
+    if(p==="kontakt.plan_pro"){P.partner={...(P.partner||{}),zapnuto:v==="dva"};if(v==="dva")P.klient.bez_partnera=false}
+    if(p==="kontakt.hypo_ma")P.hypo={...(P.hypo||{}),zapnuto:!!v};
+    render();save();return}
   const a=e.target.closest("[data-add]");if(a){const p=a.dataset.add,L=get(P,p)||[];L.push(JSON.parse(a.dataset.blank));set(P,p,L);render();save();
     setTimeout(()=>{const rs=document.querySelectorAll(`[data-add="${CSS.escape(p)}"]`)[0]?.previousElementSibling?.querySelectorAll(".row");const last=rs&&rs[rs.length-1];const i=last&&last.querySelector("input,select");if(i)i.focus()},0);return}
   const d=e.target.closest("[data-del]");if(d){const ps=d.dataset.del.split("."),i=+ps.pop(),L=get(P,ps.join("."));L.splice(i,1);render();save();return}
@@ -500,6 +535,13 @@ function load(pl){const b=blank();P=Object.assign(b,JSON.parse(JSON.stringify(pl
   P.partner=P.partner||{zapnuto:false};P.renta=P.renta||{mesicne:"",od_veku:""};P.pojisteni=P.pojisteni||{};P.pojisteni.zivotni=P.pojisteni.zivotni||{};
   ["deti","docasne","majetek","nefin","uvery","cile"].forEach(k=>{if(!Array.isArray(P[k]))P[k]=[]});
   if(P.partner.zapnuto)P.klient.bez_partnera=false;
+  if(!P.fin||typeof P.fin!=="object")P.fin={};if(!Array.isArray(P.klient.sporty))P.klient.sporty=[];if(P.partner.sporty!=null&&!Array.isArray(P.partner.sporty))P.partner.sporty=[];
+  /* nové otázky odvodit z už vyplněných údajů (starší koncepty a plány – nic se nepřepisuje) */
+  if(P.kontakt.plan_pro==null){if(P.partner.zapnuto)P.kontakt.plan_pro="dva";else if(P.klient.bez_partnera!=null)P.kontakt.plan_pro="ja"}
+  if(EMB&&P.partner.zapnuto&&P.fin.spolecne==null)P.fin.spolecne=true;   /* dosavadní plány páru = společné finance */
+  if(P.kontakt.hypo_ma==null&&P.hypo&&P.hypo.zapnuto)P.kontakt.hypo_ma=true;
+  ["klient","partner"].forEach(k=>{const o=P[k];if(o&&o.sport_ma==null&&Array.isArray(o.sporty)&&o.sporty.length)o.sport_ma=true;
+    if(o&&!o.prace&&EMB){if(+o.zam>0&&+o.podnik>0)o.prace="zam_osvc";else if(+o.zam>0)o.prace="zam";else if(+o.podnik>0)o.prace="osvc"}});
   /* odpovědi Ano/Ne odvodit z už vyplněných seznamů (plán z Pipeline) */
   [["deti_ma","deti"],["docasne_ma","docasne"],["majetek_ma","majetek"],["nefin_ma","nefin"],["uvery_ma","uvery"],["cile_ma","cile"]].forEach(([q,l])=>{if(P.kontakt[q]==null&&P[l].length)P.kontakt[q]=true});
   if(P.kontakt.renta_ma==null&&+P.renta.mesicne>0)P.kontakt.renta_ma=true;if(P.kontakt.zp_ma==null&&+P.pojisteni.zivotni.stav>0)P.kontakt.zp_ma=true;

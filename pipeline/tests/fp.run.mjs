@@ -570,7 +570,12 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   eq(await page.inputValue('[data-p="docasne.0.do"]'), "2027-11", "rodičovská: konec mateřské (22 týdnů po porodu) + 350 000 / 15 000 = 24 měsíců");
   await f("klient.vydaje_osobni", "35000"); await f("klient.vydaje_dom", "20000");
   for (const q of ["majetek_ma", "nefin_ma", "uvery_ma", "cile_ma", "zp_ma"]) await seg("kontakt." + q, "false");
-  await seg("kontakt.renta_ma", "true"); await f("renta.mesicne", "25000"); await f("klient.povolani", "programátor");
+  await seg("kontakt.renta_ma", "true"); await f("renta.mesicne", "25000");
+  /* nové otázky: pro koho je plán, bydlení, pracovní status → povolání, sporty s úrovní */
+  await page.click('[data-seg="kontakt.plan_pro"]:has-text("Jen pro mě")'); await seg("kontakt.hypo_ma", "false");
+  await page.selectOption('[data-p="klient.prace"]', "zam"); await f("klient.povolani", "programátor"); await seg("klient.sport_ma", "true");
+  await page.click('[data-add="klient.sporty"]'); await f("klient.sporty.0.nazev", "Fotbal"); await page.selectOption('[data-p="klient.sporty.0.uroven"]', "registrovane");
+  eq(await page.$$eval("section h2", h => h.map(x => x.textContent.replace(/^\d+|✓$/g, ""))), ["Co je pro vás důležité", "Cíle", "Úspory a investice", "Nemovitosti a jiný majetek", "Úvěry", "Pojištění, práce a sport", "Výdaje", "Příjmy", "Rodina", "Něco dalšího?", "Kontakt na vás"], "pořadí částí: výdaje před příjmy, kontakt na konci");
   await page.click("#bSend"); await page.waitForTimeout(400); eq(posts.length, 0, "bez IOLDP se neodešle");
   assert(/IOLDP/.test(await page.textContent("#toast")), "upozornění na IOLDP");
   const [fc] = await Promise.all([page.waitForEvent("filechooser"), page.click('[data-ioldp="klient"]')]); await fc.setFiles({ name: "ioldp.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") });
@@ -580,14 +585,15 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   const F = posts[0].fields;
   const x = await page.evaluate(([priv, b]) => DzCrypto.open(priv, b), [key.priv, { epk: F.epk.stringValue, salt: F.salt.stringValue, iv: F.iv.stringValue, ct: posts.map(p => p.fields.ct.stringValue).join("") }]);
   eq([x.plan.klient.jmeno, x.plan.klient.zam, x.files.length, x.files[0].who], ["Petr Malý", 48000, 1, "klient"], "obsah po dešifrování klíčem poradce");
+  eq([x.plan.klient.prace, x.plan.klient.povolani, x.plan.klient.sporty], ["zam", "programátor", [{ nazev: "Fotbal", uroven: "registrovane" }]], "práce, povolání a sporty v dotazníku");
   const other = await page.evaluate(() => DzCrypto.genKey());
   const bad = await page.evaluate(([priv, b]) => DzCrypto.open(priv, b).then(() => "otevřel", () => "nejde"), [other.priv, { epk: F.epk.stringValue, salt: F.salt.stringValue, iv: F.iv.stringValue, ct: posts.map(p => p.fields.ct.stringValue).join("") }]);
   eq(bad, "nejde", "cizím klíčem nejde přečíst");
   eq(await page.evaluate(() => localStorage.getItem("fp_dotaznik_draft_v1")), null, "po odeslání se koncept smaže");
   await page.goto(FP); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
-  const r = await page.evaluate(D => { const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; mergeDz(I, D); return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ };
+  const r = await page.evaluate(D => { const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; mergeDz(I, D); const N = FPE.compute(I, new Date()).nn; return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ, sp: I.klient.sporty.length, rs: N && N.osoby[0].rs };
   }, x.plan);
-  eq([r.j, r.zam, r.inv3, r.bez, r.doc], ["Petr Malý", 48000, 20000, true, "rodicovska"], "sloučení s plánem (IOLDP z plánu zůstává)");
+  eq([r.j, r.zam, r.inv3, r.bez, r.doc, r.sp, r.rs], ["Petr Malý", 48000, 20000, true, "rodicovska", 1, 2], "sloučení s plánem (IOLDP z plánu zůstává; registrovaný fotbal = RS 2 automaticky)");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
@@ -857,6 +863,71 @@ tests["nastavení „Neřešit pojištění“: žádné slidy s pojištěním (
   assert(after.gr.includes("p") && after.gr.includes("z"), "plán a Realizace zůstávají");
   const ui = await page.evaluate(() => { STEP = 5; renderEditor(); return !!document.querySelector('#ed input[data-p="nastaveni.bez_pojisteni"]:checked'); });
   assert(ui, "přepínač je v Nastavení zaškrtnutý");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["uvolněný cash flow: splacený úvěr na ose a v cash flow jako „Uvolněný cash flow +částka“, ne mínus"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, { uvery: [{ typ: "Hypotéka", nazev: "na dům", zustatek: 900000, splatka: 17500, splatnost: "2035-09", fixace_do: "" }] });
+  const r = await page.evaluate(() => { const t = FR.filter(f => f.g === "tl" && /Splaceno/.test(f.lbl)).map(f => f.h).join(""), c = FR.filter(f => f.g === "cft" && /Splaceno/.test(f.lbl)).map(f => f.h).join(""); return { t: /Uvolněný cash flow<\/span> \+17\s500/.test(t), minus: /−17\s500\s*Kč\/měs/.test(t), c: /uvolněný cash flow \+17\s500/.test(c) }; });
+  eq(r, { t: true, minus: false, c: true }, "osa i cash flow");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["cíl bydlení: akontace podle věku (10 % / 20 %), prodej stávajícího bytu, zástava, nejlepší banka z modulu Úvěry, inkaso ve výdajích"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Petr Novák", narozen: "1994-05-01", zam: 70000, hruba: 100000, vydaje_osobni: 30000, vydaje_dom: 25000, inv1: 8000, inv2: 12000, inv3: 20000, starobni: 20000 },
+    partner: { zapnuto: true, jmeno: "Jana Nováková", narozen: "1980-03-01", zam: 55000, hruba: 75000, vydaje_osobni: 25000, vydaje_dom: 20000, inv1: 6000, inv2: 9000, inv3: 15000, starobni: 17000 },
+    kontakt: { stav: "zenaty" }, cile: [], nefin: [{ nazev: "Byt 3+1", typ: "Nemovitost k bydlení", hodnota: 7000000 }], uvery: [], majetek: [{ nazev: "SÚ", typ: "Spořicí účet", hodnota: 3500000 }],
+    hypo: { zapnuto: true, cena: 15000000, za_let: 0, inkaso_ted: 6000, inkaso_po: 9000, prodej: "-1" } };
+  await setPlan(page, base);
+  await page.waitForFunction(() => !!window.Uvery, null, { timeout: 10000 });
+  const r1 = await page.evaluate(() => { HYB = {}; const H = hypoOf(inp()); return { lim: hypoLtvLim(inp(), 0), own: H.own, uver: H.uver, bank: !!(H.bank && (H.bank.name || H.bank.none)), inkD: H.inkD, d: Math.round(H.delta - H.pmt) }; });
+  eq([r1.lim, r1.own, r1.uver, r1.bank, r1.inkD, r1.d], [90, 1500000, 13500000, true, 3000, 3000], "manželé, jeden pod 36 → akontace 10 %; inkaso +3 000 ve výdajích");
+  const r2 = await page.evaluate(() => { const I = JSON.parse(JSON.stringify(inp())); I.klient.narozen = "1980-01-01"; I.hypo.prodej = "0"; const H = hypoOf(I); return { lim: hypoLtvLim(I, 0), own: H.own, uver: H.uver, prodej: H.prodejNet }; });
+  eq([r2.lim, r2.own, r2.uver, r2.prodej], [80, 0, 8000000, 7000000], "oba 36+ → 20 %; prodej bytu 7 mil. pokryje akontaci a sníží úvěr");
+  const r3 = await page.evaluate(() => { const I = JSON.parse(JSON.stringify(inp())); I.hypo.financ = "zastava"; I.hypo.zastava = "0"; I.hypo.prodej = ""; const H = hypoOf(I); return { own: H.own, uver: H.uver, coll: H.coll }; });
+  eq([r3.own, r3.uver, r3.coll], [0, 15000000, 22000000], "zástava bytu: bez vlastních zdrojů, úvěr na celou cenu, zajištění 22 mil.");
+  await page.evaluate(() => { STEP = 2; renderEditor(); });
+  assert(await page.locator("[data-hyuse]").count() === 2, "srovnání variant s tlačítkem Použít");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["oddělené finance páru: každý vlastní plán (cash flow, majetek, cíle, renta), pojištění a úvod společně; starý plán = společné finance"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Petr Novák", narozen: "1990-05-01", zam: 60000, hruba: 85000, vydaje_osobni: 30000, vydaje_dom: 22000, inv1: 7500, inv2: 9000, inv3: 15000, starobni: 20000 },
+    partner: { zapnuto: true, jmeno: "Jana Nováková", narozen: "1992-03-01", zam: 45000, hruba: 60000, vydaje_osobni: 25000, vydaje_dom: 20000, inv1: 6000, inv2: 7000, inv3: 12000, starobni: 17000 },
+    deti: [], cile: [{ nazev: "Auto", castka: 500000, za_let: 5, kdo: "klient" }, { nazev: "Dovolená", castka: 200000, za_let: 3 }], renta: { mesicne: 40000 }, renta2: { mesicne: 30000 },
+    majetek: [{ nazev: "SÚ", typ: "Spořicí účet", hodnota: 600000, kdo: "klient" }, { nazev: "SÚ J", typ: "Spořicí účet", hodnota: 300000, kdo: "partner" }, { nazev: "Fond", typ: "Podílový fond (OPF)", hodnota: 200000, vklad: 1000 }] };
+  await setPlan(page, base);
+  const a = await page.evaluate(() => ({ odd: !!R.odd, n: FR.filter(f => /^o\d/.test(f.g)).length, cf: R.cf }));
+  eq([a.odd, a.n], [false, 0], "bez volby = společné finance jako dřív");
+  await setPlan(page, Object.assign({}, base, { fin: { spolecne: false } }));
+  const b = await page.evaluate(() => ({ odd: R.odd.map(o => ({ cf: o.R.cf, maj: o.R.majCelkem, cile: o.R.cile.map(c => c.nazev + ":" + c.castka), renta: o.R.renta && o.R.renta.mesicnePuv })),
+    g: [...new Set(FR.map(f => f.g))].join(","), kat: FR.filter(f => /^kat\d/.test(f.g)).length, mail: mailCompose() }));
+  eq(b.odd.map(o => o.maj), [700000, 400000], "majetek: vlastní + polovina společného");
+  eq(b.odd.map(o => o.cile.join("|")), ["Dovolená:100000|Auto:500000", "Dovolená:100000"], "cíle: vlastní + polovina společného");
+  eq(b.odd.map(o => o.renta), [40000, 30000], "renta každého zvlášť");
+  eq(b.odd.map(o => o.cf), [30000, 20000], "cash flow z vlastních příjmů a výdajů");
+  assert(/^t,h,a,o0p,o1p,kat0/.test(b.g) && /o0z,o1z,e$/.test(b.g) && b.kat > 0, "pořadí slidů: úvod společně → plány → pojištění oba → … → realizace každého: " + b.g);
+  assert(/Petr: Zřízení/.test(b.mail) && /Jana: Zřízení/.test(b.mail), "shrnutí mailem za každého");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["dotazník: starší rozpracovaný koncept se načte celý (povolání, sport, příjmy) a nové otázky se odvodí; riziková skupina NN z povolání a sportu"] = async function () {
+  const { ctx, page, errors } = await open();
+  const DZ = FP.replace("fp.html", "dotaznik.html");
+  const old = { klient: { jmeno: "Jan Starý", narozen: "1985-02-03", zam: 50000, hruba: 70000, vydaje_osobni: 30000, vydaje_dom: 20000, povolani: "elektrikář", sport: "fotbal, lyže", bez_partnera: false },
+    partner: { zapnuto: true, jmeno: "Eva Stará", narozen: "1987-01-01", povolani: "účetní", zam: 40000 }, kontakt: { telefon: "777111222", email: "a@b.cz", stav: "zenaty", deti_ma: true, majetek_ma: true },
+    deti: [{ jmeno: "Ema", narozen: "2018-01-01" }], majetek: [{ typ: "Spořicí účet", nazev: "Moneta", hodnota: 300000, vklad: 0 }], motivace: "Chci jistotu pro rodinu a bydlení." };
+  await page.goto(DZ); await page.evaluate(o => localStorage.setItem("fp_dotaznik_draft_v1", JSON.stringify({ at: Date.now(), plan: o })), old); await page.reload(); await page.waitForSelector("section");
+  const v = await page.evaluate(() => ({ pov: document.querySelector('[data-p="klient.povolani"]').value, sport: document.querySelector('[data-p="klient.sport"]').value, zam: P.klient.zam, plan: P.kontakt.plan_pro, deti: P.deti.length, maj: P.majetek.length }));
+  eq(v, { pov: "elektrikář", sport: "fotbal, lyže", zam: 50000, plan: "dva", deti: 1, maj: 1 }, "staré odpovědi zůstaly");
+  await page.click('[data-seg="fin.spolecne"]:has-text("Každý zvlášť")');
+  assert(await page.locator('[data-p="majetek.0.kdo"]').count() === 1, "při financích zvlášť se u majetku ptá, čí je");
+  const rs = await page.evaluate(() => [NNRS.osoba({ povolani: "učitel", sporty: [{ nazev: "Fotbal", uroven: "rekreacne" }] }).rs, NNRS.osoba({ povolani: "učitel", sporty: [{ nazev: "Fotbal", uroven: "registrovane" }] }).rs,
+    NNRS.osoba({ povolani: "tesař" }).rs, NNRS.osoba({ sporty: [{ nazev: "Box", uroven: "rekreacne" }] }).rs, NNRS.osoba({ sporty: [{ nazev: "Tenis", uroven: "profesionalne" }] }).uw, NNRS.osoba({ sporty: [{ nazev: "Golf", uroven: "profesionalne" }] }).rs]);
+  eq(rs, [1, 2, 3, 4, true, 1], "RS: učitel + fotbal rekreačně 1, registrovaně 2 (příklad z OP NN), tesař 3, box 4, profesionální sport UW, profi golf 1");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
