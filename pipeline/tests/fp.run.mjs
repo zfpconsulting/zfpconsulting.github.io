@@ -209,7 +209,7 @@ const rent = (page, plan) => page.evaluate(p => { const R = FPE.compute(JSON.par
 tests["renta nezadána (prázdná / 0): cílem je stejný příjem jako dnes (starobní důchod + renta)"] = async function () {
   const { ctx, page, errors } = await open();
   const d = rm => zaklad({ klient: { jmeno: "Re", narozen: "1980-03-03", zam: 60000, vydaje_osobni: 30000, starobni: 25000, inv1: 6000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 80000 }, cile: [], renta: { mesicne: rm, od_veku: "" } });
-  for (const rm of [0, ""]) { const o = await rent(page, d(rm)); assert(o.renta && o.renta.auto, "renta se dopočítá"); eq(o.renta.mesicne, 60000, "renta = dnešní příjem"); eq(o.renta.dor, 35000, "dorovnání = příjem − starobní důchod"); assert(o.flags.some(f => /stejný jako dnes/.test(f)), "poznámka"); }
+  for (const rm of [0, ""]) { const o = await rent(page, d(rm)); assert(o.renta && o.renta.auto, "renta se dopočítá"); eq(o.renta.mesicne, 60000, "renta = dnešní příjem"); eq(o.renta.dor, 35000, "dorovnání = příjem − starobní důchod"); assert(o.flags.some(f => /nahradil dnešní příjem z práce/.test(f)), "poznámka"); }
   const o2 = await rent(page, d(40000)); assert(!o2.renta.auto && o2.renta.mesicne === 40000, "zadaná renta zůstává");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
@@ -982,6 +982,23 @@ tests["bydlení: prodej bytu s hypotékou – hypotéka se z prodeje doplatí a 
   eq([r.nahr, r.spl, r.net, r.rep, r.d], ["0", 2500000, 4500000, 17500, -14500], "doplacení z prodeje: 7 mil. − 2,5 mil.; splátka 17 500 odpadne (+3 000 inkaso)");
   assert(r.zav === 10500000 && r.hy, "v závazcích jen nová hypotéka; slidy hypotéky po plánu: " + JSON.stringify(r));
   eq(r.off, [0, 7000000], "„— ne —“ = bez doplacení");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["pár s nájmem a hypotékou: překlep v datu důchodu z IOLDP, důchodový věk podle zákona, renta bez nájmu, krytí smrti bez dvojí hypotéky"] = async function () {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(() => {
+    const base = { klient: { jmeno: "Adam Test", narozen: "1986-01-01", zam: 80000, pronajem: 10000, duchod: "1952-09-01", inv1: 14000, inv2: 19000, inv3: 33000, vdovsky: 19000, sirotci: 16000, starobni: 32000 },
+      partner: { zapnuto: true, jmeno: "Eva Testová", narozen: "1988-08-20", zam: 40000, inv1: 11000, inv2: 14000, inv3: 24000, vdovsky: 14000, sirotci: 12000, starobni: 23000 }, kontakt: { stav: "zenaty" }, fin: { spolecne: true },
+      deti: [{ jmeno: "Dítě", narozen: "2016-01-01" }], majetek: [{ typ: "Spořicí účet", hodnota: 500000 }], uvery: [{ typ: "Hypotéka", zustatek: 3000000, splatka: 15000, splatnost: "2056-01" }], cile: [], renta: { mesicne: 0 }, vydaje: { domacnost: 80000 } };
+    const R = FPE.compute(base, new Date()), k = R.katastrofy[0];
+    const dv = y => { const d = FPE.compute({ klient: { narozen: y + "-01-01", zam: 1 } }, new Date()).persons[0].duch; return d.getFullYear() * 12 + d.getMonth() - y * 12; };
+    return { duch: R.persons.map(p => p.duch.getFullYear() + "-" + (p.duch.getMonth() + 1)), flag: R.flags.some(f => /1952 nedává smysl/.test(f)), renta: R.renta.mesicnePuv, splt: k.smrt.vydSplatky, vyd: k.smrt.vyd, dom: k.vyd, vek: [1965, 1966, 1971, 1986, 1989].map(dv) }; });
+  eq(r.duch, ["2052-10", "2055-7"], "zákonný věk 66 let 9 měs. (1986) a 66 let 11 měs. (1988), překlep 1952 se ignoruje");
+  assert(r.flag, "upozornění na překlep v datu důchodu");
+  eq(r.vek, [780, 781, 786, 801, 804], "důchodový věk v měsících: 1965 = 65 let, +1 měsíc za ročník, 1989 = 67 let");
+  eq(r.renta, 120000, "renta nahrazuje příjem z práce (nájem 10 000 běží dál)");
+  assert(r.splt > 0 && r.vyd === r.dom - r.splt, "krytí smrti: z výdajů domácnosti se odečtou splátky úvěrů (zůstatek kryjí závazky)");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 

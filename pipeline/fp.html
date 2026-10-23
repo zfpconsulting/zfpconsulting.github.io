@@ -211,7 +211,9 @@ const monthsBetween = (a, b) => (b.getFullYear() - a.getFullYear()) * 12 + (b.ge
 const yearsBetween = (a, b) => (b - a) / (365.25 * 864e5);
 const dpsStatni = v => { v = +v || 0; return v >= 500 ? Math.round(Math.min(v, 1700) * 0.2) : 0; };
 function pvAnn(m, years, r) { const n = Math.round(years * 12); if (n <= 0 || m <= 0) return 0; const q = mr(r); return m * (1 - Math.pow(1 + q, -n)) / q; }
-function duchVek(rocnik) { if (rocnik <= 1965) return 65; if (rocnik >= 1971) return 67; return 65 + (rocnik - 1965) / 3; }
+/* důchodový věk podle zákona (reforma 2024): ročník 1965 = 65 let, od ročníku 1966 o 1 měsíc za každý ročník, ročník 1989 a mladší 67 let
+   (ženy s dětmi u ročníků do 1972 mívají nižší – pak zadej datum z IOLDP) */
+function duchVek(rocnik) { if (rocnik <= 1965) return 65; if (rocnik >= 1989) return 67; return 65 + (rocnik - 1965) / 12; }
 /* nemocenská 2026 (zák. 187/2006, redukční hranice 2026), čistá → hrubá odhadem */
 const RH = [1633, 2449, 4897];
 function netFromGross(g) { const soc = g * 0.071, zdr = g * 0.045, tax = Math.max(0, g * 0.15 - 2570); return g - soc - zdr - tax; }
@@ -755,7 +757,9 @@ function compute0(inp, today, ext) {
   const PO = S.prod || {};
   const MOD = Object.fromEntries((ext.models || []).map(m => [m.id, m]));
   const modelBase = m => { const f = fold(m.name), cls = (((inp.nastaveni || {}).modelTrida || {})[m.id]) || (/akci|dynam|rust/.test(f) ? "akcie" : /dluhop|konzerv|obligac/.test(f) ? "dluhopisy" : "mix");
-    return { k: m.id, n: "Conseq – " + m.name, g: "Conseq model", s: cls === "akcie" ? [100, 0, 0] : cls === "dluhopisy" ? [0, 100, 0] : [50, 50, 0], vynos: m.cagr != null ? Math.round(m.cagr * 1000) / 1000 : 0.07, vstup: 0.03, sprava: 0, model: 1, hist: m }; };
+    return { k: m.id, n: "Conseq – " + m.name, g: "Conseq model", s: cls === "akcie" ? [100, 0, 0] : cls === "dluhopisy" ? [0, 100, 0] : [50, 50, 0],
+      /* výnos v plánu = dlouhodobý předpoklad třídy (Conseq akciové / dluhopisové), ne historický výnos modelu – ten bývá z krátkého a výjimečného období */
+      vynos: cls === "akcie" ? PROD_IDX.cq_akc.vynos : cls === "dluhopisy" ? PROD_IDX.cq_dluh.vynos : Math.round((PROD_IDX.cq_akc.vynos + PROD_IDX.cq_dluh.vynos) / 2 * 1000) / 1000, vstup: 0.03, sprava: 0, model: 1, hist: m }; };
   const prod = k => { const b = PROD_IDX[k] || (MOD[k] ? modelBase(MOD[k]) : null); if (!b) return null; const o = Object.assign({}, b); const u = PO[k] || {};
     ["vynos", "vstup", "sprava"].forEach(x => { if (u[x] !== "" && u[x] != null && isFinite(+u[x])) o[x] = +u[x]; }); if (b.nofee) { o.vstup = 0; o.sprava = 0; } return o; };
   const auvFee = (AUV_TARIF[S.auv_tarif] != null ? AUV_TARIF[S.auv_tarif] : 600) * (n0(S.eur_kurz) || 24.5);
@@ -809,7 +813,10 @@ function compute0(inp, today, ext) {
   const spolVyd = !!(inp.partner && inp.partner.zapnuto) && !(inp.fin && inp.fin.spolecne === false) && n0((inp.vydaje || {}).domacnost) > 0;
   const persons = [inp.klient || {}].concat(inp.partner && inp.partner.zapnuto ? [inp.partner] : []).map((p, i) => {
     const nar = parseDate(p.narozen) || new Date(1990, 0, 1);
-    const duch = parseDate(p.duchod) || new Date(nar.getFullYear() + Math.floor(duchVek(nar.getFullYear())), nar.getMonth(), nar.getDate());
+    /* datum důchodu z IOLDP jen když dává smysl (50–75 let věku) – jinak (překlep, např. 1952 místo 2052) zákonný důchodový věk */
+    const dz = parseDate(p.duchod), dzOk = dz && dz.getFullYear() >= nar.getFullYear() + 50 && dz.getFullYear() <= nar.getFullYear() + 75;
+    if (dz && !dzOk) flags.push(`${p.jmeno || (i ? "Partner" : "Klient")}: datum důchodu ${dz.getDate()}. ${dz.getMonth() + 1}. ${dz.getFullYear()} nedává smysl (překlep?) — počítám se zákonným důchodovým věkem.`);
+    const duch = dzOk ? dz : new Date(nar.getFullYear(), nar.getMonth() + Math.round(duchVek(nar.getFullYear()) * 12), nar.getDate());
     return { i, role: i ? "partner" : "klient", jmeno: p.jmeno || (i ? "Partner" : "Klient"), titul: p.titul || "", nar, duch, vek: yearsBetween(nar, today),
       zam: n0(p.zam), podnik: n0(p.podnik), pasiv: n0(p.pasiv), pronajem: n0(p.pronajem), bonus: n0(p.bonus),
       vydaje: spolVyd ? 0 : n0(p.vydaje_osobni), vydDom: spolVyd ? 0 : vydDomOf(p), vydDomRaw: n0(p.vydaje_dom), inv1: n0(p.inv1), inv2: n0(p.inv2), inv3: n0(p.inv3), vdovsky: n0(p.vdovsky), sirotci: n0(p.sirotci),
@@ -923,9 +930,11 @@ function compute0(inp, today, ext) {
   });
   const RT = inp.renta || {};
   /* renta nevyplněna (nebo 0) → cílem je stejný příjem jako dnes: starobní důchod + renta = dnešní čistý příjem domácnosti (v dnešních cenách) */
-  const rentaAuto = n0(RT.mesicne) <= 0 && prijmy > 0;
-  const rentaMes = rentaAuto ? Math.round(prijmy / 100) * 100 : n0(RT.mesicne);
-  if (rentaAuto) flags.push(`Renta není zadána — počítám tak, aby příjem v důchodu (starobní důchod + renta) byl stejný jako dnes: ${Math.round(rentaMes)} Kč/měs.`);
+  /* renta nevyplněna → nahradit příjem z PRÁCE (pasivní příjmy a nájem běží i v důchodu, ty renta nahrazovat nemusí) */
+  const prijemPrace = persons.reduce((s, p) => s + p.zam + p.podnik + p.bonus / 12, 0);
+  const rentaAuto = n0(RT.mesicne) <= 0 && prijemPrace > 0;
+  const rentaMes = rentaAuto ? Math.round(prijemPrace / 100) * 100 : n0(RT.mesicne);
+  if (rentaAuto) flags.push(`Renta není zadána — počítám tak, aby příjem v důchodu (starobní důchod + renta) nahradil dnešní příjem z práce: ${Math.round(rentaMes)} Kč/měs${prijmy > prijemPrace ? " (pasivní příjmy a nájem běží dál)" : ""}.`);
   let renta = null;
   if (rentaMes > 0) {
     const odVeku = n0(RT.od_veku);
@@ -1184,6 +1193,11 @@ function compute0(inp, today, ext) {
        (jako u renty) a to až do 18 let (s VŠ 26) posledního dítěte — dávky ze státu se odečtou: sirotčí do 18 let dítěte (s VŠ do 26), vdovský, dokud je aspoň jedno dítě zaopatřené.
        Pak už nejsou na koho krýt výdaje, zůstanou jen úvěry. Děti už jsou starší a je partner = násobek (výchozí 3 roky) výdajů domácnosti minus vdovský důchod (vyplácí se 1 rok) + úvěry;
        bez závislých jen úvěry */
+    /* úvěry se při úmrtí splatí z pojistky (závazky) → jejich splátky už pozůstalí platit nebudou: z výdajů domácnosti pro krytí smrti se odečte podíl splátek
+       (jinak by se úvěr kryl dvakrát – jednou splátkami ve výdajích, podruhé zůstatkem) */
+    const splSum = uvery.reduce((a, u) => a + u.splatka, 0), domSum = persons.reduce((a, q) => a + q.vydDom, 0);
+    const splPodil = p.vydaje && domSum > 0 ? p.vydDom / domSum : podil;
+    const vydSmrt = Math.max(0, Math.round(vydDom - splSum * splPodil));
     const vdovMes = maPartnera ? p.vdovsky : 0;
     const pozustali = { vdovsky: vdovMes, sirotciNa1: p.sirotci, sirotci: p.sirotci * detiZav.length, deti: detiZav.length, vs: detiZav.filter(d => d.vs).length };
     let smrt3 = 0, smrtMet = zavazky > 0 ? "uvery" : "nic", smrtGap = 0, smrtRoky = 0, smrtFaze = [];
@@ -1195,7 +1209,7 @@ function compute0(inp, today, ext) {
       let pv = 0;
       for (let i = 0; i + 1 < body.length; i++) {
         const od = body[i], dop = body[i + 1], poberu = konecDavek.filter(m => m > od).length;
-        const vdov = poberu ? vdovMes : 0, sir = p.sirotci * poberu, gap = Math.max(0, vydDom - vdov - sir);
+        const vdov = poberu ? vdovMes : 0, sir = p.sirotci * poberu, gap = Math.max(0, vydSmrt - vdov - sir);
         pv += pvAnn(gap, (dop - od) / 12, S.renta_r) / Math.pow(1 + q, od);
         const last = smrtFaze[smrtFaze.length - 1];
         if (last && last.gap === gap && last.davky === vdov + sir) last.do = dop / 12;
@@ -1203,11 +1217,11 @@ function compute0(inp, today, ext) {
       }
       smrtRoky = N / 12; smrtGap = smrtFaze.length ? smrtFaze[0].gap : 0; smrt3 = ceil(pv, 100000); smrtMet = "deti";
     }
-    else if (maPartnera) { smrt3 = ceil(Math.max(0, S.smrt_nasobek * 12 * vydDom - 12 * pozustali.vdovsky), 100000); smrtGap = vydDom; smrtRoky = S.smrt_nasobek; smrtMet = "partner"; }
+    else if (maPartnera) { smrt3 = ceil(Math.max(0, S.smrt_nasobek * 12 * vydSmrt - 12 * pozustali.vdovsky), 100000); smrtGap = vydSmrt; smrtRoky = S.smrt_nasobek; smrtMet = "partner"; }
     return { osoba: p, vyd, vydFP, vydPN, invPlan, normal, scen, pnFaze, hruba: hrubaMes, roky, konec, doRenty,
       inv: invAll[2], invAll,
       pn: { min: pnTreba ? pnDef : 0, dop: pnTreba ? pnDop : 0, def: pnDef, denniMin: pnTreba ? ceil(Math.max(0, needMin12 - uspory) / 365, 100) : 0, min2: pnDef, denniDop: pnTreba ? ceil((need12 - uspory) / 365, 100) : 0, need12, uspory, treba: pnTreba },
-      smrt: { prijem3: smrt3, zavazky, pc: smrt3 + zavazky, zavisli, treba: smrt3 + zavazky > 0, pozustali, metoda: smrtMet, gap: smrtGap, roky: smrtRoky, faze: smrtFaze, vyd: vydDom, vydOs, vydCelkem: vyd },
+      smrt: { prijem3: smrt3, zavazky, pc: smrt3 + zavazky, zavisli, treba: smrt3 + zavazky > 0, pozustali, metoda: smrtMet, gap: smrtGap, roky: smrtRoky, faze: smrtFaze, vyd: vydSmrt, vydSplatky: Math.round(vydDom - vydSmrt), vydOs, vydCelkem: vyd },
       stav: p.zp };
   });
   if (!zavisli) flags.push(zavazky > 0 ? "Úmrtí: bez partnera a dětí — krytí jen na splacení úvěrů." : "Úmrtí: bez partnera, dětí a závazků — nejsou závazky pro zajištění.");
@@ -1532,7 +1546,8 @@ const PRODOPT=PRODSEL();
 function migCile(I){(I.cile||[]).forEach(c=>{if(!(+c.za_let>0)&&c.datum){const m=/^(\d{4})-(\d{1,2})/.exec(c.datum);if(m){const n=new Date(),mm=(+m[1]-n.getFullYear())*12+(+m[2]-1-n.getMonth());c.za_let=Math.max(0.5,Math.round(mm/6)/2)}}delete c.datum})}
 function migPoj(I){const P=I.pojisteni=I.pojisteni||{};if(!P.zivotni&&(P.stavajici!=null||P.navrh!=null)){P.zivotni={stav:P.stavajici,navrh:+P.navrh>0?P.navrh:""}}if(P.zivotni&&P.zivotni.navrh===0)P.zivotni.navrh="";if(P.nn_fit==null&&I.klient&&I.klient.nn_fit){P.nn_fit=I.klient.nn_fit;delete I.klient.nn_fit}}
 function prodSettings(){const P=(inp().nastaveni||{}).prod||{};
-  const ML=MARKET.models.map(m=>({k:m.id,n:"Conseq model – "+m.name,vynos:m.cagr!=null?Math.round(m.cagr*1000)/1000:0.07,vstup:0.03,sprava:0,model:1,cagr:m.cagr}));
+  const ML=MARKET.models.map(m=>{const t=((inp().nastaveni||{}).modelTrida||{})[m.id]||(/akci|dynam|rust/i.test(m.name)?"akcie":/dluhop|konzerv|obligac/i.test(m.name)?"dluhopisy":"mix"),A=FPE.PRODUKTY.find(x=>x.k==="cq_akc").vynos,D=FPE.PRODUKTY.find(x=>x.k==="cq_dluh").vynos;
+    return {k:m.id,n:"Conseq model – "+m.name,vynos:t==="akcie"?A:t==="dluhopisy"?D:Math.round((A+D)/2*1000)/1000,vstup:0.03,sprava:0,model:1,cagr:m.cagr}});
   const GRP={};FPE.PRODUKTY.concat(ML).forEach(p=>{(GRP[p.model?"Conseq – modelová portfolia":p.g||"Ostatní"]=GRP[p.model?"Conseq – modelová portfolia":p.g||"Ostatní"]||[]).push(p)});
   const rowH=p=>`<div class="row" style="grid-template-columns:1fr 1fr 1fr"><div style="grid-column:1/-1;font-weight:700;font-size:13px">${esc(p.n)}${p.nofee?' <span class="hint">· vždy bez poplatků</span>':""}${p.prir?' <span class="hint">· přirážka z čisté investice</span>':""}${p.model?` <span class="hint">· historicky ${p.cagr!=null?pct(p.cagr):"–"} p.a.</span>`:""}</div>${p.model?`<div style="grid-column:1/-1">${sel("Třída",`nastaveni.modelTrida.${p.k}`,[["","automaticky podle názvu"],["akcie","akciové"],["dluhopisy","dluhopisové"],["mix","smíšené 50/50"]])}</div>`:""}
    ${pfld("Výnos p.a. %",`nastaveni.prod.${p.k}.vynos`,p.vynos)}${p.auv?`<label class="f">Vstupní<input disabled value="tarif níže"></label>`:pfld("Vstupní %",`nastaveni.prod.${p.k}.vstup`,p.vstup,p.nofee?"disabled":"")}${pfld("Správa p.a. %",`nastaveni.prod.${p.k}.sprava`,p.sprava,p.nofee?"disabled":"")}</div>`;
@@ -1555,6 +1570,7 @@ function zpPerson(p,nm){return `<div class="hint" style="margin-top:8px"><b>${es
 function missing(I,R){const M=[],add=(st,p,t)=>M.push({st,p,t}),noIns=!!((I.nastaveni||{}).bez_pojisteni);const ppl=[["klient",I.klient||{}]].concat(I.partner&&I.partner.zapnuto?[["partner",I.partner]]:[]);
   ppl.forEach(([k,p])=>{const n=(p.jmeno||(k==="klient"?"Klient":"Partner")).split(" ")[0];
     if(!p.jmeno)add(0,k+".jmeno","Jméno");if(!p.narozen)add(0,k+".narozen",n+": datum narození");
+    {const d=FPE.parseDate(p.duchod),b=FPE.parseDate(p.narozen);if(d&&b&&(d.getFullYear()<b.getFullYear()+50||d.getFullYear()>b.getFullYear()+75))add(0,k+".duchod",n+": datum důchodu z IOLDP nesedí (překlep?) – počítám zákonný věk")}
     if(!(+p.zam||+p.podnik||+p.pasiv))add(0,k+".zam",n+": příjem");
     ["inv1","inv2","inv3"].forEach((x,i)=>{if(!noIns&&!+p[x])add(0,k+"."+x,n+`: invalidní důchod ${["I.","II.","III."][i]} st. (IOLDP)`)});
     if(R&&R.renta&&!+p.starobni)add(0,k+".starobni",n+": odhad starobního důchodu (IOLDP)");
@@ -1760,7 +1776,7 @@ const DIPB=()=>{const r=R.renta,d=R.dip||0;return [`Vklad ${kcm(d)} → daňová
 const rentaDos=r=>r.kraceno?Math.min(1,r.splneni):1;
 const rentaTxt=r=>r.faze.map(f0=>{const f=Object.assign({},f0,{mes:r.dosOn?Math.floor(f0.mes*rentaDos(r)/100)*100:f0.mes});return f.typ==="plna"?`${Math.round(f.vekOd)}–${Math.round(f.vekDo)} let ${fmt(f.mes)}`:`${Math.round(f.vekOd)}–${Math.round(f.vekDo)} let dorovnání ${fmt(f.mes)}`}).join(" · ")+" Kč/měs";
 const letTxt=y=>{if(y<1)return Math.max(1,Math.round(y*12))+" měs.";const n=Math.round(y);return n===1?"1 rok":n>=2&&n<=4?n+" roky":n+" let"};
-const smrtTxt=(k,S)=>k.smrt.metoda==="deti"?(k.smrt.faze.length>1?`výdaje domácnosti ${kc(k.smrt.vyd)}/měs − dávky ze státu po fázích`:(k.smrt.faze[0]&&k.smrt.faze[0].davky?`výdaje domácnosti ${kc(k.smrt.vyd)} − dávky ${kc(k.smrt.faze[0].davky)} = ${kc(k.smrt.gap)}/měs`:`výdaje domácnosti ${kc(k.smrt.gap)}/měs`)+` na ${letTxt(k.smrt.roky)}`)+(k.smrt.pozustali.vs?(k.smrt.pozustali.vs===k.smrt.pozustali.deti?" (do 26 let dítěte – VŠ)":" (do 18 let dítěte, s VŠ do 26)"):" (do 18 let dítěte)"):k.smrt.metoda==="partner"?`výdaje domácnosti ${kc(k.smrt.vyd)}/měs na ${letTxt(S.smrt_nasobek)} − vdovský na 1 rok`:"zůstatek úvěrů";
+const smrtTxt=(k,S)=>k.smrt.metoda==="deti"?(k.smrt.faze.length>1?`výdaje domácnosti${k.smrt.vydSplatky?" bez splátek":""} ${kc(k.smrt.vyd)}/měs − dávky ze státu po fázích`:(k.smrt.faze[0]&&k.smrt.faze[0].davky?`výdaje domácnosti${k.smrt.vydSplatky?" bez splátek":""} ${kc(k.smrt.vyd)} − dávky ${kc(k.smrt.faze[0].davky)} = ${kc(k.smrt.gap)}/měs`:`výdaje domácnosti ${kc(k.smrt.gap)}/měs`)+` na ${letTxt(k.smrt.roky)}`)+(k.smrt.pozustali.vs?(k.smrt.pozustali.vs===k.smrt.pozustali.deti?" (do 26 let dítěte – VŠ)":" (do 18 let dítěte, s VŠ do 26)"):" (do 18 let dítěte)"):k.smrt.metoda==="partner"?`výdaje domácnosti${k.smrt.vydSplatky?" bez splátek":""} ${kc(k.smrt.vyd)}/měs na ${letTxt(S.smrt_nasobek)} − vdovský na 1 rok`:"zůstatek úvěrů";
 const smrtStat=k=>{const pz=k.smrt.pozustali;
   if(k.smrt.metoda==="deti"){const L=[];if(k.smrt.vydOs>0)L.push(`Osobní výdaje ${kc(k.smrt.vydOs)}/měs zemřelého odpadají, domácnost zůstává`);if(pz.vdovsky||pz.sirotciNa1){L.push(`Stát: ${[pz.vdovsky?`vdovský ${kc(pz.vdovsky)}`:"",pz.sirotciNa1?`sirotčí ${kc(pz.sirotciNa1)} na dítě`:""].filter(Boolean).join(" + ")}`);
     L.push(!pz.vs?"Dávky platí jen do 18 let dítěte":pz.vs===pz.deti?"Dávky platí do 26 let dítěte (VŠ)":"Dávky: do 18 let dítěte, u dětí na VŠ do 26")}return L}
@@ -1803,6 +1819,8 @@ function hypoBank(I,v){if(!window.Uvery||!(v.uver>0))return null;const key=JSON.
   }catch(e){console.warn("hypo banka",e);HYB[key]=null}
   return HYB[key]}
 /* jedna varianta financování (mode = akontace | zastava) */
+/* plán počítá s výdaji po koupi nemovitosti (plánovaná hypotéka promítnutá do plánu) */
+const hypoPo=I=>{const H=hypoOf(I);return !!(H&&H.promitnout)};
 const hypoUverIdx=I=>(I.uvery||[]).findIndex(u=>/Hypot|stavebního spoření/i.test(u.typ||"")&&(+u.zustatek>0||+u.splatka>0));
 function nahrOf(I,h,prodej){const v=h.nahrazuje;if(v==="-1")return null;if(v!==""&&v!=null)return +v;if(prodej){const i=hypoUverIdx(I);return i>=0?i:null}return null}
 function hypoVar(I,h,mode){const cena=+h.cena||0,za=Math.max(0,+h.za_let||0),nf=I.nefin||[];
@@ -1888,6 +1906,7 @@ function hypoFrames(I,R){const H0=hypoOf(I);if(!H0)return [];
      <div class="k" data-k="hvt" style="position:absolute;left:${780+X(st?vydPo:vyd0)+12}px;top:383px;font-size:18px;font-weight:700">${kc(st?vydPo:vyd0)}</div>
      <div class="k" data-k="hw" style="position:absolute;left:780px;top:446px;width:700px;height:${wf.length*33}px;font-size:18px;opacity:${st?1:0}">${wf.map(([l,v,c],j)=>`<div style="position:absolute;left:0;top:${j*33}px;width:470px;${j===wf.length-1?"font-weight:900;color:#efefef":"color:#b4b4b4"}">${l}</div><div class="${c||""}" style="position:absolute;right:0;top:${j*33}px;width:230px;text-align:right;${j===wf.length-1?"font-weight:900":""}">${v}</div>`).join("")}<div style="position:absolute;left:0;top:${(wf.length-1)*33-4}px;width:700px;height:1px;background:#444"></div></div>
      <div style="position:absolute;left:780px;top:${Math.max(660,446+wf.length*33+20)}px;font-size:19px;color:#b4b4b4">Volné cash flow</div>
+     ${st&&R&&R.hypoKO?`<div style="position:absolute;left:780px;top:${Math.max(720,446+wf.length*33+78)}px;width:700px;font-size:16px;line-height:1.4;color:#DF6A6A;font-weight:700">Po zaplacení pojištění chybí ${kcm(R.hypoKO.chybi)}. Aby plán vyšel: splátka nejvýš ${kcm(R.hypoKO.maxPmt)} → cena do ≈ ${mil(R.hypoKO.cenaMax)}.</div>`:""}
      <div class="k" data-k="hcf" style="position:absolute;left:1080px;top:${Math.max(650,446+wf.length*33+10)}px;width:400px;text-align:right;font-size:40px;font-weight:900;color:${cf<0?"#DF6A6A":"#efefef"}">${cf<0?"−":""}${kcm(Math.abs(cf))}</div>`;
     const bon=`<div style="position:absolute;left:80px;top:822px;width:1440px;font-size:17px;color:#b4b4b4">Splátky / čistý příjem (DSTI): <b class="${okD?"grn":"red"}">${pc0(dsti)}</b> <span class="mut">(doporučení ČNB do 40 %)</span>&nbsp;&nbsp;·&nbsp;&nbsp;Potřebný čistý příjem pro banku: <b style="color:#efefef">${kcm(need)}</b>${P?` <span class="${P>=need?"grn":"red"}">${P>=need?"✓ splňujete":"✗ chybí "+kc(need-P)}</span>`:""}</div>
      <div class="foot" style="bottom:12px">${esc([H.zdroj?"Sazba: "+H.zdroj+" – průměrná nabídková sazba, ne nabídka konkrétní banky":H.bank&&H.bank.name?"Sazba: orientačně nejlepší nabídka ("+H.bank.name+") pro dané LTV a fixaci, závazná je nabídka banky":"",H0.splaceno?`Prodej ${kc(H0.prodejHod)} − doplacení hypotéky ${kc(H0.splaceno)} = ${kc(H0.prodejNet)} na koupi`+(H0.dluhNad?` (chybějících ${kc(H0.dluhNad)} z úspor)`:""):"",H.promitnout?"Finanční plán už počítá s výdaji po koupi"+(H.own>0?" a vlastní zdroje jsou jedním z cílů":""):""].filter(Boolean).join(" · "))}</div>`;
@@ -2133,7 +2152,7 @@ function buildFrames(I,R){
       if(death)gap=k.smrt.zavisli?`<span class="mut">${smrtTxt(k,R.S)}<br>${kc(k.smrt.prijem3)}  +  závazky ${kc(k.smrt.zavazky)}</span>`:k.smrt.treba?`<span class="mut">Nikdo nezávisí na příjmu — krytí jen na úvěry ${kc(k.smrt.zavazky)}</span>`:`<span class="mut">Bez partnera, dětí a závazků</span>`;
       else gap=(kind!=="normal"?`<span class="mut">−${kc(k.normal-tot)} proti dnešku&nbsp;&nbsp; </span>`:"")+(roz<0?`<b class="red">výdaje ${kc(vyd)} → chybí ${kcm(-roz)}</b>`:`<b class="grn">výdaje ${kc(vyd)} → zbývá ${kcm(roz)}</b>`)+(kind!=="normal"&&tot<k.vydFP?`<br><span style="color:#F37520">s finančním plánem ${kc(k.vydFP)} → chybí ${kcm(k.vydFP-tot)}</span>`:"");
       let det;
-      if(kind==="normal")det=[`Čistý příjem: ${kcm(k.normal)}`,`Výdaje: ${kcm(vyd)}`+(k.smrt.vydOs>0?` (domácnost ${kc(k.smrt.vyd)} + osobní ${kc(k.smrt.vydOs)})`:""),"Co když tento příjem vypadne? →"];
+      if(kind==="normal")det=[`Čistý příjem: ${kcm(k.normal)}`,`Výdaje: ${kcm(vyd)}`+(k.smrt.vydOs>0?` (domácnost ${kc(k.smrt.vyd+(k.smrt.vydSplatky||0))} + osobní ${kc(k.smrt.vydOs)})`:"")+(hypoPo(I)?" – po koupi nemovitosti":""),"Co když tento příjem vypadne? →"];
       else if(kind==="inv")det=[`Invalidní důchod III. st. (IOLDP): ${kcm(s.inv)}`,`Min. do výdajů ${kcm(k.inv.min)}, doporučeno do výdajů s plánem ${kcm(k.inv.dop)}`,`na ${Math.round(k.roky)} let (${k.doRenty?"do začátku renty":"do starobního důchodu"}) → ${kc(k.inv.pcMin)} / ${kc(k.inv.pcDop)}`];
       else if(death){det=k.smrt.zavisli?(k.smrt.metoda==="deti"?["Rodina dostane částku, která pokryje výdaje domácnosti (bez finančního plánu)",`${letTxt(k.smrt.roky)}, dokud dětem nebude 18 (s VŠ 26), a splatí úvěry`]:["Partner dostane částku na přechodné období",`výdaje domácnosti na ${letTxt(R.S.smrt_nasobek)} a splacení všech úvěrů`]).concat(smrtStat(k))
         :k.smrt.treba?["Na příjmu nikdo nezávisí","Pojistit jen zůstatek úvěrů, aby nepřešly na dědice"]:["Na příjmu nikdo nezávisí a nejsou žádné úvěry","→ nejsou závazky pro zajištění"]}
@@ -2204,7 +2223,7 @@ function buildFrames(I,R){
        {nm:"Invalidita III. stupně",col:C.inv,st:k.inv.duch,ins:Math.round(k.inv.dop/100)*100,stN:"invalidní důchod",sub:`na ${Math.round(k.roky)} let · pojistná částka ${mil(k.inv.pcDop)}`,tot:r=>`dohromady ${kc(r.st+r.ins)}`,noIns:"stát na výdaje stačí"},
        {nm:"Úmrtí",col:C.smrt,st:dav,ins:k.smrt.zavisli?Math.max(0,k.smrt.vyd-dav):0,stN:dm?"sirotčí + vdovský":"vdovský (jen 1 rok)",
         sub:k.smrt.zavisli?`jednorázově ${kc(k.smrt.pc)} · ${dm?(k.smrt.pozustali.vs>0?"do 18 let dítěte (s VŠ 26)":"do 18 let dítěte"):"výdaje na "+letTxt(R.S.smrt_nasobek)}${k.smrt.zavazky>0?" + úvěry":""}`:(k.smrt.treba?`jednorázově ${kc(k.smrt.pc)} (úvěry)`:"není koho zajistit"),
-        tot:()=>`pokryje výdaje domácnosti ${kc(k.smrt.vyd)}`,noIns:"stát pokryje výdaje",
+        tot:()=>`pokryje výdaje domácnosti${k.smrt.vydSplatky?" bez splátek (úvěry splatí pojistka)":""} ${kc(k.smrt.vyd)}`,noIns:"stát pokryje výdaje",
         special:k.smrt.zavisli?"":(k.smrt.treba?`Na příjmu nikdo nezávisí → stát nevyplatí nic, pojistka jen splatí úvěry (${kc(k.smrt.pc)})`:"Na příjmu nikdo nezávisí a nejsou úvěry → není koho zajistit")},
        {nm:"Dlouhodobá nemoc",col:C.pn,st:k.scen.pn.nemocenska,ins:insPN,stN:p.zam>0?"nemocenská od 61. dne":"OSVČ bez nemocenského",sub:k.pn.treba?`pojistka ${fmt(k.pn.denniDop)} Kč/den`:`rezerva ${kc(k.pn.uspory)} pokryje rok nemoci`,tot:r=>`dohromady ${kc(r.st+r.ins)}`,noIns:"dorovná rezerva – pojistka není nutná"}];
       const X0=420,W=1060,sc=Math.max(base,...ROW.map(r=>r.st+r.ins))*1.03||1,X=v=>X0+W*v/sc,Y0=i=>368+i*144;
@@ -2542,7 +2561,7 @@ function splitPlan(I,who,Rh){const J=JSON.parse(JSON.stringify(I)),me=who==="par
 /* slidy: společné (úvod, hodnoty, alokace, hypotéka, pojištění, strategie, závěr) + pro každého jeho finanční plán */
 const OS_G=/^(p|p2|st|tx|to|r2|pf|tl|gr|cft|z)$/;
 let RP=null;   /* [{who, jmeno, I, R}] při oddělených financích */
-function computeOdd(I0,raw){const Rh=computeR(I0);R=Rh;const Fh=buildFrames(raw,Rh);
+function computeOdd(I0,raw){const Rh=computeR(I0);R=Rh;hypoCheck(Rh,inp());const Fh=buildFrames(raw,Rh);
   /* pomocné funkce slidů čtou globální R → při stavbě slidů osoby je R = její plán */
   RP=["klient","partner"].map((w,i)=>{const J=splitPlan(I0,w,Rh),Rp=computeR(J);R=Rp;const nm=((w==="partner"?I0.partner:I0.klient)||{}).jmeno||(i?"Partner":"Klient");
     Rp.flags=Rp.flags.filter(f=>!/^NN:|PN není nutné|^Úmrtí:|krytí smrti/.test(f)).map(f=>nm.split(" ")[0]+": "+f);
@@ -2555,14 +2574,20 @@ function computeOdd(I0,raw){const Rh=computeR(I0);R=Rh;const Fh=buildFrames(raw,
     ...RP.flatMap((o,i)=>o.F.filter(f=>/^(p2|st|tx|to|r2|pf|tl|gr|cft)$/.test(f.g)).map(f=>tag(f,o,i))),...sh(/^s$/),...per(/^z$/),...sh(/^e$/)];
   Rh.flags=Rh.flags.filter(f=>/^NN:|PN není nutné|^Úmrtí:|krytí smrti|pojistné|⚠/.test(f)).concat(RP.flatMap(o=>o.R.flags));
   Rh.odd=RP;return {R:Rh,F}}
+/* koupě bydlení se do rozpočtu nevejde (po koupi výdaje + pojištění > příjmy) → výrazné varování a kolik si klient může dovolit */
+function hypoCheck(R,I){const H=hypoOf(I);R.hypoKO=null;if(!H||!H.promitnout||!R)return;
+  const vol=Math.round(R.prijmy-R.vydCelkem-(R.pojNove||0)-(R.prispVlastni||0));if(vol>=0)return;
+  const maxPmt=Math.max(0,H.pmt+vol),i=H.sazba/1200,n=H.n||Math.round(H.let*12),loan=maxPmt>0&&n>0?(i?maxPmt*(1-Math.pow(1+i,-n))/i:maxPmt*n):0,cenaMax=Math.floor((loan+Math.max(0,H.cena-H.uver))/100000)*100000;
+  R.hypoKO={chybi:-vol,maxPmt:Math.floor(maxPmt/100)*100,cenaMax};
+  R.flags.unshift(`⚠ BYDLENÍ SE NEVEJDE DO ROZPOČTU: po koupi za ${kc(H.cena)} budou výdaje a pojištění vyšší než příjmy – chybí ${kcm(-vol)} a na spoření nezbude nic. Aby to vyšlo, musela by splátka být nejvýš ${kcm(R.hypoKO.maxPmt)} → cena do ≈ ${kc(cenaMax)} (při stejných vlastních zdrojích), nebo snížit výdaje / prodat další majetek.`)}
 function compute(){try{RP=null;
   if(oddFin(inp())){const noIns=!!((inp().nastaveni||{}).bez_pojisteni),I0=Object.assign({},withHypo(inp()),noIns?{bez_zp:true}:{});let o=computeOdd(I0,noIns?I0:inp());R=o.R;FR=o.F;markSkip(FR);
     if(!noIns&&zpVynechano()){const I2=Object.assign({},withHypo(inp()),{bez_zp:true});o=computeOdd(I2,I2);R=o.R;FR=o.F;markSkip(FR)}return}
   /* nastavení „Neřešit pojištění“: plán bez životka, žádné slidy s pojištěním ani zmínky v realizaci (kopie vstupů – do plánu klienta se nic nezapisuje) */
   if((inp().nastaveni||{}).bez_pojisteni){const I2=Object.assign({},withHypo(inp()),{bez_zp:true});R=computeR(I2);FR=buildFrames(I2,R);markSkip(FR);return}
-  R=computeR(withHypo(inp()));FR=buildFrames(inp(),R);markSkip(FR);
+  R=computeR(withHypo(inp()));hypoCheck(R,inp());FR=buildFrames(inp(),R);markSkip(FR);
   /* všechny slidy životního pojištění vynechané → přepočítat plán bez životka (slidy ŽP zůstanou ve výčtu, jen přeskočené) */
-  if(zpVynechano()){const I2=withHypo(inp());I2.bez_zp=true;R=computeR(I2);FR=buildFrames(I2,R);markSkip(FR)}}catch(e){console.error(e);FR=[{g:"err",h:`<div style="padding:60px;font-size:28px;color:#DF6A6A">Chyba ve vstupech: ${esc(e.message)}</div>`,lbl:"Chyba"}]}}
+  if(zpVynechano()){const I2=withHypo(inp());I2.bez_zp=true;R=computeR(I2);hypoCheck(R,inp());FR=buildFrames(I2,R);markSkip(FR)}}catch(e){console.error(e);FR=[{g:"err",h:`<div style="padding:60px;font-size:28px;color:#DF6A6A">Chyba ve vstupech: ${esc(e.message)}</div>`,lbl:"Chyba"}]}}
 function scaleStage(boxEl,stageEl){const w=boxEl.clientWidth;stageEl.style.transform=`scale(${w/1600})`}
 function show(stageEl,i,animate){
   const f=FR[i];if(!f)return;
