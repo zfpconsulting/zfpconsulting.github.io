@@ -1198,11 +1198,28 @@ function compute0(inp, today, ext) {
   const mEnd = Math.max(12, renta ? renta.months : 0, ...cile.map(c => c.months));
   const vyvoj = []; for (let m = 0; m <= mEnd; m++) vyvoj.push(Math.max(0, hodnota(m) + (renta ? dpsAt(Math.min(m, renta.months)) : dpsAt(m))));
   udalosti.forEach(u => { u.v = vyvoj[Math.min(mEnd, Math.max(0, u.m))]; u.vPred = u.m > 0 ? vyvoj[Math.min(mEnd, u.m - 1)] : u.v; if (u.typ !== "start") u.hodnota = u.v; }); /* časová osa = stejná čísla jako graf majetku */
+  /* ČERPÁNÍ RENTY (jen pro graf vývoje majetku): od startu renty se kapitál měsíčně zhodnocuje reálným výnosem při čerpání a vybírá se renta
+     po fázích (do důchodu celá, potom dorovnání ke státnímu důchodu; při krácení dosažitelná část) → klasická prohnutá křivka až do konce renty */
+  let rentaKonec = null;
+  if (renta && renta.faze && renta.faze.length) {
+    const rm = renta.months, kapAt = m => growFv(keepGrow, rm) + fvOf(renta.vklad, renta.pmt, renta.r, rm, renta.fee) + fvInh(renta.inh, renta, rm) + dpsAt(rm);
+    const ostatni = m => Math.max(0, hodnota(m) - growFv(keepGrow, rm) - fvOf(renta.vklad, renta.pmt, renta.r, rm, renta.fee) - fvInh(renta.inh, renta, rm));
+    const kf = renta.kraceno ? Math.min(1, renta.splneni) : 1, mrR = mr(S.renta_r);
+    const fz = renta.faze.map(f => ({ m: monthsBetween(T0, f.od), mes: f.mes * kf }));
+    const mKonec = rm + Math.max(1, Math.round((S.doziti - renta.vekStart) * 12));
+    let B = kapAt(rm), mm = rm;
+    for (let m = rm + 1; m <= mKonec + 1 && B > 0.5; m++) {
+      const f = fz.filter(x => x.m <= m - 1).pop() || fz[0];
+      B = Math.max(0, B * (1 + mrR) - f.mes); mm = m;
+      vyvoj[m] = ostatni(m) + B;
+    }
+    rentaKonec = { typ: "konecRenty", titul: "Konec renty", m: mm, datum: new Date(T0.getFullYear(), T0.getMonth() + mm, 1), v: vyvoj[mm], vPred: vyvoj[mm] };
+  }
   return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { cil: rezCil, vklad: rezVklad, chybi: rezChybi, pravidlo: rezPravidlo },
     maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
     cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, dpsPrisp, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
-    portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, toky, vyvoj, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
+    portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, rentaKonec, toky, vyvoj, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
 }
 return { dpsStatni, NN_T, NN_DEF, NN_SLEVA, nnSazba, nnOcen, nnHlavniIdx, zena, pojPoOsobach, nnRizikaOsoby, nnRizikaDitete, POJ_TYPY, PP, DPS, compute, alok, bezHot, motivace, nemocenska, grossFromNet, pvAnn, pct100, DEFAULT_SET, PRODUKTY, AUV_TARIF, DETI_POJ, CASH, MOVE, MES, MES2 };
 });
@@ -2242,6 +2259,7 @@ function buildFrames(I,R){
   });
   // vývoj majetku – křivka v čase; „kamera“ odkrývá graf bod po bodu, u cíle majetek viditelně spadne o vybranou částku
   if(R.vyvoj&&R.vyvoj.length>12){
+    const U=R.udalosti.concat(R.rentaKonec?[R.rentaKonec]:[]); /* v grafu majetku navíc „Konec renty“ — kapitál se dočerpá */
     const V=R.vyvoj,MX=V.length-1,vmax=Math.max(...V)*1.12||1,X0=150,X1=1470,Y0=250,Y1=760,W=X1-X0,H=Y1-Y0;
     const gx=m=>X0+W*m/MX,gy=v=>Y1-H*v/vmax;
     const step=Math.max(1,Math.floor(MX/400)),pts=[];for(let m=0;m<=MX;m+=step)pts.push([m,V[m]]);if(pts[pts.length-1][0]!==MX)pts.push([MX,V[MX]]);
@@ -2269,8 +2287,8 @@ function buildFrames(I,R){
        <div class="card k" data-k="gcard" style="left:${X0+20}px;top:180px;width:470px;height:120px;border-top:4px solid #F37520;z-index:6"></div>
        <div class="k" data-k="gct" style="position:absolute;left:${X0+44}px;top:198px;width:430px;z-index:7"><span class="pill" style="background:#F37520">${(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase()}</span>
          <div style="font-size:22px;font-weight:900;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.titul)}${isCil?` <span style="color:#DF6A6A;font-size:18px">−${kc(u.cil.kraceno?u.cil.dosazitelne:u.cil.castka)}</span>`:""}</div>
-         <div class="mut" style="font-size:15px;margin-top:2px">${u.typ==="start"?"Začínáme – majetek po realokaci":isCil?`Výběr z investic na cíl · zbývá ${kc(Math.round(u.v/1000)*1000)}`:u.typ==="renta"?"Kapitál na rentu je připravený":u.typ==="refix"?"Splátka beze změny":u.typ==="splaceno"?"Úvěr splacen":""}</div></div>
-       <div class="foot">Reálné hodnoty (po inflaci). Hodnota zahrnuje rezervu (mimo kapitál na rentu), investice na cíle, rentu, DPS a ponechané produkty; po výběru na cíl hodnota klesne o vybranou částku.</div>`;
+         <div class="mut" style="font-size:15px;margin-top:2px">${u.typ==="start"?"Začínáme – majetek po realokaci":isCil?`Výběr z investic na cíl · zbývá ${kc(Math.round(u.v/1000)*1000)}`:u.typ==="renta"?"Kapitál na rentu je připravený – odsud se renta vyplácí":u.typ==="konecRenty"?`Renta vyplacena až do ${R.S.doziti} let – kapitál je dočerpaný`:u.typ==="refix"?"Splátka beze změny":u.typ==="splaceno"?"Úvěr splacen":""}</div></div>
+       <div class="foot">Reálné hodnoty (po inflaci). Hodnota zahrnuje rezervu (mimo kapitál na rentu), investice na cíle, rentu, DPS a ponechané produkty; po výběru na cíl hodnota klesne o vybranou částku.${R.rentaKonec?` Od startu renty se kapitál postupně čerpá (reálný výnos při čerpání ${(R.S.renta_r*100).toFixed(1).replace(".",",")} %).`:""}</div>`;
       F.push({g:"gr",h,lbl:"Majetek: "+u.titul});
     });
   }
