@@ -931,6 +931,23 @@ tests["dotazník: starší rozpracovaný koncept se načte celý (povolání, sp
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["příspěvek zaměstnavatele (DPS, PP, DIP, ŽP): jde do produktu a do renty, z cash flow se neplatí; vlastní vklad do DPS/DIP z cash flow ano; nový produkt s hodnotou 0"] = async function () {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(() => { const base = { klient: { jmeno: "Jan Novák", narozen: "1985-01-01", zam: 50000, vydaje_osobni: 30000, inv1: 8000, inv2: 12000, inv3: 20000, starobni: 18000, bez_partnera: true, hruba: 70000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], cile: [], renta: { mesicne: 30000, od_veku: "" } };
+    const run = m => FPE.compute(Object.assign({}, base, { majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }].concat(m) }), new Date());
+    const dps = { typ: "Doplňkové penzijní spoření (DPS)", nazev: "DPS", hodnota: 100000, vklad: 1000 };
+    const a = run([dps]), b = run([Object.assign({}, dps, { zam_prisp: 1500 })]), c = run([{ typ: "Dlouhodobý investiční produkt (DIP)", nazev: "DIP", hodnota: 0, vklad: 0, zam_prisp: 1000 }]), d = run([]);
+    return { own: [a.prispVlastni, b.prispVlastni, c.prispVlastni], zam: [a.zamPrisp, b.zamPrisp, c.zamPrisp], zb: [a, b, d].map(x => x.cf - x.cfZbyva - x.pmtCelkem - x.pojNove), fv: b.renta.dpsFv > a.renta.dpsFv, dip: c.renta.dpsFv > 0 && c.renta.pmt < d.renta.pmt }; });
+  eq(r.own, [1000, 1000, 0], "vlastní vklady do DPS / DIP");
+  eq(r.zam, [0, 1500, 1000], "příspěvek zaměstnavatele");
+  eq(r.zb, [1000, 1000, 0], "z cash flow jde jen vlastní vklad, příspěvek zaměstnavatele ne");
+  assert(r.fv && r.dip, "příspěvek zaměstnavatele zvyšuje majetek pro rentu, nový DIP s hodnotou 0 sníží potřebnou platbu na rentu");
+  const DZ = FP.replace("fp.html", "dotaznik.html"); await page.goto(DZ); await page.waitForSelector("section");
+  await page.click('[data-seg="kontakt.majetek_ma"][data-v="true"]'); await page.click('[data-add="majetek"]'); await page.selectOption('[data-p="majetek.0.typ"]', "Doplňkové penzijní spoření (DPS)");
+  assert(await page.locator('[data-p="majetek.0.zam_prisp"]').count() === 1, "dotazník: u DPS se ptá na příspěvek zaměstnavatele");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();

@@ -180,7 +180,7 @@ const set=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach((k,i)=>
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("on"),3200)}
 
 /* stejné číselníky jako v plánu (fp.html) */
-const TYPY=["Běžný účet","Spořicí účet","Termínovaný vklad","Stavební spoření","Penzijní připojištění (PP)","Doplňkové penzijní spoření (DPS)","Podílový fond (OPF)","ETF","Akcie / dluhopisy (přímé)","Životní pojištění (ŽP)","Jiné"];
+const TYPY=["Běžný účet","Spořicí účet","Termínovaný vklad","Stavební spoření","Penzijní připojištění (PP)","Doplňkové penzijní spoření (DPS)","Podílový fond (OPF)","ETF","Akcie / dluhopisy (přímé)","Životní pojištění (ŽP)","Dlouhodobý investiční produkt (DIP)","Jiné"];
 const NEFIN=["Nemovitost k bydlení","Investiční nemovitost","Pozemek","Rekreační objekt","Podíl ve firmě","Auto","Umění / sbírky","Jiné"];
 const UVERY=["Hypotéka","Úvěr ze stavebního spoření","Spotřebitelský úvěr","Leasing","Kreditní karta / kontokorent","Podnikatelský úvěr","Jiný"];
 const DOC=[["materska","Peněžitá pomoc v mateřství (mateřská)"],["rodicovska","Rodičovský příspěvek (rodičovská)"],["vyzivne","Výživné"],["jine","Jiný příjem, který skončí"]];
@@ -244,6 +244,7 @@ const ioldpBox=k=>{const f=FILES[k],m=(P.ioldp||{})[k];return `<div class="file$
 const digits=s=>String(s||"").replace(/\D/g,"");
 const PRACE=[["","Vyberte…"],["zam","Zaměstnanec"],["osvc","Podnikatel / OSVČ"],["zam_osvc","Zaměstnanec i podnikatel"],["student","Student"],["rodicovska","Na mateřské / rodičovské"],["bez","Bez práce"],["duchodce","V důchodu"]];
 const PO=k=>(k==="klient"?P.klient:P.partner)||{};
+const ZAMP_D=["Doplňkové penzijní spoření (DPS)","Penzijní připojištění (PP)","Dlouhodobý investiční produkt (DIP)","Životní pojištění (ŽP)"];
 const pracuje=k=>["zam","osvc","zam_osvc"].includes(PO(k).prace);
 const odd=()=>ma()&&P.fin&&P.fin.spolecne===false;           /* oddělené finance: každý má vlastní plán */
 const kdoSel=b=>odd()?sel("Čí je to?",b+".kdo",[["","Vyberte…"],["klient",pNm("klient")],["partner",pNm("partner")],["spolecne","Společné"]]):"";
@@ -271,8 +272,8 @@ let SEC=[
       if(h.inkaso_ted===""||h.inkaso_ted==null)M("hypo.inkaso_ted","Částka (může být i odhad)");if(h.stavajici==="najem"&&(h.odpadne===""||h.odpadne==null))M("hypo.odpadne","Nájem")}
     if(K().renta_ma==null)M("kontakt.renta_ma","Odpovězte prosím");if(yes("renta_ma")){if(!(+get(P,"renta.mesicne")>0))M("renta.mesicne","Měsíční částka");if(odd()&&!(+get(P,"renta2.mesicne")>0))M("renta2.mesicne","Měsíční částka")}}},
  {id:"majetek",t:"Úspory a investice",why:"Účty, spoření a investice. Z nich postavíme rezervu a zbytek pošleme do vašich cílů.",
-  h:()=>`<div class="g">${ask("Máte nějaké úspory, spoření nebo investice?","kontakt.majetek_ma")}</div>`+(yes("majetek_ma")?rows("majetek",{nazev:"",typ:"",hodnota:"",vklad:""},(r,i)=>r.typ||"Položka "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...TYPY])}${txt("Kde (banka / instituce)",b+".nazev",{ph:"Např. Moneta, Conseq…"})}${money("Aktuální hodnota",b+".hodnota",{u:"Kč"})}${money("Měsíčně si posílám",b+".vklad",{ph:"0"})}${kdoSel(b)}`):""),
-  miss:M=>{if(K().majetek_ma==null)M("kontakt.majetek_ma","Odpovězte prosím");if(yes("majetek_ma")){if(!(P.majetek||[]).length)M("majetek","Přidejte položku");(P.majetek||[]).forEach((a,i)=>{if(!a.typ)M(`majetek.${i}.typ`,"Vyberte typ");if(!(+a.hodnota>0))M(`majetek.${i}.hodnota`,"Hodnota")});kdoMiss(M,"majetek")}}},
+  h:()=>`<div class="g">${ask("Máte nějaké úspory, spoření nebo investice?","kontakt.majetek_ma")}</div>`+(yes("majetek_ma")?rows("majetek",{nazev:"",typ:"",hodnota:"",vklad:""},(r,i)=>r.typ||"Položka "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...TYPY])}${txt("Kde (banka / instituce)",b+".nazev",{ph:"Např. Moneta, Conseq…"})}${money("Aktuální hodnota",b+".hodnota",{u:"Kč"})}${money("Měsíčně si posílám",b+".vklad",{ph:"0"})}${ZAMP_D.includes(get(P,b+".typ"))?money("Kolik přispívá zaměstnavatel",b+".zam_prisp",{ph:"0",h:"pokud vám zaměstnavatel na tento produkt přispívá (nebo bude)"}):""}${kdoSel(b)}`)+`<p class="hint" style="margin-top:8px">Zaměstnavatel vám přispívá na penzijko, DIP nebo životní pojištění, které teprve založíte? Přidejte ho s hodnotou 0 a vyplňte příspěvek.</p>`:""),
+  miss:M=>{if(K().majetek_ma==null)M("kontakt.majetek_ma","Odpovězte prosím");if(yes("majetek_ma")){if(!(P.majetek||[]).length)M("majetek","Přidejte položku");(P.majetek||[]).forEach((a,i)=>{if(!a.typ)M(`majetek.${i}.typ`,"Vyberte typ");if(!(+a.hodnota>0)&&!(ZAMP_D.includes(a.typ)&&(+a.zam_prisp>0||+a.vklad>0)))M(`majetek.${i}.hodnota`,"Hodnota")});kdoMiss(M,"majetek")}}},
  {id:"nefin",t:"Nemovitosti a jiný majetek",why:"Byt, dům, chata, auto, podíl ve firmě. Do investic ho nepřesouváme, ukáže se v čistém jmění.",
   h:()=>`<div class="g">${ask("Vlastníte nemovitost, auto nebo jiný větší majetek?","kontakt.nefin_ma")}</div>`+(yes("nefin_ma")?rows("nefin",{nazev:"",typ:"",hodnota:""},(r,i)=>r.typ||"Majetek "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...NEFIN])}${txt("Popis",b+".nazev",{ph:"Byt 3+1 Brno"})}${money("Odhadovaná hodnota",b+".hodnota",{u:"Kč"})}${kdoSel(b)}`):""),
   miss:M=>{if(K().nefin_ma==null)M("kontakt.nefin_ma","Odpovězte prosím");if(yes("nefin_ma")){if(!(P.nefin||[]).length)M("nefin","Přidejte majetek");(P.nefin||[]).forEach((a,i)=>{if(!a.typ)M(`nefin.${i}.typ`,"Vyberte typ");if(!(+a.hodnota>0))M(`nefin.${i}.hodnota`,"Hodnota")});kdoMiss(M,"nefin")}}},
@@ -460,7 +461,7 @@ let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>{
   if(EMB)parent.postMessage({type:"dz:change",plan:P},location.origin);
   else if(!sent)try{localStorage.setItem(DRAFT,JSON.stringify({at:Date.now(),plan:P,rv:REV?REV.id:""}))}catch(e){}},EMB?250:400)}
-const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu|\w+\.prace|hypo\.stavajici)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|kontakt\.stav)$/.test(p)||(EMB&&/^\w+\.sporty\.\d+\.uroven$/.test(p));
+const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu|\w+\.prace|hypo\.stavajici)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|majetek\.\d+\.typ|kontakt\.stav)$/.test(p)||(EMB&&/^\w+\.sporty\.\d+\.uroven$/.test(p));
 function autoDo(p){const m=/^docasne\.(\d+)\.(typ|dite|castka)$/.exec(p);if(!m)return false;const r=P.docasne[+m[1]];if(r.typ!=="materska"&&r.typ!=="rodicovska")return false;const c=docasneDo(r);r.do=c?c.do:"";
   const h=document.querySelector(`[data-p="docasne.${m[1]}.do"]`),hint=h&&h.parentElement.querySelector(".hint");if(hint)hint.innerHTML=c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte";return true}
 document.addEventListener("input",e=>{const t=e.target;
