@@ -1876,7 +1876,11 @@ function buildFrames(I,R){
   PR.forEach((r,i)=>{if(i<nGoals&&r.pmt>0.5)TXP.push({i,k:"p",a:r.pmt})});
   /* po splnění cíle se jeho platba (část, kterou další cíl nepotřebuje, nebo celá) vrací zpět do volného cash flow — krok „uvolnění“;
      u renty (poslední cíl) se po jejím splnění vrací do cash flow celá platba */
-  const UL=[];R.cile.concat(R.renta?[R.renta]:[]).forEach(g=>{const back=g.pmt+g.inh-(g.flowTake||0);if(g.pmt>0.5&&back>0.5)UL.push({from:prIdx(g),a:back,let:g.months/12})});
+  /* PRAVIDLO: „za X let“ (přetáčení času, předání i uvolnění platby) jen když klient NEMÁ cash flow na všechny cíle zároveň a musí počkat,
+     až se splní jeden cíl, aby jeho platba přešla do dalšího (FL = kaskáda). Když cash flow stačí, každý cíl platí od začátku svou plnou platbu
+     a v prezentaci se žádné „za X let“ neukazuje. */
+  const KAS=FL.length>0;
+  const UL=[];if(KAS)R.cile.concat(R.renta?[R.renta]:[]).forEach(g=>{const back=g.pmt+g.inh-(g.flowTake||0);if(g.pmt>0.5&&back>0.5)UL.push({from:prIdx(g),a:back,let:g.months/12})});
   /* navazující platby a uvolnění jdou chronologicky (za 10 let → za 15 let → …), u stejného roku nejdřív předání dalšímu cíli, pak uvolnění */
   const HAND=FL.map(f=>({i:f.to,k:"f",a:f.a,from:f.from,let:f.let,uvol:f.uvol})).concat(UL.map(u=>({i:-1,k:"u",a:u.a,from:u.from,let:u.let})));
   HAND.sort((a,b)=>a.let-b.let||(a.k===b.k?0:a.k==="f"?-1:1));HAND.forEach(x=>TXP.push(x));
@@ -2213,7 +2217,7 @@ function buildFrames(I,R){
     let card={date:(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase(),za:step===0?"ihned":"za "+Math.round(u.m/12)+" let",title:u.titul,amount:"",sub:"",det:[]};
     if(u.typ==="start"){card.amount=kc(doPlanu)+" do plánu";card.sub="Podpis smluv a první kroky";card.det=[`Realokace majetku ${kc(doPlanu)}`,...(R.pojNove?[`Životní pojištění ${kcm(R.pojNove)}`]:[]),`Pravidelné investice ${kcm(R.pmtCelkem)}`]}
     else if(u.typ==="cil"){card.amount=kc(u.cil.kraceno?u.cil.dosazitelne:u.cil.castka);card.sub="Výběr z investic";card.det=[u.cil.kraceno?`Dosažitelná částka – cash flow nestačí na ${kc(u.cil.castka)}`:`Splnění cíle ${Math.round(u.cil.splneni*100)} %`,u.cil.vklad?`Jednorázově vloženo ${kc(u.cil.vklad)}`:"",
-      u.cil.flowTo&&u.cil.flowKc>0.5?(u.cil.flowUvol>0.5?(u.cil.flowKc-u.cil.flowUvol>0.5?`Do cíle <b>${esc(u.cil.flowTo)}</b> poteče ${kcm(u.cil.flowKc-u.cil.flowUvol)}, ${kcm(u.cil.flowUvol)} se uvolní`:`Platba ${kcm(u.cil.flowKc)} se uvolní — další cíl ji už nepotřebuje`)
+      u.cil.flowTo&&u.cil.flowKc>0.5?(u.cil.flowUvol>0.5?(u.cil.flowKc-u.cil.flowUvol>0.5?`Do cíle <b>${esc(u.cil.flowTo)}</b> poteče ${kcm(u.cil.flowKc-u.cil.flowUvol)}, ${kcm(u.cil.flowUvol)} se uvolní`:(u.cil.flowKc-u.cil.flowUvol>0.5||R.cile.concat(R.renta?[R.renta]:[]).some(g=>g.flowTake>0.5)?`Platba ${kcm(u.cil.flowKc)} se uvolní — další cíl ji už nepotřebuje`:`Platba ${kcm(u.cil.flowKc)} končí`))
         :`Platba ${kcm(u.cil.flowKc)} teď poteče do: <b>${esc(u.cil.flowTo)}</b>`):u.cil.pmt?`Pravidelně ${kcm(u.cil.pmt)}`:""].filter(Boolean)}
     else if(u.typ==="splaceno"){card.amount="−"+kcm(u.uver.splatka);card.sub="Úvěr splacen — uvolní se cash flow";card.det=[`Splátka ${kcm(u.uver.splatka)} skončí`,"Uvolněné peníze můžeme přidat do investic"]}
     else if(u.typ==="refix"){card.amount="beze změny splátky";card.sub="Konec fixace — nová sazba podle trhu";card.det=["Plán počítá se stejnou splátkou","Před refixací porovnáme nabídky bank"]}
