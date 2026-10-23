@@ -254,7 +254,8 @@ const PRACE=[["","Vyberte…"],["zam","Zaměstnanec"],["osvc","Podnikatel / OSV�
 const PO=k=>(k==="klient"?P.klient:P.partner)||{};
 const ZAMP_D=["Doplňkové penzijní spoření (DPS)","Penzijní připojištění (PP)","Dlouhodobý investiční produkt (DIP)","Životní pojištění (ŽP)"];
 const pracuje=k=>["zam","osvc","zam_osvc"].includes(PO(k).prace);
-const odd=()=>ma()&&P.fin&&P.fin.spolecne===false;           /* oddělené finance: každý má vlastní plán */
+const odd=()=>ma()&&P.fin&&P.fin.spolecne===false;
+const spolD=()=>ma()&&!odd();           /* oddělené finance: každý má vlastní plán */
 const kdoSel=b=>odd()?sel("Čí je to?",b+".kdo",[["","Vyberte…"],["klient",pNm("klient")],["partner",pNm("partner")],["spolecne","Společné"]]):"";
 const kdoMiss=(M,path)=>{if(odd())(P[path]||[]).forEach((r,i)=>{if(!r.kdo)M(`${path}.${i}.kdo`,"Čí je to?")})};
 /* riziková skupina NN – jen pro poradce (v plánu), klientovi se neukazuje */
@@ -306,9 +307,12 @@ let SEC=[
       if(o.sport_ma==null)M(k+".sport_ma","Odpovězte prosím");if(o.sport_ma===true){if(!(o.sporty||[]).length)M(k+".sporty","Přidejte sport");(o.sporty||[]).forEach((s,i)=>{if(!String(s.nazev||"").trim())M(`${k}.sporty.${i}.nazev`,"Sport");if(!s.uroven)M(`${k}.sporty.${i}.uroven`,"Vyberte")})}
       if(!FILES[k]&&!get(P,"ioldp."+k+".pozdeji")&&!EMB)M(k+".ioldp","Vložte IOLDP, nebo zaškrtněte, že ho pošlete později")})}},
  {id:"vydaje",t:"Výdaje",why:"Kolik měsíčně utratíte. Spoření, investice a pojistné sem nepatří – ty v plánu nastavíme znovu.",
-  h:()=>ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${vydaje(k)}</div>`).join("")+
+  /* společná domácnost páru: výdaje jedním číslem za oba; finance zvlášť nebo jen pro mě: za každého */
+  h:()=>(spolD()?`<div class="g">${money("Měsíční výdaje domácnosti celkem – za oba dohromady","vydaje.domacnost",{full:1,h:"bydlení, jídlo, doprava, děti, splátky, volný čas… <b>bez</b> spoření, investic a pojistného"})}</div>`
+    :ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${vydaje(k)}</div>`).join(""))+
    `<p class="hint" style="margin-top:12px">Nevíte přesně? Stačí odhad – průměr z výpisu za posledních pár měsíců.</p>`,
-  miss:M=>ppl().forEach(k=>{const o=PO(k);if(!(+o.vydaje_osobni>0))M(k+".vydaje_osobni","Výdaje celkem");if(o.vydaje_dom===""||o.vydaje_dom==null)M(k+".vydaje_dom","Kolik z toho jde na domácnost (může být i 0)")})},
+  miss:M=>{if(spolD()){if(!(+get(P,"vydaje.domacnost")>0)&&!(EMB&&ppl().every(k=>+PO(k).vydaje_osobni>0)))M("vydaje.domacnost","Výdaje domácnosti");return}
+    ppl().forEach(k=>{const o=PO(k);if(!(+o.vydaje_osobni>0))M(k+".vydaje_osobni","Výdaje celkem");if(o.vydaje_dom===""||o.vydaje_dom==null)M(k+".vydaje_dom","Kolik z toho jde na domácnost (může být i 0)")})}},
  {id:"prijmy",t:"Příjmy",why:"Pravidelné měsíční příjmy po zdanění, za každého zvlášť – při výpadku příjmu jde vždy o konkrétního člověka.",
   h:()=>ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${prijmy(k)}</div>${chk("Teď nemám žádný příjem",k+".bez_prijmu")}${em(k+".prijem")}`).join("")+
    `<h3>Dočasné příjmy</h3><div class="g">${ask("Máte příjem, který brzy skončí? (mateřská, rodičovská, výživné…)","kontakt.docasne_ma")}</div>

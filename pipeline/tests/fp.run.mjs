@@ -948,6 +948,18 @@ tests["příspěvek zaměstnavatele (DPS, PP, DIP, ŽP): jde do produktu a do re
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["společná domácnost páru: výdaje jedním číslem za oba (do katastrof podle podílu na příjmech); starší plán s výdaji po osobách funguje dál"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, { klient: { jmeno: "Petr Novák", narozen: "1990-01-01", zam: 60000, vydaje_osobni: 30000, vydaje_dom: 20000, inv1: 8000, inv2: 12000, inv3: 20000 }, partner: { zapnuto: true, jmeno: "Jana Nováková", narozen: "1992-01-01", zam: 40000, vydaje_osobni: 20000, inv1: 5000, inv2: 7000, inv3: 12000 } });
+  eq(await page.evaluate(() => R.vydCelkem), 50000, "bez výdajů domácnosti = starší výdaje po osobách");
+  await setPlan(page, { vydaje: { domacnost: 55000 } });
+  const r = await page.evaluate(() => { STEP = 0; renderEditor(); return { v: R.vydCelkem, k: R.katastrofy.map(k => k.vyd), f: document.querySelectorAll('#ed [data-p="klient.vydaje_osobni"]').length, h: document.querySelectorAll('#ed [data-p="vydaje.domacnost"]').length }; });
+  eq(r, { v: 55000, k: [33000, 22000], f: 0, h: 1 }, "výdaje domácnosti za oba, po osobách se nezadávají");
+  await setPlan(page, { fin: { spolecne: false } });
+  eq(await page.evaluate(() => R.odd.map(o => o.R.vydCelkem)), [30000, 20000], "finance zvlášť = výdaje každého");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests)) {
   const t0 = Date.now();
