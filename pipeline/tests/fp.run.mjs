@@ -345,11 +345,11 @@ tests["slide sociální vs. pojištění: 3 animované snímky hned za modelací
     const idx = FR.map((f, i) => [f.g, i]).filter(x => /^soc\d$/.test(x[0]));
     const zp0 = FR.map(f => f.g).lastIndexOf("zp0"), s0 = FR.map((f, i) => f.g === "soc0" ? i : -1).filter(i => i >= 0);
     return { groups: [...new Set(idx.map(x => x[0]))], n0: s0.length, nextToZp: s0[0] === zp0 + 1, last: t(FR[s0[s0.length - 1]].h), first: t(FR[s0[0]].h), bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl),
-      keys: s0.map(i => [...FR[i].h.matchAll(/data-k="(sb0|ib0|sum)"/g)].map(m => m[1]).join(",")), lbl: FR[s0[0]].lbl }; });
+      keys: s0.map(i => [...FR[i].h.matchAll(/data-k="(sb00|sb01|sb02|ib00|sum)"/g)].map(m => m[1]).join(",")), lbl: FR[s0[0]].lbl }; });
   eq(o.groups, ["soc0", "soc1"], "slide pro každou osobu"); eq(o.n0, 3, "3 snímky = animace karty → stát → + pojištění"); assert(o.nextToZp, "slide je hned za slidy s modelací ŽP (včetně varianty FitSport)");
   assert(/5 320/.test(o.first) && /7,1 %/.test(o.first), "sociální pojistné = 7,1 % z hrubé 75 000 = 5 320 Kč");
   assert(/Stát\s+20 000 Kč/.test(o.last) && /pojištění/.test(o.last), "poslední snímek ukazuje dávku státu i doplatek pojištění");
-  assert(!/majetku/i.test(o.lbl), "popisek bez „majetku“"); eq(o.bad, [], "bez Infinity / NaN"); assert(o.keys.every(k => k === "sb0,ib0,sum"), "stejné animované prvky ve všech snímcích (" + o.keys.join(" | ") + ")");
+  assert(!/majetku/i.test(o.lbl), "popisek bez „majetku“"); eq(o.bad, [], "bez Infinity / NaN"); assert(o.keys.every(k => k === "sb00,ib00,sb01,sb02,sum"), "stejné animované prvky ve všech snímcích (" + o.keys.join(" | ") + ")");
   const osvc = { klient: { jmeno: "Petr Svoboda", narozen: "1990-03-03", zam: 0, podnik: 70000, vydaje_osobni: 45000, starobni: 20000, inv1: 6000, inv2: 10000, inv3: 18000, bez_partnera: true }, partner: { zapnuto: false }, deti: [], motivace: "x",
     majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 150000 }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 2500 } } };
   await setPlan(page, osvc);
