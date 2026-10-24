@@ -2224,6 +2224,8 @@ async function dzRecording(x){
   /* finanční plán – jen prázdná pole */
   const V=r.fp&&typeof r.fp==="object"?r.fp:{},val=v=>v!==""&&v!=null&&!(typeof v==="number"&&isNaN(v)),filled=[];
   if(Object.keys(V).length){
+    /* otevřený finanční plán by při zavření přepsal plán svou starou verzí → počkat, až ho zavřeš, a pak číst čerstvou */
+    if(document.getElementById("fpOverlay")){while(document.getElementById("fpOverlay"))await new Promise(z=>setTimeout(z,1500));await new Promise(z=>setTimeout(z,2500))}
     const tg=l?fpLeadTarget(leads.find(z=>z.id===l.id)||l):{rec:curC},key=fpKeyOf(tg.rec),saved=fplans.find(p=>p.id===key);
     const plan=saved&&saved.plan&&saved.plan.klient?JSON.parse(JSON.stringify(saved.plan)):{klient:{},partner:{zapnuto:false},deti:[],docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},pojisteni:{zivotni:{stav:0,navrh:""}},realokace:{rucne:false,polozky:[]}};
     const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?a:a[k],o),setp=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=="object")a[k]={};a=a[k]});a[ks.at(-1)]=v};
