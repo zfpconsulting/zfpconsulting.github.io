@@ -2185,6 +2185,55 @@ async function dzBooking(x){
   dzNotify({ic:"cal",t:x.only?"Rezervace schůzky":"Rezervace 2. konzultace",s:name+" · "+kdy+(online?" · online – pošli mu odkaz a potvrzení na "+(x.email||"e-mail"):" · osobně, "+DZS.addr())+(busy.length?" · POZOR: v tu dobu už něco máš":"")+(offBusy?" · POZOR: kancelář je v tu dobu obsazená – domluv online nebo jinou místnost":"")+(r&&r.evId?"":" · do kalendáře se zatím NEZAPSALO"+(r&&r.canWrite?" (chyba Google "+(r.evErr||"")+")":" (nejsi přihlášený ke Google kalendáři)")+" – zapíšu to sám, jakmile to půjde"),lead:l.id,cal:start.toISOString(),conf:{ph:String(x.phone||""),em:String(x.email||""),online,name,at:start.toISOString()}});
   setTimeout(()=>dzPublishSlots(true),1500);
 }
+/* nahrávka schůzky (Fireflies → naplánovaná úloha Clauda) přijde šifrovaně do stejné schránky jako dotazník:
+   poznámka ze schůzky do karty klienta, úkoly s termíny, telefon/e-mail do karty (jen když chybí), údaje do finančního plánu
+   (jen prázdná pole – co klient sám vyplnil v dotazníku, se nepřepisuje) a další krok u leadu. Každá zapsaná hodnota jde do historie. */
+const NR_FP=["klient.jmeno","klient.narozen","klient.zam","klient.hruba","klient.podnik","klient.pasiv","klient.pronajem","klient.bonus","klient.vydaje_osobni","klient.vydaje_dom","klient.povolani","klient.sport",
+  "partner.jmeno","partner.narozen","partner.zam","partner.hruba","partner.podnik","partner.pasiv","partner.pronajem","partner.bonus","partner.vydaje_osobni","partner.vydaje_dom","partner.povolani","partner.sport",
+  "kontakt.telefon","kontakt.email","kontakt.stav","vydaje.domacnost","renta.mesicne","renta.od_veku","pojisteni.zivotni.stav","hypo.cena","hypo.za_let","motivace","poznamka"];
+async function dzRecording(x){
+  const r=x.rec||{},name=String(r.client||"").trim().replace(/\s+/g," "),now=new Date().toISOString(),day=meetDateTxt(r.at||now);
+  if(!name)throw new Error("nahrávka bez jména klienta");
+  const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9),em=String(r.email||"").toLowerCase();
+  let l=leads.find(L=>(em&&L.email&&L.email.toLowerCase()===em)||(d(r.phone).length===9&&d(L.phone)===d(r.phone)))||leads.find(L=>f(L.name)===f(name))||null;
+  let c=l?clientOfLead(l):clients.find(C=>!C.hidden&&f(C.name)===f(name))||null;
+  const isNew=!l&&!c;if(isNew)l=await aiAddLead({name,phone:r.phone||"",email:em});
+  const nm=(l&&l.name)||(c&&c.name)||name;
+  const done=[];
+  /* poznámka ze schůzky (stejně jako „Zápis ze schůzky“) */
+  const bl=a=>(Array.isArray(a)?a:[]).map(t=>String(t||"").trim()).filter(Boolean);
+  const notes=bl(r.notes);
+  if(notes.length){const cl=l?leads.find(z=>z.id===l.id)||l:null,head="Nahrávka "+day,block=head+"\n"+notes.map(t=>"• "+t).join("\n");
+    if(c){const cc=clients.find(z=>z.id===c.id)||c,note=cc.note?block+"\n\n"+cc.note:block;await db.doc("clients/"+c.id).update({note});await linkPushToLeads(cc,{note})}
+    else if(cl){const note=cl.note?block+"\n\n"+cl.note:block;await db.doc("leads/"+cl.id).update({note,updatedAt:now});await linkPushToClient(cl.id,{note})}
+    done.push("poznámka")}
+  /* úkoly – každý se svým termínem (YYYY-MM-DD) */
+  const T=(Array.isArray(r.tasks)?r.tasks:[]).map(t=>({text:String((t&&t.text)||t||"").trim(),due:/^\d{4}-\d{2}-\d{2}$/.test((t&&t.due)||"")?t.due:""})).filter(t=>t.text);
+  for(const t of T)await db.collection("mytasks").add({text:t.text,client:nm,due:t.due,done:"",createdAt:now,...(l?{leadId:l.id}:{})});
+  if(T.length)done.push(T.length+" "+plural(T.length,"úkol","úkoly","úkolů"));
+  /* karta: telefon / e-mail jen když chybí */
+  const ph=String(r.phone||"").trim(),card={};
+  const curL=l?leads.find(z=>z.id===l.id)||l:null,curC=c?clients.find(z=>z.id===c.id)||c:null,have=k=>(curL&&curL[k])||(curC&&curC[k]);
+  if(ph&&!have("phone"))card.phone=ph;if(em&&!have("email"))card.email=em;
+  if(Object.keys(card).length){if(curL)await aiUpdateLead(curL,card);else if(curC){await db.doc("clients/"+curC.id).update(card);await linkPushToLeads(curC,card)}done.push("kontakt do karty")}
+  /* finanční plán – jen prázdná pole */
+  const V=r.fp&&typeof r.fp==="object"?r.fp:{},val=v=>v!==""&&v!=null&&!(typeof v==="number"&&isNaN(v)),filled=[];
+  if(Object.keys(V).length){
+    const tg=l?fpLeadTarget(leads.find(z=>z.id===l.id)||l):{rec:curC},key=fpKeyOf(tg.rec),saved=fplans.find(p=>p.id===key);
+    const plan=saved&&saved.plan&&saved.plan.klient?JSON.parse(JSON.stringify(saved.plan)):{klient:{},partner:{zapnuto:false},deti:[],docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},pojisteni:{zivotni:{stav:0,navrh:""}},realokace:{rucne:false,polozky:[]}};
+    const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?a:a[k],o),setp=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=="object")a[k]={};a=a[k]});a[ks.at(-1)]=v};
+    for(const [p,v] of Object.entries(V)){if(!NR_FP.includes(p)||!val(v))continue;const cur=get(plan,p);if(val(cur)&&!(typeof cur==="number"&&cur===0))continue;setp(plan,p,v);filled.push(p)}
+    if(filled.some(p=>p.startsWith("partner.")))plan.partner.zapnuto=true;
+    if(filled.length){await db.doc("fplan/"+key).set({clientId:key,name:(saved&&saved.name)||nm,plan,updatedAt:Date.now()});done.push(filled.length+" "+plural(filled.length,"údaj","údaje","údajů")+" do FP")}}
+  /* další krok u leadu */
+  const nx=r.next||{};
+  if(l&&String(nx.step||"").trim()){const p={nextStep:String(nx.step).trim()};if(/^\d{4}-\d{2}-\d{2}$/.test(nx.date||""))p.nextDate=nx.date;await db.doc("leads/"+l.id).update({...p,updatedAt:now});done.push("další krok")}
+  /* historie */
+  const sum=bl(r.summary),logT="Zpracovaná nahrávka "+day+(done.length?" – "+done.join(", "):"")+(filled.length?" (FP: "+filled.join(", ")+")":"");
+  if(l){const cl=leads.find(z=>z.id===l.id)||l;await db.doc("leads/"+cl.id).update({log:[...(cl.log||[]),{d:now,t:logT}].slice(-100),lastContact:now,updatedAt:now})}
+  else if(curC){const cc=clients.find(z=>z.id===curC.id)||curC;await db.doc("clients/"+cc.id).update({log:[...(cc.log||[]),{d:now,t:logT}].slice(-100)})}
+  dzNotify({ic:"nr",t:"Zpracovaná nahrávka – "+nm,s:(isNew?"nový lead · ":"")+(done.length?done.join(" · "):"nic k zápisu")+(sum.length?" · "+sum[0]:""),...(l?{lead:l.id}:{}),...(filled.length&&l?{plan:1}:{})});
+}
 /* ================= Push notifikace (prostředník na Cloudflare – worker/push.js) =================
    Zařízení se přihlásí k odběru (ověří se Google přihlášením) → chodí sem: nový dotazník, rezervace schůzky, připomínky schůzek.
    Připomínky se šifrují už tady pro každé zařízení zvlášť (pushcrypto.js), prostředník jejich obsah nevidí. */
@@ -2452,7 +2501,7 @@ async function dzConfirm(n){
   try{await navigator.clipboard.writeText(text)}catch(e){}
   done({ch:"SMS",tpl:tpl.name,tplId:tpl.id,start:ctx.start,meetId:ctx.meetId});
   location.href="sms:"+tel+"?&body="+encodeURIComponent(text);toast("Otevírám Zprávy · text je i ve schránce")}
-const DZ_IC={dz:'<path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5"/><path d="M10 13l2 2 3.5-4"/>',cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M9 14.5l2 2 4-4"/>'};
+const DZ_IC={nr:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>',dz:'<path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5"/><path d="M10 13l2 2 3.5-4"/>',cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M9 14.5l2 2 4-4"/>'};
 let dzNotesSig="";
 function renderDzNotes(){
   const L=dzNotes(),sig=JSON.stringify(L.map(n=>n.id));if(sig===dzNotesSig&&$("dzNotes"))return;dzNotesSig=sig;
@@ -2563,14 +2612,14 @@ async function dzHandle(docs){
   for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
     const F=DZI.F,fdb=DZI.fdb,del=async()=>{for(const p of parts)try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}};
     try{parts.sort((a,b)=>a.i-b.i);await dzLib();let x;
-      try{x=await DzCrypto.open(settings.dzKey.priv,{epk:parts[0].epk,salt:parts[0].salt,iv:parts[0].iv,ct:parts.map(p=>p.ct).join("")});if(!x||(x.type!=="fp-dotaznik"&&x.type!=="fp-booking"))throw 0}
+      try{x=await DzCrypto.open(settings.dzKey.priv,{epk:parts[0].epk,salt:parts[0].salt,iv:parts[0].iv,ct:parts.map(p=>p.ct).join("")});if(!x||(x.type!=="fp-dotaznik"&&x.type!=="fp-booking"&&x.type!=="fp-nahravka"))throw 0}
       catch(e){console.warn("dotazník – nejde dešifrovat, mažu",e);await del();continue}
       /* jen jedno zařízení: kdo smaže první část v transakci, ten dotazník zpracuje */
       const r0=F.doc(fdb,"dzinbox",parts[0].id);
       const mine=await F.runTransaction(fdb,async tx=>{const sn=await tx.get(r0);if(!sn.exists())return false;tx.delete(r0);return true});
       if(!mine)continue;
       for(const p of parts.slice(1))try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}
-      try{if(x.type==="fp-booking")await dzBooking(x);else await dzImport(x)}catch(e){console.error(e);const L=lsGet("dz_failed",[]);L.push({at:Date.now(),x});lsSet("dz_failed",L.slice(-10));toast("Dotazník se nepodařilo založit – zkusím to znovu")}
+      try{if(x.type==="fp-booking")await dzBooking(x);else if(x.type==="fp-nahravka")await dzRecording(x);else await dzImport(x)}catch(e){console.error(e);const L=lsGet("dz_failed",[]);L.push({at:Date.now(),x});lsSet("dz_failed",L.slice(-10));toast(x.type==="fp-nahravka"?"Nahrávku se nepodařilo zapsat – zkusím to znovu":"Dotazník se nepodařilo založit – zkusím to znovu")}
     }catch(e){console.warn("dotazník",e);DZI.busy.delete(g)}
   }
 }
@@ -2580,7 +2629,7 @@ async function dzStart(){
   DZI.on=true;DZI.me=me;
   try{
     /* nevyřízené (dřív selhalo založení) */
-    const fl=lsGet("dz_failed",[]);if(fl.length){lsSet("dz_failed",[]);for(const z of fl)try{await dzLib();if(z.x&&z.x.type==="fp-booking")await dzBooking(z.x);else await dzImport(z.x)}catch(e){}}
+    const fl=lsGet("dz_failed",[]);if(fl.length){lsSet("dz_failed",[]);for(const z of fl)try{await dzLib();if(z.x&&z.x.type==="fp-booking")await dzBooking(z.x);else if(z.x&&z.x.type==="fp-nahravka")await dzRecording(z.x);else await dzImport(z.x)}catch(e){}}
     const B="https://www.gstatic.com/firebasejs/12.19.0/";
     const [A,Au,F]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]);
     const app=A.getApps().find(a=>a.name==="dz")||A.initializeApp(AS_FB,"dz");

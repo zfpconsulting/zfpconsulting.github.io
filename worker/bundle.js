@@ -64,7 +64,8 @@ const DEV_APPS={skola:{origin:"https://kudla2002.github.io",days:45,max:300}};
 const ALL_ORIGINS=[...ORIGINS,...Object.values(DEV_APPS).map(a=>a.origin)];
 const SUBJECT="https://zfpconsulting.github.io/pipeline/";
 const PING={dz:{t:"Nový vstupní dotazník",b:"Klient odeslal dotazník. Otevři Pipeline – založí se lead a plán."},
-  bk:{t:"Nová rezervace schůzky",b:"Klient si vybral termín. Otevři Pipeline – zapíše se do kalendáře."}};
+  bk:{t:"Nová rezervace schůzky",b:"Klient si vybral termín. Otevři Pipeline – zapíše se do kalendáře."},
+  nr:{t:"Zpracovaná nahrávka schůzky",b:"Otevři Pipeline – poznámka, úkoly a finanční plán se zapíšou ke klientovi."}};
 const MAX_SUBS=10,MAX_REM=400,PING_MIN=4,PING_DAY=60;
 const ADV_BK=/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/,ADV_CODE=/^[a-z0-9-]{3,40}$/,ADV_APP="https://zfpconsulting.github.io/pipeline/dotaznik.html#";
 const esc=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
