@@ -941,14 +941,17 @@ function compute0(inp, today, ext) {
   if (prispVlastni > 0) flags.push(`Vlastní vklady do DPS / DIP ${Math.round(prispVlastni)} Kč/měs pokračují a platí se z cash flow.`);
   keepList.filter(a => a.typ === "Akcie / dluhopisy (přímé)" && !(a.vynos !== "" && a.vynos != null && isFinite(+a.vynos))).forEach(a => flags.push(`${a.nazev || a.typ}: počítám výnos akcií ${Math.round(S.v_akcie * 1000) / 10} % – u dluhopisů zadej vlastní výnos.`));
   if (dps.some(a => a.vklad > 0 && a.vklad < 500)) flags.push("DPS: vlastní příspěvek pod 500 Kč měsíčně nemá nárok na státní příspěvek – zvaž navýšení na 500 Kč.");
-  const rezVklad = Math.min(cash, rezCil), rezChybi = rezCil - rezVklad;
+  /* rezerva se plní vždy na 100 % (cíl zaokrouhlený na desetitisíce): 1) z účtů, 2) z investic, které jdou do plánu (zbytek z nich přejde na spořicí účet),
+     3) co pořád chybí, z cash flow přednostně – „cíl“ Rezerva na začátku řetězce plateb, po splnění jeho platba přeteče do dalšího cíle */
+  const rezHot = Math.min(cash, rezCil), rezZInv = Math.min(rezCil - rezHot, movedTot), movedFree = movedTot - rezZInv;
+  const rezVklad = rezHot + rezZInv, rezChybi = rezCil - rezVklad;
   /* na účtech zůstane aspoň rezerva, a když klient chce nechat víc, tak ta částka */
-  const cashStay = Math.min(cash, Math.max(rezVklad, cashKeep));
-  let volne = cash - cashStay + movedTot;
+  const cashStay = Math.min(cash, Math.max(rezHot, cashKeep));
+  let volne = cash - cashStay + movedFree;
   { const kp = maj.filter(a => a.keep > 0.5); if (kp.length) flags.push("Ponecháno na přání klienta: " + kp.map(a => (a.nazev || a.typ) + (a.keep >= a.hodnota - 0.5 ? " (celé)" : " (" + Math.round(a.keep) + " Kč)")).join(", ") + ". Zbytek jde do plánu."); }
   if (maj.some(a => a.keep > 0.5 && a.vklad > 0 && !CASH.includes(a.typ) && !(n0(a.nech_mes) > 0))) flags.push("U ponechaných produktů bez vyplněné částky „dál spořit měsíčně“ měsíční vklad končí — platby jdou z volného cash flow plánu.");
   if (keepMes > 0) flags.push(`Ponechané úložky ${Math.round(keepMes)} Kč/měs pokračují a ubírají z cash flow.`);
-  if (rezChybi > 0) flags.push(`Rezerva: chybí ${rezChybi} Kč — doplnit z cash flow přednostně.`);
+  if (rezZInv > 0) flags.push(`Rezerva: na účtech chybělo ${rezZInv} Kč — doplněno z investic, které jdou do plánu (převod na spořicí účet).`);
   if (moved.some(a => a.typ === "Stavební spoření" && a.keep < a.hodnota)) flags.push("Stavební spoření vypovídáme a peníze jdou do plánu.");
   if (moved.some(a => a.typ === "Stavební spoření" && a.keep > 0.5 && a.keep < a.hodnota - 0.5)) flags.push("Stavební spoření nejde vypovědět jen částečně — ověř, zda se částka nechat dá.");
   // nefinanční majetek a úvěry
@@ -1029,7 +1032,13 @@ function compute0(inp, today, ext) {
      (ne „teď 900 Kč a později se to přelije“). Přelévání se zapíná jen do nejmenší míry, při které se platby vejdou
      (L = kolik cílů po sobě smí přijímat platby dřív splněných). Teprve když nestačí ani plná kaskáda, platby se poměrně zkrátí. */
   const fvInh = (Sx, g, m) => Sx > 0 && m > g.inhOd ? fvOf(0, Sx, g.r, m - g.inhOd, g.fee) : 0;
-  const chain = cile.concat(renta ? [renta] : []).sort((a, b) => a.months - b.months);
+  let rezG = null;
+  if (rezChybi > 0) { const av0 = floorTo(Math.max(0, cf - pojNove - keepMes - prispVlastni), 100);
+    if (av0 >= 500) { const m = Math.max(1, Math.ceil(rezChybi / av0));
+      rezG = { nazev: "Rezerva", rez: true, castka: rezChybi, months: m, datum: new Date(T0.getFullYear(), T0.getMonth() + m, 1), alok: [0, 0, 100], r: 0, rNom: S.inflace, fee: 0, vklad: 0 };
+      flags.push(`Rezerva: chybí ${rezChybi} Kč — doplní se z cash flow přednostně (${m} ${m === 1 ? "měsíc" : m < 5 ? "měsíce" : "měsíců"}), pak platba přeteče do cílů.`); }
+    else flags.push(`⚠ Rezerva: chybí ${rezChybi} Kč a cash flow na doplnění nestačí — uprav výdaje nebo vstupy.`); }
+  const chain = cile.concat(renta ? [renta] : [], rezG ? [rezG] : []).sort((a, b) => a.months - b.months || !!b.rez - !!a.rez);
   const calcChain = (L, tinyOn) => { let Sx = 0, mPrev = 0;
     chain.forEach((g, i) => { const isR = g === renta, target = isR ? Math.max(0, g.kap - g.dpsFv) : g.castka; g.inhOd = mPrev;
       const full = isR ? g.kap : g.castka;
@@ -1095,7 +1104,7 @@ function compute0(inp, today, ext) {
   /* kam jdou měsíční platby v čase (pro časovou osu); „volne“ = platby splněných cílů, které už žádný cíl nepotřebuje */
   const toky = [...new Set([0].concat(chain.map(g => g.months)))].sort((a, b) => a - b).map(m => {
     const act = chain.filter(g => g.months > m), volne = chain.filter(g => g.inhOd <= m && (g.months > m || g.inhOd < g.months)).reduce((a, g) => a + (g.inhOd > 0 && g.inhOd <= m ? g.uvol : 0), 0);
-    const roz = act.map((g, i) => ({ k: g === renta ? "renta" : "c" + cile.indexOf(g), nazev: g === renta ? "Renta" : g.nazev, kc: g.pmt + (i === 0 && m >= g.inhOd ? g.inh : 0) }));
+    const roz = act.map((g, i) => ({ k: g === renta ? "renta" : g.rez ? "rez" : "c" + cile.indexOf(g), nazev: g === renta ? "Renta" : g.nazev, kc: g.pmt + (i === 0 && m >= g.inhOd ? g.inh : 0) }));
     if (act.length && volne > 0.5) roz.push({ k: "volne", nazev: "Uvolněno do cash flow", kc: volne });
     return { m, rozpad: roz }; });
   const pmtCelkem = cile.reduce((s, c) => s + c.pmt, 0) + (renta ? renta.pmt : 0);
@@ -1103,7 +1112,7 @@ function compute0(inp, today, ext) {
   const mesA0 = cile.reduce((s, c) => s + c.pmt * c.alok[0] / 100, 0) + (renta ? renta.pmt * renta.alok[0] / 100 : 0);
   const mesD0 = cile.reduce((s, c) => s + c.pmt * c.alok[1] / 100, 0) + (renta ? renta.pmt * renta.alok[1] / 100 : 0);
   const mesK = mesA0 + mesD0 > 0 ? pmtCelkem / (mesA0 + mesD0) : 1, mesA = mesA0 * mesK, mesD = mesA0 + mesD0 > 0 ? mesD0 * mesK : pmtCelkem, mesH = 0;
-  const cfZbyva = cf - pmtCelkem - pojNove - keepMes - prispVlastni;
+  const cfZbyva = cf - pmtCelkem - (rezG ? rezG.pmt : 0) - pojNove - keepMes - prispVlastni;
   if (cfZbyva < 0) flags.push(`Cash flow nestačí: chybí ${-cfZbyva} Kč/měs.`);
   // ---------- cílová struktura (třídy)
   const split = (v, a) => [v * a[0] / 100, v * a[1] / 100, v * a[2] / 100];
@@ -1136,13 +1145,13 @@ function compute0(inp, today, ext) {
           ex.map((v, i) => [v - fl[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { fl[i]++; left--; } });
           O.forEach((p, i) => p.mesicne = fl[i] * st); }
         for (let i = pozice.length - 1; i >= 0; i--) if (pozice[i].mesicne <= 0 && pozice[i].jednor <= 0) pozice.splice(i, 1); } }
-    const over = pozice.reduce((a, p) => a + p.jednor, 0) - (Math.max(0, cash - cashStay) + movedTot);
+    const over = pozice.reduce((a, p) => a + p.jednor, 0) - (Math.max(0, cash - cashStay) + movedFree);
     if (over > 0) { const big = pozice.reduce((a, b) => b.jednor > a.jednor ? b : a); big.jednor -= Math.ceil(over / 1000) * 1000; }
   }
   // ---------- kontrola realokace (našeptávač)
   const inv = [0, 0, 0]; let mesRozd = 0, dipRozd = 0;
   pozice.forEach(p => { for (let i = 0; i < 3; i++) inv[i] += p.jednor * p.s[i] / 100; mesRozd += p.mesicne; if (p.dip) dipRozd += p.mesicne; });
-  const zdroje = Math.max(0, cash - cashStay) + movedTot;
+  const zdroje = Math.max(0, cash - cashStay) + movedFree;
   const jednorRozd = inv[0] + inv[1] + inv[2];
   const kontrola = [];
   const kc = v => Math.round(v).toLocaleString("cs-CZ").replace(/\s/g, " ") + " Kč";
@@ -1159,7 +1168,7 @@ function compute0(inp, today, ext) {
   // ---------- transakce: zdroje → nové pozice (nejdřív fondy/SS, pak účty; běžný účet až nakonec)
   const srcs = moved.map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota - a.keep, uvol: a.hodnota - a.keep, keep: a.keep }))
     .concat(cashAccts.slice().sort((x, y) => (x.typ === "Běžný účet") - (y.typ === "Běžný účet") || y.hodnota - x.hodnota).map(a => ({ nazev: a.nazev || a.typ, typ: a.typ, puv: a.hodnota, zbyva: a.hodnota, uvol: 0, cash: true, keep: a.keep })));
-  let zUctu = Math.min(Math.max(0, cash - cashStay), Math.max(0, jednorRozd - movedTot));
+  let zUctu = Math.min(Math.max(0, cash - cashStay), Math.max(0, jednorRozd - movedFree));
   srcs.filter(s => s.cash).forEach(s => { const u = Math.min(s.puv - s.keep, zUctu); s.uvol = u; zUctu -= u; });
   const transakce = [];
   pozice.filter(p => p.jednor > 0.5).forEach(p => {
@@ -1310,7 +1319,7 @@ function compute0(inp, today, ext) {
     }
     rentaKonec = { typ: "konecRenty", titul: "Konec renty", m: mm, datum: new Date(T0.getFullYear(), T0.getMonth() + mm, 1), v: vyvoj[mm], vPred: vyvoj[mm] };
   }
-  return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { cil: rezCil, vklad: rezVklad, chybi: rezChybi, pravidlo: rezPravidlo },
+  return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { cil: rezCil, vklad: rezVklad, hot: rezHot, zInv: rezZInv, chybi: rezChybi, pravidlo: rezPravidlo, pmt: rezG ? rezG.pmt : 0, months: rezG ? rezG.months : 0, datum: rezG ? rezG.datum : null, splneni: rezG ? Math.min(1, (rezVklad + rezG.vysledek) / rezCil) : rezVklad / Math.max(1, rezCil), flowIdx: rezG ? rezG.flowIdx : null, flowTake: rezG ? rezG.flowTake : 0, flowUvol: rezG ? rezG.flowUvol : 0 },
     maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
     cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, dpsPrisp, zamPrisp, prispVlastni, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
@@ -2145,7 +2154,7 @@ function buildFrames(I,R){
   // 4 finanční plán – animovaně: každý krok = jedna platba (jednorázově z majetku / pravidelně z cash flow)
   const planFrames=(withIns,G)=>{
   const out=[];
-  const PR=[{n:"Rezerva",kdy:"Ihned",cil:kc(R.rez.cil),lump:R.rez.vklad,pmt:0,vys:kc(R.rez.vklad),s:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100),sj:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100)}]
+  const PR=[{n:"Rezerva",kdy:R.rez.pmt?"za "+R.rez.months+" měs.":"Ihned",cil:kc(R.rez.cil),lump:R.rez.vklad,pmt:R.rez.pmt||0,vys:kc(Math.round(R.rez.cil*Math.min(1,R.rez.splneni))),s:Math.round(Math.min(1,R.rez.splneni)*100),sj:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100)}]
    .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),lump:c.vklad,pmt:c.pmt,vys:kc(Math.round(c.vysledek/1000)*1000),s:Math.round(c.splneni*100),sj:Math.round(c.splneniJ*100),
      kr:c.kraceno,dos:kc(c.dosazitelne)})))
    .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(Math.round(R.renta.kap/1000)*1000),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(Math.round(R.renta.vysledek/1000)*1000),s:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100),sd:Math.round(R.renta.splneniDps*100),
@@ -2157,6 +2166,8 @@ function buildFrames(I,R){
   /* navazující platby (kaskáda): když se cíl splní, jeho platba (i vše, co do něj přiteklo) poteče do dalšího cíle — pozdější cíl pak na sebe začne „spořit“ až po něm */
   const prIdx=g=>g===R.renta?R.cile.length+1:R.cile.indexOf(g)+1;
   const FL=[];R.cile.concat(R.renta?[R.renta]:[]).forEach(g=>{if(g.flowIdx==null||!(g.flowTake>0.5))return;FL.push({from:prIdx(g),to:g.flowIdx<0?R.cile.length+1:g.flowIdx+1,a:g.flowTake,uvol:g.flowUvol,let:g.months/12})});
+  /* rezerva doplňovaná z cash flow: po naplnění její platba přeteče do dalšího cíle (řádek 0) */
+  if(R.rez.flowIdx!=null&&R.rez.flowTake>0.5)FL.push({from:0,to:R.rez.flowIdx<0?R.cile.length+1:R.rez.flowIdx+1,a:R.rez.flowTake,uvol:R.rez.flowUvol||0,let:R.rez.months/12});
   FL.sort((a,b)=>a.let-b.let);
   const TXP=[];PR.forEach((r,i)=>{if(r.dps>0.5)TXP.push({i,k:"v",a:r.dps,dps:1});if(r.lump>0.5)TXP.push({i,k:"v",a:r.lump})});
   PR.forEach((r,i)=>{if(i<nGoals&&r.pmt>0.5)TXP.push({i,k:"p",a:r.pmt})});
@@ -2167,6 +2178,7 @@ function buildFrames(I,R){
      a v prezentaci se žádné „za X let“ neukazuje. */
   const KAS=FL.length>0;
   const UL=[];if(KAS)R.cile.concat(R.renta?[R.renta]:[]).forEach(g=>{const back=g.pmt+g.inh-(g.flowTake||0);if(g.pmt>0.5&&back>0.5)UL.push({from:prIdx(g),a:back,let:g.months/12})});
+  if(KAS&&R.rez.pmt>0.5){const back=R.rez.pmt-(R.rez.flowTake||0);if(back>0.5)UL.push({from:0,a:back,let:R.rez.months/12})}
   /* navazující platby a uvolnění jdou chronologicky (za 10 let → za 15 let → …), u stejného roku nejdřív předání dalšímu cíli, pak uvolnění */
   const HAND=FL.map(f=>({i:f.to,k:"f",a:f.a,from:f.from,let:f.let,uvol:f.uvol})).concat(UL.map(u=>({i:-1,k:"u",a:u.a,from:u.from,let:u.let})));
   HAND.sort((a,b)=>a.let-b.let||(a.k===b.k?0:a.k==="f"?-1:1));HAND.forEach(x=>TXP.push(x));
@@ -2515,7 +2527,7 @@ function buildFrames(I,R){
   }
   // časová osa — kaskáda plateb: pruh „Měsíční platby“ v kartě; segmenty mají stejné klíče ve všech snímcích → plynulé přelití
   const TK=R.toky||[],FK=[],FN={};TK.forEach(t=>t.rozpad.forEach(r=>{if(!FK.includes(r.k))FK.push(r.k);FN[r.k]=r.nazev}));
-  const FCOL=k=>k==="renta"?"#F37520":k==="volne"?"#6a6a6a":["#5b8dd6","#C2508D","#2E9C8F","#D9A441","#6BAA45"][(+k.slice(1))%5];
+  const FCOL=k=>k==="renta"?"#F37520":k==="volne"?"#6a6a6a":k==="rez"?"#9a9a9a":["#5b8dd6","#C2508D","#2E9C8F","#D9A441","#6BAA45"][(+k.slice(1))%5];
   const FTOT=Math.max(1,...TK.map(t=>t.rozpad.reduce((a,r)=>a+r.kc,0)));
   const flowBar=u=>{let cur=TK[0]?TK[0].rozpad:[];TK.forEach(t=>{if(t.m<=u.m)cur=t.rozpad});const cm=Object.fromEntries(cur.map(r=>[r.k,r.kc])),tot=cur.filter(r=>r.k!=="volne").reduce((a,r)=>a+r.kc,0); /* uvolněné do cash flow už není platba do plánu */
     const X0=900,W0=440,Y=420;let x=X0;
@@ -2596,7 +2608,7 @@ function buildFrames(I,R){
   const steps=[["Upravit životní pojištění",`invalidita III. ${mil(k0.invAll[2].pcDop)} · II. ${mil(k0.invAll[1].pcDop)} · I. ${mil(k0.invAll[0].pcDop)}${k0.pn.treba?` · PN ${fmt(k0.pn.denniDop)} Kč/den`:""} · ${poTxt}`],
    [`Realokovat ${kc(doPlanu)} do plánu`,"→ "+R.pozice.filter(p=>p.jednor>0).map(p=>esc(p.nazev)).join(", ")],
    [`Nastavit trvalé příkazy ${kcm(R.pmtCelkem)}`,R.pozice.filter(p=>p.mesicne>0).map(p=>`${esc(p.nazev.replace("Conseq akciové portfolio","Conseq akcie"))} ${fmt(p.mesicne)}`).join(" · ")+(R.cile.some(c=>c.flowTo)?" · splněný cíl → platba jde do dalšího":"")],
-   [`Rezerva ${kc(R.rez.cil)}`,R.rez.chybi?`chybí ${kc(R.rez.chybi)} – doplnit z cash flow`:`hotová ihned (${R.rez.pravidlo})`]]
+   [`Rezerva ${kc(R.rez.cil)}`,R.rez.chybi?(R.rez.pmt?`doplní se z cash flow ${kc(R.rez.pmt)}/měs, hotová ${R.rez.datum.getMonth()+1}/${R.rez.datum.getFullYear()}`:`chybí ${kc(R.rez.chybi)} – cash flow nestačí`):`hotová ihned (${R.rez.pravidlo})`]]
    .concat(R.docasne.map(d=>[`${esc(d.nazev)} skončí ${d.do?FPE.MES[d.do.getMonth()]+" "+d.do.getFullYear():""}`,`pak o ${kcm(d.castka)} méně – plán s ním nepočítá`]))
    .concat(R.detiPoj.length?[[`Pojistit děti (${R.detiPoj.length})`,"úraz 1 mil. s 10× progresí · vážná onemocnění 500 tis. · 400 Kč/den"]]:[])
    .concat(R.uvery.filter(u=>u.fixace).map(u=>[`Refixace: ${esc(u.nazev)} — ${mesRok(u.fixace)}`,"Před koncem fixace porovnáme nabídky bank"])).filter(s=>!NOINS||!/oji[sš]t/.test(s[0])).slice(0,6);

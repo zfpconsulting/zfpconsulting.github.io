@@ -1056,6 +1056,17 @@ tests["rezerva: rok nemoci (výdaje − nemocenská) toho, komu vypadne nejvíc,
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["rezerva vždy na 100 %: z účtů, pak z investic jdoucích do plánu, zbytek z cash flow přednostně a pak přeteče do dalšího cíle"] = async () => {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(() => { const base = { klient: { jmeno: "A B", narozen: "1990-01-01", zam: 50000, vydaje_osobni: 30000 }, partner: { zapnuto: false }, uvery: [], deti: [], hypo: {}, vydaje: { vcetne: false }, cile: [{ nazev: "Auto", castka: 300000, za_let: 3 }] };
+    const run = maj => { const R = computeR(Object.assign(JSON.parse(JSON.stringify(inp())), base, { majetek: maj })); return { cil: R.rez.cil, vklad: R.rez.vklad, zInv: R.rez.zInv, pmt: R.rez.pmt, m: R.rez.months, spl: R.rez.splneni, auto: R.cile[0].splneni, zb: R.cfZbyva }; };
+    return { inv: run([{ typ: "Spořicí účet", nazev: "SÚ", hodnota: 50000 }, { typ: "Podílový fond (OPF)", nazev: "Fond", hodnota: 300000 }]), cf: run([{ typ: "Spořicí účet", nazev: "SÚ", hodnota: 50000 }]) }; });
+  eq([r.inv.cil, r.inv.vklad, r.inv.zInv, r.inv.pmt], [180000, 180000, 130000, 0], "chybějící rezerva z fondu, který jde do plánu");
+  eq([r.cf.vklad, r.cf.m, r.cf.pmt * r.cf.m >= 130000], [50000, 8, true], "zbytek z cash flow přednostně (8 měsíců)");
+  assert(r.cf.spl >= 0.999 && r.cf.auto >= 0.995, "rezerva 100 %, Auto díky přetečené platbě taky (" + r.cf.spl + ", " + r.cf.auto + ")");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests).filter(([n])=>n.includes(process.env.F||""))) {
   const t0 = Date.now();
