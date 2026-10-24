@@ -821,11 +821,12 @@ function compute0(inp, today, ext) {
      Výjimka: když by vynechání platby nechalo cíl víc než 5 % pod cílem (full = celá cílová částka), dá se 500 Kč, pokud to cíl dostane blíž ke 100 %. */
   const pmtRaw = (target, lump, r, months, fee) => { if (months <= 0) return 0; const m = mr(r), g = Math.pow(1 + m, months), rest = target - lump * (1 - fee) * g; if (rest <= 0) return 0;
     return rest / ((Math.abs(m) < 1e-12 ? months : (g - 1) / m) * (1 - fee)); };
-  /* platba přesně na koruny (nahoru), aby cíl vyšel na 100 % – i malá potřeba pod 500 Kč (do produktu se sčítá s platbami ostatních cílů) */
+  /* platba od 500 Kč nahoru přesně na koruny (cíl na 100 %); drobná potřeba pod 500 Kč se neplatí po stokorunách – buď 0, nebo 500 Kč,
+     podle toho, co cíl dostane blíž ke 100 % (cíle s majetkem dostanou celý jednorázový vklad, takže drobné platby skoro nevznikají) */
   const pmtFor = (target, lump, r, months, fee, full) => { const raw = pmtRaw(target, lump, r, months, fee); if (!(raw > 0)) return 0;
-    /* drobnost pod 100 Kč/měs, bez které cíl i tak vyjde na ≥ 99,5 % → neplatí se (žádné platby po desetikorunách) */
-    if (raw < 100) { const k = months > 0 ? ((Math.abs(mr(r)) < 1e-12 ? months : (Math.pow(1 + mr(r), months) - 1) / mr(r)) * (1 - fee)) : 0; if (raw * k <= 0.005 * (full || target)) return 0; }
-    return Math.ceil(raw - 1e-9); };
+    if (raw >= 500) return Math.ceil(raw - 1e-9);
+    const F = full || target, k = months > 0 ? ((Math.abs(mr(r)) < 1e-12 ? months : (Math.pow(1 + mr(r), months) - 1) / mr(r)) * (1 - fee)) : 0, rest = raw * k;
+    return Math.abs(500 * k - rest) < rest ? 500 : 0; };
   const lumpFor = (target, r, months, fee) => months <= 0 ? target : target / ((1 - fee) * Math.pow(1 + mr(r), months));
 
   // ---------- osoby
@@ -968,7 +969,7 @@ function compute0(inp, today, ext) {
     return { nazev: c.nazev || "Cíl", castka: n0(c.castka), datum: d, months, alok: a, r, rNom: r + S.inflace, fee: feeA(a) };
   }).sort((x, y) => x.months - y.months);
   cile.forEach(c => {
-    const need = ceil(lumpFor(c.castka, c.r, c.months, c.fee), 100);   /* cíle přesně na 100 % (10/2026): vklad po stokorunách, platby po korunách */
+    const need = ceil(lumpFor(c.castka, c.r, c.months, c.fee), 5000);   /* cíl na 100 % (10/2026): jednorázový vklad nahoru na 5 000 Kč, zbytek majetku jde do renty; platby bez drobných pod 500 Kč */
     c.vklad = Math.min(volne, need); volne -= c.vklad;
     c.pmt = pmtFor(c.castka, c.vklad, c.r, c.months, c.fee);
     c.vysledek = fvOf(c.vklad, c.pmt, c.r, c.months, c.fee); c.splneni = c.vysledek / c.castka; c.splneniJ = fvOf(c.vklad, 0, c.r, c.months, c.fee) / c.castka;
@@ -1011,7 +1012,7 @@ function compute0(inp, today, ext) {
     else {
     /* stávající majetek (DPS, PP, ponechané produkty) se zhodnocuje každý svým výnosem */
     const dpsFv = growFv(growList, months);
-    const vklad = Math.min(volne, ceil(lumpFor(Math.max(0, kap - dpsFv), r, months, fee), 100)); volne -= vklad;
+    const vklad = Math.min(volne, ceil(lumpFor(Math.max(0, kap - dpsFv), r, months, fee), 5000)); volne -= vklad;
     const pmt = pmtFor(Math.max(0, kap - dpsFv), vklad, r, months, fee, kap);
     const vysledek = fvOf(vklad, pmt, r, months, fee) + dpsFv;
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
@@ -1044,7 +1045,7 @@ function compute0(inp, today, ext) {
       const full = isR ? g.kap : g.castka;
       /* vlastní platba by vyšla pod 500 Kč (kvůli malé potřebě) a předchozí cíl po splnění uvolní platbu → cíl si vezme potřebnou část z ní,
          místo aby od dneška platil minimum 500 Kč (přestřelil) nebo nic (zůstal na 60 %) */
-      const tiny = tinyOn && i >= 1 && Sx > 0 && pmtRaw(target, g.vklad, g.r, g.months, g.fee) < 450;
+      const tiny = i >= 1 && Sx > 0 && pmtRaw(target, g.vklad, g.r, g.months, g.fee) < 500;   /* drobná potřeba (pod 500 Kč) se vždy vezme z platby dřív splněného cíle, ne jako „140 Kč měsíčně“ */
       const take = i >= 1 && (i <= L || tiny) ? Sx : 0; g.inhNab = take;
       // přítok jen v potřebné výši — co cíl nepotřebuje, uvolní se do volného cash flow (cíl se nepřeplňuje)
       const zbyva = Math.max(0, target - fvOf(g.vklad, 0, g.r, g.months, g.fee));
@@ -1056,11 +1057,11 @@ function compute0(inp, today, ext) {
          (místo čekání na splnění jiného cíle nebo přestřelení); uvolněný majetek zůstane na spořicím účtu */
       { const t2 = Math.max(0, target - inh), raw = pmtRaw(t2, g.vklad, g.r, g.months, g.fee), rest = t2 - g.vklad * (1 - g.fee) * Math.pow(1 + mr(g.r), g.months);
         if (g.inh === 0 && g.vklad > 0 && raw > 0 && raw < 450 && rest > 0.05 * full && g.months > 0) {
-          const nv = ceil(lumpFor(Math.max(0, t2 - fvOf(0, 500, g.r, g.months, g.fee)), g.r, g.months, g.fee), 100);
+          const nv = ceil(lumpFor(Math.max(0, t2 - fvOf(0, 500, g.r, g.months, g.fee)), g.r, g.months, g.fee), 5000);
           if (nv < g.vklad) { g.vkladPuv = g.vklad; g.vklad = nv; g.pmt = 500; } } }
       g.vysledek = fvOf(g.vklad, g.pmt, g.r, g.months, g.fee) + inh + (isR ? g.dpsFv : 0);
       g.splneni = (isR ? g.kap : g.castka) > 0 ? g.vysledek / (isR ? g.kap : g.castka) : 1;
-      Sx = g.inh + g.pmt; mPrev = Math.max(mPrev, g.months); }); };
+      Sx = g.inh + g.pmt + (g.pmt === 0 && tiny ? g.uvol : 0); mPrev = Math.max(mPrev, g.months); }); };   /* cíl, který jen převzal drobnost, pošle zbytek přítoku dál */
   const availCf = Math.max(0, cf - pojNove - keepMes - prispVlastni), sumPmt = () => chain.reduce((a, g) => a + g.pmt, 0);
   let kaskada = 0;
   /* nejdřív bez „převzetí malé potřeby“: když cash flow stačí, cíl platí svou platbu hned (ne až po splnění předchozího cíle); přelévání jen když nestačí */
@@ -2182,9 +2183,9 @@ function buildFrames(I,R){
   const planFrames=(withIns,G)=>{
   const out=[];
   const PR=[{n:"Rezerva",kdy:R.rez.pmt?"za "+R.rez.months+" měs.":"Ihned",cil:kc(R.rez.cil),sub:R.rez.duvod?esc(R.rez.duvod):"",lump:R.rez.vklad,pmt:R.rez.pmt||0,vys:kc(Math.round(R.rez.cil*Math.min(1,R.rez.splneni))),s:Math.round(Math.min(1,R.rez.splneni)*100),sj:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100)}]
-   .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),lump:c.vklad,pmt:c.pmt,vys:kc(Math.abs(c.vysledek/c.castka-1)<0.005?c.castka:Math.round(c.vysledek/1000)*1000),s:Math.round(c.splneni*100),sj:Math.round(c.splneniJ*100),
+   .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),lump:c.vklad,pmt:c.pmt,vys:kc(c.splneni>=0.995&&c.splneni<1.08?c.castka:Math.round(c.vysledek/1000)*1000),s:c.splneni>=0.995&&c.splneni<1.08?100:Math.round(c.splneni*100),sj:Math.round(c.splneniJ*100),
      kr:c.kraceno,dos:kc(c.dosazitelne)})))
-   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(Math.round(R.renta.kap/1000)*1000),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(Math.round((Math.abs(R.renta.vysledek/Math.max(1,R.renta.kap)-1)<0.005?R.renta.kap:R.renta.vysledek)/1000)*1000),s:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100),sd:Math.round(R.renta.splneniDps*100),
+   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(Math.round(R.renta.kap/1000)*1000),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(Math.round((R.renta.splneni>=0.995&&R.renta.splneni<1.08?R.renta.kap:R.renta.vysledek)/1000)*1000),s:R.renta.splneni>=0.995&&R.renta.splneni<1.08?100:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100),sd:Math.round(R.renta.splneniDps*100),
      kr:R.renta.kraceno,dos:kc(R.renta.dosazitelne),dosSub:`renta ${kcm(R.renta.dosazitelneMes)} místo ${kcm(R.renta.mesicne)}`}]:[]);
   const anyKr=!withIns&&PR.some(r=>r.kr);
   const nGoals=PR.length;
@@ -2564,7 +2565,7 @@ function buildFrames(I,R){
   const U=R.udalosti,N=U.length,t0=U[0].datum.getTime(),t1=U[N-1].datum.getTime()||t0+1;
   U.forEach((u,step)=>{
     let card={date:(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase(),za:step===0?"ihned":"za "+Math.round(u.m/12)+" let",title:u.titul,amount:"",sub:"",det:[]};
-    if(u.typ==="start"){card.amount=kc(doPlanu)+" do plánu";card.sub="Podpis smluv a první kroky";card.det=[`Realokace majetku ${kc(doPlanu)}`,...(R.pojNove?[`Životní pojištění ${kcm(R.pojNove)}`]:[]),`Pravidelné investice ${kcm(R.pmtCelkem)}`]}
+    if(u.typ==="start"){card.amount=kc(R.majCelkem);card.sub="Finanční majetek na startu · podpis smluv a první kroky";card.det=[`Realokace majetku ${kc(doPlanu)}`,...(R.pojNove?[`Životní pojištění ${kcm(R.pojNove)}`]:[]),`Pravidelné investice ${kcm(R.pmtCelkem)}`]}
     else if(u.typ==="cil"){card.amount=kc(u.cil.kraceno?u.cil.dosazitelne:u.cil.castka);card.sub="Výběr z investic";card.det=[u.cil.kraceno?`Dosažitelná částka – cash flow nestačí na ${kc(u.cil.castka)}`:`Splnění cíle ${Math.round(u.cil.splneni*100)} %`,u.cil.vklad?`Jednorázově vloženo ${kc(u.cil.vklad)}`:"",
       u.cil.flowTo&&u.cil.flowKc>0.5?(u.cil.flowUvol>0.5?(u.cil.flowKc-u.cil.flowUvol>0.5?`Do cíle <b>${esc(u.cil.flowTo)}</b> poteče ${kcm(u.cil.flowKc-u.cil.flowUvol)}, ${kcm(u.cil.flowUvol)} se uvolní`:(u.cil.flowKc-u.cil.flowUvol>0.5||R.cile.concat(R.renta?[R.renta]:[]).some(g=>g.flowTake>0.5)?`Platba ${kcm(u.cil.flowKc)} se uvolní — další cíl ji už nepotřebuje`:`Platba ${kcm(u.cil.flowKc)} končí`))
         :`Platba ${kcm(u.cil.flowKc)} teď poteče do: <b>${esc(u.cil.flowTo)}</b>`):u.cil.pmt?`Pravidelně ${kcm(u.cil.pmt)}`:""].filter(Boolean)}

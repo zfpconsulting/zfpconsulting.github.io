@@ -632,7 +632,8 @@ tests["cíl 100 %: renta nebere víc, než potřebuje (zbytek zůstane nealokov�
     const r = await page.evaluate(() => { compute(); return { spl: R.renta.splneni, vklad: R.renta.vklad, pmt: R.renta.pmt, zbyva: R.zbyva }; });
     assert(r.spl >= 0.6 && r.spl <= 1.05, `renta vychází na ~100 % (fond ${fond}: ${r.spl}); platby pod 500 Kč se nedávají, takže i méně`);
     assert(Number.isInteger(r.pmt) && r.pmt >= 0, `platba renty v celých korunách (${r.pmt})`);
-    assert(r.spl >= 0.995 && r.spl < 1.005, `renta přesně na 100 % (${r.spl})`);
+    assert(r.spl >= 0.95 && r.spl < 1.08, `renta ~100 % – bez drobné platby pod 500 Kč (${r.spl})`);
+    assert(r.pmt === 0 || r.pmt >= 500, `žádná platba pod 500 Kč (${r.pmt})`);
     if (fond >= 400000) assert(r.zbyva > 0 && r.pmt === 0, "co renta nepotřebuje, zůstane nealokováno (" + r.zbyva + ")");
   }
   eq(errors, [], "chyby v konzoli"); await ctx.close();
@@ -795,7 +796,7 @@ tests["renta jako v případu klienta (BÚ 140 000 + DPS 143 000, cash flow sta�
   await setPlan(page, base);
   const r = await page.evaluate(() => { compute(); return R.cile.concat([R.renta]).map(g => ({ n: g.nazev || "Renta", spl: g.splneni, pmt: g.pmt, inh: g.inh, vklad: g.vklad })); });
     r.forEach(g => assert(g.spl <= 1.06, `${g.n}: přestřel ${g.spl.toFixed(3)} ` + JSON.stringify(r)));
-  assert(r[2].pmt > 0 && r[2].inh === 0, "renta začíná platit hned, nečeká na přelitou platbu " + JSON.stringify(r));
+  assert((r[2].pmt === 0 || r[2].pmt >= 500) && r[2].spl >= 0.995, "renta na 100 %, žádná drobná platba pod 500 Kč (malou potřebu vezme z platby splněného cíle) " + JSON.stringify(r));
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
