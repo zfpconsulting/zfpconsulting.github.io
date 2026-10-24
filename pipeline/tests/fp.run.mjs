@@ -931,7 +931,7 @@ tests["bydlení: prodej bytu s hypotékou – hypotéka se z prodeje doplatí a 
     nefin: [{ nazev: "Byt 3+1", typ: "Nemovitost k bydlení", hodnota: 7000000 }], uvery: [{ typ: "Hypotéka", nazev: "KB", zustatek: 2500000, splatka: 17500, splatnost: "2048-09", fixace_do: "" }],
     hypo: { zapnuto: true, cena: 15000000, za_let: 1, stavajici: "prodej", inkaso_ted: 6000, inkaso_po: 9000 } });
   const r = await page.evaluate(() => { const H = hypoOf(inp()), g = FR.map(f => f.g), I2 = JSON.parse(JSON.stringify(inp())); I2.hypo.nahrazuje = "-1"; const H2 = hypoOf(I2);
-    return { nahr: H.nahrazuje, spl: H.splaceno, net: H.prodejNet, rep: H.rep, d: Math.round(H.delta - H.pmt), zav: R.zavazky, hy: g.indexOf("hy") > g.indexOf("a") && g.lastIndexOf("hy") < g.indexOf("p"), off: [H2.rep, H2.prodejNet] }; });
+    return { nahr: H.nahrazuje, spl: H.splaceno, net: H.prodejNet, rep: H.rep, d: Math.round(H.delta - H.pmt), zav: R.zavazky, hy: g.indexOf("hy") > g.indexOf("h") && g.lastIndexOf("hy") === g.indexOf("a") - 1, off: [H2.rep, H2.prodejNet] }; });
   eq([r.nahr, r.spl, r.net, r.rep, r.d], ["0", 2500000, 4500000, 17500, -14500], "doplacení z prodeje: 7 mil. − 2,5 mil.; splátka 17 500 odpadne (+3 000 inkaso)");
   assert(r.zav === 10500000 && r.hy, "v závazcích jen nová hypotéka; slidy hypotéky před plánem: " + JSON.stringify(r));
   eq(r.off, [0, 7000000], "„— ne —“ = bez doplacení");
@@ -1018,22 +1018,26 @@ tests["pronájem patří k nemovitosti – při prodeji kvůli hypotéce odpadne
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["hypotéka: srovnání prodat × neprodat ostatní majetek – slajd varianty A, hned za ním varianta B"] = async () => {
+tests["hypotéka: srovnání prodat × neprodat ostatní majetek – druhá varianta pro srovnání, zvolená až za ní, před tabulkou rozložení"] = async () => {
     const { ctx, page, errors } = await open();
     await setPlan(page, { klient: { jmeno: "Petr Novák", narozen: "1992-03-01", zam: 70000, vydaje_osobni: 30000 }, partner: { zapnuto: false }, deti: [],
       majetek: [{ typ: "Spořicí účet", nazev: "Účet", hodnota: 900000 }], uvery: [],
       nefin: [{ nazev: "Byt Brno", typ: "Nemovitost k bydlení", hodnota: 4000000 }, { nazev: "Chata", typ: "Rekreační objekt", hodnota: 1500000, najem: 6000 }, { nazev: "Auto", typ: "Auto", hodnota: 400000 }],
       hypo: { zapnuto: true, promitnout: true, financ: "akontace", cena: 8000000, prodej: "0", sazba: 5, let: 30, cmp: true }, cile: [], renta: { mesicne: 0 } });
     const r = await page.evaluate(() => { const hy = FR.filter(f => f.g === "hy"), V = hyCmpVariants(inp()), H = V.map(v => hypoOf(v.I));
-      return { n: hy.length, a: hy[0].h.includes("varianta A") && hy[1].h.includes("varianta A"), b: hy[2].h.includes("varianta B") && hy[3].h.includes("varianta B"),
+      const iA = FR.findIndex(f => f.g === "a");
+      return { n: hy.length, a: hy[0].h.includes("s prodejem") && hy[1].h.includes("s prodejem"), b: hy[2].h.includes("bez prodeje") && hy[3].h.includes("doporučujeme"), pred: FR[iA - 1].g === "hy",
         sell: H.map(x => x.pList.join(",")), uver: H.map(x => Math.round(x.uver)), main: hypoOf(inp()).pList.join(",") }; });
     eq(r.n, 4, "2 slajdy (dnes → po koupi) na každou variantu");
-    assert(r.a && r.b, "nejdřív varianta A, za ní B");
+    assert(r.a && r.b, "nejdřív srovnání s prodejem, za ním zvolená varianta bez prodeje");
+    assert(r.pred, "hypotéka hned před tabulkou optimálního rozložení");
     eq(r.sell, ["0,1,2", "0"], "A prodá chatu i auto, B jen byt k bydlení");
     assert(r.uver[0] < r.uver[1], "s prodejem menší úvěr");
     eq(r.main, "0", "zbytek plánu podle „Prodat kvůli koupi“");
     await page.evaluate(() => { inp().hypo.cmp_prodej = "1"; compute(); });
-    eq(await page.evaluate(() => hypoOf(hyCmpVariants(inp())[0].I).pList.join(",")), "0,1", "A prodá jen vybraný majetek");
+    eq(await page.evaluate(() => hypoOf(hyCmpVariants(inp())[0].I).pList.join(",")), "0,1", "prodá se jen vybraný majetek");
+    await page.evaluate(() => { inp().hypo.prodej = "0,1"; compute(); });
+    eq(await page.evaluate(() => { const hy = FR.filter(f => f.g === "hy"); return [hy[0].h.includes("bez prodeje"), hy[3].h.includes("s prodejem") && hy[3].h.includes("doporučujeme")]; }), [true, true], "zaškrtnutý prodej → s prodejem jde druhá");
     await page.evaluate(() => { inp().hypo.cmp = false; compute(); });
     eq(await page.evaluate(() => FR.filter(f => f.g === "hy").length), 2, "bez srovnání jen 2 slajdy");
     eq(errors, [], "chyby v konzoli"); await ctx.close();
