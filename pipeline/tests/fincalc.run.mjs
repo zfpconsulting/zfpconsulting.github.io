@@ -337,6 +337,33 @@ const tests = {
       assert(!errors.length, "chyby: " + errors.join(" | "));
       await ctx.close();
     }
+  },
+  async "renta: změna výše v čase – libovolný počet změn, dopočet renty na začátku i kapitálu"() {
+    const { ctx, page, errors } = await open({ width: 1300, height: 1100 });
+    const m = await page.evaluate(() => {
+      const { solve, valueAt } = FinCalc.math, i = Math.pow(1 + 0.04 / 12, 1) - 1;
+      /* 20 let: prvních 10 let 20 000, pak 12 000 – kapitál = PV obou úseků */
+      const v = { pv: 0, pmt: 20000, years: 20, rate: 4, fv: 0, freq: "m", zmeny: [{ po: 10, renta: 12000 }] };
+      const pv = solve("renta", v, "pv").val;
+      const a = n => (1 - Math.pow(1 + i, -n)) / i, exp = 20000 * a(120) + 12000 * a(120) * Math.pow(1 + i, -120);
+      const pmt = solve("renta", { ...v, pv, pmt: 0 }, "pmt").val;
+      const bez = solve("renta", { ...v, zmeny: [] }, "pv").val;
+      const dve = solve("renta", { ...v, zmeny: [{ po: 15, renta: 5000 }, { po: 5, renta: 15000 }] }, "pv").val;
+      const exp2 = 20000 * a(60) + 15000 * a(120) * Math.pow(1 + i, -60) + 5000 * a(60) * Math.pow(1 + i, -180);
+      return { d1: Math.abs(pv - exp), pmt: Math.round(pmt), less: pv < bez, d2: Math.abs(dve - exp2), end: Math.abs(valueAt("renta", { ...v, pv }, 240)) };
+    });
+    assert(m.d1 < 1 && m.d2 < 1, "kapitál = současná hodnota úseků renty");
+    eq(m.pmt, 20000, "dopočet renty na začátku při daných změnách");
+    assert(m.less && m.end < 1, "nižší renta později → menší potřebný kapitál; kapitál na konci vyčerpán");
+    await page.click('.fc-tabs [data-k="renta"]');
+    await page.click('[data-a="zadd"]'); await page.click('[data-a="zadd"]');
+    await page.fill('input[data-z="po"][data-i="0"]', "8"); await page.fill('input[data-z="renta"][data-i="0"]', "10000"); await page.press('input[data-z="renta"][data-i="0"]', "Enter");
+    const t = await tiles(page), n = await page.$$eval(".fc-zm", x => x.length);
+    eq(n, 2, "dvě změny renty");
+    assert(t["Renta od 9. roku"] && /10\s000/.test(t["Renta od 9. roku"].replace(/\u00a0/g, " ")), "dlaždice se změnou renty: " + JSON.stringify(t));
+    await page.click('[data-a="zdel"][data-k="1"]');
+    eq(await page.$$eval(".fc-zm", x => x.length), 1, "odebrání změny");
+    assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
   }
 };
 

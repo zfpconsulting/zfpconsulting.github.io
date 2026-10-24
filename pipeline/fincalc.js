@@ -11,8 +11,16 @@ const FREQ=[["m","Měsíční"],["q","Čtvrtletní"],["h","Pololetní"],["y","Ro
 const iMonth=(rate,f)=>{const r=(+rate||0)/100,m=PER[f]||12;return Math.pow(1+r/m,m/12)-1};
 const grow=(i,n)=>Math.pow(1+i,n);
 const ann=(i,n)=>Math.abs(i)<1e-12?n:(Math.pow(1+i,n)-1)/i;
+/* renta se změnami v čase: v.zmeny = [{po: roky od začátku výplaty, renta: nová měsíční renta}] – od měsíce po*12+1 se vyplácí nová částka */
+const zmenyOf=v=>(Array.isArray(v.zmeny)?v.zmeny:[]).map(z=>({m:Math.round((+z.po||0)*12),r:+z.renta})).filter(z=>z.m>0&&isFinite(z.r)&&z.r>=0).sort((a,b)=>a.m-b.m);
+/* úseky výplaty do n měsíců: [{od, do, r}] */
+function rentaSeg(v,n){const Z=zmenyOf(v),out=[];let od=0,r=+v.pmt||0;
+  for(const z of Z){if(z.m>=n)break;if(z.m>od){out.push({od,do:z.m,r});od=z.m}r=z.r}
+  out.push({od,do:n,r});return out}
+const paidTo=(v,n)=>rentaSeg(v,n).reduce((s,x)=>s+x.r*(x.do-x.od),0);
 /* zůstatek / hodnota po n měsících */
 const valueAt=(mode,v,n)=>{const i=iMonth(v.rate,v.freq),g=grow(i,n),a=ann(i,n);
+  if(mode==="renta"&&zmenyOf(v).length)return v.pv*g-rentaSeg(v,n).reduce((s,x)=>s+x.r*ann(i,x.do-x.od)*grow(i,n-x.do),0);
   return mode==="inv"?v.pv*g+v.pmt*a:v.pv*g-v.pmt*a};
 /* rovnice ve tvaru R(v)=0 */
 const resid=(mode,v)=>{const n=v.years*12,b=valueAt(mode,v,n);return mode==="loan"?b:(v.fv||0)-b};
@@ -55,13 +63,13 @@ function series(mode,v){
   const N=v.years*12,pts=[],steps=Math.floor(N+1e-9),ms=[];
   for(let k=0;k<=steps;k++)ms.push(k);if(N-steps>1e-6)ms.push(N);
   for(const k of ms){const b=valueAt(mode,v,k);
-    pts.push({x:k/12,a:mode==="loan"?Math.max(0,b):b,b:mode==="inv"?v.pv+v.pmt*k:v.pmt*k})}
+    pts.push({x:k/12,a:mode==="loan"?Math.max(0,b):b,b:mode==="inv"?v.pv+v.pmt*k:mode==="renta"?paidTo(v,k):v.pmt*k})}
   return pts;
 }
 function totals(mode,v){const n=v.years*12;
   if(mode==="inv")return{deposited:v.pv+v.pmt*n,final:v.fv,gain:v.fv-(v.pv+v.pmt*n)};
   if(mode==="loan")return{paid:v.pmt*n,interest:v.pmt*n-v.pv};
-  return{paid:v.pmt*n,rest:v.fv};
+  return{paid:paidTo(v,n),rest:v.fv};
 }
 
 /* ================= hypotéka: LTV, vlastní zdroje, potřebný příjem, aktuální sazby ================= */
@@ -107,6 +115,8 @@ const fmtNum=n=>isFinite(n)?nf0.format(Math.round(n)).replace(/ /g," "):"";
 const fmtPct=n=>isFinite(n)?nf2.format(n)+" %":"–";
 const yrsTxt=y=>{if(!isFinite(y))return"–";const r=Math.round(y*10)/10;if(Math.abs(r-Math.round(r))>1e-9)return nf2.format(r).replace(/0$/,"")+" roku";
   const k=Math.round(r);return k+" "+(k===1?"rok":k>=2&&k<=4?"roky":"let")};
+/* „po 5 letech“ → „6. roku“ (měsíc po*12+1) */
+const zmTxt=m=>m%12===0?(m/12+1)+". roku":yrsTxt(m/12)+" od začátku";
 const fmtYearsIn=y=>{if(!isFinite(y))return"";const r=Math.round(y*100)/100;return Number.isInteger(r)?String(r):nf2.format(r)};
 const parseNum=s=>{const t=String(s??"").replace(/[\s ]/g,"").replace(/Kč|%|let|roky|rok|roku/gi,"").replace(",",".");if(t==="")return NaN;return +t};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -143,8 +153,8 @@ const MODES={
        years:{l:"Doba výplaty (počet let)",st:1,h:"Jak dlouho se bude renta vyplácet."},
        rate:{l:"Zhodnocení p.a. (%)",st:0.25,h:"Očekávané průměrné roční zhodnocení kapitálu během výplaty."},
        fv:{l:"Zůstatek na konci (CZK)",st:50000,h:"Kolik má z kapitálu zůstat po poslední výplatě (0 = renta kapitál vyčerpá)."}},
-    tiles:v=>{const t=totals("renta",v);return[["Naspořená částka",fmtKc(v.pv)],["Měsíční renta",fmtKc(v.pmt)],["Zhodnocení p.a.",fmtPct(v.rate)],["Doba výplaty",yrsTxt(v.years)],["Celkem vyplaceno",fmtKc(t.paid)],["Zůstatek na konci",fmtKc(t.rest)]]},
-    help:"Graf ukazuje, jak se kapitál postupně čerpá rentou, a kolik už bylo celkem vyplaceno."}
+    tiles:v=>{const t=totals("renta",v),Z=zmenyOf(v).filter(z=>z.m<v.years*12);return[["Naspořená částka",fmtKc(v.pv)],[Z.length?"Měsíční renta na začátku":"Měsíční renta",fmtKc(v.pmt)],...Z.map(z=>["Renta od "+zmTxt(z.m),fmtKc(z.r)]),["Zhodnocení p.a.",fmtPct(v.rate)],["Doba výplaty",yrsTxt(v.years)],["Celkem vyplaceno",fmtKc(t.paid)],["Zůstatek na konci",fmtKc(t.rest)]]},
+    help:"Graf ukazuje, jak se kapitál postupně čerpá rentou, a kolik už bylo celkem vyplaceno. Změny renty v čase (např. nižší renta po přiznání státního důchodu) se přidávají v Parametrech."}
 };
 const ORDER=["loan","inv","renta"];
 
@@ -256,6 +266,12 @@ const CSS=`
 .fc-src{font-size:12.5px;line-height:1.4;color:var(--fc-txt);margin:6px 0 0}
 .fc-src a{color:inherit}
 .fc-sub{font-size:15px;margin:20px 0 10px;padding-top:12px;border-top:1px solid var(--fc-line)}
+.fc-zm{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;align-items:end;margin-bottom:8px}
+.fc-zm label{display:grid;gap:4px;font-size:12.5px;color:var(--fc-txt)}
+.fc-zm input{height:38px;border:1px solid var(--fc-line);border-radius:8px;padding:0 10px;font:inherit;font-size:15px;background:var(--bg2,#fff);color:var(--fc-navy);min-width:0}
+.fc-zdel{width:34px;height:38px;border-radius:8px;font-size:20px!important;color:var(--fc-txt)}
+.fc-zdel:hover{background:var(--fc-tile)}
+.fc-zadd{color:var(--fc-orange);font-weight:600;font-size:14.5px!important;padding:8px 0!important}
 .fc-note{font-size:13.5px;line-height:1.45;color:var(--fc-txt);margin:10px 0 0;padding:9px 11px;background:var(--fc-tile);border-radius:8px}
 .fc-note b{color:var(--fc-navy)}
 .fc-note.warn{background:transparent;border:1px solid var(--fc-orange);color:var(--fc-navy)}
@@ -327,13 +343,13 @@ function mount(root,opts={}){
   if(!document.getElementById("fcCss")){const st=document.createElement("style");st.id="fcCss";st.textContent=CSS;document.head.append(st)}
   const store=opts.store||null,toast=opts.toast||(m=>console.log(m));
   const LS="fc_draft_v1";
-  const fresh=()=>({id:null,name:"",clientId:"",clientName:"",mode:"inv",titles:{},m:Object.fromEntries(ORDER.map(k=>[k,{v:{...MODES[k].def},calc:MODES[k].calc}]))});
+  const fresh=()=>({id:null,name:"",clientId:"",clientName:"",mode:"inv",titles:{},m:Object.fromEntries(ORDER.map(k=>[k,{v:{...MODES[k].def,...(k==="renta"?{zmeny:[]}:{})},calc:MODES[k].calc}]))});
   /* úložiště rozpracované kalkulace – Pipeline předává svoje (odděluje prezentační/čistý režim a maže se při odhlášení) */
   const ls=opts.ls||{get:k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
   let st=ls.get(LS);
   if(!st||!st.m||!ORDER.every(k=>st.m[k]))st=fresh();
   /* starší uložené kalkulace nemají nová pole úvěru (cena nemovitosti, bonita…) – doplnit výchozí */
-  const fill=s=>{ORDER.forEach(k=>{s.m[k].v={...MODES[k].def,...s.m[k].v}});return s};
+  const fill=s=>{ORDER.forEach(k=>{s.m[k].v={...MODES[k].def,...s.m[k].v}});const r=s.m.renta.v;r.zmeny=Array.isArray(r.zmeny)?r.zmeny.map(z=>({po:+z.po||0,renta:+z.renta||0})):[];return s};
   fill(st);
   /* aktuální sazby hypoték (sazby.json vedle appky); když se nenačtou, zůstane záloha v kódu */
   if(opts.rates)RATES=opts.rates;
@@ -387,10 +403,21 @@ function mount(root,opts={}){
     const rp=res.ok?rpsn(res.v):NaN;
     return `${lr?`Sazba ${fmtPct(lr.rate)}${isFinite(rp)?` · <b>RPSN ${fmtPct(rp)}</b>`:""} = průměrná nabídková sazba, fixace ${c.v.fix} ${c.v.fix===1?"rok":c.v.fix<5?"roky":"let"}, LTV ${lr.band}. `:""}Zdroj: <a href="${esc(R.url||"https://www.hypoindex.cz/")}" target="_blank" rel="noopener">${esc(R.source||"Swiss Life Hypoindex")}</a>, ${esc(periodTxt(R.period))}.${old?` <b>Data jsou starší než 2 měsíce – zkontroluj aktualizaci sazeb.</b>`:""}`;
   }
+  /* renta: změny výše v čase – po kolika letech od začátku výplaty přijde nová měsíční renta (libovolný počet) */
+  function zmNotes(){const c=cur(),v=c.v,Z=v.zmeny||[];
+    return (Z.some(z=>+z.po>=+v.years)?`<p class="fc-note warn">Změna po skončení výplaty (${yrsTxt(v.years)}) se nepočítá.</p>`:"")+(Z.length&&c.calc==="pmt"?`<p class="fc-note">Dopočítává se renta na začátku; změny platí v zadané výši.</p>`:"")}
+  function zmenyHTML(){const v=cur().v,Z=v.zmeny||[];
+    return `<h4 class="fc-sub">Změna renty v čase</h4>${Z.map((z,i)=>`<div class="fc-zm" data-i="${i}">
+      <label><span>Po (letech)</span><input data-z="po" data-i="${i}" inputmode="decimal" autocomplete="off" value="${fmtYearsIn(z.po)}" aria-label="Po kolika letech od začátku"></label>
+      <label><span>Nová renta (CZK/měs.)</span><input data-z="renta" data-i="${i}" inputmode="decimal" autocomplete="off" value="${fmtNum(z.renta)}" aria-label="Nová měsíční renta"></label>
+      <button type="button" class="fc-zdel" data-a="zdel" data-k="${i}" aria-label="Odebrat změnu" title="Odebrat změnu">×</button></div>`).join("")}
+      <div class="fc-zn">${zmNotes()}</div>
+      <button type="button" class="fc-zadd" data-a="zadd">+ Přidat změnu renty</button>`}
   /* panel Parametry: u úvěru navíc cena nemovitosti, typ (limit LTV), aktuální sazba a bonita */
   function parHTML(res){
     const c=cur();
     const freq=`<div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="fc-sel" data-a="freq" aria-label="Frekvence připisování úroku">${FREQ.map(([k,t])=>`<option value="${k}"${c.v.freq===k?" selected":""}>${t}</option>`).join("")}</select></div>`;
+    if(st.mode==="renta")return FIELDS.renta.map(k=>fieldHTML(k,res)).join("")+freq+zmenyHTML();
     if(st.mode!=="loan")return FIELDS[st.mode].map(k=>fieldHTML(k,res)).join("")+freq;
     return fieldHTML("price",res)
       +`<div class="fc-f"><div class="fc-fl"><span>Účel / limit LTV</span></div><select class="fc-sel" data-x="ltvType" aria-label="Účel úvěru">${LTV_TYPES.map(([k,t,l])=>`<option value="${k}"${c.v.ltvType===k?" selected":""}>${esc(t)} – LTV ${l} %</option>`).join("")}</select></div>`
@@ -435,6 +462,7 @@ function mount(root,opts={}){
     const tl=root.querySelector(".fc-tiles");if(tl)tl.innerHTML=tilesHTML();
     const nt=root.querySelector(".fc-notes");if(nt)nt.innerHTML=st.mode==="loan"?loanNotes(res):"";
     const sr=root.querySelector(".fc-src");if(sr)sr.innerHTML=rateSrc(res);
+    const zn=root.querySelector(".fc-zn");if(zn)zn.innerHTML=zmNotes();
     drawChart();
   }
   const scrColors=()=>({a:"var(--fc-green)",b:"var(--fc-area)",grid:"var(--fc-grid)",txt:"var(--fc-txt)",ring:"var(--bg2,#fff)",wmGray:"var(--fc-logo1)",wmGray2:"var(--fc-logo2)",wmOrange:"#F37520",wmOp:.3});
@@ -502,6 +530,9 @@ function mount(root,opts={}){
     else if(a==="menu"){menuOpen=!menuOpen;draw()}
     else if(a==="wmt"){wm.t=k;saveWm();draw();if(k==="img"&&!wm.img)pickWm()}
     else if(a==="wmpick")pickWm();
+    else if(a==="zadd"){const v=cur().v,Z=v.zmeny||(v.zmeny=[]),last=Z[Z.length-1],po=last?Math.min(+v.years-1,(+last.po||0)+5):Math.max(1,Math.min(+v.years-1,Math.round(+v.years/2)));
+      Z.push({po:Math.max(1/12,po),renta:Math.round((last?+last.renta:+lastRes.v.pmt||+v.pmt||0)/100)*100});draw()}
+    else if(a==="zdel"){const Z=cur().v.zmeny||[];Z.splice(+k,1);draw()}
     else if(a==="save")save();
     else if(a==="pdf")pdf();
     else if(a==="load"){const s=saved.find(x=>x.id===b.dataset.id);if(s){const f=fresh();st={...f,...JSON.parse(JSON.stringify(s.state||{})),id:s.id,name:s.name,clientId:s.clientId||"",clientName:s.clientName||""};ORDER.forEach(m=>{if(!st.m[m])st.m[m]=f.m[m]});fill(st);menuOpen=false;draw();toast("Načteno: "+(s.name||"kalkulace"))}}
@@ -522,11 +553,13 @@ function mount(root,opts={}){
       if(x==="live"){c.v.live=t.checked;if(t.checked&&c.calc==="rate")c.calc="pmt";if(!t.checked)c.v.rate=lastRes&&isFinite(lastRes.v.rate)?lastRes.v.rate:c.v.rate}
       else if(x==="fix")c.v.fix=+t.value;else c.v[x]=t.value;
       draw();return}
+    if(t.matches("input[data-z]")){const z=(cur().v.zmeny||[])[+t.dataset.i];if(z)t.value=t.dataset.z==="po"?fmtYearsIn(z.po):fmtNum(z.renta);refresh();return}
     if(t.matches("input[data-k]")){const k=t.dataset.k,v=parseNum(t.value);if(isFinite(v))setField(k,clampF(k,v));t.value=fieldVal(k,cur().v[k])}
   });
   const clampF=(k,v)=>k==="years"?Math.max(1/12,v):k==="rate"?v:k==="dsti"?Math.min(100,Math.max(1,v)):k==="dti"?Math.max(0.5,v):Math.max(0,v);
-  root.addEventListener("input",e=>{const t=e.target;if(!t.matches("input[data-k]"))return;const k=t.dataset.k,v=parseNum(t.value);if(isFinite(v))setField(k,clampF(k,v))});
-  root.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input[data-k]"))e.target.blur();if(e.key==="Escape"&&(help||menuOpen)){help=null;menuOpen=false;draw()}});
+  root.addEventListener("input",e=>{const t=e.target;if(t.matches("input[data-z]")){const z=(cur().v.zmeny||[])[+t.dataset.i],v=parseNum(t.value);if(z&&isFinite(v)){z[t.dataset.z]=Math.max(0,v);refresh()}return}
+    if(!t.matches("input[data-k]"))return;const k=t.dataset.k,v=parseNum(t.value);if(isFinite(v))setField(k,clampF(k,v))});
+  root.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input[data-k],input[data-z]"))e.target.blur();if(e.key==="Escape"&&(help||menuOpen)){help=null;menuOpen=false;draw()}});
   root.addEventListener("focusin",e=>{const t=e.target;if(t.matches("input[data-k]")){const k=t.dataset.k,v=cur().v[k];t.value=k==="rate"||k==="dsti"?(isFinite(v)?nf2.format(v):""):fieldVal(k,v);try{t.select()}catch(_){}}});
 
   async function save(){
@@ -550,6 +583,7 @@ function mount(root,opts={}){
     const ch=chartSVG(pts,{w:900,h:430,c:{a:"#F37520",b:"#e4e6e9",grid:"#e9ebee",txt:"#6b7280",ring:"#fff",wmGray:"#4f5052",wmGray2:"#7d8183",wmOrange:"#F37520",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
     const params=FIELDS[st.mode].map(k=>[M.f[k].l.replace(/ \((CZK|%|počet let)\)/,""),k==="rate"?fmtPct(v[k]):k==="years"?yrsTxt(v[k]):fmtKc(v[k]),k===c.calc]);
     params.push(["Frekvence připisování úroku",(FREQ.find(f=>f[0]===v.freq)||FREQ[0])[1],false]);
+    if(st.mode==="renta")zmenyOf(v).filter(z=>z.m<v.years*12).forEach(z=>params.push(["Renta od "+zmTxt(z.m),fmtKc(z.r),false]));
     let notes="";
     if(st.mode==="loan"){const L=loanInfo(v),pc=x=>nf2.format(x).replace(/,00$/,"");
       if(v.live&&res.lr)params.splice(params.findIndex(p=>p[0].startsWith("Úroková sazba"))+1,0,["Zdroj sazby",`${RATES.source||"Swiss Life Hypoindex"} (${periodTxt(RATES.period)}), fixace ${v.fix} ${v.fix===1?"rok":v.fix<5?"roky":"let"}, LTV ${res.lr.band}`,false]);
@@ -584,5 +618,5 @@ function mount(root,opts={}){
   return{redraw:draw,state:()=>st};
 }
 
-window.FinCalc={mount,math:{iMonth,valueAt,solve,series,totals,FIELDS,loanInfo,liveRate,periodAge,ltvLimit,rpsn},rates:()=>RATES,fmt:{fmtKc,yrsTxt,parseNum},logo:{svg:zfpLogo,w:LOGO_W,h:LOGO_H}};
+window.FinCalc={mount,math:{iMonth,valueAt,solve,series,totals,rentaSeg,FIELDS,loanInfo,liveRate,periodAge,ltvLimit,rpsn},rates:()=>RATES,fmt:{fmtKc,yrsTxt,parseNum},logo:{svg:zfpLogo,w:LOGO_W,h:LOGO_H}};
 })();
