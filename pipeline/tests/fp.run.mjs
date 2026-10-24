@@ -125,28 +125,6 @@ const tests = {
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
-  async "úmrtí s dětmi: výdaje bez plánu minus sirotčí/vdovský po fázích (do 18 let, s VŠ do 26)"() {
-    const { ctx, page, errors } = await open();
-    const run = async (vs, narozen) => {
-      await setPlan(page, {
-        klient: { jmeno: "Jitka Bartošová", narozen: "1985-03-14", zam: 60000, vydaje_osobni: 41000, starobni: 20000, inv1: 12000, inv2: 18000, inv3: 30000, vdovsky: 0, sirotci: 8000, bez_partnera: true },
-        partner: { zapnuto: false }, deti: narozen.map((n, i) => ({ jmeno: "D" + i, narozen: n, vs: vs[i] })), majetek: [{ typ: "Spořicí účet", nazev: "Spořák", hodnota: 450000 }], uvery: [], cile: [], renta: { mesicne: 30000 } });
-      return page.evaluate(() => { compute(); const k = R.katastrofy[0]; return { p3: k.smrt.prijem3, faze: k.smrt.faze.map(f => [f.od, f.do, f.gap]), ages: R.deti.map(d => d.vek) }; });
-    };
-    // jedno dítě na VŠ: celých 26 let dostává sirotčí → jediná fáze, 41 000 − 8 000
-    let o = await run([true], ["2016-06-01"]);
-    eq(o.faze.length, 1, "jedna fáze"); eq(o.faze[0][2], 33000, "výdaje − sirotčí");
-    eq(o.p3, Math.ceil(pvAnn(33000, Math.round((26 - o.ages[0]) * 12), 0.045) / 100000) * 100000, "pojistná částka = PV výdajů po odečtu dávek");
-    // totéž dítě bez VŠ: krytí končí v 18 letech dítěte (po 18. už není koho živit, žádný „ocas“ na celé výdaje)
-    o = await run([false], ["2016-06-01"]);
-    eq(o.faze.map(f => f[2]), [33000], "do 18 let výdaje − sirotčí, dál nic");
-    eq(o.p3, Math.ceil(pvAnn(33000, Math.round((18 - o.ages[0]) * 12), 0.045) / 100000) * 100000, "částka = PV výdajů do 18 let dítěte");
-    // dvě děti s různým věkem: nejdřív 2× sirotčí, pak 1× sirotčí; po 18. narozeninách mladšího krytí končí
-    o = await run([false, false], ["2016-06-01", "2020-01-01"]);
-    eq(o.faze.map(f => f[2]), [25000, 33000], "dvě fáze podle věku dětí, bez doběhu po 18. narozeninách mladšího");
-    eq(errors, [], "chyby v konzoli");
-    await ctx.close();
-  },
 };
 
 /* společný základ pro nové testy engine: čisté FPE.compute nad plánem (bez DOM) */
@@ -211,18 +189,6 @@ tests["renta nezadána (prázdná / 0): cílem je stejný příjem jako dnes (st
   const d = rm => zaklad({ klient: { jmeno: "Re", narozen: "1980-03-03", zam: 60000, vydaje_osobni: 30000, starobni: 25000, inv1: 6000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 80000 }, cile: [], renta: { mesicne: rm, od_veku: "" } });
   for (const rm of [0, ""]) { const o = await rent(page, d(rm)); assert(o.renta && o.renta.auto, "renta se dopočítá"); eq(o.renta.mesicne, 60000, "renta = dnešní příjem"); eq(o.renta.dor, 35000, "dorovnání = příjem − starobní důchod"); assert(o.flags.some(f => /nahradil dnešní příjem z práce/.test(f)), "poznámka"); }
   const o2 = await rent(page, d(40000)); assert(!o2.renta.auto && o2.renta.mesicne === 40000, "zadaná renta zůstává");
-  eq(errors, [], "chyby v konzoli"); await ctx.close();
-};
-tests["výdaje: úmrtí kryje jen výdaje domácnosti (osobní odpadnou); bez rozdělení = vše domácnost"] = async function () {
-  const { ctx, page, errors } = await open();
-  const d = (tot, dom) => zaklad({ klient: { jmeno: "Jitka", narozen: "1985-03-14", zam: 60000, vydaje_osobni: tot, vydaje_dom: dom, starobni: 20000, inv1: 6000, inv2: 12000, inv3: 20000, sirotci: 8000, bez_partnera: true, hruba: 80000 }, deti: [{ jmeno: "D", narozen: "2016-06-01", vs: true }], cile: [], renta: { mesicne: 0, od_veku: "" } });
-  const a = await calc(page, d(41000, 30000)), b = await calc(page, d(41000, undefined)), c = await calc(page, d(50000, 30000));
-  eq(a.kat[0].smrt.faze, [22000], "gap = výdaje domácnosti 30 000 − sirotčí 8 000"); eq(a.kat[0].smrt.vydOs, 11000, "osobní výdaje 11 000");
-  eq(b.kat[0].smrt.faze, [33000], "bez rozdělení: celé výdaje 41 000 − 8 000"); eq(b.kat[0].smrt.vydOs, 0);
-  eq(c.kat[0].smrt.p3, a.kat[0].smrt.p3, "vyšší osobní výdaje nezvyšují krytí smrti");
-  assert(c.kat[0].vyd === 50000 && a.kat[0].vyd === 41000, "celkové výdaje pro invaliditu a nemoc zůstávají celkové");
-  assert(!a.miss.includes("klient.vydaje_dom") && b.miss.includes("klient.vydaje_dom"), "s dětmi se před prezentací chce rozdělení výdajů (a když je vyplněné, nechybí)");
-  const e = await calc(page, d(41000, 90000)); eq(e.kat[0].smrt.vyd, 41000, "domácnost nad celkem se ořízne"); assert(e.flags.some(f => /vyšší než výdaje celkem/.test(f)), "upozornění");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 tests["manželé: platba do plánu se dělí poměrem příjmů (stejné % z platu)"] = async function () {
@@ -366,19 +332,6 @@ tests["nedostatek cash flow: dřívější cíl má přednost a dostane 100 %, z
 };
 
 /* ---- úmrtí: partner / dospělé děti = výdaje domácnosti na 3 roky − vdovský (1 rok) + závazky; do 18 let dětí po fázích ---- */
-tests["úmrtí s dospělými dětmi: výdaje domácnosti na 3 roky minus vdovský plus závazky (bez fází)"] = async function () {
-  const { ctx, page, errors } = await open();
-  const mk = (uvery, vs) => ({ klient: { jmeno: "Jan Novák", narozen: "1970-05-05", zam: 70000, vydaje_osobni: 50000, vydaje_dom: 40000, starobni: 25000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 95000 },
-    partner: { zapnuto: false }, deti: [{ jmeno: "Dospělý", narozen: "2004-01-01", vs: vs }], motivace: "x",
-    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 800000 }], uvery, cile: [], renta: { mesicne: 30000 }, pojisteni: { zivotni: { stav: 0, navrh: 2000 } } });
-  const run = plan => page.evaluate(p => { const R = FPE.compute(JSON.parse(JSON.stringify(p)), new Date(), {}); const s = R.katastrofy[0].smrt; return { p3: s.prijem3, pc: s.pc, faze: s.faze.length, met: s.metoda, zav: s.zavazky, zavisli: s.zavisli }; }, plan);
-  let o = await run(mk([], false));
-  eq(o.faze, 0, "dospělé dítě: žádné fáze sirotčího"); eq(o.met, "partner", "metoda: výdaje domácnosti na několik let");
-  eq(o.p3, Math.ceil((3 * 12 * 40000 - 12 * 9000) / 100000) * 100000, "3 roky výdajů domácnosti − 12× vdovský");
-  o = await run(mk([{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }], false));
-  eq(o.zav, 2500000, "závazky = zůstatek úvěrů"); eq(o.pc, o.p3 + 2500000, "pojistná částka = výdaje domácnosti na 3 roky − vdovský + závazky");
-  eq(errors, [], "chyby v konzoli"); await ctx.close();
-};
 
 /* ---- slide „Proč pojištění, když platím sociální?“ za slidem s modelací ŽP ---- */
 tests["slide sociální vs. pojištění: 3 animované snímky hned za modelací ŽP, 7,1 % z hrubé, OSVČ jen odhad"] = async function () {
@@ -985,7 +938,7 @@ tests["bydlení: prodej bytu s hypotékou – hypotéka se z prodeje doplatí a 
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["pár s nájmem a hypotékou: překlep v datu důchodu z IOLDP, důchodový věk podle zákona, renta bez nájmu, krytí smrti bez dvojí hypotéky"] = async function () {
+tests["pár s nájmem a hypotékou: překlep v datu důchodu z IOLDP, důchodový věk podle zákona, renta bez nájmu"] = async function () {
   const { ctx, page, errors } = await open();
   const r = await page.evaluate(() => {
     const base = { klient: { jmeno: "Adam Test", narozen: "1986-01-01", zam: 80000, pronajem: 10000, duchod: "1952-09-01", inv1: 14000, inv2: 19000, inv3: 33000, vdovsky: 19000, sirotci: 16000, starobni: 32000 },
@@ -993,12 +946,47 @@ tests["pár s nájmem a hypotékou: překlep v datu důchodu z IOLDP, důchodov�
       deti: [{ jmeno: "Dítě", narozen: "2016-01-01" }], majetek: [{ typ: "Spořicí účet", hodnota: 500000 }], uvery: [{ typ: "Hypotéka", zustatek: 3000000, splatka: 15000, splatnost: "2056-01" }], cile: [], renta: { mesicne: 0 }, vydaje: { domacnost: 80000 } };
     const R = FPE.compute(base, new Date()), k = R.katastrofy[0];
     const dv = y => { const d = FPE.compute({ klient: { narozen: y + "-01-01", zam: 1 } }, new Date()).persons[0].duch; return d.getFullYear() * 12 + d.getMonth() - y * 12; };
-    return { duch: R.persons.map(p => p.duch.getFullYear() + "-" + (p.duch.getMonth() + 1)), flag: R.flags.some(f => /1952 nedává smysl/.test(f)), renta: R.renta.mesicnePuv, splt: k.smrt.vydSplatky, vyd: k.smrt.vyd, dom: k.vyd, vek: [1965, 1966, 1971, 1986, 1989].map(dv) }; });
+    return { duch: R.persons.map(p => p.duch.getFullYear() + "-" + (p.duch.getMonth() + 1)), flag: R.flags.some(f => /1952 nedává smysl/.test(f)), renta: R.renta.mesicnePuv, vek: [1965, 1966, 1971, 1986, 1989].map(dv) }; });
   eq(r.duch, ["2052-10", "2055-7"], "zákonný věk 66 let 9 měs. (1986) a 66 let 11 měs. (1988), překlep 1952 se ignoruje");
   assert(r.flag, "upozornění na překlep v datu důchodu");
   eq(r.vek, [780, 781, 786, 801, 804], "důchodový věk v měsících: 1965 = 65 let, +1 měsíc za ročník, 1989 = 67 let");
   eq(r.renta, 120000, "renta nahrazuje příjem z práce (nájem 10 000 běží dál)");
-  assert(r.splt > 0 && r.vyd === r.dom - r.splt, "krytí smrti: z výdajů domácnosti se odečtou splátky úvěrů (zůstatek kryjí závazky)");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["úmrtí (metodika VK): teď stát vdovský + sirotčí (% platu), po 18 / 26 letech dítěte nic → pojistka = zůstatek úvěrů v tu dobu + 3× roční příjem"] = async function () {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(() => {
+    const T = new Date(), y = T.getFullYear();
+    const base = { klient: { jmeno: "Adam Test", narozen: "1986-01-01", zam: 80000, inv1: 14000, inv2: 19000, inv3: 33000, vdovsky: 19100, sirotci: 16200, starobni: 32000 },
+      partner: { zapnuto: true, jmeno: "Eva Testová", narozen: "1988-01-01", zam: 40000, vdovsky: 14400, sirotci: 12500, inv1: 11000, inv2: 14000, inv3: 24000 }, kontakt: { stav: "zenaty" },
+      deti: [{ jmeno: "A", narozen: (y - 10) + "-01-01" }, { jmeno: "B", narozen: (y - 8) + "-01-01" }], majetek: [{ typ: "Spořicí účet", hodnota: 500000 }],
+      uvery: [{ typ: "Hypotéka", zustatek: 3000000, splatka: 20000, splatnost: (y + 20) + "-01" }], cile: [], renta: { mesicne: 0 }, vydaje: { domacnost: 80000 } };
+    const k = FPE.compute(base, T).katastrofy[0];
+    const bezDeti = FPE.compute(Object.assign({}, base, { deti: [] }), T).katastrofy[0];
+    const sam = FPE.compute(Object.assign({}, base, { partner: { zapnuto: false }, klient: Object.assign({}, base.klient, { bez_partnera: true }), deti: [] }), T).katastrofy[0];
+    const vs = FPE.compute(Object.assign({}, base, { deti: base.deti.map(d => Object.assign({}, d, { vs: true })) }), T).katastrofy[0];
+    return { davky: k.smrt.davky, pct: Math.round(k.smrt.davkyPct * 100), roky: Math.round(k.smrt.roky), zav: k.smrt.zavazky, nas: k.smrt.prijem3, pc: k.smrt.pc,
+      bd: [Math.round(bezDeti.smrt.roky * 12), bezDeti.smrt.zavazky < 3000000, bezDeti.smrt.prijem3], sam: [sam.smrt.prijem3, sam.smrt.zavazky, sam.smrt.pc], vsZ: vs.smrt.zavazky, vsR: Math.round(vs.smrt.roky) };
+  });
+  eq([r.davky, r.pct, r.roky], [19100 + 2 * 16200, 64, Math.round(18 - (Date.now() - new Date(new Date().getFullYear() - 8, 0, 1)) / 31557600000)], "teď stát vdovský + 2× sirotčí = 64 % platu, do 18 let mladšího dítěte");
+  assert(r.zav > 0 && r.zav < 3000000, "zůstatek úvěru za 10 let (méně než dnes): " + r.zav);
+  eq(r.nas, 3 * 12 * 80000, "3× roční čistý příjem zemřelého");
+  eq(r.pc, Math.ceil((r.zav + r.nas) / 100000) * 100000, "pojistná částka = zůstatek úvěrů v tu dobu + 3× roční příjem");
+  eq([r.bd[0], r.bd[1], r.bd[2]], [12, true, 2880000], "bez dětí: vdovský 1 rok, pak nic → zůstatek za rok + 3× příjem");
+  eq(r.sam, [0, 3000000, 3000000], "bez partnera a dětí: jen dnešní zůstatek úvěrů");
+  assert(r.vsR === r.roky + 8 && r.vsZ < r.zav, "s VŠ dávky do 26 let → pojistka kryje nižší zůstatek později");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["bydlení: prodej víc nemovitostí najednou – výtěžek se sečte a doplatí se hypotéky na nich"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, { klient: { jmeno: "Adam Test", narozen: "1990-01-01", zam: 120000, hruba: 170000, vydaje_osobni: 50000, vydaje_dom: 45000, inv1: 8000, inv2: 12000, inv3: 20000 }, cile: [],
+    nefin: [{ nazev: "Byt A", typ: "Nemovitost k bydlení", hodnota: 7000000 }, { nazev: "Byt B", typ: "Investiční nemovitost", hodnota: 5000000 }],
+    uvery: [{ typ: "Hypotéka", nazev: "A", zustatek: 3000000, splatka: 15000, splatnost: "2050-01" }, { typ: "Hypotéka", nazev: "B", zustatek: 1000000, splatka: 8000, splatnost: "2045-01" }],
+    hypo: { zapnuto: true, cena: 15000000, za_let: 0, prodej: "0,1", inkaso_ted: 4000, inkaso_po: 4000 } });
+  const r = await page.evaluate(() => { STEP = 2; renderEditor(); const H = hypoOf(inp()); return { hod: H.prodejHod, spl: H.splaceno, net: H.prodejNet, rep: H.rep, nahr: H.nahrazuje, uver: H.uver, boxes: document.querySelectorAll("#ed [data-hyprod]:checked").length }; });
+  eq(r, { hod: 12000000, spl: 4000000, net: 8000000, rep: 23000, nahr: "0,1", uver: 7000000, boxes: 2 }, "dva byty prodané, obě hypotéky doplacené");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
