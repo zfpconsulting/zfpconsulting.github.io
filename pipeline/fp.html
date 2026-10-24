@@ -178,10 +178,11 @@ table.tcf th{padding:6px 12px}table.tcf td{padding:5px 12px}
   <main class="view">
     <div class="nav">
       <button class="btn" id="prev">◀</button><button class="btn" id="next">▶</button>
-      <span class="cnt" id="cnt"></span><label class="skipCur" title="Slide se nezobrazí v prezentaci, PDF ani PowerPointu"><input type="checkbox" id="skipCur"> Vynechat slide</label><span class="sp"></span>
+      <span class="cnt" id="cnt"></span><label class="skipCur" title="Slide se nezobrazí v prezentaci, PDF ani PowerPointu"><input type="checkbox" id="skipCur"> Vynechat slide</label><button class="btn" id="bScr" title="Co říct ke každému slidu – vidíš jen ty, v režimu Prezentovat se nezobrazuje">🎙 Skript</button><span class="sp"></span>
       <span class="cnt">Změna vstupu vlevo = okamžitý přepočet. Prezentace: ←/→, mezerník, klik; Esc konec.</span>
     </div>
     <div class="stageBox" id="box"><div class="stage" id="stage"></div></div>
+    <div class="scr" id="scr" hidden><div class="scrbar"><span>Skript ke slidu – vidíš jen ty</span><span class="sp"></span><button class="btn" id="scrWin" title="Skript v samostatném okně – na druhý monitor nebo vedle prezentace; listuje se spolu s prezentací">⧉ Otevřít v okně</button></div><div id="scrBody"></div></div>
     <div class="thumbs" id="thumbs"></div>
   </main>
 </div>
@@ -2203,8 +2204,8 @@ function buildFrames(I,R){
     out.push({g:G,h,lbl:(withIns?"Plán + pojištění":"Plán")+(fin?": dosažitelné cíle":over?": hotovo":t&&t.k==="f"?": navazující platba":t&&t.k==="u"?": uvolnění platby":step>pre?": krok "+(step-pre):"")});
   }
   return out};
+  F.push(...hypoFrames(I,R));   /* hypotéka před slidy finančního plánu (10/2026) */
   F.push(...planFrames(false,"p"));
-  F.push(...hypoFrames(I,R));   /* hypotéka až po slidech finančního plánu */
   // katastrofy (skupina pro každou osobu)
   (NOINS?[]:R.katastrofy).forEach((k,pi)=>{
     const p=k.osoba,jm=p.jmeno.split(" ")[0];
@@ -2658,8 +2659,8 @@ function computeOdd(I0,raw){const Rh=computeR(I0);R=Rh;hypoCheck(Rh,inp());const
   const tag=(f,o,i)=>Object.assign({},f,{g:"o"+i+f.g,lbl:o.jmeno.split(" ")[0]+": "+f.lbl,h:f.h+`<div style="position:absolute;right:250px;top:42px;padding:6px 16px;border-radius:20px;background:#F37520;color:#fff;font-weight:900;font-size:17px;z-index:9">${esc(o.jmeno)}</div>`});
   const per=re=>RP.flatMap((o,i)=>o.F.filter(f=>re.test(f.g)).map(f=>tag(f,o,i)));
   const sh=re=>Fh.filter(f=>re.test(f.g));
-  /* pořadí jako u společného plánu: plán bez pojištění → katastrofy a pojištění (oba) → plán s pojištěním, realokace, osa… → strategie → realizace */
-  const F=[...sh(/^(t|h|a)$/),...per(/^p$/),...sh(/^hy$/),...sh(/^(kat|zp|soc)\d|^deti$/),
+  /* pořadí jako u společného plánu: hypotéka → plán bez pojištění → katastrofy a pojištění (oba) → plán s pojištěním, realokace, osa… → strategie → realizace */
+  const F=[...sh(/^(t|h|a)$/),...sh(/^hy$/),...per(/^p$/),...sh(/^(kat|zp|soc)\d|^deti$/),
     ...RP.flatMap((o,i)=>o.F.filter(f=>/^(p2|st|tx|to|r2|pf|tl|gr|cft)$/.test(f.g)).map(f=>tag(f,o,i))),...sh(/^s$/),...per(/^z$/),...sh(/^e$/)];
   Rh.flags=Rh.flags.filter(f=>/^NN:|PN není nutné|^Úmrtí:|krytí smrti|pojistné|⚠/.test(f)).concat(RP.flatMap(o=>o.R.flags));
   Rh.odd=RP;return {R:Rh,F}}
@@ -2722,11 +2723,12 @@ function update(){
   document.querySelectorAll("[data-vs]").forEach(h=>{const q=R&&R.persons[h.dataset.vs==="partner"?1:0];if(!q)return;
     h.textContent=q.vydaje>0?`Osobní výdaje: ${kcm(Math.max(0,q.vydaje-q.vydDom))} – při úmrtí odpadnou. Výdaje domácnosti: ${kcm(q.vydDom)} – zůstanou a krytí smrti je pokrývá.`:""});
   if($("#pres").classList.contains("on")){const ps=$("#pstage");ps.innerHTML="";show(ps,cur,false)}
+  scrRefresh();
 }
 function go(d){const pres=$("#pres").classList.contains("on");let n=cur+d;while(n>=0&&n<FR.length&&FR[n].skip)n+=d;n=Math.max(0,Math.min(FR.length-1,n));if(n===cur||FR[n].skip)return;cur=n;
   show($("#stage"),cur);$("#cnt").textContent=`${cur+1} / ${FR.length} · ${FR[cur].lbl}${FR[cur].skip?" · VYNECHÁN":""}`;$("#skipCur").checked=!!FR[cur].skip;document.querySelectorAll("#thumbs button").forEach((b,i)=>b.classList.toggle("on",i===cur));
   const tb=document.querySelector("#thumbs button.on");tb&&tb.scrollIntoView({block:"nearest",inline:"nearest"});
-  if($("#pres").classList.contains("on")){show($("#pstage"),cur);$("#pc").textContent=pcTxt()}}
+  if($("#pres").classList.contains("on")){show($("#pstage"),cur);$("#pc").textContent=pcTxt()}scrRefresh()}
 function pcTxt(){const v=visFR();return `${Math.max(0,v.indexOf(FR[cur]))+1} / ${v.length}`}
 $("#prev").onclick=()=>go(-1);$("#next").onclick=()=>go(1);
 $("#skipCur").onchange=e=>toggleSkip(cur,e.target.checked);
@@ -2741,6 +2743,169 @@ $("#bPres").onclick=startPres;$("#px").onclick=e=>{e.stopPropagation();stopPres(
 $("#pres").onclick=e=>{const r=e.currentTarget.getBoundingClientRect();go(e.clientX<r.width*0.25?-1:1)};
 document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&$("#pres").classList.contains("on"))stopPres()});
 let tx0=null;$("#pres").addEventListener("touchstart",e=>tx0=e.touches[0].clientX,{passive:true});$("#pres").addEventListener("touchend",e=>{if(tx0==null)return;const dx=e.changedTouches[0].clientX-tx0;if(Math.abs(dx)>40){e.preventDefault();go(dx<0?1:-1)}tx0=null});
+/* ================= Skript k prezentaci (tlačítko „Skript“) =================
+   Ke každému slidu: cíl slidu, co říct (s čísly klienta), otázka na souhlas a nejčastější námitka.
+   Jen pro poradce – v režimu Prezentovat se nezobrazuje (klient vidí obrazovku); pro druhý monitor „Otevřít v okně“. */
+var SCR={on:false,win:null};
+try{SCR.on=localStorage.getItem("fp_skript")==="1"}catch(e){}
+function scrData(){const I=inp()||{},K=I.klient||{},P=I.partner||{},jm=(K.jmeno||"").trim(),R0=R||{};
+  const nn=R0.nn&&R0.nn.celkem>0?R0.nn.celkem:0,prij=+R0.prijmy||((+K.zam||0)+(+K.podnik||0)+(P.zapnuto?(+P.zam||0)+(+P.podnik||0):0));
+  let H=null;try{H=hypoOf(I)}catch(e){}
+  const cile=(R0.cile||I.cile||[]).filter(c=>c&&c.nazev).map(c=>c.nazev),renta=R0.renta?(R0.renta.dosazitelneMes||R0.renta.mesicne||0):0;
+  return {I,K,jm,par:!!P.zapnuto,R:R0,nn,prij,H,cile,renta,cf:+R0.cf||0,rez:R0.rez&&R0.rez.vklad||0}}
+const scrNum=v=>fmt(Math.round(+v||0))+NB+"Kč";
+/* jeden záznam: c = cíl slidu, s = co říct (pole vět), q = otázka na souhlas, o = [námitka, odpověď], t = tip */
+function scrFor(i){const f=FR[i];if(!f)return null;const D=scrData(),g=String(f.g||"").replace(/^o\d/,""),lbl=f.lbl||"";
+  const grp=FR.filter((x,j)=>j<=i&&x.g===f.g).length,last=!FR[i+1]||FR[i+1].g!==f.g,vy=D.par?"vy oba":"vy";
+  const cilTxt=D.cile.length?D.cile.slice(0,3).join(", ")+(D.cile.length>3?" a další":""):"vaše cíle";
+  const kat=g.match(/^kat(\d)$/),zp=/^zp\d$/.test(g),soc=/^soc\d$/.test(g);
+  if(g==="t")return {c:"Převzít vedení schůzky. Říct, co se bude dít, kolik to zabere a že na konci padne rozhodnutí.",
+    s:["Děkuju, že jste si udělal(a) čas. Než začneme, řeknu vám, jak to dnes bude vypadat.",
+       "<b>Ukážu vám tři věci: kam se s penězi, které už máte, reálně dostanete, co se s plánem stane, když něco nevyjde, a jaký je první krok.</b>",
+       "Zabere nám to zhruba 45 minut. Kdykoli mě zastavte a ptejte se, je to váš plán, ne můj.",
+       "Na konci se rozhodnete, jestli to dává smysl. Když ano, domluvíme další krok. Když ne, řeknete mi to na rovinu."],
+    q:"Je to tak pro vás v pořádku?",t:"Počkej na „ano“. Tímhle si klient sám odsouhlasí, že na konci padne rozhodnutí. Pak už „musím si to rozmyslet“ zní jako porušení dohody."};
+  if(g==="h")return {c:"Ukotvit plán v klientových vlastních slovech. Lidé věří tomu, co sami řekli, ne tomu, co jim řekne poradce.",
+    s:["Na první schůzce jsem se vás ptal, co pro vás peníze znamenají. Tohle jste mi řekl(a):",
+       D.I.motivace?`<i>„${esc(D.I.motivace)}“</i> <span class="mut">(přečti to nahlas, pomalu)</span>`:"<span class='mut'>(přečti nahlas jeho/její odpověď z první schůzky)</span>",
+       "<b>Všechno, co dnes uvidíte, je postavené přesně na tomhle.</b>"],
+    q:"Platí to pořád? Chcete tam něco přidat nebo změnit?",t:"Po otázce mlč. Když klient sám něco doplní, máš nejsilnější motivaci celé schůzky. Zapiš si to a vrať se k tomu u closingu."};
+  if(g==="a")return {c:"Dát klientovi jednoduchý princip (podle horizontu, ne podle „nejlepšího fondu“), aby rozuměl a nehledal produkt.",
+    s:["Většina lidí řeší, jaký fond je nejlepší. To je špatná otázka.",
+       "<b>Správná otázka je: kdy budete ty peníze potřebovat?</b> Peníze na rezervu potřebujete hned, takže musí být v hotovosti. Peníze na rentu budete potřebovat za desítky let, takže mohou být v akciích, které dlouhodobě vydělávají nejvíc.",
+       "Tahle tabulka nám pro každý cíl řekne, jaký poměr akcií, dluhopisů a peněz má smysl. Nevymýšlím to já, je to metodika podle délky investice."],
+    q:"Dává vám smysl, že rezerva a renta nemůžou být ve stejném koši?",o:["„Akcie jsou riskantní.“","Na rok ano, proto tam rezervu nedáváme. Na 20 let je větší riziko nechat peníze na účtu, kde je každý rok sežere inflace. Proto rozhoduje čas, ne pocit."],t:"Nečti tabulku řádek po řádku. Ukaž jeden řádek pro krátký cíl a jeden pro rentu a jdi dál."};
+  if(g==="hy"){const H=D.H;const zakl=H?`Nemovitost za <b>${scrNum(H.cena)}</b>, úvěr ${scrNum(H.uver)}, splátka <b>${scrNum(H.pmt)} měsíčně</b>${H.own>0?`, vlastní zdroje ${scrNum(H.own)}`:""}.`:"";
+    if(grp===1)return {c:"Začít tím největším a nejhmatatelnějším, co klienta čeká: bydlením. Na tomhle bodě se postaví celý plán.",
+      s:["Začneme tím největším, co vás čeká, a to je bydlení. Tohle je finanční rozhodnutí, které ovlivní všechno ostatní.",
+         zakl,H&&H.bank&&H.bank.name?`Podle dnešních sazeb vychází nejlépe ${esc(H.bank.name)} s ${String(H.sazba).replace(".",",")} %. Porovnávám celý trh, ne jednu banku.`:"",
+         "<b>Nejdřív se podívejme, jak vypadají vaše výdaje dnes.</b>"].filter(Boolean),
+      q:"Je tahle cena a lokalita pořád to, co chcete?",t:"Nech klienta mluvit o novém bydlení (kolik pokojů, kde, kdy). Emoce kolem domova jsou nejsilnější motivace v celé prezentaci."};
+    return {c:"Ukázat, že bydlení je v rozpočtu bezpečné, a odsouhlasit splátku jako pevný bod plánu.",
+      s:[`Takhle budou vaše výdaje vypadat po koupi. ${H?`Měsíčně se změní o <b>${sgn(H.delta)}</b>.`:""}`,
+         D.R.hypoKO?`<b class="red">Na rovinu: takhle se to do rozpočtu nevejde, chybí ${scrNum(D.R.hypoKO.chybi)} měsíčně.</b> Aby to vyšlo, musela by splátka být do ${scrNum(D.R.hypoKO.maxPmt)}, tedy nemovitost zhruba do ${scrNum(D.R.hypoKO.cenaMax)}. Raději to slyšíte ode mě teď než od banky.`
+           :D.cf>=5000?"<b>Splátku máte pokrytou a pořád vám zbývá na rezervu i investice.</b> Uvidíte to hned na dalším slidu."
+           :`<b>Vejde se to, ale rozpočet bude napjatý: po koupi zbývá jen zhruba ${scrNum(D.cf)} měsíčně.</b> Proto je o to důležitější mít rezervu a pojištěný příjem.`,
+         "Hypotéku vám vyřídím já: porovnám banky, vyjednám sazbu a hlavně ji napojím na plán, aby splátka nesebrala peníze na rezervu a důchod."],
+      q:"Je pro vás tahle splátka komfortní? Můžeme ji vzít jako pevný bod a postavit všechno ostatní kolem ní?",
+      o:["„Hypotéku si vyřídím sám v bance.“","Můžete. Banka vám ale ukáže jen svou nabídku a nepodívá se, co splátka udělá s vaším důchodem nebo rezervou. Já to mám obojí v jednom plánu a za porovnání trhu nic nedáváte navíc."],
+      t:"Tohle je první malé „ano“. Dokud ho nemáš, nepokračuj. Když splátka klienta děsí, zastav se tady, ne až u podpisu."}}
+  if(g==="p"){const fin=/dosažitelné/.test(lbl),hot=/hotovo/.test(lbl);
+    if(grp===1)return {c:"Ukázat, kolik klientovi měsíčně zbývá, a že každá koruna dostane úkol.",
+      s:[`Tohle je váš plán, zatím bez jakýchkoli rizik. ${D.cf?`<b>Měsíčně vám zbývá ${scrNum(D.cf)}.</b>`:""}`,
+         "Většina lidí tyhle peníze nechá ležet na účtu a za pár let neví, kam zmizely.",
+         `<b>Teď uvidíte, kam půjde každá koruna, a kdy dosáhnete na ${esc(cilTxt)}${D.renta?` a na rentu ${scrNum(D.renta)} měsíčně`:""}.</b>`],
+      q:"Sedí vám tohle číslo, kolik vám měsíčně zbývá?",t:"Pokud klient číslo zpochybní („tolik mi nezbývá“), oprav vstupy hned teď. Plán na špatném cash flow se rozpadne u podpisu."};
+    if(fin)return {c:"Říct pravdu, že na všechno najednou to nestačí, a ukázat dosažitelnou variantu.",
+      s:["Nebudu vám lhát: na všechny cíle najednou to dnes nestačí.","<b>S platbami, které zvládnete, dosáhnete na 100 % oranžových částek.</b> Až se jeden cíl splní, jeho platba se přelije do dalšího.","Je to poctivý plán, ne přání."],
+      q:"Které z těch cílů jsou pro vás nejdůležitější, kdybychom museli volit?",t:"Upřímnost tady buduje víc důvěry než jakýkoli trik. Klient pozná, že mu neprodáváš růžové brýle."};
+    if(hot||last)return {c:"Emoční vrchol: klient vidí svůj plán celý. Pak most k rizikům.",
+      s:["<b>Tohle je váš plán.</b> Všechno, co jste mi řekl(a), že chcete, je tady i s termínem.","<i>(pauza)</i>",
+         "Teď vám ale musím položit jednu nepříjemnou otázku. <b>Co se s tímhle plánem stane, když přestanete vydělávat?</b>"],
+      q:"Co z toho vás těší nejvíc?",t:"Nech klienta odpovědět na „co vás těší nejvíc“ a teprve potom polož otázku na příjem. Kontrast emoce a rizika je to, co prodává ochranu."};
+    return {c:"Krok po kroku přiřadit peníze k cílům. Krátce, ať se klient nenudí.",
+      s:[`Ukaž na oranžovou částku: <b>„Tolik měsíčně jde na tenhle cíl.“</b>`,/navazující/.test(lbl)?"Až se předchozí cíl splní, jeho platba se sem přelije, takže nemusíte přidávat ze svého.":/uvolnění/.test(lbl)?"Po splnění cíle se tahle částka vrací zpátky do vašeho cash flow.":"Řekni jednou větou, co ten cíl znamená pro klienta (ne co je to za produkt)."],
+      q:"Sedí?",t:"Na každém kroku jedno krátké „sedí?“. Sbíráš malá „ano“, která na konci udělají velké „ano“."}}
+  if(kat){const k=(D.R.katastrofy||[])[+kat[1]]||null,jm=k&&k.osoba?(k.osoba.jmeno||"").split(" ")[0]:"";const scn=lbl.split(": ").pop();
+    if(/Dnes/.test(scn))return {c:"Ukázat, že dnes všechno funguje, ale jen díky jednomu zdroji: výplatě.",
+      s:[`${k?`Dnes ${D.par&&jm?esc(jm)+" vydělává":"vyděláváte"} <b>${scrNum(k.normal)}</b> a výdaje jsou ${scrNum(k.vyd)}.`:""} Všechno funguje.`,"<b>Funguje to ale jen do chvíle, než přestane chodit výplata.</b>","Pojďme se podívat, co by na to řekl stát."],
+      q:"Kdyby příjem zítra vypadl, z čeho byste platil(a) výdaje?",t:"Neodpovídej za klienta. Ticho po téhle otázce je nejdůležitějších pět vteřin schůzky."};
+    if(/Invalid/.test(scn)){const iv=k&&k.invAll&&k.invAll[2],ch=k&&iv?k.vydFP-iv.prijem:0;
+      return {c:"Invalidita je nejčastější a nejdražší riziko. Ukázat konkrétní díru v korunách.",
+      s:["Lidé se bojí smrti, ale mnohem pravděpodobnější je, že přežijete a nebudete moct pracovat. Nejčastěji kvůli nemoci, ne úrazu.",
+         iv?`Při invaliditě III. stupně by vám stát poslal zhruba <b>${scrNum(iv.prijem)}</b> měsíčně.${ch>0?` <b class="red">Na váš život s plánem chybí ${scrNum(ch)} každý měsíc.</b>`:""}`:"",
+         "A to ne na rok. Na roky, až do důchodu."].filter(Boolean),
+      q:"Kdo by vám ten rozdíl doplácel?",o:["„To se mi nestane.“","To si myslí každý. Proto se na to díváme v číslech, ne v pocitech. Nejde o to, jestli se to stane, ale co by se stalo s plánem, který jsme právě postavili."],t:"Mluv klidně a věcně. Nestrašíš, ukazuješ čísla. Čím víc dramatizuješ, tím menší důvěra."};}
+    if(/Úmrtí/.test(scn))return {c:"Ukázat, co by po klientovi zbylo pro rodinu a závazky.",
+      s:[k&&k.smrt&&k.smrt.treba?`Kdyby se vám něco stalo, rodina by potřebovala zhruba <b>${scrNum(k.smrt.pc)}</b>, aby udržela bydlení a plán${D.H?" a splatila hypotéku":""}.`:"Tady jsou čísla pro případ úmrtí.",
+         k&&k.smrt&&!k.smrt.treba?"<b>Dobrá zpráva: nikdo na vašem příjmu nezávisí a nemáte závazky, takže tohle pojišťovat nemusíme.</b> Peníze dáme tam, kde dávají smysl.":"Stát dá vdovský a sirotčí důchod, ale jen do 18 let dětí. Pak nedá nic."],
+      q:k&&k.smrt&&k.smrt.treba?"Chtěl(a) byste, aby rodina v takové situaci mohla zůstat bydlet tam, kde je?":"Dává smysl, že tady nic přidávat nebudeme?",
+      t:k&&k.smrt&&!k.smrt.treba?"Když řekneš, co klient NEPOTŘEBUJE, výrazně stoupne důvěra ve všechno ostatní.":"Otázka je řečnická, odpověď zná. Nech ho ji říct nahlas."};
+    return {c:"Dlouhodobá nemoc: rezerva vs. dávka. Uzavřít katastrofy a přejít k řešení.",
+      s:[k&&k.pn?(k.pn.treba?`Nemocenská nepokryje výdaje a rezerva vystačí jen na část roku. <b>Chybí denní dávka zhruba ${fmt(k.pn.denniDop)} Kč.</b>`:`<b>Tady jste v pohodě:</b> rezerva pokryje rok nemoci, takže denní dávku pojišťovat nemusíme.`):"",
+         "Tím jsme prošli všechno, co může plán rozbít.","<b>Teď vám ukážu, jak ho ochránit.</b>"].filter(Boolean),
+      q:"Je něco z toho, co vás překvapilo?",t:"Odpověď na tuhle otázku je tvoje nejlepší munice pro další slide. Zopakuj ji tam jeho slovy."}}
+  if(zp){const fit=/FitSport/.test(lbl),pct=D.nn&&D.prij?Math.round(D.nn/D.prij*1000)/10:0;
+    if(fit)return {c:"Ukázat, že pojistné může ještě klesnout, když klient sportuje. Bonus, ne další rozhodnutí.",
+      s:["A ještě jedna věc: když se hýbete a zapnete si aplikaci NN, pojistné na smrt a invaliditu klesne. Tohle je ta varianta.","<b>Za to, co děláte stejně, platíte méně.</b>"],q:"Sportujete pravidelně?",t:"Nepouštěj se do detailů aplikace. Je to sladidlo, ne hlavní argument."};
+    return {c:"Řešení přesně na díry z předchozích slidů. Cena v kontextu příjmu, ne jako samostatné číslo.",
+      s:["Tohle je ochrana přesně na ty díry, které jsme viděli. Nic navíc, nic, co byste nepotřeboval(a).",
+         D.nn?`<b>Celé to stojí ${scrNum(D.nn)} měsíčně${pct?`, tedy zhruba ${String(pct).replace(".",",")} % vašeho příjmu`:""}.</b> Za to chráníte celý plán, který jsme postavili.`:"",
+         "Pojistné částky nejsou z hlavy: jsou spočítané z toho, co vám chybělo na předchozích slidech."].filter(Boolean),
+      q:"Dává vám smysl takhle chránit plán?",
+      o:["„To je drahé.“","Drahé v porovnání s čím? Proti tomu, co by vám chybělo každý měsíc při invaliditě, je to pár procent příjmu. Můžeme ale klidně ubrat. Které riziko z toho, co jsme viděli, jste ochotný(á) nést sám(a)?"],
+      t:"Cenu řekni jednou, klidně, a mlč. Neomlouvej se a hned neslevuj. Kdo po ceně začne mluvit první, prohrává."}}
+  if(soc&&grp>1)return {c:"Pokračování: nech čísla mluvit.",s:["Ukaž na rozdíl mezi tím, co platí státu, a tím, co dostane zpátky. <b>Nic nevysvětluj, jen se zeptej.</b>"],q:"Co vám z toho vychází?",t:"Závěr, který si klient řekne sám, platí dvakrát víc než ten tvůj."};
+  if(soc)return {c:"Rozbít námitku „platím sociální, tak mám dost“. Ukázat poměr toho, co už platí státu, a malého doplatku.",
+    s:["Často slyším: proč pojištění, když platím sociální?","<b>Platíte. A tohle je to, co za to dostanete.</b> Vidíte, kolik státu posíláte a kolik vám vrátí, když se něco stane.","Pojistka je jen malý doplatek k tomu, co už dávno platíte, aby to celé dávalo smysl."],
+    q:"Věděl(a) jste, kolik vlastně na sociálním platíte?",t:"Tenhle slide je juxtapozice: polož čísla vedle sebe a nech klienta, ať si závěr udělá sám."};
+  if(g==="deti")return {c:"Pojištění dětí krátce a standardně. Neřešíme příjem, řešíme vážný úraz a nemoc.",
+    s:["U dětí nepojišťujeme příjem, ten nemají. Pojišťujeme vážný úraz a vážnou nemoc.","<b>Kdyby se dítěti stalo něco vážného, jeden z vás zůstane doma a přijde o výdělek.</b> Tohle pokryje léčbu, rehabilitace a úpravy bydlení."],
+    q:"Dává to smysl?",t:"U dětí se nehádej o detaily. Většina rodičů tady řekne ano sama."};
+  if(g==="p2")return grp===1?{c:"Ukázat, že plán i s ochranou pořád funguje.",s:["Teď stejný plán, ale už s ochranou.","<b>Pořád dosáhnete na své cíle a navíc je máte chráněné.</b>"],q:"Sedí vám to takhle?",t:"Jestli plán s pojištěním dosahuje míň, řekni to dřív, než se klient zeptá."}
+    :{c:"Rychle projet kroky plánu s pojištěním.",s:["Ukazuj krok po kroku, jedna věta na krok."],q:"Sedí?",t:"Tady už nic nevysvětluj znovu, klient to zná. Zrychli."};
+  if(g==="st")return {c:"Ukázat, kde peníze leží dnes a kde budou. Peníze na účtu ztrácí hodnotu.",
+    s:grp===1?["Tohle je, kde máte peníze dnes.","<b>Všechno, co leží na účtu nad rezervu, každý rok tiše ztrácí hodnotu kvůli inflaci.</b>"]:["Takhle to bude vypadat po realokaci.",`${D.rez?`Rezervu ${scrNum(D.rez)} necháváme v hotovosti, ať jste kdykoli v klidu.`:""} Zbytek pracuje podle cílů.`],
+    q:grp===1?"Víte, kolik vám na účtu reálně vydělává?":"Sedí vám tohle rozložení?",t:"Nemluv o konkrétních fondech. Mluv o tom, co peníze dělají."};
+  if(/^(tx|to)$/.test(g)&&grp>1)return {c:"Další krok převodu.",s:["Přečti z dolního řádku: <b>kolik, odkud, kam</b> a jednu větu proč."],q:"",t:"Jestli klient ztrácí pozornost, řekni „a stejně pokračujeme dál“ a proklikej zbytek."};
+  if(/^(tx|to)$/.test(g)||/Převod|Příkaz|převod|příkaz/.test(lbl))return {c:"Projít konkrétní převody a trvalé příkazy. Každý krok jednou větou proč.",
+    s:["Přečti z dolního řádku: odkud, kam, kolik.","<b>Ke každému kroku jen jedno „proč“</b>, je napsané vedle (DIP, převod PP bez poplatku, rezerva…)."],q:"Je tohle srozumitelné?",t:"Tady klient často ztrácí pozornost. Jestli je kroků hodně, řekni „a stejně pokračujeme dál“ a proklikej."};
+  if(g==="r2")return {c:"Ukázat produkty a POPLATKY na rovinu. Transparentnost = důvěra.",
+    s:["Tady je přehled produktů a změn.","<b>Poplatky vám řeknu rovnou, ať vás nic nepřekvapí:</b> vstupní poplatek je ve vkladech, roční správa a u některých fondů poplatek z výnosu.","Raději to slyšte ode mě teď než za rok z výpisu."],
+    q:"Máte k produktům nějakou otázku?",o:["„Proč bych platil poplatky? Dám to do ETF sám.“","Můžete. Otázka je, jestli to vydržíte, když trh spadne o 30 %. Nejvíc peněz lidé neztratí na poplatcích, ale tím, že v krizi prodají. Za plán platíte i za to, že vás z toho podržím."],
+    t:"Nikdy neříkej výnosy jako jistotu. Vždy „historicky“, „dlouhodobý průměr“, „není to garantované“."};
+  if(g==="pf"&&grp>1)return /: /.test(lbl)?{c:"Jeden produkt: k čemu slouží ve vašem plánu.",s:[`<b>${esc(lbl.split(": ").slice(1).join(": "))}</b>: jedna věta, jakou roli má ve vašem plánu (růst, stabilita, nebo likvidita). Parametry vidí na slidu.`],q:"",t:"Minulé výnosy vždy s dovětkem, že nejsou zárukou budoucích."}:{c:"Přechod na další produkt.",s:["Jedeme dál."],q:"",t:""};
+  if(g==="pf")return {c:"Krátce představit portfolio. Proč tyhle produkty, ne jejich parametry.",s:["Proč zrovna tyhle produkty: pokrývají akcie, dluhopisy i hotovost tak, jak jsme si řekli u tabulky alokace.","Ke každému jedna věta: k čemu slouží ve vašem plánu."],q:"Je to srozumitelné?",t:"Minulé výnosy uváděj vždy s dovětkem, že nejsou zárukou budoucích."};
+  if(/^(tl|gr|cft)$/.test(g)&&grp>1){const ev=lbl.replace(/^[^:]+:\s*/,""),evS=esc(ev);
+    const line=/^Refixace/.test(ev)?"Tady vám končí fixace. <b>Ozvu se vám půl roku předem a vyjednáme novou sazbu.</b> O tohle se nemusíte starat."
+      :/^Splacen/.test(ev)?"Tady máte splaceno. <b>Splátka se uvolní a ty peníze zase dostanou úkol.</b>"
+      :/Koupě nemovitosti/.test(ev)?"Tady se stěhujete. Výdaje se změní o splátku, ale plán s tím počítá."
+      :/^Důchod/.test(ev)?`Tady jde do důchodu ${esc(ev.replace(/^Důchod:\s*/,""))}. Od státu přijde méně než výplata, a právě tady začíná pracovat renta.`
+      :/^Renta/.test(ev)?`Tady začínáte čerpat rentu${D.renta?" "+scrNum(D.renta)+" měsíčně":""}. <b>Tohle je moment, kvůli kterému to celé děláme.</b>`
+      :/Konec renty/.test(ev)?"Tady je renta vyčerpaná. Je to modelový konec, ne termín, kdy peníze dojdou bez varování. Každý rok to spolu zkontrolujeme."
+      :/^Konec:/.test(ev)?`${evS}: dočasný příjem končí a plán s tím počítá.`
+      :/^Nahrazeno/.test(ev)?`${evS}: stávající úvěr se doplatí z prodeje a jeho splátka zmizí.`
+      :`Tady máte <b>${evS}</b>. Splněno.`;
+    return {c:"Další bod na ose: jedna věta, co ten moment znamená pro klienta.",s:[line],q:/^Renta|^Důchod/.test(ev)?"Jak si ten čas představujete?":"",t:"Mluv o životě, ne o číslech. Čísla vidí na slidu."}}
+  if(g==="tl")return {c:"Časová osa: klient vidí svůj život, ne tabulku.",s:["Tady je váš plán v čase. Každý bod je moment ve vašem životě.","<b>Ukaž na nejbližší splněný cíl:</b> „Tady už budete mít…“"],q:"Který z těch momentů je pro vás nejdůležitější?",t:"Zapamatuj si odpověď a použij ji u closingu: „Abyste za X let měl(a)…“"};
+  if(g==="gr")return {c:"Ukázat růst majetku. Předpoklad, ne slib.",s:["Takhle by mohl majetek růst, když plán dodržíte.","Je to model podle dlouhodobých průměrů, ne záruka. <b>Hlavní je, že máte směr a čísla, podle kterých se můžeme každý rok kontrolovat.</b>"],q:"Je to představa, se kterou jste spokojený(á)?",t:"Neslibuj konkrétní částku v budoucnu. Kontrolní schůzky jednou ročně jsou tvoje udržovačka."};
+  if(g==="cft")return {c:"Cash flow v čase: kam jdou peníze a co se uvolní.",s:["Takhle se bude vyvíjet vaše měsíční cash flow.","<b>Ukaž, kdy se něco uvolní</b> (splacený úvěr, splněný cíl), a že peníze zase dostanou úkol."],q:"Sedí to?",t:"Krátce. Tohle je kontrolní slide, ne prodejní."};
+  if(g==="s")return {c:"Připravit klienta na krizi předem, aby za rok nerušil smlouvy.",
+    s:["Jedna věc, kterou vám řeknu teď, abych vám ji nemusel říkat v krizi.","<b>Trhy budou padat. To je jisté. Nejvíc peněz lidé neztratí na trhu, ale tím, že v propadu prodají.</b>","Až to přijde, zavoláte mi dřív, než cokoli uděláte. Domluveno?"],
+    q:"Domluveno?",t:"Tohle „domluveno“ je závazek. Snižuje storna a buduje dlouhodobý vztah."};
+  if(g==="z")return {c:"CLOSE. Shrnout, položit otázku na rozhodnutí a mlčet.",
+    s:["Shrnu to:",`<b>1.</b> ${D.H&&!D.R.hypoKO?"Bydlení máte spočítané a víte, co udělá s rozpočtem. ":""}Víte, kam půjde každá koruna a kdy dosáhnete na ${esc(cilTxt)}.`,`<b>2.</b> Plán je chráněný${D.nn?` za ${scrNum(D.nn)} měsíčně`:""}.`,"<b>3.</b> Tady jsou konkrétní kroky, jak to spustit.",
+       "<b>Pojďme to zrealizovat. Jdeme do toho?</b>","<i>(TICHO. Nic neříkej, dokud neodpoví.)</i>"],
+    q:"Jdeme do toho?",
+    o:["„Musím si to rozmyslet.“","Jasně, je to důležité rozhodnutí. Abych vám pomohl: co konkrétně si potřebujete promyslet? Plán, částku, nebo něco jiného? (Pak řeš tu jednu věc. Většinou je to částka, a tu můžeme upravit hned teď.)"],
+    t:"Po „Jdeme do toho?“ je ticho tvoje zbraň. Kdo promluví první, prohrál. Když řekne ano, okamžitě přejdi k dalšímu kroku: „Dobře, teď vás provedu, co se bude dít.“"};
+  if(g==="e")return {c:"Doporučení. Ptát se teď, na vrcholu důvěry, ne až někdy příště.",
+    s:["Děkuju. Ještě poslední věc.","<b>Moje práce stojí na doporučeních. Komu z vašich blízkých by tohle, co jste dnes viděl(a), pomohlo?</b>","Kolegové v práci, přátelé, rodina. Kdo řeší bydlení, má děti nebo neví, co s penězi?"],
+    q:"Koho vás napadá jako prvního?",
+    o:["„Nikoho mě teď nenapadá.“","Rozumím. Zkusme to jinak: kdo z vašich známých teď kupuje byt nebo čeká dítě? (Konkrétní situace pomůže víc než obecná otázka.)"],
+    t:"Neomlouvej se za to, že se ptáš. Doporučení není prosba. Je to přirozený důsledek dobře odvedené práce. Měj připravený papír a zapisuj jména."};
+  return {c:"",s:["Ke slidu „"+esc(lbl)+"“ zatím skript není. Popiš jednou větou, co klient vidí a co to pro něj znamená."],q:"Sedí?",t:""}}
+function scrHtml(i){const x=scrFor(i);if(!x)return "";const f=FR[i];
+  return `<div class="scrh"><b>${i+1}. ${esc(f.lbl||"")}</b>${f.skip?' <span class="mut">· vynechaný</span>':""}</div>`+
+   (x.c?`<div class="scrc">🎯 ${x.c}</div>`:"")+
+   `<div class="scrs">${x.s.map(t=>`<p>${t}</p>`).join("")}</div>`+
+   (x.q?`<div class="scrq">❓ <b>${x.q}</b> <span class="mut">… a mlč.</span></div>`:"")+
+   (x.o?`<div class="scro">🛡 <b>Námitka ${x.o[0]}</b><br>${x.o[1]}</div>`:"")+
+   (x.t?`<div class="scrt">💡 ${x.t}</div>`:"")}
+const SCR_CSS=`.scrh{font-size:15px;margin-bottom:6px}.scrc{color:var(--mut,#9a9a9a);font-size:13px;margin-bottom:8px}.scrs p{margin:0 0 8px;font-size:15.5px;line-height:1.5}.scrq{background:rgba(243,117,32,.12);border-left:3px solid #F37520;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:15px}.scro{background:rgba(255,255,255,.05);padding:8px 10px;border-radius:6px;margin:8px 0;font-size:14px;line-height:1.45}.scrt{font-size:13.5px;color:var(--mut,#9a9a9a);margin-top:6px;line-height:1.45}.mut{color:var(--mut,#9a9a9a)}.red{color:#DF6A6A}`;
+function scrRefresh(){if(!SCR)return;const p=$("#scr"),b=$("#bScr");if(b)b.classList.toggle("pri",SCR.on);
+  if(p){p.hidden=!SCR.on;if(SCR.on)$("#scrBody").innerHTML=scrHtml(cur)}
+  if(SCR.win&&!SCR.win.closed){try{const d=SCR.win.document.getElementById("b");if(d)d.innerHTML=scrHtml(cur)}catch(e){}}}
+function scrWindow(){if(SCR.win&&!SCR.win.closed){SCR.win.focus();scrRefresh();return}
+  const w=window.open("","fpSkript","width=560,height=760");if(!w){alert("Prohlížeč zablokoval nové okno – povol vyskakovací okna pro tuhle stránku.");return}SCR.win=w;
+  w.document.open();w.document.write(`<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Skript – finanční plán</title><style>body{margin:0;padding:16px;background:#161616;color:#efefef;font-family:Lato,system-ui,sans-serif}${SCR_CSS}.nv{display:flex;gap:8px;margin-bottom:12px}.nv button{flex:1;padding:10px;border-radius:8px;border:1px solid #333;background:#232323;color:#efefef;font-size:16px;cursor:pointer}</style></head><body><div class="nv"><button id="p">◀ Zpět</button><button id="n">Další ▶</button></div><div id="b"></div></body></html>`);w.document.close();
+  w.document.getElementById("p").onclick=()=>go(-1);w.document.getElementById("n").onclick=()=>go(1);
+  w.addEventListener("keydown",e=>{if(["ArrowRight","PageDown"," "].includes(e.key)){e.preventDefault();go(1)}else if(["ArrowLeft","PageUp"].includes(e.key)){e.preventDefault();go(-1)}});
+  scrRefresh()}
+(function(){const st=document.createElement("style");st.textContent=`.scr{background:var(--panel,#1c1c1c);border:1px solid var(--line,#2e2e2e);border-radius:10px;padding:12px 14px;margin-top:10px}.scr .scrbar{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--mut,#9a9a9a)}.scr .scrbar .sp{flex:1}`+SCR_CSS.replace(/(^|\})\./g,"$1.scr .");document.head.appendChild(st)})();
+$("#bScr").onclick=()=>{SCR.on=!SCR.on;try{localStorage.setItem("fp_skript",SCR.on?"1":"0")}catch(e){}scrRefresh()};
+$("#scrWin").onclick=scrWindow;
+addEventListener("beforeunload",()=>{try{SCR.win&&!SCR.win.closed&&SCR.win.close()}catch(e){}});
 /* PDF: každý snímek jako stránka */
 $("#bPdf").onclick=()=>{const p=$("#print");p.innerHTML=visFR().map(f=>`<div class="pp"><div class="stage"><div class="sl">${f.h}</div></div></div>`).join("");setTimeout(()=>window.print(),300)};
 /* PowerPoint: každý snímek nativně (tvary + texty), mezi snímky stejné skupiny přechod Morph */

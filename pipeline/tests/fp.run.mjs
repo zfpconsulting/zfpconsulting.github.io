@@ -925,15 +925,15 @@ tests["výdaje včetně všeho (výchozí u nových plánů): odečtou se souča
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["bydlení: prodej bytu s hypotékou – hypotéka se z prodeje doplatí a její splátka z výdajů zmizí; slidy hypotéky až za finančním plánem"] = async function () {
+tests["bydlení: prodej bytu s hypotékou – hypotéka se z prodeje doplatí a její splátka z výdajů zmizí; slidy hypotéky před finančním plánem"] = async function () {
   const { ctx, page, errors } = await open();
   await setPlan(page, { klient: { jmeno: "Petr Novák", narozen: "1990-01-01", zam: 110000, hruba: 155000, vydaje_osobni: 50000, vydaje_dom: 45000, inv1: 8000, inv2: 12000, inv3: 20000 }, cile: [],
     nefin: [{ nazev: "Byt 3+1", typ: "Nemovitost k bydlení", hodnota: 7000000 }], uvery: [{ typ: "Hypotéka", nazev: "KB", zustatek: 2500000, splatka: 17500, splatnost: "2048-09", fixace_do: "" }],
     hypo: { zapnuto: true, cena: 15000000, za_let: 1, stavajici: "prodej", inkaso_ted: 6000, inkaso_po: 9000 } });
   const r = await page.evaluate(() => { const H = hypoOf(inp()), g = FR.map(f => f.g), I2 = JSON.parse(JSON.stringify(inp())); I2.hypo.nahrazuje = "-1"; const H2 = hypoOf(I2);
-    return { nahr: H.nahrazuje, spl: H.splaceno, net: H.prodejNet, rep: H.rep, d: Math.round(H.delta - H.pmt), zav: R.zavazky, hy: g.indexOf("hy") > g.lastIndexOf("p") && g.indexOf("hy") < g.indexOf("kat0"), off: [H2.rep, H2.prodejNet] }; });
+    return { nahr: H.nahrazuje, spl: H.splaceno, net: H.prodejNet, rep: H.rep, d: Math.round(H.delta - H.pmt), zav: R.zavazky, hy: g.indexOf("hy") > g.indexOf("a") && g.lastIndexOf("hy") < g.indexOf("p"), off: [H2.rep, H2.prodejNet] }; });
   eq([r.nahr, r.spl, r.net, r.rep, r.d], ["0", 2500000, 4500000, 17500, -14500], "doplacení z prodeje: 7 mil. − 2,5 mil.; splátka 17 500 odpadne (+3 000 inkaso)");
-  assert(r.zav === 10500000 && r.hy, "v závazcích jen nová hypotéka; slidy hypotéky po plánu: " + JSON.stringify(r));
+  assert(r.zav === 10500000 && r.hy, "v závazcích jen nová hypotéka; slidy hypotéky před plánem: " + JSON.stringify(r));
   eq(r.off, [0, 7000000], "„— ne —“ = bez doplacení");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
