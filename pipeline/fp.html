@@ -874,7 +874,7 @@ function compute0(inp, today, ext) {
   }
   const vydCelkem = spolVyd ? vydSpol : persons.reduce((s, p) => s + p.vydaje, 0) || n0((inp.vydaje || {}).celkem) - n0((inp.vydaje || {}).pojistne) - n0((inp.vydaje || {}).sporeni);
   const docasne = (inp.docasne || []).filter(d => n0(d.castka) > 0).map(d => ({ nazev: d.nazev || ({ materska: "Mateřská", rodicovska: "Rodičovská", vyzivne: "Výživné", jine: "Dočasný příjem" })[d.typ] || "Dočasný příjem", castka: n0(d.castka), do: parseDate(d.do) }));
-  const cf = floorTo(prijmy - vydCelkem, 1000);
+  const cf = Math.round((prijmy - vydCelkem) / 1000) * 1000;   /* volné cash flow na celé tisíce (matematicky: 18 975 → 19 000) – stejné číslo na všech slidech */
   docasne.forEach(d => flags.push(`Dočasný příjem „${d.nazev}“ ${d.castka} Kč/měs (do ${d.do ? MES[d.do.getMonth()] + " " + d.do.getFullYear() : "?"}) není v cash flow ani ve scénářích katastrof.`));
   if (cf <= 0) flags.push("Volné cash flow je nulové nebo záporné — plán jen z majetku.");
   // ---------- rezerva
@@ -1324,7 +1324,7 @@ function compute0(inp, today, ext) {
   }
   return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { duvod: rezDuvod, cil: rezCil, vklad: rezVklad, hot: rezHot, zInv: rezZInv, chybi: rezChybi, pravidlo: rezPravidlo, pmt: rezG ? rezG.pmt : 0, months: rezG ? rezG.months : 0, datum: rezG ? rezG.datum : null, splneni: rezG ? Math.min(1, (rezVklad + rezG.vysledek) / rezCil) : rezVklad / Math.max(1, rezCil), flowIdx: rezG ? rezG.flowIdx : null, flowTake: rezG ? rezG.flowTake : 0, flowUvol: rezG ? rezG.flowUvol : 0 },
     maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
-    cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, dpsPrisp, zamPrisp, prispVlastni, pmtCelkem, cfZbyva, keepMes, cfZaokr: Math.max(0, prijmy - vydCelkem - cf), alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
+    cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, dpsPrisp, zamPrisp, prispVlastni, pmtCelkem, cfZbyva, keepMes, cfZaokr: prijmy - vydCelkem - cf, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
     portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, rentaKonec, toky, vyvoj, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
 }
@@ -1982,7 +1982,7 @@ function hypoFrames(I,R){const V=hyCmpVariants(I);if(!V)return hypoFrames1(I,R);
 function hypoFrames1(I,R,VT){const H0=hypoOf(I);if(!H0)return [];
   /* inkaso a další náklady dohromady: kladná změna = nové náklady (šedý pruh), záporná se přičte k tomu, co odpadne */
   const nk=H0.nak+(H0.inkD||0),H=Object.assign({},H0,{nak:Math.max(0,nk),odp:H0.odp+Math.max(0,-nk)+(H0.rep||0)});
-  const vydPo=H.promitnout?R.vydCelkem:R.vydCelkem+H.delta,vyd0=vydPo-H.delta,nO=H0.najOdp||0,P=H.promitnout?R.prijmy:Math.max(0,R.prijmy-nO),P0=P+nO,cf0=P0-vyd0,cf1=P-vydPo;
+  const vydPo=H.promitnout?R.vydCelkem:R.vydCelkem+H.delta,vyd0=vydPo-H.delta,nO=H0.najOdp||0,P=H.promitnout?R.prijmy:Math.max(0,R.prijmy-nO),P0=P+nO,cf0=Math.round((P0-vyd0)/1000)*1000,cf1=H.promitnout?R.cf:Math.round((P-vydPo)/1000)*1000;   /* na tisíce jako cash flow na slidu plánu */
   const jine=(I.uvery||[]).filter((u,j)=>!(idxList(H0.nahrazuje)||[]).includes(j)&&!u._plan&&!u._nahr).reduce((a,u)=>a+(+u.splatka||0),0),dsti=P>0?(H.pmt+jine)/P:null,need=(H.pmt+jine)/0.4,okD=dsti!=null&&dsti<=0.4;
   const pc0=v=>v==null?"–":(v*100).toFixed(0)+NB+"%",pc2=v=>(+v).toFixed(2).replace(".",",")+NB+"%";
   const mx=Math.max(P0,vydPo,vyd0,1)*1.04,W=640,X=v=>Math.max(0,Math.round(W*v/mx));
@@ -2049,7 +2049,7 @@ function cfTimeline(I,R){
     const ph=rPh.filter(f=>f.m<=m).pop(),renta=RT&&m>=rS&&(rE==null||m<rE)&&ph?ph.mes:0;
     const loans=L.filter(u=>u.end==null||m<u.end).reduce((a,u)=>a+u.spl,0)+(H&&m>=hS&&m<hE?H.pmt:0);
     const adj=H&&m>=hS?H.nak+(H.inkD||0)-H.odp:0,ost=ost0.map((v,i)=>Math.max(0,v+adj*sh[i]));
-    /* stejný základ jako slide plánu: cash flow zaokrouhlené dolů na tisíce (rozdíl jde do ostatních výdajů), vlastní vklady DPS/DIP a ponechané úložky do důchodu */
+    /* stejný základ jako slide plánu: cash flow zaokrouhlené na tisíce (rozdíl jde do ostatních výdajů), vlastní vklady DPS/DIP a ponechané úložky do důchodu */
     ost[0]+=R.cfZaokr||0;
     const spor=sporAt(m)+(m<Math.min(...ret)?(R.prispVlastni||0)+(R.keepMes||0):0),poj=P.map((p,i)=>m<ret[i]?pojP[i]:0),pojS=m<Math.max(...ret)?pojD:0;
     const I1=inc.reduce((a,b)=>a+b,0)+renta,E=loans+ost.reduce((a,b)=>a+b,0)+spor+poj.reduce((a,b)=>a+b,0)+pojS;

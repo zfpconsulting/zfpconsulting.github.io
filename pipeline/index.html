@@ -7556,7 +7556,7 @@ async function openFP(e,rec){
   /* kontakt z karty klienta → plán i dotazník (prázdná pole) */
   const kontakt={telefon:e.phone||rec.phone||e.lead?.phone||"",email:rec.email||e.rec?.email||e.lead?.email||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=65#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=66#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
