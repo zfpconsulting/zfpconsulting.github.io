@@ -821,14 +821,11 @@ function compute0(inp, today, ext) {
      Výjimka: když by vynechání platby nechalo cíl víc než 5 % pod cílem (full = celá cílová částka), dá se 500 Kč, pokud to cíl dostane blíž ke 100 %. */
   const pmtRaw = (target, lump, r, months, fee) => { if (months <= 0) return 0; const m = mr(r), g = Math.pow(1 + m, months), rest = target - lump * (1 - fee) * g; if (rest <= 0) return 0;
     return rest / ((Math.abs(m) < 1e-12 ? months : (g - 1) / m) * (1 - fee)); };
-  const pmtFor = (target, lump, r, months, fee, full) => { const raw = pmtRaw(target, lump, r, months, fee); if (raw <= 0) return 0;
-    let p = Math.round(raw / 100) * 100; if (p < raw * 0.99) p += 100; /* zaokrouhlení dolů nesmí cíl srazit pod ~99 % */ if (p >= 500) return p;
-    const rest = target - (months > 0 ? lump * (1 - fee) * Math.pow(1 + mr(r), months) : lump); const F = full || target; if (rest <= 0.05 * F) return 0;
-    /* jinak 0 nebo 500 Kč – podle toho, co cíl dostane blíž ke 100 % */
-    const k = (Math.abs(mr(r)) < 1e-12 ? months : (Math.pow(1 + mr(r), months) - 1) / mr(r)) * (1 - fee), s0 = 1 - rest / F, sp = x => 1 - (rest - x * k) / F;
-    /* malá potřeba: platí se hned po stovkách (100–400 Kč), pokud tím cíl vyjde blíž ke 100 % než s 0 nebo s 500 Kč (žádné přestřelení kvůli minimu) */
-    let best = 0, bd = Math.abs(s0 - 1); [100, 200, 300, 400, 500].forEach(x => { const d = Math.abs(sp(x) - 1); if (d < bd - 1e-9) { best = x; bd = d; } });
-    return best; };
+  /* platba přesně na koruny (nahoru), aby cíl vyšel na 100 % – i malá potřeba pod 500 Kč (do produktu se sčítá s platbami ostatních cílů) */
+  const pmtFor = (target, lump, r, months, fee, full) => { const raw = pmtRaw(target, lump, r, months, fee); if (!(raw > 0)) return 0;
+    /* drobnost pod 100 Kč/měs, bez které cíl i tak vyjde na ≥ 99,5 % → neplatí se (žádné platby po desetikorunách) */
+    if (raw < 100) { const k = months > 0 ? ((Math.abs(mr(r)) < 1e-12 ? months : (Math.pow(1 + mr(r), months) - 1) / mr(r)) * (1 - fee)) : 0; if (raw * k <= 0.005 * (full || target)) return 0; }
+    return Math.ceil(raw - 1e-9); };
   const lumpFor = (target, r, months, fee) => months <= 0 ? target : target / ((1 - fee) * Math.pow(1 + mr(r), months));
 
   // ---------- osoby
@@ -894,6 +891,9 @@ function compute0(inp, today, ext) {
   const rezMax = rezOsoby.reduce((a, o) => o.need > a.need ? o : a, { need: 0 }), rezMin = 6 * vydCelkem;
   const rezCil = ceil(Math.max(rezMax.need, rezMin), 10000);
   const rezPravidlo = rezMax.need >= rezMin ? "rok nemoci" + (persons.length > 1 ? " – " + rezMax.jmeno.split(" ")[0] : "") + ": výdaje − nemocenská" : "6 měsíců výdajů";
+  /* vysvětlivka pod částkou rezervy na slidu plánu – proč právě tolik */
+  const kcR = v => (Math.round(v / 100) * 100).toLocaleString("cs-CZ").replace(/\s/g, "\u00a0") + "\u00a0Kč";
+  const rezDuvod = rezMax.need >= rezMin ? `rok nemoci${persons.length > 1 ? " (" + rezMax.jmeno.split(" ")[0] + ")" : ""}: výdaje − nemocenská = ${kcR(rezMax.need / 12)}/měs × 12` : `6 měsíců výdajů: 6 × ${kcR(vydCelkem)}`;
   // ---------- majetek
   /* zp = měsíční příspěvek zaměstnavatele (DPS, PP, DIP, ŽP) – jde do produktu navíc, z cash flow klienta se neplatí; produkt může mít i nulovou hodnotu (teprve ho založí) */
   const maj = (inp.majetek || []).filter(a => n0(a.hodnota) > 0 || n0(a.vklad) > 0 || (ZAMP.includes(a.typ === DPS_OLD ? DPS : a.typ) && n0(a.zam_prisp) > 0)).map((a, i) => Object.assign({ id: i }, a, { typ: a.typ === DPS_OLD ? DPS : a.typ, zp: ZAMP.includes(a.typ === DPS_OLD ? DPS : a.typ) ? Math.max(0, n0(a.zam_prisp)) : 0, hodnota: n0(a.hodnota), vklad: n0(a.vklad) }));
@@ -968,7 +968,7 @@ function compute0(inp, today, ext) {
     return { nazev: c.nazev || "Cíl", castka: n0(c.castka), datum: d, months, alok: a, r, rNom: r + S.inflace, fee: feeA(a) };
   }).sort((x, y) => x.months - y.months);
   cile.forEach(c => {
-    const need = ceil(lumpFor(c.castka, c.r, c.months, c.fee), 1000);
+    const need = ceil(lumpFor(c.castka, c.r, c.months, c.fee), 100);   /* cíle přesně na 100 % (10/2026): vklad po stokorunách, platby po korunách */
     c.vklad = Math.min(volne, need); volne -= c.vklad;
     c.pmt = pmtFor(c.castka, c.vklad, c.r, c.months, c.fee);
     c.vysledek = fvOf(c.vklad, c.pmt, c.r, c.months, c.fee); c.splneni = c.vysledek / c.castka; c.splneniJ = fvOf(c.vklad, 0, c.r, c.months, c.fee) / c.castka;
@@ -1011,7 +1011,7 @@ function compute0(inp, today, ext) {
     else {
     /* stávající majetek (DPS, PP, ponechané produkty) se zhodnocuje každý svým výnosem */
     const dpsFv = growFv(growList, months);
-    const vklad = Math.min(volne, ceil(lumpFor(Math.max(0, kap - dpsFv), r, months, fee), 1000)); volne -= vklad;
+    const vklad = Math.min(volne, ceil(lumpFor(Math.max(0, kap - dpsFv), r, months, fee), 100)); volne -= vklad;
     const pmt = pmtFor(Math.max(0, kap - dpsFv), vklad, r, months, fee, kap);
     const vysledek = fvOf(vklad, pmt, r, months, fee) + dpsFv;
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet);
@@ -1048,15 +1048,15 @@ function compute0(inp, today, ext) {
       const take = i >= 1 && (i <= L || tiny) ? Sx : 0; g.inhNab = take;
       // přítok jen v potřebné výši — co cíl nepotřebuje, uvolní se do volného cash flow (cíl se nepřeplňuje)
       const zbyva = Math.max(0, target - fvOf(g.vklad, 0, g.r, g.months, g.fee));
-      const potreba = g.months > mPrev ? Math.ceil(pmtRaw(zbyva, 0, g.r, g.months - mPrev, g.fee) / 100) * 100 : 0;
-      g.inh = Math.min(take, potreba < 500 && potreba > 0 && zbyva > 0.05 * full ? 500 : potreba < 500 ? 0 : potreba); g.uvol = Sx - g.inh;
+      const potreba = g.months > mPrev ? Math.ceil(pmtRaw(zbyva, 0, g.r, g.months - mPrev, g.fee) - 1e-9) : 0;
+      g.inh = Math.min(take, potreba); g.uvol = Sx - g.inh;
       const inh = fvInh(g.inh, g, g.months);
       g.pmt = pmtFor(Math.max(0, target - inh), g.vklad, g.r, g.months, g.fee, full); g.fvInh = inh;
       /* malá potřeba (vlastní platba by vyšla pod 500 Kč) a cash flow stačí → platí se 500 Kč hned a o to se sníží jednorázový vklad, takže cíl vyjde na ~100 %
          (místo čekání na splnění jiného cíle nebo přestřelení); uvolněný majetek zůstane na spořicím účtu */
       { const t2 = Math.max(0, target - inh), raw = pmtRaw(t2, g.vklad, g.r, g.months, g.fee), rest = t2 - g.vklad * (1 - g.fee) * Math.pow(1 + mr(g.r), g.months);
         if (g.inh === 0 && g.vklad > 0 && raw > 0 && raw < 450 && rest > 0.05 * full && g.months > 0) {
-          const nv = ceil(lumpFor(Math.max(0, t2 - fvOf(0, 500, g.r, g.months, g.fee)), g.r, g.months, g.fee), 1000);
+          const nv = ceil(lumpFor(Math.max(0, t2 - fvOf(0, 500, g.r, g.months, g.fee)), g.r, g.months, g.fee), 100);
           if (nv < g.vklad) { g.vkladPuv = g.vklad; g.vklad = nv; g.pmt = 500; } } }
       g.vysledek = fvOf(g.vklad, g.pmt, g.r, g.months, g.fee) + inh + (isR ? g.dpsFv : 0);
       g.splneni = (isR ? g.kap : g.castka) > 0 ? g.vysledek / (isR ? g.kap : g.castka) : 1;
@@ -1136,9 +1136,9 @@ function compute0(inp, today, ext) {
     if (optMes && mesH > 0.5) add(prod(S.hot_prod) ? S.hot_prod : "wi_rez", 0, mesH);
     if (optMes) flags.push(`Pravidelné vklady podle optimálního rozložení: akcie ${Math.round(mesA)} · dluhopisy ${Math.round(mesD)} · hotovost ${Math.round(mesH)} Kč/měs.`);
     if (dip > 0.5) { const p = prod(dipKey); pozice.push({ k: dipKey, nazev: p.n + (/DIP/.test(p.n) ? "" : " (DIP)"), jednor: 0, mesicne: Math.round(dip), s: p.s, dip: true }); }
-    /* měsíční vklady do produktů na stovky (když součet na stovky nejde, aspoň na padesátky); součet zůstane, DIP se zaokrouhlí dolů (strop) */
+    /* měsíční vklady do produktů na stovky (když součet na stovky nejde, na padesátky / desetikoruny / koruny – platby plánu jsou přesné na koruny); součet zůstane, DIP se zaokrouhlí dolů (strop) */
     { const L = pozice.filter(p => p.mesicne > 0.5), T0 = L.reduce((a, p) => a + p.mesicne, 0), T = Math.abs(T0 - pmtCelkem) < 60 ? pmtCelkem : T0; /* drobné zaokrouhlení položek nesmí změnit krok na 50 */
-      if (L.length) { const st = Math.round(T) % 100 === 0 ? 100 : 50, Tr = Math.round(T / st) * st;
+      if (L.length) { const st = [100, 50, 10, 1].find(x => Math.round(T) % x === 0), Tr = Math.round(T / st) * st;
         L.filter(p => p.dip).forEach(p => p.mesicne = Math.floor(p.mesicne / st) * st);
         const O = L.filter(p => !p.dip), rest = Tr - L.filter(p => p.dip).reduce((a, p) => a + p.mesicne, 0), oT = O.reduce((a, p) => a + p.mesicne, 0);
         if (O.length && oT > 0) { const ex = O.map(p => p.mesicne / oT * rest / st), fl = ex.map(Math.floor); let left = Math.round(rest / st) - fl.reduce((a, b) => a + b, 0);
@@ -1319,7 +1319,7 @@ function compute0(inp, today, ext) {
     }
     rentaKonec = { typ: "konecRenty", titul: "Konec renty", m: mm, datum: new Date(T0.getFullYear(), T0.getMonth() + mm, 1), v: vyvoj[mm], vPred: vyvoj[mm] };
   }
-  return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { cil: rezCil, vklad: rezVklad, hot: rezHot, zInv: rezZInv, chybi: rezChybi, pravidlo: rezPravidlo, pmt: rezG ? rezG.pmt : 0, months: rezG ? rezG.months : 0, datum: rezG ? rezG.datum : null, splneni: rezG ? Math.min(1, (rezVklad + rezG.vysledek) / rezCil) : rezVklad / Math.max(1, rezCil), flowIdx: rezG ? rezG.flowIdx : null, flowTake: rezG ? rezG.flowTake : 0, flowUvol: rezG ? rezG.flowUvol : 0 },
+  return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { duvod: rezDuvod, cil: rezCil, vklad: rezVklad, hot: rezHot, zInv: rezZInv, chybi: rezChybi, pravidlo: rezPravidlo, pmt: rezG ? rezG.pmt : 0, months: rezG ? rezG.months : 0, datum: rezG ? rezG.datum : null, splneni: rezG ? Math.min(1, (rezVklad + rezG.vysledek) / rezCil) : rezVklad / Math.max(1, rezCil), flowIdx: rezG ? rezG.flowIdx : null, flowTake: rezG ? rezG.flowTake : 0, flowUvol: rezG ? rezG.flowUvol : 0 },
     maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
     cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, dpsPrisp, zamPrisp, prispVlastni, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
@@ -1606,7 +1606,7 @@ function prodSettings(){const P=(inp().nastaveni||{}).prod||{};
   const ML=MARKET.models.map(m=>{const t=((inp().nastaveni||{}).modelTrida||{})[m.id]||(/akci|dynam|rust/i.test(m.name)?"akcie":/dluhop|konzerv|obligac/i.test(m.name)?"dluhopisy":"mix"),A=FPE.PRODUKTY.find(x=>x.k==="cq_akc").vynos,D=FPE.PRODUKTY.find(x=>x.k==="cq_dluh").vynos;
     return {k:m.id,n:"Conseq model – "+m.name,vynos:t==="akcie"?A:t==="dluhopisy"?D:Math.round((A+D)/2*1000)/1000,vstup:0.03,sprava:0,model:1,cagr:m.cagr}});
   const GRP={};FPE.PRODUKTY.concat(ML).forEach(p=>{(GRP[p.model?"Conseq – modelová portfolia":p.g||"Ostatní"]=GRP[p.model?"Conseq – modelová portfolia":p.g||"Ostatní"]||[]).push(p)});
-  const rowH=p=>`<div class="row" style="grid-template-columns:1fr 1fr 1fr"><div style="grid-column:1/-1;font-weight:700;font-size:13px">${esc(p.n)}${p.nofee?' <span class="hint">· vždy bez poplatků</span>':""}${p.prir?' <span class="hint">· přirážka z čisté investice</span>':""}${p.model?` <span class="hint">· historicky ${p.cagr!=null?pct(p.cagr):"–"} p.a.</span>`:""}</div>${p.model?`<div style="grid-column:1/-1">${sel("Třída",`nastaveni.modelTrida.${p.k}`,[["","automaticky podle názvu"],["akcie","akciové"],["dluhopisy","dluhopisové"],["mix","smíšené 50/50"]])}</div>`:""}
+  const rowH=p=>`<div class="row" style="grid-template-columns:1fr 1fr 1fr"><div style="grid-column:1/-1;font-weight:700;font-size:13px">${esc(p.n)}${p.nofee?' <span class="hint">· vždy bez poplatků</span>':""}${p.prir?' <span class="hint">· vstupní poplatek z čisté investice</span>':""}${p.model?` <span class="hint">· historicky ${p.cagr!=null?pct(p.cagr):"–"} p.a.</span>`:""}</div>${p.model?`<div style="grid-column:1/-1">${sel("Třída",`nastaveni.modelTrida.${p.k}`,[["","automaticky podle názvu"],["akcie","akciové"],["dluhopisy","dluhopisové"],["mix","smíšené 50/50"]])}</div>`:""}
    ${pfld("Výnos p.a. %",`nastaveni.prod.${p.k}.vynos`,p.vynos)}${p.auv?`<label class="f">Vstupní<input disabled value="tarif níže"></label>`:pfld("Vstupní %",`nastaveni.prod.${p.k}.vstup`,p.vstup,p.nofee?"disabled":"")}${pfld("Správa p.a. %",`nastaveni.prod.${p.k}.sprava`,p.sprava,p.nofee?"disabled":"")}</div>`;
   /* rozbalovací skupiny podle správce; skupina s ručně upravenými hodnotami je rozbalená */
   const grp=Object.entries(GRP).map(([g,L])=>{const ed=L.some(p=>P[p.k]&&Object.keys(P[p.k]).length);return `<details class="pgrp" data-grp="${esc(g)}" ${ed?"open":""} style="margin:0 0 6px"><summary style="cursor:pointer;font-weight:700;font-size:13px;padding:4px 0">${esc(g)} <span class="hint">· ${L.length}${ed?" · upraveno":""}</span></summary><div class="rows">${L.map(rowH).join("")}</div></details>`}).join("");
@@ -2154,10 +2154,10 @@ function buildFrames(I,R){
   // 4 finanční plán – animovaně: každý krok = jedna platba (jednorázově z majetku / pravidelně z cash flow)
   const planFrames=(withIns,G)=>{
   const out=[];
-  const PR=[{n:"Rezerva",kdy:R.rez.pmt?"za "+R.rez.months+" měs.":"Ihned",cil:kc(R.rez.cil),lump:R.rez.vklad,pmt:R.rez.pmt||0,vys:kc(Math.round(R.rez.cil*Math.min(1,R.rez.splneni))),s:Math.round(Math.min(1,R.rez.splneni)*100),sj:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100)}]
-   .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),lump:c.vklad,pmt:c.pmt,vys:kc(Math.round(c.vysledek/1000)*1000),s:Math.round(c.splneni*100),sj:Math.round(c.splneniJ*100),
+  const PR=[{n:"Rezerva",kdy:R.rez.pmt?"za "+R.rez.months+" měs.":"Ihned",cil:kc(R.rez.cil),sub:R.rez.duvod?esc(R.rez.duvod):"",lump:R.rez.vklad,pmt:R.rez.pmt||0,vys:kc(Math.round(R.rez.cil*Math.min(1,R.rez.splneni))),s:Math.round(Math.min(1,R.rez.splneni)*100),sj:Math.round(R.rez.vklad/Math.max(1,R.rez.cil)*100)}]
+   .concat(R.cile.map(c=>({n:esc(c.nazev),kdy:Math.round(c.months/12)+" let",cil:kc(c.castka),lump:c.vklad,pmt:c.pmt,vys:kc(Math.abs(c.vysledek/c.castka-1)<0.005?c.castka:Math.round(c.vysledek/1000)*1000),s:Math.round(c.splneni*100),sj:Math.round(c.splneniJ*100),
      kr:c.kraceno,dos:kc(c.dosazitelne)})))
-   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(Math.round(R.renta.kap/1000)*1000),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(Math.round(R.renta.vysledek/1000)*1000),s:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100),sd:Math.round(R.renta.splneniDps*100),
+   .concat(R.renta?[{n:"Renta",kdy:Math.round(R.renta.months/12)+" let",cil:kc(Math.round(R.renta.kap/1000)*1000),sub:rentaTxt(R.renta),lump:R.renta.vklad,dps:R.renta.dpsVal,pmt:R.renta.pmt,vys:kc(Math.round((Math.abs(R.renta.vysledek/Math.max(1,R.renta.kap)-1)<0.005?R.renta.kap:R.renta.vysledek)/1000)*1000),s:Math.round(R.renta.splneni*100),sj:Math.round(R.renta.splneniJ*100),sd:Math.round(R.renta.splneniDps*100),
      kr:R.renta.kraceno,dos:kc(R.renta.dosazitelne),dosSub:`renta ${kcm(R.renta.dosazitelneMes)} místo ${kcm(R.renta.mesicne)}`}]:[]);
   const anyKr=!withIns&&PR.some(r=>r.kr);
   const nGoals=PR.length;
@@ -2486,7 +2486,7 @@ function buildFrames(I,R){
   /* poplatky v detailu produktu: Conseq = vstupní + management + success fee; ostatní jen vstupní poplatek dle nastavení
      (správa je už odečtená v čistém výnosu, proto se zvlášť neuvádí) */
   const feeB=p=>{const f=pop(p.k);if(f.auv)return ["Poplatek (ážio) podle tarifu depozitu"];if(f.nofee)return ["Bez vstupního poplatku"];
-    const v=`${f.prir?"Vstupní přirážka":"Vstupní poplatek"} ${pct(f.vstup||0,Math.round((f.vstup||0)*1000)%10?1:0)}`;
+    const v=`Vstupní poplatek ${pct(f.vstup||0,Math.round((f.vstup||0)*1000)%10?1:0)}`;
     return f.conseq?[v,`Management fee ${pct(R.S.cq_mgmt,0)} ročně`,`Success fee ${pct(R.S.cq_success,0)} ze zisku`]:[v]};
   const info0=p=>INFO[p.k]||(String(p.k).startsWith("wi_")?{t:"ETF portfolio ZFP World Index – široce rozložené, nízkonákladové indexové fondy.",b:["Správa "+pct(pop(p.k).sprava||0,2)+" ročně","Likvidita do týdne"]}:
     String(p.k).startsWith("m:")?{t:"Modelové portfolio Conseq sestavené pro klienta – historie se každý den aktualizuje.",b:(MARKET.models.find(m=>m.id===p.k)||{}).comps||[]}:{t:"",b:[]});

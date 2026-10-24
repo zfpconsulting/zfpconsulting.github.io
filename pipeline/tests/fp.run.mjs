@@ -631,7 +631,8 @@ tests["cíl 100 %: renta nebere víc, než potřebuje (zbytek zůstane nealokov�
     await setPlan(page, Object.assign({}, base, { majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "Podílový fond (OPF)", hodnota: fond }] }));
     const r = await page.evaluate(() => { compute(); return { spl: R.renta.splneni, vklad: R.renta.vklad, pmt: R.renta.pmt, zbyva: R.zbyva }; });
     assert(r.spl >= 0.6 && r.spl <= 1.05, `renta vychází na ~100 % (fond ${fond}: ${r.spl}); platby pod 500 Kč se nedávají, takže i méně`);
-    assert(r.pmt === 0 || (r.pmt >= 500 && r.pmt % 100 === 0), `platba renty je násobek 100 a aspoň 500 (${r.pmt})`);
+    assert(Number.isInteger(r.pmt) && r.pmt >= 0, `platba renty v celých korunách (${r.pmt})`);
+    assert(r.spl >= 0.995 && r.spl < 1.005, `renta přesně na 100 % (${r.spl})`);
     if (fond >= 400000) assert(r.zbyva > 0 && r.pmt === 0, "co renta nepotřebuje, zůstane nealokováno (" + r.zbyva + ")");
   }
   eq(errors, [], "chyby v konzoli"); await ctx.close();
@@ -757,7 +758,7 @@ tests["výnos podle typu aktiva: DPS 7 %, ETF 9 %, akcie 9 %, fond 5 % … nomin
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["případ klienta: 2 cíle + renta s ponechaným DPS/ETF/akciemi – všechny cíle ~100 %, renta si po splnění cíle vezme jen potřebnou část platby; měsíční vklady na stovky"] = async function () {
+tests["případ klienta: 2 cíle + renta s ponechaným DPS/ETF/akciemi – všechny cíle ~100 %, renta si po splnění cíle vezme jen potřebnou část platby; měsíční vklady v celých korunách"] = async function () {
   const { ctx, page, errors } = await open();
   const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [],
     cile: [{ nazev: "Start podnikání", castka: 250000, za_let: 10 }, { nazev: "Akontace na bydlení", castka: 1500000, za_let: 15 }], renta: { mesicne: 30000 },
@@ -767,21 +768,21 @@ tests["případ klienta: 2 cíle + renta s ponechaným DPS/ETF/akciemi – všec
     const r = await page.evaluate(() => { compute(); return { g: R.cile.concat([R.renta]).map(g => ({ n: g.nazev || "Renta", spl: g.splneni, kr: g.kraceno, pmt: g.pmt, inh: g.inh })), poz: R.pozice.map(p => p.mesicne), pmt: R.pmtCelkem }; });
     r.g.forEach(g => { if (!g.kr) assert(g.spl >= 0.97 && g.spl <= 1.06, `${g.n} (ŽP ${zp}): splnění ${g.spl.toFixed(3)} má být ~100 % ` + JSON.stringify(r.g)); });
     assert(r.g[2].spl >= 0.97 && r.g[2].spl <= 1.06, "renta ~100 % (ŽP " + zp + "): " + r.g[2].spl);
-    r.poz.filter(v => v > 0).forEach(v => assert(v % 50 === 0, "měsíční vklad do produktu na stovky / padesátky: " + JSON.stringify(r.poz)));
+    r.poz.filter(v => v > 0).forEach(v => assert(Number.isInteger(v), "měsíční vklad do produktu v celých korunách: " + JSON.stringify(r.poz)));
     if (r.pmt % 100 === 0) r.poz.filter(v => v > 0).forEach(v => assert(v % 100 === 0, "součet je na stovky → každý vklad na stovky: " + JSON.stringify(r.poz)));
     assert(Math.abs(r.poz.reduce((a, b) => a + b, 0) - r.pmt) <= 50, "součet vkladů sedí s platbami: " + r.poz + " vs " + r.pmt);
   }
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["měsíční platby: zaokrouhlené na stovky (pod 500 Kč jen u malé potřeby, platí se hned)"] = async function () {
+tests["cíle přesně na 100 %: výsledek po zaokrouhlení na tisíce = cíl, platby na koruny (pod 500 Kč jen u malé potřeby)"] = async function () {
   const { ctx, page, errors } = await open();
   const base = { klient: { jmeno: "Test", narozen: "2005-06-01", zam: 28000, vydaje_osobni: 15000, inv1: 6000, inv2: 8000, inv3: 12000, starobni: 16000, bez_partnera: true, hruba: 38000 }, partner: { zapnuto: false }, deti: [], motivace: "x", uvery: [], renta: { mesicne: 30000 } };
   const cases = [[{ nazev: "A", castka: 250000, za_let: 10 }, { nazev: "B", castka: 1500000, za_let: 15 }], [{ nazev: "C", castka: 120000, za_let: 3 }, { nazev: "D", castka: 40000, za_let: 8 }], [{ nazev: "E", castka: 333333, za_let: 7 }]];
   for (const cile of cases) {
     await setPlan(page, Object.assign({}, base, { cile, majetek: [{ typ: "Běžný účet", hodnota: 140000 }, { typ: "ETF", nazev: "E", hodnota: 43000, nech: "vse" }] }));
-    const r = await page.evaluate(() => { compute(); return R.cile.concat(R.renta ? [R.renta] : []).flatMap(g => [g.pmt, g.inh || 0]); });
-    r.forEach(v => assert(v % 100 === 0, "platba/přítok je 0 nebo násobek 100 (u malé potřeby i pod 500 Kč): " + JSON.stringify(r)));
+    const r = await page.evaluate(() => { compute(); return R.cile.concat(R.renta ? [R.renta] : []).map(g => { const t = g === R.renta ? R.renta.kap : g.castka; return [Math.round(t / 1000), Math.round(g.vysledek / 1000), g.splneni, g.kraceno]; }); });
+    r.forEach(([t, v, sp, kr]) => { if (kr) return; assert(sp >= 0.995 && sp < 1.005, "cíl na 100 % (±0,5 %, na slidu = cíl): " + JSON.stringify(r)); });
   }
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };

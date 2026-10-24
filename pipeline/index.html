@@ -6794,7 +6794,7 @@ const PF_FEE_TXT={in:"vstupní",run:"průběžný",mg:"správa",sf:"success fee"
 function pfFeeKeys(f){return PF_FEE_KIND[pfCat(f)]}
 function pfFeeClean(f,v){const o={};pfFeeKeys(f).forEach(k=>o[k]=+(v||{})[k]||0);if(v&&v.x&&pfCat(f)==="zfpi")o.x=true;return o}
 function pfFeeTxt(f,fee){const ks=pfFeeKeys(f);if(!ks.length)return pfCat(f)==="zfpf"?"bez poplatků":"poplatky jsou v ceně jednotky";
-  return ks.map(k=>k==="in"&&pfCat(f)==="zfpi"?(fee.x?"mimořádná přirážka "+cz(+fee.in||0)+" %":"přirážka dle sazebníku ("+cz(pfZfpiRate(0))+" %, z platby "+cz(Math.round(pfZfpiRate(0)/(100+pfZfpiRate(0))*10000)/100)+" %)"):PF_FEE_TXT[k]+" "+cz(+fee[k]||0)+" "+PF_FEE_UNIT[k]).join(" · ")}
+  return ks.map(k=>k==="in"&&pfCat(f)==="zfpi"?(fee.x?"mimořádný vstupní poplatek "+cz(+fee.in||0)+" %":"vstupní poplatek dle sazebníku ("+cz(pfZfpiRate(0))+" %, z platby "+cz(Math.round(pfZfpiRate(0)/(100+pfZfpiRate(0))*10000)/100)+" %)"):PF_FEE_TXT[k]+" "+cz(+fee[k]||0)+" "+PF_FEE_UNIT[k]).join(" · ")}
 /* řádky pro zadání poplatků fondu (v modelu, v investici, ve výchozích); v = objekt, který se přímo upravuje */
 function pfFeeRows(f,v,onEdit,noX){
   const ks=pfFeeKeys(f);if(!ks.length)return [el("div",{class:"frow pffee"},el("span",{class:"pfmeta"},pfCat(f)==="zfpf"?"ZFP Finance je vždy bez poplatků":"Penzijní fond – poplatky jsou už v ceně jednotky"))];
@@ -6802,7 +6802,7 @@ function pfFeeRows(f,v,onEdit,noX){
     const zf=k==="in"&&pfCat(f)==="zfpi"&&!noX,std=el("span",{class:"pfmeta"},"dle sazebníku");if(zf){i.hidden=!v.x;std.hidden=!!v.x}
     const seg=k==="in"&&pfCat(f)==="zfpi"&&!noX?el("span",{class:"mini-seg"},...[[false,"Standard"],[true,"Mimořádný snížený"]].map(([x,t])=>el("button",{type:"button","aria-pressed":String(!!v.x===x),onclick:e=>{v.x=x;if(!x){v.in=pfFeeDef(f).in;i.value=v.in||""}i.hidden=!x;std.hidden=x;
       e.target.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b===e.target)));onEdit&&onEdit();if(x)i.focus()}},t))):null;
-    return el("div",{class:"frow pffee"},el("span",{class:"pfmeta",style:"flex:1"},zf?"vstupní přirážka":PF_FEE_TXT[k]),seg,zf?std:null,i,el("span",{class:"pfmeta"},PF_FEE_UNIT[k]))});
+    return el("div",{class:"frow pffee"},el("span",{class:"pfmeta",style:"flex:1"},zf?"vstupní poplatek":PF_FEE_TXT[k]),seg,zf?std:null,i,el("span",{class:"pfmeta"},PF_FEE_UNIT[k]))});
 }
 const PF_MGRS=[...PF_PENS.map(p=>p[0]),"ZFP Gold","AUVESTA","ZFP UP Premium SICAV"];
 const PF_FREQ={m:"měsíčně",q:"čtvrtletně",y:"ročně"};
@@ -7318,7 +7318,7 @@ function pfInvEdit(x,preset,back){
     el("p",{class:"hint"},"Opíšeš hodnotu fondů z výpisu nebo klientské zóny a appka k tomu dni srovná počet jednotek na realitu. Dál se hodnota vyvíjí podle denních cen. Tím se vynulují rozdíly z data nákupu, kurzu a strhávání poplatků. Při dalším výpisu stačí přepsat datum a hodnoty."),
     empBox,
     el("h3",{class:"sechead"},"Poplatky po fondech"),feeBox,modeBox,
-    el("p",{class:"hint"},"Předvyplněné z modelu nebo z výchozích poplatků. ZFP Investments a ZFP WI: jen vstupní (standard 3 %, u ZFPI jde zvolit mimořádný snížený). Conseq: vstupní + správa a success fee, které se strhávají každé 3 měsíce od každého vkladu (poprvé po 3 měsících); success fee se počítá ze zisku nad posledním maximem. ZFP Finance je bez poplatků, u penzijních fondů jsou poplatky už v ceně jednotky. Předplacený (Conseq) = vstupní poplatek z cílové částky se strhává z prvních pravidelných plateb, max. 75 % z každé platby; jednorázové vklady platí běžný vstupní poplatek. ZFPI: přirážka z investované částky – z platby se strhne i/(1+i), při 3 % tedy 2,913 %."),
+    el("p",{class:"hint"},"Předvyplněné z modelu nebo z výchozích poplatků. ZFP Investments a ZFP WI: jen vstupní (standard 3 %, u ZFPI jde zvolit mimořádný snížený). Conseq: vstupní + správa a success fee, které se strhávají každé 3 měsíce od každého vkladu (poprvé po 3 měsících); success fee se počítá ze zisku nad posledním maximem. ZFP Finance je bez poplatků, u penzijních fondů jsou poplatky už v ceně jednotky. Předplacený (Conseq) = vstupní poplatek z cílové částky se strhává z prvních pravidelných plateb, max. 75 % z každé platby; jednorázové vklady platí běžný vstupní poplatek. ZFPI: vstupní poplatek z investované částky – z platby se strhne i/(1+i), při 3 % tedy 2,913 %."),
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"),back?el("button",{type:"button",class:"chipbtn",onclick:back},"Zpět"):null),del]);
 }
 /* ---------- vlastní nástroje: ruční ceny (penzijní fondy, ZFP Gold, AUVESTA, SICAV…) a projekty ZFP Finance ---------- */
@@ -7556,7 +7556,7 @@ async function openFP(e,rec){
   /* kontakt z karty klienta → plán i dotazník (prázdná pole) */
   const kontakt={telefon:e.phone||rec.phone||e.lead?.phone||"",email:rec.email||e.rec?.email||e.lead?.email||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=58#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=59#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
