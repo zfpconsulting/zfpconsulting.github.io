@@ -1367,6 +1367,8 @@ html.locked body{overflow:hidden}
         <button type="button" class="dbtn" id="dTasks" hidden>Povolit zápis úkolů do kalendáře</button>
         <label>Rezervace – živá kontrola kalendáře <input id="dBk" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" inputmode="url"></label>
         <p class="hint">Adresa tvého skriptu (tools/rezervace.gs). S ní stránka rezervace ukazuje jen časy, které jsou v kalendáři opravdu volné, a vybraný termín hned zablokuje – nikdo si nevybere obsazený čas, ani když Pipeline nemáš otevřenou. Zrušenou schůzku v kalendáři skript pozná hned a termín se v rezervaci znovu nabídne. Schůzky kolegů ve společném kalendáři tě neblokují: osobní schůzka kolegy v kanceláři ti nechá jen online, jeho online schůzka nic nemění. Po aktualizaci tools/rezervace.gs ho nasaď znovu (Nasadit → Spravovat nasazení → Nová verze).</p>
+        <label>Fireflies – API klíč (mazání přepisů) <input id="dFF" type="password" placeholder="vlož klíč z Fireflies → Settings → Developer" autocomplete="off"></label>
+        <p class="hint">Přepis schůzky z Fireflies se po zpracování uloží šifrovanou cestou ke klientovi jako soubor a hned potom se ve Fireflies smaže, aby tam nezůstal. Klíč se uloží jen na tvůj server pro notifikace (ne do Pipeline ani na Disk). Prázdné pole = klíč smazat.</p>
         <label>Jméno v odkazech pro klienty <input id="dAdvName" placeholder="např. Jan Novák" autocomplete="off"></label>
         <p class="hint" id="dAdvHint"></p>
       </div>
@@ -2228,6 +2230,14 @@ async function dzRecording(x){
   /* další krok u leadu */
   const nx=r.next||{};
   if(l&&String(nx.step||"").trim()){const p={nextStep:String(nx.step).trim()};if(/^\d{4}-\d{2}-\d{2}$/.test(nx.date||""))p.nextDate=nx.date;await db.doc("leads/"+l.id).update({...p,updatedAt:now});done.push("další krok")}
+  /* celý přepis → soubor u klienta (jako IOLDP z dotazníku); teprve když je uložený, smaže se ve Fireflies */
+  const tr=String(r.transcript||"").trim();
+  if(tr&&window.Docs){try{
+      const own=l?docOwnerLead(leads.find(z=>z.id===l.id)||l):docOwnerClient(clientEntries().find(e=>e.rec&&e.rec.id===curC.id)||{id:"c:"+curC.id,rec:curC,name:curC.name});
+      await Docs.add(own,[new File(["Přepis schůzky – "+nm+" – "+day+"\n\n"+tr],"Přepis schůzky "+day.replace(/\s/g,"")+".txt",{type:"text/plain"})]);
+      try{if(Docs.sync)await Docs.sync()}catch(e){}
+      let ff="";if(r.id)try{await pushApi("/ff/delete",{body:{id:String(r.id)}});ff=" a smazaný ve Fireflies"}catch(e){ff=e&&e.code===409?" (ve Fireflies zůstal – v Nastavení chybí API klíč Fireflies)":" (ve Fireflies se smazat nepovedl – smaž ho ručně)"}
+      done.push("přepis uložený u klienta"+ff)}catch(e){console.warn("přepis",e);done.push("přepis se nepodařilo uložit")}}
   /* historie */
   const sum=bl(r.summary),logT="Zpracovaná nahrávka "+day+(done.length?" – "+done.join(", "):"")+(filled.length?" (FP: "+filled.join(", ")+")":"");
   if(l){const cl=leads.find(z=>z.id===l.id)||l;await db.doc("leads/"+cl.id).update({log:[...(cl.log||[]),{d:now,t:logT}].slice(-100),lastContact:now,updatedAt:now})}
@@ -8021,7 +8031,7 @@ async function updateEurRate(){
       const a=document.activeElement;if(a&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))return;e.preventDefault();go(k==="y"||e.shiftKey?1:-1)})}
   const saveCal=async patch=>{try{await db.doc("settings/main").set({...settings,...patch});lsSet("cal_cache",null);lsSet("cal_hist",null);calHist=null;calEvents=null;calState="loading";render();refreshCalendar().then(()=>fetchCalHistory(true))}catch(e){toast("Nepodařilo se uložit")}};
   sb.addEventListener("click",async()=>{
-    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dBk").value=settings.bkUrl||"";$("dAdvName").value=settings.advName||"";advHint();$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
+    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dBk").value=settings.bkUrl||"";$("dAdvName").value=settings.advName||"";advHint();{const f=$("dFF");f.value="";if(GAuth.token())pushApi("/ff/state",{body:{}}).then(x=>{f.placeholder=x&&x.on?"klíč je uložený – nový přepíše starý":"vlož klíč z Fireflies → Settings → Developer"}).catch(()=>{})}$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
     const me=lsGet("g_owner");$("dataInfo").textContent=(me&&!DEMO?"Účet "+me+" · ":"")+($("syncBtn").title||"");
     if(!GAuth.token()){sel.replaceChildren(new Option(c.name,c.id));return}
     try{const cals=await listCalendars();sel.replaceChildren(...cals.map(k=>new Option((k.primary?"★ ":"")+(k.summary||k.id),k.id)));sel.value=cals.some(k=>k.id===c.id)?c.id:(cals.find(k=>k.primary)?.id||"primary")}catch(e){sel.replaceChildren(new Option(c.name,c.id))}
@@ -8032,6 +8042,7 @@ async function updateEurRate(){
     settings={...settings,bkUrl:v};try{await db.doc("settings/main").update({bkUrl:v});toast(v?"Živá kontrola kalendáře zapnutá":"Živá kontrola vypnutá");dzPublishSlots(true);advPublish(false).then(advHint)}catch(err){toast("Nepodařilo se uložit")}};
   $("dAdvName").onchange=async e=>{const v=e.target.value.replace(/\s+/g," ").trim().slice(0,60);settings={...settings,advName:v};
     try{await db.doc("settings/main").update({advName:v});toast("Uloženo");advHint();advPublish(true).then(advHint)}catch(err){toast("Nepodařilo se uložit")}};
+  $("dFF").onchange=async e=>{const v=e.target.value.trim();try{const x=await pushApi("/ff/key",{body:{key:v}});e.target.value="";e.target.placeholder=x.on?"klíč je uložený – nový přepíše starý":"vlož klíč z Fireflies → Settings → Developer";toast(x.on?"Klíč Fireflies uložený":"Klíč Fireflies smazaný")}catch(err){toast(err&&err.code===400?"Tohle nevypadá jako API klíč Fireflies":"Nepodařilo se uložit – jsi přihlášený Googlem?")}};
   $("dTasks").onclick=()=>GAuth.login(false);
   {const s=$("dWp");try{s.value=localStorage.getItem("wp_month")||"auto"}catch(e){}s.onchange=()=>{try{localStorage.setItem("wp_month",s.value)}catch(e){}if(window.__wpSet)window.__wpSet(s.value)}}
   const err=lsGet("g_err");if(err){localStorage.removeItem("g_err");if(err!=="interaction_required"&&err!=="login_required"&&err!=="consent_required")toast("Přihlášení se nepovedlo ("+err+")")}

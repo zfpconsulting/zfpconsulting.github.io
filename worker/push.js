@@ -155,6 +155,19 @@ async function handle(req,env){
     await env.KV.put("subs:"+m,JSON.stringify(L.slice(-MAX_SUBS)));return J(o,{ok:true,id,n:Math.min(L.length,MAX_SUBS)})}
   if(p==="/unsubscribe"){const L=(await getSubs(env,m)).filter(x=>x.endpoint!==body.endpoint&&x.id!==body.id);await env.KV.put("subs:"+m,JSON.stringify(L));return J(o,{ok:true,n:L.length})}
   if(p==="/subs")return J(o,{subs:(await getSubs(env,m)).map(s=>({id:s.id,p256dh:s.p256dh,auth:s.auth,ua:s.ua,at:s.at}))});
+  /* Fireflies: API klíč si poradce uloží z Pipeline (Nastavení) – zůstává jen tady v KV, Pipeline ani Claude ho neuvidí.
+     Pipeline po uložení přepisu schůzky ke klientovi požádá o smazání přepisu ve Fireflies (každý smí mazat jen svým klíčem). */
+  if(p==="/ff/key"){const k=String(body.key||"").trim();if(k&&!/^[A-Za-z0-9._-]{16,256}$/.test(k))return J(o,{error:"key"},400);
+    if(k)await env.KV.put("ffkey:"+m,k);else await env.KV.delete("ffkey:"+m);return J(o,{ok:true,on:!!k})}
+  if(p==="/ff/state")return J(o,{on:!!(await env.KV.get("ffkey:"+m))});
+  if(p==="/ff/delete"){const id=String(body.id||"");if(!/^[A-Za-z0-9_-]{6,64}$/.test(id))return J(o,{error:"id"},400);
+    const k=await env.KV.get("ffkey:"+m);if(!k)return J(o,{error:"nokey"},409);
+    const r=await fetch("https://api.fireflies.ai/graphql",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+k},body:JSON.stringify({query:"mutation($id:String!){deleteTranscript(id:$id){id}}",variables:{id}})});
+    let j={};try{j=await r.json()}catch(e){}
+    if(j&&j.data&&j.data.deleteTranscript)return J(o,{ok:true});
+    const e0=(j&&j.errors&&j.errors[0])||{},code=String((e0.extensions&&e0.extensions.code)||e0.code||e0.message||r.status);
+    if(/not.?found/i.test(code))return J(o,{ok:true,gone:true});
+    return J(o,{error:"ff",detail:code.slice(0,120)},502)}
   if(p==="/test"){const st=await sendAll(env,m,{t:"Pipeline",b:"Zkušební notifikace – funguje to.",u:"./",tag:"test"},{ttl:600});return J(o,{ok:true,sent:st.filter(x=>x>=200&&x<300).length,n:st.length})}
   /* hned odeslat předšifrované zprávy na moje zařízení (ukázka notifikací z Pipeline) */
   if(p==="/send"){const S=await getSubs(env,m),its=(Array.isArray(body.items)?body.items:[]).filter(x=>x&&typeof x.id==="string"&&typeof x.body==="string"&&x.body.length<6000).slice(0,40);let n=0;
