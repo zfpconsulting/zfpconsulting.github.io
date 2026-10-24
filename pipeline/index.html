@@ -666,6 +666,11 @@ tr.click{cursor:pointer} tr.click:active td{background:var(--fill2)}
 .fun .bar{height:22px;border-radius:6px;background:var(--fill2);overflow:hidden}
 .fun .bar i{display:block;height:100%;border-radius:6px}
 .fun .r b{text-align:right;font-variant-numeric:tabular-nums}
+.fun .r small{display:block;font-size:11px;font-weight:400;color:var(--label2)}
+.functl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.functl button{border:1px solid var(--sep,#ddd);background:none;color:inherit;font:inherit;font-size:12px;padding:4px 10px;border-radius:999px;cursor:pointer}
+.functl button.on{background:#F37520;border-color:#F37520;color:#fff}
+.funweak{margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(243,117,32,.12);font-size:13px}
 .sttab{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
 .stgrid .panel{overflow-x:auto}
 .sttab th{font-size:11px;color:var(--label2);font-weight:600;text-align:right;padding:5px 4px}
@@ -4145,8 +4150,14 @@ function todayData(){
       if(!due&&l.stage==="probehla"){const lm=lastMeeting(l);if(lm){due=addDaysFrom(lm.start.slice(0,10),1);online=/online/i.test(lm.title||"")||!!lm.online}}
       return due&&due<=t&&dDiff(due,t)<=21?{l,due,online}:null;
     }).filter(Boolean).sort((a,b)=>a.due.localeCompare(b.due));
-  return {t,meets,calls,ann,fix,zp,zfin,servis,rec,bday,summail,g:goalInfo()};
+  const bookWait=leads.filter(l=>!l.example&&!l.shared&&l.bookSentAt&&ACTIVE(l.stage)&&!bookedSince(l)&&dDiff(t,l.bookSentAt.slice(0,10))>=BOOK_WAIT_DAYS)
+    .sort((a,b)=>a.bookSentAt.localeCompare(b.bookSentAt));
+  return {t,meets,calls,ann,fix,zp,zfin,servis,rec,bday,summail,bookWait,g:goalInfo()};
 }
+/* rezervace: klient dostal odkaz a sám si vybere termín – když to do 3 dnů neudělá, vyskočí v úkolech „zavolat a domluvit“ */
+const BOOK_WAIT_DAYS=3;
+function bookedSince(l){const sIdx=STAGES.findIndex(x=>x.k==="schuzka"),i=STAGES.findIndex(x=>x.k===l.stage);if(i>=sIdx)return true;
+  return (l.meetings||[]).some(m=>m.start&&(m.start>=new Date().toISOString()||(m.createdAt||m.start)>=l.bookSentAt))}
 /* checklist úkolů: settings.todo[klíč] = {s:"done",d:den} | {s:"snooze",until:den} */
 function todoState(key,daily){const x=(settings.todo||{})[key],t=todayStr();if(!x)return "";if(x.s==="snooze")return x.until>t?"snooze":"";if(x.s==="done")return daily?(x.d===t?"done":""):"done";return ""}
 async function setTodo(key,val){const t=todayStr(),old=settings.todo||{},todo={};Object.entries(old).forEach(([k,v])=>{const d=v.d||v.until||t;if(dDiff(t,d)<90)todo[k]=v});if(val)todo[key]=val;else delete todo[key];settings={...settings,todo};
@@ -4198,6 +4209,8 @@ function openToday(preserve){
   const meetRow=(ev,k,tpl)=>{const c=contactFor(ev);return tdTask(k,false,c.name||ev.name,fmtMeet(ev.start)+(ev.online?" · online":ev.place?" · "+ev.place:"")+(c.phone?" · "+fmtPhone(c.phone):" · bez telefonu"),"otevřít ›","green",()=>{if(c.lead){$("edDlg").close();openEdit(c.lead);return}const ce=c.client&&clientEntries().find(e=>e.rec?.id===c.client.id);if(ce){$("edDlg").close();openClient(ce);return}openMsg({...c,start:ev.start,online:ev.online,place:ev.place},tpl,r=>markMsgDone({...r,meetId:ev.id}))})};
   const confL=allM.filter(ev=>soon(ev.start)||todoState("conf:"+ev.id,false)!=="done");
   if(confL.length)nodes.push(...tdTasks("Potvrdit schůzky",confL.map(ev=>meetRow(ev,"conf:"+ev.id,ev.start.slice(0,10)===tmr?"zitra":"potvrzeni")),""));
+  if(D.bookWait.length)nodes.push(...tdTasks("Nezarezervovali si termín",D.bookWait.map(l=>{const d=dDiff(t,l.bookSentAt.slice(0,10));
+    return tdTask("book:"+l.id+":"+l.bookSentAt.slice(0,10),false,l.name,"odkaz na rezervaci před "+d+" "+plural(d,"dnem","dny","dny")+" · zavolej a domluv termín"+(l.phone?" · "+fmtPhone(l.phone):""),"zavolat ›","orange",()=>{$("edDlg").close();openEdit(l)})}),""));
   const remL=allM.filter(ev=>ev.start.slice(0,10)===tmr);
   if(remL.length)nodes.push(...tdTasks("Připomenout zítřejší schůzky",remL.map(ev=>meetRow(ev,"rem:"+ev.id,"zitra")),""));
   if(D.summail.length)nodes.push(...tdTasks("Shrnutí schůzek",D.summail.map(x=>{const l=x.l,k="summail:"+l.id+":"+x.due;
@@ -4484,14 +4497,49 @@ function weekReportPDF(){
 }
 function maybeOpenToday(){const t=todayStr();if(lsGet("today_seen")===t)return;let n=0;const go=()=>{if(calState==="loading"&&n++<12){setTimeout(go,500);return}if(lsGet("today_seen")!==t&&!document.querySelector("dialog[open]"))openToday()};setTimeout(go,900)}
 /* ================= Klienti: úspěšnost, průměr, hodnota klientů, doporučení ================= */
+/* ================= trychtýř (v-fun) ================= */
+let funPer="q", funSrc="";
+const FUN_STEPS=[["novy","Lead"],["kontaktovan","Osloven"],["schuzka","Schůzka domluvena"],["probehla","Schůzka proběhla"],["nabidka","Nabídka"],["podpis","Podpis"]];
+function funReached(l,k){
+  if((l.reach||{})[k])return true;
+  const i=STAGES.findIndex(x=>x.k===l.stage),ki=STAGES.findIndex(x=>x.k===k);
+  if(SIGNED(l.stage))return true;
+  if(!DEAD(l.stage)&&i>=ki)return true;
+  const ms=l.meetings||[],now=new Date().toISOString();
+  if(k==="novy")return true;
+  if(k==="kontaktovan")return ms.length>0||(l.log||[]).some(x=>/zpráva|volal|nezvedl|hovor/i.test(x.t||""))||!!(l.reach||{}).schuzka;
+  if(k==="schuzka")return ms.length>0;
+  if(k==="probehla")return ms.some(m=>m.start&&m.start<now);
+  return false}
+function funnelPanel(Lall){
+  const t=todayStr(), from=funPer==="30"?addDaysFrom(t,-30):funPer==="q"?null:null;
+  let L=Lall.filter(l=>!l.shared);
+  if(funPer==="30")L=L.filter(l=>(l.createdAt||"").slice(0,10)>=from);
+  else if(funPer==="q")L=L.filter(l=>l.createdAt&&qOf(l.createdAt)===CURQ());
+  const srcs=[...new Set(Lall.map(l=>l.source).filter(Boolean))].sort();
+  if(funSrc)L=L.filter(l=>(l.source||"")===funSrc);
+  const N=FUN_STEPS.map(([k])=>L.filter(l=>funReached(l,k)).length);
+  const pc=(a,b)=>b?Math.round(a/b*100)+" %":"–";
+  const rows=FUN_STEPS.map(([k,lab],i)=>el("div",{class:"r"},el("span",{},lab),
+    el("span",{class:"bar"},el("i",{style:"width:"+(N[0]?Math.max(2,N[i]/N[0]*100):0)+"%;background:"+(k==="podpis"?"#F37520":"rgba(243,117,32,"+(.25+i*.12)+")")})),
+    el("b",{},String(N[i]),i?el("small",{},pc(N[i],N[i-1])):el("small",{},"100 %"))));
+  /* nejslabší krok (aspoň 3 leady na vstupu, ať to není šum) */
+  let weak=null;for(let i=1;i<N.length;i++){if(N[i-1]<3)continue;const r=N[i]/N[i-1];if(!weak||r<weak.r)weak={i,r}}
+  const btn=(on,txt,fn)=>el("button",{type:"button",class:on?"on":"",onclick:()=>{fn();renderStats()}},txt);
+  const per=el("div",{class:"functl"},btn(funPer==="30","30 dní",()=>funPer="30"),btn(funPer==="q",qLabel(CURQ()),()=>funPer="q"),btn(funPer==="all","Vše",()=>funPer="all"));
+  const src=srcs.length>1?el("div",{class:"functl"},btn(!funSrc,"Všechny zdroje",()=>funSrc=""),...srcs.map(x=>btn(funSrc===x,x,()=>funSrc=x))):null;
+  const nS=N[N.length-1];
+  return el("div",{class:"panel"},el("h2",{},"Konverzní trychtýř"),el("div",{class:"cap"},"Leady vzniklé v období · % = konverze z předchozího kroku"),per,src,
+    el("div",{class:"fun"},rows),
+    el("div",{class:"stnote"},"Lead → podpis "+pc(nS,N[0])+" · schůzka proběhla → podpis "+pc(nS,N[3])+(nS?" · na 1 podpis ~"+(N[0]/nS).toFixed(1).replace(".",",")+" leadu":"")),
+    weak?el("div",{class:"funweak"},"Nejvíc ti odpadá krok „"+FUN_STEPS[weak.i-1][1]+" → "+FUN_STEPS[weak.i][1]+"“ ("+Math.round(weak.r*100)+" %). Tady je největší páka."):null,
+    L.length?null:el("div",{class:"stnote"},"V tomhle období zatím žádné leady."))}
 function renderStats(){
   const L=leads.filter(l=>!l.example), SI=STAGES.findIndex(s=>s.k==="schuzka");
   const met=l=>SIGNED(l.stage)||(!DEAD(l.stage)&&STAGES.findIndex(s=>s.k===l.stage)>=SI)||(l.meetings||[]).length>0;
   const nL=L.length,nM=L.filter(met).length,signed=L.filter(l=>SIGNED(l.stage)),nS=signed.length, pc=(a,b)=>b?Math.round(a/b*100)+" %":"–";
   const bar=(lab,n,of,col)=>el("div",{class:"r"},el("span",{},lab),el("span",{class:"bar"},el("i",{style:"width:"+(nL?Math.max(2,n/nL*100):0)+"%;background:"+col})),el("b",{},n+" · "+pc(n,of)));
-  const fun=el("div",{class:"panel"},el("h2",{},"Konverzní trychtýř"),el("div",{class:"cap"},"Ze všech leadů v pipeline"),
-    el("div",{class:"fun"},bar("Leady",nL,nL,"var(--gray)"),bar("Schůzka",nM,nL,"var(--indigo)"),bar("Podpis",nS,nM,"var(--green)")),
-    el("div",{class:"stnote"},"Lead → podpis "+pc(nS,nL)+" · schůzka → podpis "+pc(nS,nM)+(nS?" · na 1 podpis potřebuješ ~"+(nL/nS).toFixed(1).replace(".",",")+" leadu":"")));
+  const fun=funnelPanel(L);
   // historie po kvartálech (podle vzniku leadu)
   let q=CURQ();const qs=[];for(let i=0;i<6;i++){qs.unshift(q);q=qShift(q,-1)}
   const hist=el("div",{class:"panel"},el("h2",{},"Historie úspěšnosti"),el("div",{class:"cap"},"Leady podle kvartálu, kdy vznikly · body podle data podpisu"),
@@ -5159,7 +5207,9 @@ function leadMsgCtx(l,mid){const now=new Date().toISOString(),ms=(l.meetings||[]
 function markMsgDone(r){if(!r||!r.meetId)return;const v={s:"done",d:todayStr()};setTodo("conf:"+r.meetId,v);if(r.tplId==="zitra")setTodo("rem:"+r.meetId,v)}
 async function logLeadMsg(l,r){const now=new Date().toISOString(),cur=leads.find(x=>x.id===l.id)||l;const log=[...(cur.log||[]),{d:now,t:"Poslána zpráva ("+r.ch+"): "+r.tpl+(r.start?" · schůzka "+fmtMeet(r.start):""),msg:r.ch}].slice(-100);
   markMsgDone(r);
-  try{await db.doc("leads/"+cur.id).update({log,lastContact:now,updatedAt:now})}catch(e){}}
+  /* zpráva s odkazem na rezervaci → hlídat, jestli si klient do 3 dnů opravdu vybere termín */
+  const bk=(()=>{try{const T=tpls().find(t=>t.id===r.tplId);return !!(T&&/\{rezervace\}/.test(T.text))}catch(e){return false}})();
+  try{await db.doc("leads/"+cur.id).update(bk?{log,lastContact:now,updatedAt:now,bookSentAt:now}:{log,lastContact:now,updatedAt:now})}catch(e){}}
 function openMsg(ctx,tplId,onSent){
   if(!tplId&&ctx.start){const dd=dDiff(ctx.start.slice(0,10),todayStr());tplId=dd===1?"zitra":"potvrzeni"}
   const T=tpls(),cur=T.find(t=>t.id===tplId)||T[0];const ta=el("textarea",{"aria-label":"Text zprávy"});
@@ -5415,6 +5465,7 @@ async function moveTo(l,stage){
   armFlip(l,stage);
   const before=progressSnap(l.signedAt||todayStr()), from=l.stage;
   const patch={stage,stageAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  if(!(l.reach||{})[stage])patch.reach={...(l.reach||{}),[stage]:todayStr()};   /* trychtýř: kdy lead poprvé dosáhl fáze */
   if(SIGNED(stage)&&!l.signedAt)patch.signedAt=todayStr();
   if(!SIGNED(stage)&&l.signedAt)patch.signedAt=null;
   if(stage==="vyplaceno")patch.paidAt=todayStr();else if(l.paidAt)patch.paidAt=null;
