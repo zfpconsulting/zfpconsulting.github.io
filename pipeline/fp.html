@@ -2074,60 +2074,83 @@ function cfTimeline(I,R){
   if(pts.length>12)pts=pts.slice(0,12);
   return {P,two,T0,mEnd,st,pts,hasRenta:!!RT,hasLoans:L.length>0||!!H}}
 function cfFrames(I,R){
-  const T=cfTimeline(I,R);if(!T||T.pts.length<2)return [];
-  const {P,two,T0,mEnd,st,pts}=T,X0=150,X1=1470,Y0=215,Y1=525,W=X1-X0;
+  /* CASH FLOW V ČASE (10/2026): kamera nad grafem – 1) celý graf, 2) přiblížení na každý záchytný bod s popisem,
+     3) na konci oddálení na celý graf. Hlavní jsou tři čísla: příjmy celkem, výdaje celkem, cash flow (zbývá). */
+  const T=cfTimeline(I,R);if(!T||T.pts.length<1)return [];
+  const {P,two,T0,mEnd,st,pts}=T;
+  /* graf v souřadnicích kamery (celý = 1440 × 600) */
+  const CW=1440,CH=600,X0=90,X1=CW-30,Y0=40,Y1=CH-60,W=X1-X0;
   const br=[...new Set([0,mEnd].concat(pts.map(p=>p.m)))].sort((a,b)=>a-b),seg=br.slice(0,-1).map((a,i)=>({a,b:br[i+1],s:st(a)}));
-  const vmax=Math.max(...seg.map(x=>Math.max(x.s.I,x.s.E)))*1.18||1,gx=m=>X0+W*m/mEnd,gy=v=>Y1-(Y1-Y0)*v/vmax;
-  /* stejný motiv jako graf majetku: tmavé pozadí, oranžové plochy s gradientem, bílá čára příjmů, odhalování zleva, budoucnost jako stín */
+  const vmax=Math.max(...seg.map(x=>Math.max(x.s.I,x.s.E)))*1.15||1,gx=m=>X0+W*m/mEnd,gy=v=>Y1-(Y1-Y0)*v/vmax;
   const C={ost:"#5a5a5a",loan:"#b8510f",spor:"#F37520",poj:"#f0c9a0",inc:"#ffffff",free:"#4FB389"};
-  const sPoj=s=>s.poj.reduce((a,b)=>a+b,0)+s.pojS;
-  const layers=[["ost",s=>s.ost.reduce((a,b)=>a+b,0)],["loan",s=>s.loans],["spor",s=>s.spor],["poj",sPoj]];
-  const cum=k=>s=>layers.slice(0,k).reduce((t,[,f])=>t+Math.max(0,f(s)),0);
-  /* body linky po segmentech; změna mezi segmenty jako krátká rampa (ne ostrý schod) */
+  const sPoj=s=>s.poj.reduce((a,b)=>a+b,0)+s.pojS, sOst=s=>s.ost.reduce((a,b)=>a+b,0);
+  const layers=[["ost",sOst],["loan",s=>s.loans],["spor",s=>s.spor],["poj",sPoj]];
+  const cum=k=>s=>layers.slice(0,k).reduce((t,[,f])=>t+Math.max(0,f(s)),0),Etot=cum(layers.length);
   const line=f=>{const o=[];seg.forEach((x,i)=>{const w=gx(x.b)-gx(x.a),rp=Math.min(9,w/4),y=gy(f(x.s));o.push([i?gx(x.a)+rp:gx(x.a),y],[i<seg.length-1?gx(x.b)-rp:gx(x.b),y])});return o};
   const pp=L=>L.map(([x,y])=>x.toFixed(1)+","+y.toFixed(1)).join(" ");
-  const band=(fTop,fBot)=>{const t=line(fTop),b=line(fBot).reverse();return pp(t)+" "+pp(b)};
-  const Etot=cum(layers.length);
-  let defs="",shapes="";
+  const band=(fTop,fBot)=>pp(line(fTop))+" "+pp(line(fBot).reverse());
+  let defs=`<linearGradient id="cfg_free" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.free}" stop-opacity=".35"/><stop offset="1" stop-color="${C.free}" stop-opacity=".08"/></linearGradient>`,shapes="";
   layers.forEach(([k,f],i)=>{if(!seg.some(x=>f(x.s)>0.5))return;
-    defs+=`<linearGradient id="cfg_${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C[k]}" stop-opacity=".95"/><stop offset="1" stop-color="${C[k]}" stop-opacity=".45"/></linearGradient>`;
-    shapes+=`<polygon points="${band(cum(i+1),cum(i))}" fill="url(#cfg_${k})"/><polyline points="${pp(line(cum(i+1)))}" fill="none" stroke="${C[k]}" stroke-width="2" stroke-linejoin="round"/>`});
-  defs+=`<linearGradient id="cfg_free" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.free}" stop-opacity=".30"/><stop offset="1" stop-color="${C.free}" stop-opacity=".06"/></linearGradient><filter id="cfglow" x="-5%" y="-50%" width="110%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+    defs+=`<linearGradient id="cfg_${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C[k]}" stop-opacity=".95"/><stop offset="1" stop-color="${C[k]}" stop-opacity=".5"/></linearGradient>`;
+    shapes+=`<polygon points="${band(cum(i+1),cum(i))}" fill="url(#cfg_${k})"/><polyline points="${pp(line(cum(i+1)))}" fill="none" stroke="${C[k]}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`});
   shapes+=`<polygon points="${band(s=>Math.max(s.I,Etot(s)),Etot)}" fill="url(#cfg_free)"/>`;
-  const incL=pp(line(s=>s.I));
-  const svgOf=(fut)=>`<svg width="1600" height="900" viewBox="0 0 1600 900" style="position:absolute;left:0;top:0"><defs>${defs}</defs>${shapes}<polyline points="${incL}" fill="none" stroke="${C.inc}" stroke-width="${fut?2:4}" ${fut?'stroke-dasharray="6 8"':'filter="url(#cfglow)"'} stroke-linejoin="round"/></svg>`;
+  shapes+=`<polyline points="${pp(line(s=>s.I))}" fill="none" stroke="#fff" stroke-width="3.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
   const nice=x=>{const p=Math.pow(10,Math.floor(Math.log10(x))),f=x/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p},sy=nice(vmax/4);
-  const grid=[];for(let v=sy;v<vmax;v+=sy)grid.push(`<div style="position:absolute;left:${X0}px;top:${gy(v)}px;width:${W}px;height:1px;background:#262626"></div><div style="position:absolute;left:${X0-110}px;top:${gy(v)-10}px;width:100px;text-align:right;font-size:14px;color:#8a8a8a">${Math.round(v/1000)} tis.</div>`);
+  let grid="";for(let v=sy;v<vmax;v+=sy)grid+=`<line x1="${X0}" x2="${X1}" y1="${gy(v)}" y2="${gy(v)}" stroke="#2a2a2a" stroke-width="1" vector-effect="non-scaling-stroke"/><text x="${X0-12}" y="${gy(v)+5}" text-anchor="end" font-size="15" fill="#8a8a8a">${Math.round(v/1000)} tis.</text>`;
   const y0=T0.getFullYear(),yrs=[];for(let y=Math.ceil((y0+1)/5)*5;y<=y0+mEnd/12;y+=5)yrs.push(y);
-  const ax=`<div style="position:absolute;left:${X0}px;top:${Y1}px;width:${W}px;height:2px;background:#3a3a3a"></div>`+yrs.map(y=>`<div style="position:absolute;left:${gx((y-y0)*12-T0.getMonth())-30}px;top:${Y1+10}px;width:60px;text-align:center;font-size:14px;color:#8a8a8a">${y}</div>`).join("");
-  const has={inc:1,ost:1,loan:seg.some(x=>x.s.loans>0.5),spor:seg.some(x=>x.s.spor>0.5),poj:seg.some(x=>sPoj(x.s)>0.5),free:seg.some(x=>x.s.I-Etot(x.s)>0.5)};
-  const leg=[["inc","Příjmy"],["free","Volné peníze"],["spor","Spoření (plán)"],["poj","Pojištění"],["loan","Hypotéka a úvěry"],["ost","Ostatní výdaje"]].filter(([k])=>has[k]).map(([k,t])=>`<span style="margin-left:22px;white-space:nowrap"><i style="display:inline-block;width:${k==="inc"?18:12}px;height:${k==="inc"?3:12}px;border-radius:${k==="inc"?"2px":"50%"};background:${C[k]};margin-right:7px;vertical-align:${k==="inc"?3:-1}px"></i>${t}</span>`).join("");
-  const nmF=i=>esc(P[i].jmeno.split(" ")[0]),out=[];
-  const incAt=m=>{const x=seg.find(q=>m>=q.a&&m<q.b)||seg[seg.length-1];return x.s.I};
-  pts.forEach((p,k)=>{const s=p.s,d=new Date(T0.getFullYear(),T0.getMonth()+p.m,1),cx=Math.max(X0,gx(p.m)),cy=gy(incAt(p.m)),free0=s.I-s.E;
-    let h=chrome("Cashflow v čase","Měsíční cash flow domácnosti — v dnešních cenách")+grid.join("")+ax+
-      `<div style="position:absolute;right:130px;top:168px;font-size:14px;color:#b4b4b4;text-align:right">${leg}</div>
-       <div style="position:absolute;left:0;top:0;width:1600px;height:900px;opacity:.22">${svgOf(true)}</div>
-       <div class="k" data-k="cfclip" style="position:absolute;left:0;top:0;width:${k===pts.length-1?X1+4:Math.max(X0+2,gx(pts[k+1].m)+2)}px;height:900px;overflow:hidden;transition:width 1.4s cubic-bezier(.45,0,.2,1)">${svgOf(false)}</div>`;
-    pts.forEach((q,i)=>{const px=Math.max(X0,gx(q.m)),py=gy(incAt(q.m)),act=i===k,past=i<k;
-      h+=`<div class="k" data-k="cfm${i}" style="position:absolute;left:${px-(act?13:9)}px;top:${py-(act?13:9)}px;width:${act?26:18}px;height:${act?26:18}px;border-radius:50%;background:${act||past?"#F37520":"#161616"};border:3px solid ${act?"#fff":"#F37520"};box-sizing:border-box;color:#fff;font-size:${act?12:10}px;font-weight:900;display:flex;align-items:center;justify-content:center;opacity:${act||past?1:0.4};z-index:3">${i+1}</div>`});
-    h+=`<div class="k" data-k="cfl" style="position:absolute;left:${cx-1}px;top:${cy}px;width:2px;height:${Math.max(0,Y1-cy)}px;background:linear-gradient(#ffffff88,#ffffff00);z-index:2;transition:all 1.4s cubic-bezier(.45,0,.2,1)"></div>
-     <div class="k" data-k="cfv" style="position:absolute;left:${Math.min(1230,Math.max(X0-20,cx-140))}px;top:${Math.max(150,cy-96)}px;width:280px;text-align:center;z-index:5;transition:all 1.4s cubic-bezier(.45,0,.2,1)"><div style="font-size:32px;font-weight:900;color:${free0<0?"#DF6A6A":"#fff"};text-shadow:0 2px 12px rgba(0,0,0,.7)">${Math.abs(free0)<50?"":free0<0?"−":"+"}${kc(Math.abs(Math.round(free0/100)*100))}<span style="font-size:18px">/měs</span></div><div style="font-size:14px;color:#cfcfcf;text-shadow:0 2px 8px rgba(0,0,0,.8)">${d.getFullYear()} · volné peníze</div></div>`;
-    const sum=v=>`<b>${kc(v)}</b>`,cell=v=>v==null?`<span class="mut">·</span>`:kc(v);
-    const ever=f=>pts.some(q=>f(q.s)>=1);
-    const rows=[["Příjmy",s.inc,null]].concat(ever(x=>x.renta)?[["Renta z plánu",null,s.renta]]:[],ever(x=>x.loans)?[["Hypotéka a úvěry",null,s.loans]]:[],[["Ostatní výdaje",s.ost,null]],ever(x=>x.spor)?[["Spoření (plán)",null,s.spor]]:[],ever(x=>x.poj.reduce((a,b)=>a+b,0)+x.pojS)?[["Pojištění",s.poj,s.pojS]]:[]);
-    const tot=r=>(r[1]?r[1].reduce((a,b)=>a+b,0):0)+(r[2]||0);
-    const tr=r=>`<tr><td>${r[0]}</td>${two?P.map((_,i)=>`<td>${r[1]?cell(r[1][i]):cell(null)}</td>`).join(""):""}<td>${kc(tot(r))}</td></tr>`;
-    const free=s.I-s.E;
-    h+=`<div class="card" style="left:80px;top:590px;width:560px;height:250px;border-top:4px solid #F37520"></div>
-      <div style="position:absolute;left:108px;top:610px;width:510px"><span class="pill" style="background:#F37520">${k+1} · ${(FPE.MES[d.getMonth()]+" "+d.getFullYear()).toUpperCase()}</span>
-       <div style="font-size:21px;font-weight:900;margin-top:10px;line-height:1.25;max-height:54px;overflow:hidden">${esc(p.t)}</div>
-       <div style="font-size:15px;color:#cfcfcf;margin-top:8px;line-height:1.5">${(p.d.length?p.d:[k?"":"Výchozí stav"]).slice(0,4).map(esc).join("<br>")}</div></div>
-      <table class="t tcf" style="left:670px;top:590px;width:850px;font-size:15px"><tr><th></th>${two?P.map((_,i)=>`<th>${nmF(i)}</th>`).join(""):""}<th>${two?"Celkem":"Měsíčně"}</th></tr>
-       ${rows.map(tr).join("")}<tr class="sum"><td>Zbývá</td>${two?P.map(()=>"<td></td>").join(""):""}<td class="${free<0?"red":"grn"}">${free<0?"−":""}${kc(Math.abs(free))}</td></tr></table>
-      <div class="foot">V dnešních cenách. Příjem se mění jen v záchytných bodech (konec dočasného příjmu, důchod, renta); splátky úvěrů v nominální výši. Hypotéka, renta a spoření jsou společné.</div>`;
-    out.push({g:"cft",h,lbl:"Cash flow: "+p.t})});
-  return out}
+  grid+=`<line x1="${X0}" x2="${X1}" y1="${Y1}" y2="${Y1}" stroke="#3a3a3a" stroke-width="2" vector-effect="non-scaling-stroke"/>`+yrs.map(y=>`<text x="${gx((y-y0)*12-T0.getMonth())}" y="${Y1+26}" text-anchor="middle" font-size="15" fill="#8a8a8a">${y}</text>`).join("");
+  const svg=`<svg width="${CW}" height="${CH}" viewBox="0 0 ${CW} ${CH}" style="position:absolute;left:0;top:0;overflow:visible"><defs>${defs}</defs>${grid}${shapes}</svg>`;
+  const has={loan:seg.some(x=>x.s.loans>0.5),spor:seg.some(x=>x.s.spor>0.5),poj:seg.some(x=>sPoj(x.s)>0.5)};
+  const leg=[["inc","Příjmy"],["free","Cash flow (zbývá)"],["spor","Spoření (plán)"],["poj","Pojištění"],["loan","Hypotéka a úvěry"],["ost","Výdaje domácnosti"]].filter(([k])=>has[k]!==false).map(([k,t])=>`<span style="margin-left:20px;white-space:nowrap"><i style="display:inline-block;width:${k==="inc"?18:12}px;height:${k==="inc"?3:12}px;border-radius:${k==="inc"?"2px":"50%"};background:${C[k]};margin-right:7px;vertical-align:${k==="inc"?3:-1}px"></i>${t}</span>`).join("");
+  const nmF=i=>esc(P[i].jmeno.split(" ")[0]);
+  const at=m=>{const x=seg.find(q=>m>=q.a&&m<q.b)||seg[seg.length-1];return x.s};
+  const PT=pts.map(p=>({p,x:Math.max(X0,gx(p.m)),yI:gy(at(p.m).I),yE:gy(Etot(at(p.m))),d:new Date(T0.getFullYear(),T0.getMonth()+p.m,1)}));
+  const VL=80,VT=150;   /* levý horní roh výřezu grafu na slidu */
+  /* kamera: výřez (w × h) a transformace grafu; bod (fx, fy) ve výřezu */
+  const camOv={w:CW,h:CH,z:1,tx:0,ty:0};
+  const camAt=q=>{const w=820,h=650,z=2.1,fx=w*0.42,fy=h*0.5,cy=(q.yI+q.yE)/2;
+    const tx=Math.min(0,Math.max(w-z*CW,fx-z*q.x)),ty=Math.min(0,Math.max(h-z*CH,fy-z*cy));return {w,h,z,tx,ty}};
+  const ease="cubic-bezier(.45,0,.2,1)",TR=`transition:all 1.3s ${ease}`;
+  const big=(lbl,v,col,sub)=>`<div style="margin-top:14px"><div style="font-size:16px;letter-spacing:.6px;color:#9a9a9a;text-transform:uppercase;font-weight:700">${lbl}</div><div style="font-size:52px;font-weight:900;line-height:1.05;color:${col}">${v}<span style="font-size:22px;font-weight:700">/měs</span></div>${sub?`<div style="font-size:14px;color:#9a9a9a;margin-top:2px">${sub}</div>`:""}</div>`;
+  const sgn=v=>(v<0?"−":"")+kc(Math.abs(Math.round(v)));
+  const frame=(mode,k)=>{const cam=mode==="pt"?camAt(PT[k]):camOv,out0=mode!=="pt";
+    let h=chrome("Cash flow v čase",mode==="pt"?"Měsíčně, v dnešních cenách — bod po bodu":mode==="end"?"Celý plán najednou — v dnešních cenách":"Jak se vám bude měnit měsíční rozpočet — v dnešních cenách");
+    h+=`<div class="k" data-k="cfvp" style="position:absolute;left:${VL}px;top:${VT}px;width:${cam.w}px;height:${cam.h}px;overflow:hidden;border-radius:14px;background:#141414;${TR}">
+        <div class="k" data-k="cfcam" style="position:absolute;left:0;top:0;width:${CW}px;height:${CH}px;transform-origin:0 0;transform:translate(${cam.tx}px,${cam.ty}px) scale(${cam.z});${TR}">${svg}</div>`;
+    PT.forEach((q,i)=>{const act=mode==="pt"&&i===k,past=mode==="pt"?i<k:mode==="end",sx=cam.tx+cam.z*q.x,sy=cam.ty+cam.z*q.yI,r=act?17:11;
+      h+=`<div class="k" data-k="cfm${i}" style="position:absolute;left:${sx-r}px;top:${sy-r}px;width:${2*r}px;height:${2*r}px;border-radius:50%;background:${act||past?"#F37520":"#161616"};border:3px solid ${act?"#fff":"#F37520"};box-sizing:border-box;color:#fff;font-size:${act?14:11}px;font-weight:900;display:flex;align-items:center;justify-content:center;opacity:${mode==="pt"&&!act&&!past?0.55:1};z-index:3;${TR}">${i+1}</div>`;
+      /* u bodů v přehledu rok a cash flow */
+      const fr=q.p.s.I-q.p.s.E;
+      h+=`<div class="k" data-k="cft${i}" style="position:absolute;left:${sx-62}px;top:${sy-46}px;width:124px;text-align:center;font-size:13px;font-weight:700;color:${fr<0?"#DF6A6A":"#cfe9dc"};background:rgba(10,10,10,.8);border-radius:8px;padding:2px 0;opacity:${mode==="end"?1:0};${TR}">${q.d.getFullYear()} · ${fr<0?"−":"+"}${fmt(Math.abs(Math.round(fr/100)*100))}</div>`});
+    { /* svislá čára a závorka cash flow u aktivního bodu */
+      const q=mode==="pt"?PT[k]:PT[0],sx=cam.tx+cam.z*q.x,sI=cam.ty+cam.z*q.yI,sE=cam.ty+cam.z*q.yE,on=mode==="pt";
+      h+=`<div class="k" data-k="cfln" style="position:absolute;left:${sx-1}px;top:${sI}px;width:2px;height:${Math.max(0,cam.ty+cam.z*Y1-sI)}px;background:linear-gradient(#ffffffaa,#ffffff00);opacity:${on?1:0};z-index:2;${TR}"></div>
+        <div class="k" data-k="cfbr" style="position:absolute;left:${sx+14}px;top:${Math.min(sI,sE)}px;width:10px;height:${Math.abs(sE-sI)}px;border:3px solid ${C.free};border-left:none;border-radius:0 6px 6px 0;opacity:${on&&Math.abs(sE-sI)>8?1:0};z-index:2;${TR}"></div>`}
+    h+=`</div>`;
+    /* pravý panel: tři hlavní čísla + rozpis */
+    if(mode==="pt"){const q=PT[k],s=q.p.s,fr=s.I-s.E,inc=s.inc.reduce((a,b)=>a+b,0);
+      const incSub=[two?P.map((_,i)=>nmF(i)+" "+fmt(Math.round(s.inc[i]))).join(" · "):"",s.renta>0.5?"renta z plánu "+fmt(Math.round(s.renta)):""].filter(Boolean).join(" · ");
+      const ex=[["Výdaje domácnosti",sOst(s)],["Hypotéka a úvěry",s.loans],["Spoření (plán)",s.spor],["Pojištění",sPoj(s)]].filter(x=>x[1]>=1);
+      h+=`<div class="k" data-k="cfpan" style="position:absolute;left:940px;top:150px;width:580px;height:650px;opacity:1;${TR}">
+         <span class="pill" style="background:#F37520">${k+1} / ${PT.length} · ${(FPE.MES[q.d.getMonth()]+" "+q.d.getFullYear()).toUpperCase()}</span>
+         <div style="font-size:24px;font-weight:900;margin-top:10px;line-height:1.2;max-height:58px;overflow:hidden">${esc(q.p.t)}</div>
+         ${q.p.d.length?`<div style="font-size:15px;color:#F3A56B;margin-top:6px;line-height:1.45">${q.p.d.slice(0,3).map(esc).join("<br>")}</div>`:""}
+         ${big("Příjmy celkem",kc(Math.round(s.I)),"#ffffff",incSub)}
+         ${big("Výdaje celkem",kc(Math.round(s.E)),"#c9c9c9",ex.map(([l,v])=>l+" "+fmt(Math.round(v))).join(" · "))}
+         <div style="margin-top:16px;padding:12px 16px;border-radius:12px;background:${fr<0?"rgba(223,106,106,.14)":"rgba(79,179,137,.14)"};border:2px solid ${fr<0?"#DF6A6A":C.free}">
+           <div style="font-size:16px;letter-spacing:.6px;color:${fr<0?"#DF6A6A":C.free};text-transform:uppercase;font-weight:900">Cash flow · zbývá</div>
+           <div style="font-size:60px;font-weight:900;line-height:1.05;color:${fr<0?"#DF6A6A":C.free}">${fr>=0?"+":""}${sgn(fr)}<span style="font-size:24px">/měs</span></div></div>
+       </div>`}
+    else{ /* přehled: hlavní tři čísla dnes, dole legenda */
+      const s=PT[0].p.s,fr=s.I-s.E;
+      h+=`<div class="k" data-k="cfpan" style="position:absolute;left:940px;top:150px;width:580px;height:650px;opacity:0;pointer-events:none;${TR}"></div>
+        <div style="position:absolute;left:80px;top:770px;width:1440px;display:flex;gap:16px">
+          ${[["Příjmy dnes",kc(Math.round(s.I)),"#fff"],["Výdaje dnes",kc(Math.round(s.E)),"#c9c9c9"],["Cash flow dnes",(fr>=0?"+":"")+sgn(fr),fr<0?"#DF6A6A":C.free]].map(([l,v,c])=>`<div style="flex:1;background:#1c1c1c;border-radius:12px;padding:10px 18px"><div style="font-size:14px;color:#9a9a9a;text-transform:uppercase;letter-spacing:.6px;font-weight:700">${l}</div><div style="font-size:34px;font-weight:900;color:${c}">${v}<span style="font-size:16px">/měs</span></div></div>`).join("")}
+        </div>
+        <div style="position:absolute;right:80px;top:118px;font-size:14px;color:#b4b4b4">${leg}</div>`}
+    h+=`<div class="foot">V dnešních cenách. Výdaje celkem = výdaje domácnosti, splátky, spoření z plánu a pojištění. Příjem se mění jen v záchytných bodech (konec dočasného příjmu, důchod, renta).</div>`;
+    return {g:"cft",h,lbl:mode==="pt"?"Cash flow: "+PT[k].p.t:mode==="end"?"Cash flow: celý plán":"Cash flow: přehled"}};
+  return [frame("ov")].concat(PT.map((_,k)=>frame("pt",k)),[frame("end")])}
 function buildFrames(I,R){
   const NOINS=!!((I.nastaveni||{}).bez_pojisteni);
   const F=[];const K=R.persons[0];const doPlanu=R.pozice.reduce((x,p)=>x+p.jednor,0);const ttl=(K.titul?K.titul+" ":"");
@@ -2914,7 +2937,10 @@ function scrFor(i){const f=FR[i];if(!f)return null;const D=scrData(),g=String(f.
     return {c:"Další bod na ose: jedna věta, co ten moment znamená pro klienta.",s:[line],q:/^Renta|^Důchod/.test(ev)?"Jak si ten čas představujete?":"",t:"Mluv o životě, ne o číslech. Čísla vidí na slidu."}}
   if(g==="tl")return {c:"Časová osa: klient vidí svůj život, ne tabulku.",s:["Tady je váš plán v čase. Každý bod je moment ve vašem životě.","<b>Ukaž na nejbližší splněný cíl:</b> „Tady už budete mít…“"],q:"Který z těch momentů je pro vás nejdůležitější?",t:"Zapamatuj si odpověď a použij ji u closingu: „Abyste za X let měl(a)…“"};
   if(g==="gr")return {c:"Ukázat růst majetku. Předpoklad, ne slib.",s:["Takhle by mohl majetek růst, když plán dodržíte.","Je to model podle dlouhodobých průměrů, ne záruka. <b>Hlavní je, že máte směr a čísla, podle kterých se můžeme každý rok kontrolovat.</b>"],q:"Je to představa, se kterou jste spokojený(á)?",t:"Neslibuj konkrétní částku v budoucnu. Kontrolní schůzky jednou ročně jsou tvoje udržovačka."};
-  if(g==="cft")return {c:"Cash flow v čase: kam jdou peníze a co se uvolní.",s:["Takhle se bude vyvíjet vaše měsíční cash flow.","<b>Ukaž, kdy se něco uvolní</b> (splacený úvěr, splněný cíl), a že peníze zase dostanou úkol."],q:"Sedí to?",t:"Krátce. Tohle je kontrolní slide, ne prodejní."};
+  if(g==="cft"){const L=lbl.replace(/^Cash flow: /,"");
+    if(L==="přehled")return {c:"Cash flow v čase – celý graf, pak bod po bodu.",s:["Tohle je váš měsíční rozpočet od dneška až do důchodu. <b>Bílá čára jsou příjmy, barvy pod ní výdaje, zelená plocha je to, co vám každý měsíc zbude.</b>","Projdeme to bod po bodu."],q:"",t:"Neříkej čísla, jen co je co na grafu. Klikni dál."};
+    if(L==="celý plán")return {c:"Celý plán najednou.",s:["A takhle to vypadá celé. <b>V žádném bodě se nedostanete do mínusu</b> – cash flow je vždy kladné.","Když se něco uvolní, peníze dostanou další úkol."],q:"Dává vám to takhle smysl?",t:"Tady nech klienta mluvit. Kontrolní otázka, ne prodej."};
+    return {c:"Bod v čase: "+L,s:["<b>Řekni tři čísla nahlas: příjmy, výdaje, kolik zbývá.</b>","Pak jen to, co se v tomhle bodě změnilo (oranžový řádek pod nadpisem)."],q:"",t:"Max 15 sekund na bod. Rozpis pod čísly jen když se klient zeptá."}}
   if(g==="s")return {c:"Připravit klienta na krizi předem, aby za rok nerušil smlouvy.",
     s:["Jedna věc, kterou vám řeknu teď, abych vám ji nemusel říkat v krizi.","<b>Trhy budou padat. To je jisté. Nejvíc peněz lidé neztratí na trhu, ale tím, že v propadu prodají.</b>","Až to přijde, zavoláte mi dřív, než cokoli uděláte. Domluveno?"],
     q:"Domluveno?",t:"Tohle „domluveno“ je závazek. Snižuje storna a buduje dlouhodobý vztah."};
