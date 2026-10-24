@@ -1997,7 +1997,7 @@ function hypoFrames(I,R){const V=hyCmpVariants(I);if(!V)return hypoFrames1(I,R);
 function hypoFrames1(I,R,VT){const H0=hypoOf(I);if(!H0)return [];
   /* inkaso a další náklady dohromady: kladná změna = nové náklady (šedý pruh), záporná se přičte k tomu, co odpadne */
   const nk=H0.nak+(H0.inkD||0),H=Object.assign({},H0,{nak:Math.max(0,nk),odp:H0.odp+Math.max(0,-nk)+(H0.rep||0)});
-  const vydPo=H.promitnout?R.vydCelkem:R.vydCelkem+H.delta,vyd0=vydPo-H.delta,nO=H0.najOdp||0,P=H.promitnout?R.prijmy:Math.max(0,R.prijmy-nO),P0=P+nO,cf0=Math.round((P0-vyd0)/1000)*1000,cf1=H.promitnout?R.cf:Math.round((P-vydPo)/1000)*1000;   /* na tisíce jako cash flow na slidu plánu */
+  const vydPo=H.promitnout?R.vydCelkem:R.vydCelkem+H.delta,vyd0=vydPo-H.delta,nO=H0.najOdp||0,P=H.promitnout?R.prijmy:Math.max(0,R.prijmy-nO),P0=P+nO,cf0=Math.round(P0-vyd0),   /* dnešní stav přesně (stejně jako Cash flow v čase); na tisíce jen cash flow plánu po koupi */ cf1=H.promitnout?R.cf:Math.round((P-vydPo)/1000)*1000;   /* na tisíce jako cash flow na slidu plánu */
   const jine=(I.uvery||[]).filter((u,j)=>!(idxList(H0.nahrazuje)||[]).includes(j)&&!u._plan&&!u._nahr).reduce((a,u)=>a+(+u.splatka||0),0),dsti=P>0?(H.pmt+jine)/P:null,need=(H.pmt+jine)/0.4,okD=dsti!=null&&dsti<=0.4;
   const pc0=v=>v==null?"–":(v*100).toFixed(0)+NB+"%",pc2=v=>(+v).toFixed(2).replace(".",",")+NB+"%";
   const mx=Math.max(P0,vydPo,vyd0,1)*1.04,W=640,X=v=>Math.max(0,Math.round(W*v/mx));
@@ -2042,7 +2042,7 @@ function cfTimeline(I,R){
   const P=R.persons,two=P.length>1,K=P[0],T0=R.udalosti[0].datum;
   const pd=s=>{const m=/^(\d{4})-(\d{1,2})/.exec(String(s||""));return m?new Date(+m[1],+m[2]-1,1):null};
   const mOf=d=>d?(d.getFullYear()-T0.getFullYear())*12+d.getMonth()-T0.getMonth():null;
-  const H=hypoOf(I),hD=H&&H.promitnout?Math.round(H.delta):0,hS=H?(H.promitnout?0:Math.round(H.za*12)):null,hE=H?Math.round(H.za*12)+H.n:null;   /* plán platí od dneška: promítnutá hypotéka (splátka, inkaso, prodej) už od startu */
+  const H=hypoOf(I),hD=H&&H.promitnout?Math.round(H.delta):0,hS=H?Math.round(H.za*12):null,hE=H?hS+H.n:null;   /* platby z plánu běží od dneška; koupě nemovitosti (nová splátka, inkaso, prodej a konec nájmu) až v termínu koupě */
   const earn=p=>p.zam+p.podnik+p.bonus/12,pas=p=>p.pasiv+p.pronajem,incN=p=>earn(p)+pas(p),incT=P.reduce((a,p)=>a+incN(p),0)||1;
   const vydO=Math.max(0,R.vydCelkem-hD);
   const vyd0=P.map((p,i)=>Math.max(0,p.vydaje?(i===0?p.vydaje-hD:p.vydaje):(two?vydO*incN(p)/incT:vydO)));
@@ -2060,12 +2060,12 @@ function cfTimeline(I,R){
   const mEnd=Math.min(600,Math.max(24,mOf(new Date(K.nar.getFullYear()+((R.S&&R.S.doziti)||85),K.nar.getMonth(),1))));
   const sporAt=m=>{const t=(R.toky||[]).filter(x=>x.m<=m).pop();return t?t.rozpad.filter(r=>r.k!=="volne").reduce((a,r)=>a+r.kc,0):0};
   const st=m=>{
-    const inc=P.map((p,i)=>(m<stopW[i]?earn(p):0)+pas(p)+(m>=ret[i]?p.starobni:0)+docs.filter(d=>d.who===i).reduce((a,d)=>a+(d.end==null||m<d.end?d.castka:m<stopW[i]?d.potom:0),0));
+    const inc=P.map((p,i)=>(m<stopW[i]?earn(p):0)+pas(p)+(i===0&&H&&H.promitnout&&m<hS?(H.najOdp||0):0)+   /* do prodeje nemovitosti ještě chodí nájem */(m>=ret[i]?p.starobni:0)+docs.filter(d=>d.who===i).reduce((a,d)=>a+(d.end==null||m<d.end?d.castka:m<stopW[i]?d.potom:0),0));
     const ph=rPh.filter(f=>f.m<=m).pop(),renta=RT&&m>=rS&&(rE==null||m<rE)&&ph?ph.mes:0;
     const loans=L.filter(u=>u.end==null||m<u.end).reduce((a,u)=>a+u.spl,0)+(H&&m>=hS&&m<hE?H.pmt:0);
     const adj=H&&m>=hS?H.nak+(H.inkD||0)-H.odp:0,ost=ost0.map((v,i)=>Math.max(0,v+adj*sh[i]));
     /* stejný základ jako slide plánu: cash flow zaokrouhlené na tisíce (rozdíl jde do ostatních výdajů), vlastní vklady DPS/DIP a ponechané úložky do důchodu */
-    ost[0]+=R.cfZaokr||0;
+    if(!H||m>=hS)ost[0]+=R.cfZaokr||0;   /* zaokrouhlení cash flow plánu (po koupi) – před koupí přesná čísla */
     const spor=sporAt(m)+(m<Math.min(...ret)?(R.prispVlastni||0)+(R.keepMes||0):0),poj=P.map((p,i)=>m<ret[i]?pojP[i]:0),pojS=m<Math.max(...ret)?pojD:0;
     const I1=inc.reduce((a,b)=>a+b,0)+renta,E=loans+ost.reduce((a,b)=>a+b,0)+spor+poj.reduce((a,b)=>a+b,0)+pojS;
     return {m,inc,renta,loans,ost,spor,poj,pojS,I:I1,E}};
@@ -2079,7 +2079,7 @@ function cfTimeline(I,R){
   if(RT&&rS>0&&rPh[0]&&rPh[0].mes>=100)add(rS,"Renta z plánu",[`renta ${kcm(rPh[0].mes)}`]);
   if(RT)rPh.slice(1).forEach(f=>{if(f.mes>=100)add(f.m,"Renta: dorovnání k důchodu",[`renta ${kcm(f.mes)} (zbytek kryje státní důchod)`])});
   L.forEach(u=>add(u.end,(u.nahr?"Nahrazeno: ":"Splaceno: ")+u.nazev,[u.nahr?`splátka ${kc(u.spl)} nahrazena novou`:`uvolněný cash flow +${kcm(u.spl)}`]));
-  if(H){add(hS,"Koupě nemovitosti",[`hypotéka +${kcm(H.pmt)}`].concat(H.inkD?[`inkaso ${H.inkD>0?"+":"−"}${kc(Math.abs(H.inkD))}`]:[],H.nak?[`nové náklady +${kc(H.nak)}`]:[],H.odp?[`nájem −${kc(H.odp)}`]:[]));if(hS===0)ev[0].d.push(`hypotéka ${kcm(H.pmt)} od začátku plánu`);add(hE,"Splacena plánovaná hypotéka",[`uvolněný cash flow +${kcm(H.pmt)}`])}
+  if(H){add(hS,"Koupě nemovitosti",[`hypotéka +${kcm(H.pmt)}`].concat(H.promitnout&&H.najOdp?[`nájem z prodané nemovitosti −${kc(H.najOdp)}`]:[],H.inkD?[`inkaso ${H.inkD>0?"+":"−"}${kc(Math.abs(H.inkD))}`]:[],H.nak?[`nové náklady +${kc(H.nak)}`]:[],H.odp?[`nájem −${kc(H.odp)}`]:[]));if(hS===0)ev[0].d.push(`hypotéka ${kcm(H.pmt)} od začátku plánu`);add(hE,"Splacena plánovaná hypotéka",[`uvolněný cash flow +${kcm(H.pmt)}`])}
   (R.cile||[]).forEach(c=>{if(!(H&&c.nazev==="Vlastní zdroje na bydlení"))add(c.months,"Cíl: "+c.nazev,[])});   /* vlastní zdroje = bod Koupě nemovitosti */
   /* sloučit body ve stejném měsíci, doplnit změny spoření */
   const byM=new Map();ev.sort((a,b)=>a.m-b.m).forEach(e=>{const o=byM.get(e.m);if(o){o.t+=" · "+e.t;o.d.push(...e.d)}else byM.set(e.m,{...e,d:[...e.d]})});
