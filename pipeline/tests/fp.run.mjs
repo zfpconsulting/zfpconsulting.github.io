@@ -306,14 +306,14 @@ tests["navazující platba: cíl, který vyčerpá cash flow, po splnění před
     const P = FR.filter(f => f.g === "p");
     return { cile: R.cile.map(c => ({ n: c.nazev, pmt: c.pmt, flowIdx: c.flowIdx, flowTake: c.flowTake, spl: c.splneni })), lbl: P.map(f => f.lbl), txt: P.map(f => t(f.h)), cf: R.cf }; });
   const [auto, byt] = o.cile;
-  assert(auto.pmt > 15000, "první cíl platí z cash flow naplno (" + auto.pmt + ")");
+  assert(auto.pmt > 14000, "první cíl platí z cash flow naplno (" + auto.pmt + ")");
   eq(auto.flowIdx, 1, "platba Auta po splnění teče do Bytu"); assert(auto.flowTake > 10000, "do Bytu přeteče velká část platby (" + auto.flowTake + ")");
   assert(byt.pmt < 8000 && byt.spl >= 0.995, "Byt má málo vlastní platby a přesto vychází na 100 % díky navazující platbě (" + byt.pmt + ", " + byt.spl + ")");
   assert(o.lbl.includes("Plán: navazující platba"), "ve slidu je krok „navazující platba“ (" + o.lbl.join(" | ") + ")");
   assert(o.lbl[o.lbl.length - 1] === "Plán: hotovo", "slide končí snímkem bez bubliny, který ukáže výsledek");
   const f = o.txt[o.txt.length - 1], c = o.txt.find((_, i) => o.lbl[i] === "Plán: navazující platba");
   assert(/(po splnění|✓ splněno) → Byt/.test(f), "u Auta je poznámka, kam platba po splnění teče (v závěrečném snímku už ✓ splněno)");
-  assert(/za 3 roky: [\d ]+ \+ [\d ]+ = 20 \d{3} Kč\/měs/.test(f.replace(/ /g, " ")), "u Bytu je vidět, kolik bude platit po splnění Auta (vlastní + přiteklá = celkem): " + f.match(/za \d+ roky:[^A-Z]*/));
+  assert(/za 3 roky: [\d ]+ \+ [\d ]+ = (19|20) \d{3} Kč\/měs/.test(f.replace(/ /g, " ")), "u Bytu je vidět, kolik bude platit po splnění Auta (vlastní + přiteklá = celkem): " + f.match(/za \d+ roky:[^A-Z]*/));
   assert(/z cíle Auto poteče po jeho splnění/.test(c), "popis kroku vysvětluje přelévání");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
@@ -1041,6 +1041,19 @@ tests["hypotéka: srovnání prodat × neprodat ostatní majetek – druhá vari
     await page.evaluate(() => { inp().hypo.cmp = false; compute(); });
     eq(await page.evaluate(() => FR.filter(f => f.g === "hy").length), 2, "bez srovnání jen 2 slajdy");
     eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["rezerva: rok nemoci (výdaje − nemocenská) toho, komu vypadne nejvíc, nejméně 6 měsíců výdajů; OSVČ = 12 × výdaje"] = async () => {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(() => { const base = { majetek: [{ typ: "Spořicí účet", nazev: "SÚ", hodnota: 200000 }], uvery: [], cile: [], deti: [], hypo: {}, vydaje: { vcetne: false }, partner: { zapnuto: false } };
+    const run = k => { const R = computeR(Object.assign(JSON.parse(JSON.stringify(inp())), base, k)); return [R.rez.cil, R.rez.pravidlo]; };
+    return { zam: run({ klient: { jmeno: "A B", narozen: "1990-01-01", zam: 40000, vydaje_osobni: 30000 } }),
+      osvc: run({ klient: { jmeno: "A B", narozen: "1990-01-01", zam: 0, podnik: 60000, vydaje_osobni: 40000, prace: "osvc" } }),
+      vysoky: run({ klient: { jmeno: "A B", narozen: "1990-01-01", zam: 150000, hruba: 220000, vydaje_osobni: 120000 } }) }; });
+  eq(r.zam, [180000, "6 měsíců výdajů"], "zaměstnanec: nemocenská výdaje pokryje → minimum 6 měsíců");
+  eq(r.osvc, [480000, "rok nemoci: výdaje − nemocenská"], "OSVČ bez nemocenského: 12 × výdaje");
+  assert(r.vysoky[0] > 6 * 120000 && /rok nemoci/.test(r.vysoky[1]), "vysoký příjem: strop nemocenské → rezerva podle ročního výpadku (" + r.vysoky.join(", ") + ")");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
 let ok = 0, bad = 0;

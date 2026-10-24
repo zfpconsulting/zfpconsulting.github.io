@@ -880,9 +880,20 @@ function compute0(inp, today, ext) {
   docasne.forEach(d => flags.push(`Dočasný příjem „${d.nazev}“ ${d.castka} Kč/měs (do ${d.do ? MES[d.do.getMonth()] + " " + d.do.getFullYear() : "?"}) není v cash flow ani ve scénářích katastrof.`));
   if (cf <= 0) flags.push("Volné cash flow je nulové nebo záporné — plán jen z majetku.");
   // ---------- rezerva
-  const allZam = persons.every(p => p.zam > 0);
-  const rezCil = allZam ? ceil(4.8 * persons.reduce((s, p) => s + p.zam, 0), 10000) : ceil(12 * vydCelkem, 10000);
-  const rezPravidlo = allZam ? "4,8 × čistý plat" : "12 × měsíční výdaje (OSVČ)";
+  /* rezerva (10/2026): pokryje rok nemoci toho z domácnosti, komu by vypadl nejvíc –
+     12 měsíců × (jeho výdaje − náhrada mzdy / nemocenská − pasivní příjmy), dávky po fázích jako u PN (OSVČ bez nemocenského = celé výdaje).
+     Nejméně 6 měsíců výdajů domácnosti (ztráta práce, nečekané výdaje) – u zaměstnance nemocenská výdaje většinou pokryje, takže rozhoduje tohle minimum. Dřív odhadem: 4,8 × čistý plat zaměstnance / 12 × výdaje OSVČ. */
+  const rezInc = Math.max(1, persons.reduce((s, q) => s + q.zam + q.podnik + q.pasiv + q.pronajem, 0));
+  const rezOsoby = persons.map(p => {
+    const vyd = p.vydaje || (persons.length > 1 ? vydCelkem * (p.zam + p.podnik + p.pasiv + p.pronajem) / rezInc : vydCelkem), pas = p.pasiv + p.pronajem;
+    if (!(p.zam + p.podnik > 0)) return { jmeno: p.jmeno, need: 0 };   /* bez příjmu z práce nemoc nic nezmění */
+    const f = p.zam > 0 ? nemocenska(p.hruba || p.ovz || grossFromNet(p.zam)) : null, davka = m => f ? (m === 0 ? f.d15 : m === 1 ? f.d31 : f.d61) : 0;
+    let need = 0; for (let m = 0; m < 12; m++) need += Math.max(0, vyd - davka(m) - pas);
+    return { jmeno: p.jmeno, need };
+  });
+  const rezMax = rezOsoby.reduce((a, o) => o.need > a.need ? o : a, { need: 0 }), rezMin = 6 * vydCelkem;
+  const rezCil = ceil(Math.max(rezMax.need, rezMin), 10000);
+  const rezPravidlo = rezMax.need >= rezMin ? "rok nemoci" + (persons.length > 1 ? " – " + rezMax.jmeno.split(" ")[0] : "") + ": výdaje − nemocenská" : "6 měsíců výdajů";
   // ---------- majetek
   /* zp = měsíční příspěvek zaměstnavatele (DPS, PP, DIP, ŽP) – jde do produktu navíc, z cash flow klienta se neplatí; produkt může mít i nulovou hodnotu (teprve ho založí) */
   const maj = (inp.majetek || []).filter(a => n0(a.hodnota) > 0 || n0(a.vklad) > 0 || (ZAMP.includes(a.typ === DPS_OLD ? DPS : a.typ) && n0(a.zam_prisp) > 0)).map((a, i) => Object.assign({ id: i }, a, { typ: a.typ === DPS_OLD ? DPS : a.typ, zp: ZAMP.includes(a.typ === DPS_OLD ? DPS : a.typ) ? Math.max(0, n0(a.zam_prisp)) : 0, hodnota: n0(a.hodnota), vklad: n0(a.vklad) }));
