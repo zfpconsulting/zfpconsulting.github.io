@@ -2192,7 +2192,10 @@ async function dzBooking(x){
    (jen prázdná pole – co klient sám vyplnil v dotazníku, se nepřepisuje) a další krok u leadu. Každá zapsaná hodnota jde do historie. */
 const NR_FP=["klient.jmeno","klient.narozen","klient.zam","klient.hruba","klient.podnik","klient.pasiv","klient.pronajem","klient.bonus","klient.vydaje_osobni","klient.vydaje_dom","klient.povolani","klient.sport",
   "partner.jmeno","partner.narozen","partner.zam","partner.hruba","partner.podnik","partner.pasiv","partner.pronajem","partner.bonus","partner.vydaje_osobni","partner.vydaje_dom","partner.povolani","partner.sport",
-  "kontakt.telefon","kontakt.email","kontakt.stav","vydaje.domacnost","renta.mesicne","renta.od_veku","pojisteni.zivotni.stav","hypo.cena","hypo.za_let","motivace","poznamka"];
+  "kontakt.telefon","kontakt.email","kontakt.stav","vydaje.domacnost","renta.mesicne","renta.od_veku","pojisteni.zivotni.stav","hypo.cena","hypo.za_let","motivace","poznamka",
+  "klient.bez_partnera","vydaje.vcetne"];
+/* seznamy (finanční a nefinanční majetek, úvěry, cíle, děti): položky se přidají, pokud ve FP ještě nejsou (stejný název + typ) */
+const NR_FP_L={majetek:["nazev","typ","hodnota","vklad","odpocet","zam_prisp"],nefin:["nazev","typ","hodnota","najem"],uvery:["typ","nazev","zustatek","splatka","fixace_do","splatnost"],cile:["nazev","castka","za_let"],deti:["jmeno","narozen","vs"]};
 async function dzRecording(x){
   const r=x.rec||{},name=String(r.client||"").trim().replace(/\s+/g," "),now=new Date().toISOString(),day=meetDateTxt(r.at||now);
   if(!name)throw new Error("nahrávka bez jména klienta");
@@ -2224,7 +2227,14 @@ async function dzRecording(x){
     const tg=l?fpLeadTarget(leads.find(z=>z.id===l.id)||l):{rec:curC},key=fpKeyOf(tg.rec),saved=fplans.find(p=>p.id===key);
     const plan=saved&&saved.plan&&saved.plan.klient?JSON.parse(JSON.stringify(saved.plan)):{klient:{},partner:{zapnuto:false},deti:[],docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},pojisteni:{zivotni:{stav:0,navrh:""}},realokace:{rucne:false,polozky:[]}};
     const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?a:a[k],o),setp=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=="object")a[k]={};a=a[k]});a[ks.at(-1)]=v};
-    for(const [p,v] of Object.entries(V)){if(!NR_FP.includes(p)||!val(v))continue;const cur=get(plan,p);if(val(cur)&&!(typeof cur==="number"&&cur===0))continue;setp(plan,p,v);filled.push(p)}
+    for(const [p,v] of Object.entries(V)){
+      if(NR_FP_L[p]){if(!Array.isArray(v))continue;const F=NR_FP_L[p],cur=Array.isArray(plan[p])?plan[p]:(plan[p]=[]),kk=o=>f(o.nazev||o.jmeno||"")+"|"+f(o.typ||"");
+        const add=v.filter(o=>o&&typeof o==="object").map(o=>Object.fromEntries(F.filter(k=>val(o[k])).map(k=>[k,o[k]]))).filter(o=>Object.keys(o).length&&!cur.some(c=>kk(c)===kk(o)));
+        if(add.length){cur.push(...add);filled.push(p+" ("+add.length+")")}continue}
+      if(!NR_FP.includes(p)||!val(v))continue;const cur=get(plan,p);
+      if(typeof v==="boolean"){if(cur!=null)continue;if(p==="klient.bez_partnera"&&v&&plan.partner&&plan.partner.zapnuto)continue}
+      else if(val(cur)&&!(typeof cur==="number"&&cur===0))continue;
+      setp(plan,p,v);filled.push(p)}
     if(filled.some(p=>p.startsWith("partner.")))plan.partner.zapnuto=true;
     if(filled.length){await db.doc("fplan/"+key).set({clientId:key,name:(saved&&saved.name)||nm,plan,updatedAt:Date.now()});done.push(filled.length+" "+plural(filled.length,"údaj","údaje","údajů")+" do FP")}}
   /* další krok u leadu */

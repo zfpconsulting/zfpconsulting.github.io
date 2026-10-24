@@ -4,7 +4,11 @@
 Použití:  python3 nahravka.py rec.json
   rec.json = {"id": "<Fireflies ID>", "at": "ISO", "client": "Jméno Příjmení", "phone": "", "email": "",
               "notes": ["…"], "tasks": [{"text": "…", "due": "YYYY-MM-DD"}], "summary": ["…"],
-              "fp": {"klient.zam": 45000, …}, "next": {"step": "…", "date": "YYYY-MM-DD"}}
+              "fp": {"klient.zam": 45000, …,
+                     "majetek": [{"nazev", "typ", "hodnota", "vklad"}], "nefin": [{"nazev", "typ", "hodnota", "najem"}],
+                     "uvery": [{"typ", "nazev", "zustatek", "splatka", "fixace_do", "splatnost"}],
+                     "cile": [{"nazev", "castka", "za_let"}], "deti": [{"jmeno", "narozen", "vs"}]},
+              "next": {"step": "…", "date": "YYYY-MM-DD"}}
 
 Šifra (pipeline/dzcrypto.js): ECDH P-256 s veřejným klíčem poradce → HKDF-SHA-256 (sůl 16 B, info „zfp-dotaznik-v1“)
 → AES-256-GCM, první bajt otevřeného textu 1 = gzip. Přečíst to jde jen soukromým klíčem, který je jen v Pipeline poradce.
