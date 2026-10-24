@@ -447,7 +447,7 @@ tests["pojistné za osobu: SOCKO, modelace i realizace jen za danou osobu; hlavn
     const soc = g => { const f = FR.filter(x => x.g === g); return tx(f[f.length - 1].h); };
     return { hl: R.nn.hlavni, auto: R.pojAuto, po: R.pojOs, lbl: FR.map(f => f.lbl), soc0: soc("soc0"), soc1: soc("soc1"), real: tx(FR.find(f => f.lbl === "Realizace").h), zp1: tx(FR.find(f => f.lbl === "ŽP Karel").h),
       smtv: R.nn.dospeli.map(o => o.rizika.some(r => r.tarif === "SMTV-P2R")) }; });
-  eq(t.hl, 1, "hlavní pojištěný je muž (partner Karel), i když klientkou je Jana"); eq(t.smtv, [false, true], "povinné minimum smrti jen u hlavního pojištěného");
+  eq(t.hl, 1, "hlavní pojištěný je muž (partner Karel), i když klientkou je Jana"); eq(t.smtv, [true, true], "konstantní smrt: u hlavního aspoň povinné minimum, u druhého pojištěného 1× roční příjem");
   assert(t.auto, "navržené pojistné 0 = automatický výpočet NN");
   const i = t.lbl.indexOf("ŽP Karel"); eq(t.lbl[i + 1], "ŽP Karel – FitSport", "FitSport hned za modelací hlavního pojištěného"); assert(!t.lbl.includes("ŽP Jana – FitSport"), "FitSport jen u hlavního");
   const k = v => v.toLocaleString("cs-CZ").replace(/\s/g, " ");
@@ -954,28 +954,27 @@ tests["pár s nájmem a hypotékou: překlep v datu důchodu z IOLDP, důchodov�
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["úmrtí (metodika VK): teď stát vdovský + sirotčí (% platu), po 18 / 26 letech dítěte nic → pojistka = zůstatek úvěrů v tu dobu + 3× roční příjem"] = async function () {
+tests["úmrtí (metodika VK): renta, kterou by pozůstalý potřeboval na všechny výdaje do svého důchodu (minus jeho příjem a dávky) – klesající PČ + 1× roční příjem konstantní; NN bez stropu"] = async function () {
   const { ctx, page, errors } = await open();
   const r = await page.evaluate(() => {
     const T = new Date(), y = T.getFullYear();
     const base = { klient: { jmeno: "Adam Test", narozen: "1986-01-01", zam: 80000, inv1: 14000, inv2: 19000, inv3: 33000, vdovsky: 19100, sirotci: 16200, starobni: 32000 },
       partner: { zapnuto: true, jmeno: "Eva Testová", narozen: "1988-01-01", zam: 40000, vdovsky: 14400, sirotci: 12500, inv1: 11000, inv2: 14000, inv3: 24000 }, kontakt: { stav: "zenaty" },
-      deti: [{ jmeno: "A", narozen: (y - 10) + "-01-01" }, { jmeno: "B", narozen: (y - 8) + "-01-01" }], majetek: [{ typ: "Spořicí účet", hodnota: 500000 }],
-      uvery: [{ typ: "Hypotéka", zustatek: 3000000, splatka: 20000, splatnost: (y + 20) + "-01" }], cile: [], renta: { mesicne: 0 }, vydaje: { domacnost: 80000 } };
-    const k = FPE.compute(base, T).katastrofy[0];
-    const bezDeti = FPE.compute(Object.assign({}, base, { deti: [] }), T).katastrofy[0];
-    const sam = FPE.compute(Object.assign({}, base, { partner: { zapnuto: false }, klient: Object.assign({}, base.klient, { bez_partnera: true }), deti: [] }), T).katastrofy[0];
-    const vs = FPE.compute(Object.assign({}, base, { deti: base.deti.map(d => Object.assign({}, d, { vs: true })) }), T).katastrofy[0];
-    return { davky: k.smrt.davky, pct: Math.round(k.smrt.davkyPct * 100), roky: Math.round(k.smrt.roky), zav: k.smrt.zavazky, nas: k.smrt.prijem3, pc: k.smrt.pc,
-      bd: [Math.round(bezDeti.smrt.roky * 12), bezDeti.smrt.zavazky < 3000000, bezDeti.smrt.prijem3], sam: [sam.smrt.prijem3, sam.smrt.zavazky, sam.smrt.pc], vsZ: vs.smrt.zavazky, vsR: Math.round(vs.smrt.roky) };
+      deti: [{ jmeno: "A", narozen: (y - 10) + "-01-01" }], majetek: [{ typ: "Spořicí účet", hodnota: 500000 }], uvery: [], cile: [], renta: { mesicne: 0 }, vydaje: { domacnost: 100000 } };
+    const R = FPE.compute(base, T), k = R.katastrofy[0], e = R.katastrofy[1];
+    const sam = FPE.compute(Object.assign({}, base, { partner: { zapnuto: false }, klient: Object.assign({}, base.klient, { bez_partnera: true }), deti: [], uvery: [{ typ: "Hypotéka", zustatek: 2000000, splatka: 15000 }] }), T).katastrofy[0];
+    const nnK = R.nn.dospeli.find(o => o.jmeno === "Adam Test").rizika;
+    return { gap0: k.smrt.faze[0].gap, gapPo: k.smrt.faze.at(-1).gap, konec: k.smrt.konecRenty.getFullYear(), kles: k.smrt.pcKles, konst: k.smrt.pcKonst, pc: k.smrt.pc, eGap: e.smrt.faze[0].gap, eKonec: e.smrt.konecRenty.getFullYear(),
+      sam: [sam.smrt.pcKonst, sam.smrt.pcKles], nn: nnK.filter(x => /^SMTV/.test(x.tarif)).map(x => [x.tarif, x.pc]), inv: nnK.filter(x => /^INV/.test(x.tarif)).map(x => x.pc) };
   });
-  eq([r.davky, r.pct, r.roky], [19100 + 2 * 16200, 64, Math.round(18 - (Date.now() - new Date(new Date().getFullYear() - 8, 0, 1)) / 31557600000)], "teď stát vdovský + 2× sirotčí = 64 % platu, do 18 let mladšího dítěte");
-  assert(r.zav > 0 && r.zav < 3000000, "zůstatek úvěru za 10 let (méně než dnes): " + r.zav);
-  eq(r.nas, 3 * 12 * 80000, "3× roční čistý příjem zemřelého");
-  eq(r.pc, Math.ceil((r.zav + r.nas) / 100000) * 100000, "pojistná částka = zůstatek úvěrů v tu dobu + 3× roční příjem");
-  eq([r.bd[0], r.bd[1], r.bd[2]], [12, true, 2880000], "bez dětí: vdovský 1 rok, pak nic → zůstatek za rok + 3× příjem");
-  eq(r.sam, [0, 3000000, 3000000], "bez partnera a dětí: jen dnešní zůstatek úvěrů");
-  assert(r.vsR === r.roky + 8 && r.vsZ < r.zav, "s VŠ dávky do 26 let → pojistka kryje nižší zůstatek později");
+  eq([r.gap0, r.gapPo], [100000 - 40000 - 19100 - 16200, 100000 - 40000], "chybí: výdaje − příjem partnerky − dávky; po 18 letech dítěte bez dávek");
+  eq(r.konec, 1988 + 66 + 11 / 12 | 0, "do důchodu pozůstalé (ročník 1988 → 66 let 11 měs.)");
+  eq(r.konst, 960000, "konstantní = 1× roční příjem zemřelého");
+  eq(r.pc, r.kles + r.konst, "pojistná částka = klesající (renta) + konstantní");
+  eq([r.eGap, r.eKonec], [Math.max(0, 100000 - 80000 - 14400 - 12500), 2052], "smrt partnerky: Adam do svého důchodu (2052)");
+  eq(r.sam, [0, 2000000], "bez partnera a dětí: jen zůstatek úvěrů");
+  eq(r.nn.map(x => x[0]), ["SMTV-P2R", "SMTV-K2R"], "NN: konstantní + klesající smrt");
+  assert(r.nn[1][1] === r.kles && r.inv.every(x => x > 0), "NN bere vždy potřebnou částku (bez stropu 1 mil.)");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
