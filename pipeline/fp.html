@@ -1657,6 +1657,8 @@ function hypoEditor(I){const h=I.hypo||{},on=!!h.zapnuto,H=hypoOf(I),nf=I.nefin|
     ${mode==="akontace"?fld(`Akontace % (prázdné = ${100-lim} % – ${lim===90?"aspoň jeden pod 36 let":"oba 36+"})`,"hypo.akont","number",`placeholder="${100-lim}"`):sel("Zástava – nemovitost",'hypo.zastava',[["","automaticky (bydlení)"]].concat(nfOpt,[["jiny","Jiná – zadám hodnotu"]]))}
     ${mode==="zastava"&&h.zastava==="jiny"?fld("Hodnota zástavy","hypo.zastava_kc"):""}
     ${hyChecks(I,h,mode)}
+    ${hyNonRes(I).length?`<div style="grid-column:1/-1"><label class="chk"><input type="checkbox" data-hycmp="1" ${h.cmp?"checked":""}> <b>Srovnat v prezentaci: prodat × neprodat ostatní majetek</b> (slajd varianty A s prodejem, hned za ním varianta B bez prodeje)</label>
+     ${h.cmp?`<div class="hint">Prodat ve variantě A:</div>${hyNonRes(I).map(j=>{const a=I.nefin[j];return `<label class="chk" style="margin:2px 0 2px 22px"><input type="checkbox" data-hycmpp="${j}" ${hyCmpSel(I,h,mode).includes(j)?"checked":""}> ${esc((a.nazev||a.typ||"Majetek")+" – "+kc(+a.hodnota||0)+(+a.najem>0?" · pronájem "+kcm(+a.najem)+" odpadne":""))}</label>`}).join("")}<p class="hint">Zbytek plánu (výdaje, cíle, krytí) počítá s tím, co je zaškrtnuté výše v „Prodat kvůli koupi“.</p>`:""}</div>`:""}
     ${fld("Výše úvěru (prázdné = automaticky)","hypo.uver","number",H&&!(+h.uver>0)?`placeholder="${fmtIn(Math.round(H.uver))}"`:"")}${fld("Úroková sazba % (prázdné = nejlepší banka)","hypo.sazba","number",H&&!(+h.sazba>0)?`placeholder="${String(H.sazba).replace(".",",")}"`:"")}
     ${fld("Splatnost (let)","hypo.let","number",H&&!(+h.let>0)?`placeholder="${H.let}"`:"")}${fld("Fixace (let)","hypo.fix","number",'placeholder="5"')}
     ${fld("Inkaso teď Kč/měs (energie, služby)","hypo.inkaso_ted")}${fld("Inkaso v novém bydlení Kč/měs (prázdné = odhad)","hypo.inkaso_po","number",H&&H.inkOdhad?`placeholder="odhad ${fmtIn(H.inkOdhad)}"`:"")}
@@ -1777,6 +1779,9 @@ $("#ed").addEventListener("input",e=>{
   update();
 });
 $("#ed").addEventListener("change",e=>{const t=e.target;
+  if(t.dataset&&(t.dataset.hycmp!=null||t.dataset.hycmpp!=null)){const h=inp().hypo=inp().hypo||{};
+    if(t.dataset.hycmp!=null)h.cmp=t.checked;else{const L=[...document.querySelectorAll("#ed [data-hycmpp]")].filter(x=>x.checked).map(x=>x.dataset.hycmpp);h.cmp_prodej=L.length?L.join(","):"-1"}
+    save();keepOpen(renderEditor);update();return}
   if(t.dataset&&(t.dataset.hyprod!=null||t.dataset.hynahr!=null)){const kind=t.dataset.hyprod!=null?"prod":"nahr",L=[...document.querySelectorAll(`#ed [data-hy${kind}]`)].filter(x=>x.checked).map(x=>x.dataset["hy"+kind]);
     const h=inp().hypo=inp().hypo||{};h[kind==="prod"?"prodej":"nahrazuje"]=L.length?L.join(","):"-1";save();keepOpen(renderEditor);update();return}if(t.dataset&&/^(klient|partner)\.(povolani|sport|sporty\.\d+\.(nazev|uroven))$/.test(t.dataset.p||"")){keepOpen(renderEditor);return}if(t.dataset&&t.dataset.dmy){const iso=t.value.trim()===""?"":dmyParse(t.value);t.value=iso===null?dmyShow(get(inp(),t.dataset.p)):dmyShow(iso);t.classList.remove("bad");return}
   if(e.target.id==="shotIn"&&e.target.files[0]){SHOT[DB.cur]=URL.createObjectURL(e.target.files[0]);update()}});
@@ -1885,6 +1890,14 @@ const hypoUvery=I=>(I.uvery||[]).map((u,j)=>j).filter(j=>{const u=I.uvery[j];ret
 /* prodej nemovitostí: z prodeje se doplatí úvěry, které jsou na nich – automaticky tolik hypoték / úvěrů ze SS, kolik se prodává nemovitostí (jde přepsat) */
 function nahrOf(I,h,nProdej){const L=idxList(h.nahrazuje);if(L)return L;return nProdej>0?hypoUvery(I).slice(0,nProdej):[]}
 function prodejOf(I,h,mode){const L=idxList(h.prodej);if(L)return L;const a=h.stavajici==="prodej"&&mode==="akontace"?nefinBydl(I):-1;return a>=0?[a]:[]}
+/* srovnání prodat × neprodat ostatní nefinanční majetek (vše kromě nemovitosti k bydlení) – v prezentaci 2 slajdy hypotéky za sebou */
+const hyNonRes=I=>{const b=nefinBydl(I);return (I.nefin||[]).map((a,j)=>j).filter(j=>{const a=I.nefin[j];return j!==b&&+a.hodnota>0&&!/Nemovitost k bydlení/.test(a.typ||"")})};
+function hyCmpSel(I,h,mode){const NR=hyNonRes(I),L=idxList(h.cmp_prodej);if(L)return L.filter(j=>NR.includes(j));const inP=prodejOf(I,h,mode).filter(j=>NR.includes(j));return inP.length?inP:NR}
+/* dvě varianty vstupů: A = s prodejem vybraného majetku, B = bez něj (nemovitost k bydlení zůstává podle „Prodat kvůli koupi“) */
+function hyCmpVariants(I){const h=I.hypo||{};if(!h.cmp||!h.zapnuto)return null;const mode=h.financ||(h.stavajici==="zastava"?"zastava":"akontace"),NR=hyNonRes(I),sel=hyCmpSel(I,h,mode);if(!sel.length)return null;
+  const base=prodejOf(I,h,mode).filter(j=>!NR.includes(j)),mk=L=>{const J=JSON.parse(JSON.stringify(I));J.hypo.prodej=L.length?L.join(","):"-1";delete J.hypo.cmp;return J};
+  const names=sel.map(j=>(I.nefin[j].nazev||I.nefin[j].typ||"majetek")).join(", ");
+  return [{I:mk([...new Set(base.concat(sel))].sort((a,b)=>a-b)),tag:"Varianta A – s prodejem",sub:"Prodej: "+names},{I:mk(base),tag:"Varianta B – bez prodeje",sub:"Ponecháno: "+names}]}
 function hypoVar(I,h,mode){const cena=+h.cena||0,za=Math.max(0,+h.za_let||0),nf=I.nefin||[];
   /* prodávané nemovitosti (i víc) – jejich hypotéky se z prodeje doplatí a splátky z výdajů zmizí */
   const pList=prodejOf(I,h,mode).filter(j=>nf[j]),pIdx=pList.length?pList[0]:-1;
@@ -1938,7 +1951,10 @@ function withHypo(I){const H=hypoOf(I);if(!H||!H.promitnout)return I;const J=JSO
   J.uvery=(J.uvery||[]).concat([{typ:"Hypotéka",nazev:"plánovaná",zustatek:H.uver,splatka:Math.round(H.pmt),fixace_do:fy?fy+"-"+mm:"",splatnost:y+"-"+mm,_plan:true,kdo}]);
   return J}
 /* slajd „Plánujeme hypotéku“: 2 snímky (Morph) – dnešní výdaje → výdaje po koupi */
-function hypoFrames(I,R){const H0=hypoOf(I);if(!H0)return [];
+function hypoFrames(I,R){const V=hyCmpVariants(I);if(!V)return hypoFrames1(I,R);
+  return V.flatMap(v=>{let RX=R;try{if(!oddFin(I)){RX=computeR(withHypo(v.I));hypoCheck(RX,v.I)}}catch(e){console.warn("hypo varianta",e);RX=R}
+    return hypoFrames1(v.I,RX,v)})}
+function hypoFrames1(I,R,VT){const H0=hypoOf(I);if(!H0)return [];
   /* inkaso a další náklady dohromady: kladná změna = nové náklady (šedý pruh), záporná se přičte k tomu, co odpadne */
   const nk=H0.nak+(H0.inkD||0),H=Object.assign({},H0,{nak:Math.max(0,nk),odp:H0.odp+Math.max(0,-nk)+(H0.rep||0)});
   const vydPo=H.promitnout?R.vydCelkem:R.vydCelkem+H.delta,vyd0=vydPo-H.delta,nO=H0.najOdp||0,P=H.promitnout?R.prijmy:Math.max(0,R.prijmy-nO),P0=P+nO,cf0=P0-vyd0,cf1=P-vydPo;
@@ -1975,7 +1991,7 @@ function hypoFrames(I,R){const H0=hypoOf(I);if(!H0)return [];
      <div class="k" data-k="hcf" style="position:absolute;left:1080px;top:${Math.max(650,446+wf.length*33+10)}px;width:400px;text-align:right;font-size:40px;font-weight:900;color:${cf<0?"#DF6A6A":"#efefef"}">${cf<0?"−":""}${kcm(Math.abs(cf))}</div>`;
     const bon=`<div style="position:absolute;left:80px;top:822px;width:1440px;font-size:17px;color:#b4b4b4">Splátky / čistý příjem (DSTI): <b class="${okD?"grn":"red"}">${pc0(dsti)}</b> <span class="mut">(doporučení ČNB do 40 %)</span>&nbsp;&nbsp;·&nbsp;&nbsp;Potřebný čistý příjem pro banku: <b style="color:#efefef">${kcm(need)}</b>${P?` <span class="${P>=need?"grn":"red"}">${P>=need?"✓ splňujete":"✗ chybí "+kc(need-P)}</span>`:""}</div>
      <div class="foot" style="bottom:12px">${esc([H.zdroj?"Sazba: "+H.zdroj+" – průměrná nabídková sazba, ne nabídka konkrétní banky":H.bank&&H.bank.name?"Sazba: orientačně nejlepší nabídka ("+H.bank.name+") pro dané LTV a fixaci, závazná je nabídka banky":"",H0.splaceno?`Prodej ${kc(H0.prodejHod)} − doplacení hypotéky ${kc(H0.splaceno)} = ${kc(H0.prodejNet)} na koupi`+(H0.dluhNad?` (chybějících ${kc(H0.dluhNad)} z úspor)`:""):"",nO?`S prodejem odpadne příjem z pronájmu ${kcm(nO)}`:"",H.promitnout?"Finanční plán už počítá s výdaji po koupi"+(H.own>0?" a vlastní zdroje jsou jedním z cílů":""):""].filter(Boolean).join(" · "))}</div>`;
-    out.push({g:"hy",h:chrome("Plánujeme hypotéku",st?"Výdaje po koupi nemovitosti":"Jak se změní vaše měsíční výdaje")+left+right+bon,lbl:"Hypotéka"})}
+    out.push({g:"hy",h:chrome(VT?"Plánujeme hypotéku · "+VT.tag.replace("Varianta ","varianta "):"Plánujeme hypotéku",(VT?esc(VT.sub)+" · ":"")+(st?"Výdaje po koupi nemovitosti":"Jak se změní vaše měsíční výdaje"))+left+right+bon,lbl:VT?"Hypotéka "+VT.tag.slice(9,10):"Hypotéka"})}
   return out}
 /* ================= příjem a výdaje v čase =================
    Příjmy v dnešních cenách konstantní; mění se jen v záchytných bodech: konec dočasného příjmu (rodičovská → návrat do práce),

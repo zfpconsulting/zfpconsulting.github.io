@@ -1018,8 +1018,29 @@ tests["pronájem patří k nemovitosti – při prodeji kvůli hypotéce odpadne
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["hypotéka: srovnání prodat × neprodat ostatní majetek – slajd varianty A, hned za ním varianta B"] = async () => {
+    const { ctx, page, errors } = await open();
+    await setPlan(page, { klient: { jmeno: "Petr Novák", narozen: "1992-03-01", zam: 70000, vydaje_osobni: 30000 }, partner: { zapnuto: false }, deti: [],
+      majetek: [{ typ: "Spořicí účet", nazev: "Účet", hodnota: 900000 }], uvery: [],
+      nefin: [{ nazev: "Byt Brno", typ: "Nemovitost k bydlení", hodnota: 4000000 }, { nazev: "Chata", typ: "Rekreační objekt", hodnota: 1500000, najem: 6000 }, { nazev: "Auto", typ: "Auto", hodnota: 400000 }],
+      hypo: { zapnuto: true, promitnout: true, financ: "akontace", cena: 8000000, prodej: "0", sazba: 5, let: 30, cmp: true }, cile: [], renta: { mesicne: 0 } });
+    const r = await page.evaluate(() => { const hy = FR.filter(f => f.g === "hy"), V = hyCmpVariants(inp()), H = V.map(v => hypoOf(v.I));
+      return { n: hy.length, a: hy[0].h.includes("varianta A") && hy[1].h.includes("varianta A"), b: hy[2].h.includes("varianta B") && hy[3].h.includes("varianta B"),
+        sell: H.map(x => x.pList.join(",")), uver: H.map(x => Math.round(x.uver)), main: hypoOf(inp()).pList.join(",") }; });
+    eq(r.n, 4, "2 slajdy (dnes → po koupi) na každou variantu");
+    assert(r.a && r.b, "nejdřív varianta A, za ní B");
+    eq(r.sell, ["0,1,2", "0"], "A prodá chatu i auto, B jen byt k bydlení");
+    assert(r.uver[0] < r.uver[1], "s prodejem menší úvěr");
+    eq(r.main, "0", "zbytek plánu podle „Prodat kvůli koupi“");
+    await page.evaluate(() => { inp().hypo.cmp_prodej = "1"; compute(); });
+    eq(await page.evaluate(() => hypoOf(hyCmpVariants(inp())[0].I).pList.join(",")), "0,1", "A prodá jen vybraný majetek");
+    await page.evaluate(() => { inp().hypo.cmp = false; compute(); });
+    eq(await page.evaluate(() => FR.filter(f => f.g === "hy").length), 2, "bez srovnání jen 2 slajdy");
+    eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
-for (const [name, fn] of Object.entries(tests)) {
+for (const [name, fn] of Object.entries(tests).filter(([n])=>n.includes(process.env.F||""))) {
   const t0 = Date.now();
   try { await fn(); ok++; console.log(`✓ ${name} (${Date.now() - t0} ms)`); }
   catch (e) { bad++; console.log(`✗ ${name}\n    ${String(e && e.stack || e).split("\n").slice(0, 4).join("\n    ")}`); }
