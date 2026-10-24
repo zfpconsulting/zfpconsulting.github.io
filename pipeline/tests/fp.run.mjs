@@ -975,6 +975,13 @@ tests["úmrtí (metodika VK): renta, kterou by pozůstalý potřeboval na všech
   eq(r.sam, [0, 2000000], "bez partnera a dětí: jen zůstatek úvěrů");
   eq(r.nn.map(x => x[0]), ["SMTV-P2R", "SMTV-K2R"], "NN: konstantní + klesající smrt");
   assert(r.nn[1][1] === r.kles && r.inv.every(x => x > 0), "NN bere vždy potřebnou částku (bez stropu 1 mil.)");
+  /* srovnání sociální vs. ŽP: u úmrtí dva řádky – dnes (stát + pojistka) a po skončení dávek (jen pojistka) */
+  const y = new Date().getFullYear();
+  await setPlan(page, { klient: { jmeno: "Adam Test", narozen: "1986-01-01", zam: 80000, hruba: 110000, inv1: 14000, inv2: 19000, inv3: 33000, vdovsky: 19100, sirotci: 16200, starobni: 32000, vydaje_osobni: 60000 },
+    partner: { zapnuto: true, jmeno: "Eva Testová", narozen: "1988-01-01", zam: 40000, hruba: 55000, vdovsky: 14400, sirotci: 12500, inv1: 11000, inv2: 14000, inv3: 24000, vydaje_osobni: 40000 },
+    deti: [{ jmeno: "A", narozen: (y - 10) + "-01-01" }], majetek: [{ typ: "Spořicí účet", hodnota: 500000 }], uvery: [], cile: [] });
+  const s = await page.evaluate(() => { const L = FR.filter(f => /^soc0/.test(f.g)).map(f => f.h); return { n: L.length, lanes: /dnes–20\d\d/.test(L[2] || ""), konec: (L[1] || "").includes("dávky skončily"), ins: /\+[0-9]+ %/.test(L[2] || "") }; });
+  eq(s, { n: 3, lanes: true, konec: true, ins: true }, "SOCKO: posun pojistky u úmrtí dnes a po skončení dávek");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
@@ -986,6 +993,28 @@ tests["bydlení: prodej víc nemovitostí najednou – výtěžek se sečte a do
     hypo: { zapnuto: true, cena: 15000000, za_let: 0, prodej: "0,1", inkaso_ted: 4000, inkaso_po: 4000 } });
   const r = await page.evaluate(() => { STEP = 2; renderEditor(); const H = hypoOf(inp()); return { hod: H.prodejHod, spl: H.splaceno, net: H.prodejNet, rep: H.rep, nahr: H.nahrazuje, uver: H.uver, boxes: document.querySelectorAll("#ed [data-hyprod]:checked").length }; });
   eq(r, { hod: 12000000, spl: 4000000, net: 8000000, rep: 23000, nahr: "0,1", uver: 7000000, boxes: 2 }, "dva byty prodané, obě hypotéky doplacené");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["pronájem patří k nemovitosti – při prodeji kvůli hypotéce odpadne; starší pronájem u osoby se přiřadí"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Adam Test", narozen: "1990-01-01", zam: 80000, hruba: 115000, vydaje_osobni: 50000, vydaje_dom: 45000 }, cile: [],
+    nefin: [{ nazev: "Byt doma", typ: "Nemovitost k bydlení", hodnota: 5000000 }, { nazev: "Byt 2+kk", typ: "Investiční nemovitost", hodnota: 4000000, najem: 15000 }] };
+  await setPlan(page, base);
+  const a = await page.evaluate(() => ({ prijmy: R.prijmy, pron: R.persons[0].pronajem }));
+  eq(a, { prijmy: 95000, pron: 15000 }, "nájem z nemovitosti je v příjmech");
+  await setPlan(page, Object.assign({}, base, { hypo: { zapnuto: true, cena: 9000000, za_let: 0, prodej: "1", inkaso_ted: 3000, inkaso_po: 3000 } }));
+  const b = await page.evaluate(() => { const H = hypoOf(inp()); STEP = 2; renderEditor(); return { prijmy: R.prijmy, odp: H.najOdp, box: /pronájem 15[\s\u00a0]000[\s\u00a0]Kč\/měs odpadne/.test(document.querySelector("#ed").textContent),
+    hy: FR.filter(f => f.g === "hy").length, txt: FR.filter(f => f.g === "hy").map(f => f.h).join("").includes("prodaná nemovitost") }; });
+  eq(b, { prijmy: 80000, odp: 15000, box: true, hy: 2, txt: true }, "prodej investičního bytu → nájem z příjmů zmizí");
+  /* starší plán: pronájem u osoby → přiřadí se k jediné investiční nemovitosti, nepočítá se dvakrát; uložená hodnota u osoby zůstane */
+  await setPlan(page, { klient: Object.assign({}, base.klient, { pronajem: 15000 }), cile: [], hypo: { zapnuto: false }, nefin: [base.nefin[0], { nazev: "Byt 2+kk", typ: "Investiční nemovitost", hodnota: 4000000 }] });
+  const c = await page.evaluate(() => { renderEditor(); update(); return { najem: inp().nefin[1].najem, osoba: inp().klient.pronajem, prijmy: R.prijmy }; });
+  eq(c, { najem: 15000, osoba: 15000, prijmy: 95000 }, "migrace pronájmu k nemovitosti");
+  /* nejasné přiřazení (jen vlastní bydlení) → pronájem u osoby se počítá dál a editor upozorní */
+  await setPlan(page, { klient: Object.assign({}, base.klient, { pronajem: 9000 }), cile: [], hypo: { zapnuto: false }, nefin: [base.nefin[0]] });
+  const d = await page.evaluate(() => { STEP = 0; renderEditor(); update(); return { prijmy: R.prijmy, warn: document.querySelector("#ed").textContent.includes("NEPŘIŘAZENÝ"), flag: R.flags.some(f => /není přiřazený/.test(f)) }; });
+  eq(d, { prijmy: 89000, warn: true, flag: true }, "nepřiřazený pronájem");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
