@@ -1297,13 +1297,12 @@ function compute0(inp, today, ext) {
   cile.forEach(c => udalosti.push({ typ: "cil", datum: c.datum, titul: c.nazev, cil: c, m: c.months }));
   if (renta) udalosti.push({ typ: "renta", datum: renta.start, titul: "Renta", m: renta.months });
   udalosti.sort((a, b) => a.m - b.m);
-  /* start plánu = celý finanční majetek − skutečné vstupní poplatky z jednorázových vkladů (tabulka poplatků) */
-  const vstupJ = poplatky.reduce((a, f) => a + (f.vstupJ || 0), 0);
-  udalosti.forEach(u => u.hodnota = u.typ === "start" ? Math.max(0, majCelkem - vstupJ) : hodnota(u.m));
+  /* start plánu = vždy aktuální finanční majetek (vstupní poplatky se projeví až v dalších bodech) */
+  udalosti.forEach(u => u.hodnota = u.typ === "start" ? majCelkem : hodnota(u.m));
   /* měsíční vývoj finančního majetku v plánu (dnešní ceny): rezerva + cíle + renta + DPS; při výběru na cíl hodnota spadne */
   const dpsAt = m => growFv(dpsGrow, m);
   const mEnd = Math.max(12, renta ? renta.months : 0, ...cile.map(c => c.months));
-  const vyvoj = []; for (let m = 0; m <= mEnd; m++) vyvoj.push(Math.max(0, hodnota(m) + (renta ? dpsAt(Math.min(m, renta.months)) : dpsAt(m))));
+  const vyvoj = []; for (let m = 0; m <= mEnd; m++) vyvoj.push(m === 0 ? majCelkem : Math.max(0, hodnota(m) + (renta ? dpsAt(Math.min(m, renta.months)) : dpsAt(m))));
   udalosti.forEach(u => { u.v = vyvoj[Math.min(mEnd, Math.max(0, u.m))]; u.vPred = u.m > 0 ? vyvoj[Math.min(mEnd, u.m - 1)] : u.v; if (u.typ !== "start") u.hodnota = u.v; }); /* časová osa = stejná čísla jako graf majetku */
   /* ČERPÁNÍ RENTY (jen pro graf vývoje majetku): od startu renty se kapitál měsíčně zhodnocuje reálným výnosem při čerpání a vybírá se renta
      po fázích (do důchodu celá, potom dorovnání ke státnímu důchodu; při krácení dosažitelná část) → klasická prohnutá křivka až do konce renty */
@@ -1324,7 +1323,7 @@ function compute0(inp, today, ext) {
   }
   return { S, flags, persons, deti, detiPoj, prijmy, vydCelkem, cf, docasne, rez: { duvod: rezDuvod, cil: rezCil, vklad: rezVklad, hot: rezHot, zInv: rezZInv, chybi: rezChybi, pravidlo: rezPravidlo, pmt: rezG ? rezG.pmt : 0, months: rezG ? rezG.months : 0, datum: rezG ? rezG.datum : null, splneni: rezG ? Math.min(1, (rezVklad + rezG.vysledek) / rezCil) : rezVklad / Math.max(1, rezCil), flowIdx: rezG ? rezG.flowIdx : null, flowTake: rezG ? rezG.flowTake : 0, flowUvol: rezG ? rezG.flowUvol : 0 },
     maj, majCelkem, nefin, nefinCelkem, uvery, zavazky, jmeni: majCelkem + nefinCelkem - zavazky,
-    cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, dpsPrisp, zamPrisp, prispVlastni, pmtCelkem, cfZbyva, alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
+    cile, renta, pojNove, poj, nn, nnFit, pojOs, pojOsFit, dpsPrisp, zamPrisp, prispVlastni, pmtCelkem, cfZbyva, keepMes, cfZaokr: Math.max(0, prijmy - vydCelkem - cf), alokovano: majCelkem - Math.max(0, volne), zbyva: Math.max(0, volne), produkty, pozice, transakce, kontrola, manual,
     poplatky, struktura, trida: { A: CA, D: CD, rA, rD, rH }, need: { A: needA, D: needD, H: cashPlan, mes: pmtCelkem, zdroje },
     portfolio: { invest, w: invW, bondNom: CD.rNom, akcNom: CA.rNom }, katastrofy, udalosti, rentaKonec, toky, vyvoj, dip, motivace: motivace(inp.motivace, inp.cile, rentaMes > 0), maPartnera, MES, MES2 };
 }
@@ -2049,7 +2048,9 @@ function cfTimeline(I,R){
     const ph=rPh.filter(f=>f.m<=m).pop(),renta=RT&&m>=rS&&(rE==null||m<rE)&&ph?ph.mes:0;
     const loans=L.filter(u=>u.end==null||m<u.end).reduce((a,u)=>a+u.spl,0)+(H&&m>=hS&&m<hE?H.pmt:0);
     const adj=H&&m>=hS?H.nak+(H.inkD||0)-H.odp:0,ost=ost0.map((v,i)=>Math.max(0,v+adj*sh[i]));
-    const spor=sporAt(m)+(m<Math.min(...ret)?R.prispVlastni||0:0),poj=P.map((p,i)=>m<ret[i]?pojP[i]:0),pojS=m<Math.max(...ret)?pojD:0;
+    /* stejný základ jako slide plánu: cash flow zaokrouhlené dolů na tisíce (rozdíl jde do ostatních výdajů), vlastní vklady DPS/DIP a ponechané úložky do důchodu */
+    ost[0]+=R.cfZaokr||0;
+    const spor=sporAt(m)+(m<Math.min(...ret)?(R.prispVlastni||0)+(R.keepMes||0):0),poj=P.map((p,i)=>m<ret[i]?pojP[i]:0),pojS=m<Math.max(...ret)?pojD:0;
     const I1=inc.reduce((a,b)=>a+b,0)+renta,E=loans+ost.reduce((a,b)=>a+b,0)+spor+poj.reduce((a,b)=>a+b,0)+pojS;
     return {m,inc,renta,loans,ost,spor,poj,pojS,I:I1,E}};
   /* záchytné body */
@@ -2199,7 +2200,7 @@ function buildFrames(I,R){
     const over=stepX>TXP.length,fin=over&&anyKr,step=Math.min(stepX,TXP.length);
     const done=TXP.slice(0,step),t=!over&&step>pre?TXP[step-1]:null;
     const sumV=done.filter(x=>x.k==="v").reduce((a,x)=>a+x.a,0),sumP=done.filter(x=>x.k==="p").reduce((a,x)=>a+x.a,0);
-    const relSum=done.filter(x=>x.k==="u").reduce((a,x)=>a+x.a,0),mz=M0-sumV,zpRes=withIns?0:(R.pojNove||0),cz=R.cf-sumP-zpRes; /* bez slidu s pojištěním je ŽP z cash flow stejně rezervované → zbývá se počítá po něm */
+    const relSum=done.filter(x=>x.k==="u").reduce((a,x)=>a+x.a,0),mz=M0-sumV,zpRes=withIns?0:(R.pojNove||0),cz=R.cf-sumP-zpRes-(R.keepMes||0)-(R.prispVlastni||0); /* bez slidu s pojištěním je ŽP z cash flow stejně rezervované → zbývá se počítá po něm */
     const has=(i,k)=>done.some(x=>x.i===i&&x.k===k),rowDone=i=>TXP.filter(x=>x.i===i).every(x=>done.includes(x)),vSum=i=>done.filter(x=>x.i===i&&x.k==="v").reduce((a,x)=>a+x.a,0),onlyDps=i=>has(i,"v")&&done.filter(x=>x.i===i&&x.k==="v").every(x=>x.dps);
     const box=(n,l,big,sub,bar,act)=>`<div class="card k" data-k="bc${n}" style="left:${bx[n]}px;top:170px;width:340px;height:150px;border-color:${act?"#F37520":"#2e2e2e"}"></div>
       <div style="position:absolute;left:${bx[n]+20}px;top:185px;font-size:15px;color:#b4b4b4">${l}</div>
@@ -2540,7 +2541,7 @@ function buildFrames(I,R){
   const U=R.udalosti,N=U.length,t0=U[0].datum.getTime(),t1=U[N-1].datum.getTime()||t0+1;
   U.forEach((u,step)=>{
     let card={date:(FPE.MES[u.datum.getMonth()]+" "+u.datum.getFullYear()).toUpperCase(),za:step===0?"ihned":"za "+Math.round(u.m/12)+" let",title:u.titul,amount:"",sub:"",det:[]};
-    if(u.typ==="start"){card.amount=kc(doPlanu)+" do plánu";card.sub="Podpis smluv a první kroky";card.det=[`Hodnota plánu ${kc(Math.round(u.hodnota/1000)*1000)} = finanční majetek ${kc(R.majCelkem)} − vstupní poplatky ${kc(R.majCelkem-Math.round(u.hodnota))}`,`Realokace majetku ${kc(doPlanu)}`,...(R.pojNove?[`Životní pojištění ${kcm(R.pojNove)}`]:[]),`Pravidelné investice ${kcm(R.pmtCelkem)}`]}
+    if(u.typ==="start"){card.amount=kc(doPlanu)+" do plánu";card.sub="Podpis smluv a první kroky";card.det=[`Realokace majetku ${kc(doPlanu)}`,...(R.pojNove?[`Životní pojištění ${kcm(R.pojNove)}`]:[]),`Pravidelné investice ${kcm(R.pmtCelkem)}`]}
     else if(u.typ==="cil"){card.amount=kc(u.cil.kraceno?u.cil.dosazitelne:u.cil.castka);card.sub="Výběr z investic";card.det=[u.cil.kraceno?`Dosažitelná částka – cash flow nestačí na ${kc(u.cil.castka)}`:`Splnění cíle ${Math.round(u.cil.splneni*100)} %`,u.cil.vklad?`Jednorázově vloženo ${kc(u.cil.vklad)}`:"",
       u.cil.flowTo&&u.cil.flowKc>0.5?(u.cil.flowUvol>0.5?(u.cil.flowKc-u.cil.flowUvol>0.5?`Do cíle <b>${esc(u.cil.flowTo)}</b> poteče ${kcm(u.cil.flowKc-u.cil.flowUvol)}, ${kcm(u.cil.flowUvol)} se uvolní`:(u.cil.flowKc-u.cil.flowUvol>0.5||R.cile.concat(R.renta?[R.renta]:[]).some(g=>g.flowTake>0.5)?`Platba ${kcm(u.cil.flowKc)} se uvolní — další cíl ji už nepotřebuje`:`Platba ${kcm(u.cil.flowKc)} končí`))
         :`Platba ${kcm(u.cil.flowKc)} teď poteče do: <b>${esc(u.cil.flowTo)}</b>`):u.cil.pmt?`Pravidelně ${kcm(u.cil.pmt)}`:""].filter(Boolean)}
