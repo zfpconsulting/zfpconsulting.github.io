@@ -1,0 +1,398 @@
+{
+ "1 jednotlivec 30 (klesající)": {
+  "osoby": [
+   {
+    "jmeno": "Jan",
+    "vek": 30,
+    "plan": {
+     "hlavni": true,
+     "smrt": 2000000,
+     "smrtKonec": 65,
+     "inv": [
+      500000,
+      1000000,
+      2000000
+     ],
+     "invKonec": 65,
+     "pnDen": 300,
+     "maxKonec": 65
+    },
+    "opt": {}
+   }
+  ],
+  "koop": {
+   "celkem": 970,
+   "sleva": 10,
+   "poplatek": 50,
+   "rows": [
+    [
+     "Jan",
+     "ZAKL",
+     10000,
+     65,
+     10
+    ],
+    [
+     "Jan",
+     "SMRT-L",
+     2000000,
+     65,
+     189
+    ],
+    [
+     "Jan",
+     "INV3-L",
+     2000000,
+     65,
+     202
+    ],
+    [
+     "Jan",
+     "INV2-L",
+     1000000,
+     65,
+     48
+    ],
+    [
+     "Jan",
+     "INV1-L",
+     500000,
+     65,
+     48
+    ],
+    [
+     "Jan",
+     "PN29",
+     300,
+     65,
+     204
+    ],
+    [
+     "Jan",
+     "TNU10",
+     1000000,
+     65,
+     219
+    ],
+    [
+     "Jan",
+     "POPL",
+     0,
+     0,
+     50
+    ]
+   ]
+  }
+ },
+ "2 jednotlivec 41, konstantní PČ, invalidita do 60": {
+  "osoby": [
+   {
+    "jmeno": "Petr",
+    "vek": 41,
+    "plan": {
+     "hlavni": true,
+     "smrt": 3000000,
+     "smrtKonec": 65,
+     "inv": [
+      400000,
+      800000,
+      2500000
+     ],
+     "invKonec": 60,
+     "pnDen": 500,
+     "maxKonec": 65
+    },
+    "opt": {
+     "smrt": "konstantni",
+     "inv": "konstantni"
+    }
+   }
+  ],
+  "koop": {
+   "celkem": 2500,
+   "sleva": 30,
+   "poplatek": 0,
+   "rows": [
+    [
+     "Petr",
+     "ZAKL",
+     10000,
+     65,
+     10
+    ],
+    [
+     "Petr",
+     "SMRT-K",
+     3000000,
+     65,
+     1130
+    ],
+    [
+     "Petr",
+     "INV3-K",
+     2500000,
+     60,
+     678
+    ],
+    [
+     "Petr",
+     "INV2-K",
+     800000,
+     60,
+     99
+    ],
+    [
+     "Petr",
+     "INV1-K",
+     400000,
+     60,
+     106
+    ],
+    [
+     "Petr",
+     "PN29",
+     500,
+     60,
+     302
+    ],
+    [
+     "Petr",
+     "TNU10",
+     1000000,
+     65,
+     175
+    ]
+   ]
+  }
+ },
+ "3 mladá, malé pojistné – poplatek za správu": {
+  "osoby": [
+   {
+    "jmeno": "Eva",
+    "vek": 25,
+    "plan": {
+     "hlavni": true,
+     "smrt": 500000,
+     "smrtKonec": 65,
+     "inv": [
+      0,
+      0,
+      1000000
+     ],
+     "invKonec": 65,
+     "pnDen": 0,
+     "maxKonec": 65
+    },
+    "opt": {}
+   }
+  ],
+  "koop": {
+   "celkem": 433,
+   "sleva": 0,
+   "poplatek": 50,
+   "rows": [
+    [
+     "Eva",
+     "ZAKL",
+     10000,
+     65,
+     10
+    ],
+    [
+     "Eva",
+     "SMRT-L",
+     500000,
+     65,
+     43
+    ],
+    [
+     "Eva",
+     "INV3-L",
+     1000000,
+     65,
+     93
+    ],
+    [
+     "Eva",
+     "TNU10",
+     1000000,
+     65,
+     237
+    ],
+    [
+     "Eva",
+     "POPL",
+     0,
+     0,
+     50
+    ]
+   ]
+  }
+ },
+ "4 invalidita a PN do 67, smrt na kratší dobu": {
+  "osoby": [
+   {
+    "jmeno": "Karel",
+    "vek": 45,
+    "plan": {
+     "hlavni": true,
+     "smrt": 1500000,
+     "smrtKonec": 55,
+     "inv": [
+      1000000,
+      1000000,
+      2000000
+     ],
+     "invKonec": 67,
+     "pnDen": 1000,
+     "maxKonec": 67
+    },
+    "opt": {
+     "smrt": "kratsi"
+    }
+   }
+  ],
+  "koop": {
+   "celkem": 2396,
+   "sleva": 10,
+   "poplatek": 0,
+   "rows": [
+    [
+     "Karel",
+     "ZAKL",
+     10000,
+     65,
+     10
+    ],
+    [
+     "Karel",
+     "SMRT-KR",
+     1500000,
+     55,
+     509
+    ],
+    [
+     "Karel",
+     "INV3-L",
+     2000000,
+     67,
+     448
+    ],
+    [
+     "Karel",
+     "INV2-L",
+     1000000,
+     67,
+     103
+    ],
+    [
+     "Karel",
+     "INV1-L",
+     1000000,
+     67,
+     210
+    ],
+    [
+     "Karel",
+     "PN29",
+     1000,
+     67,
+     887
+    ],
+    [
+     "Karel",
+     "TNU10",
+     1000000,
+     65,
+     229
+    ]
+   ]
+  }
+ },
+ "5 jednotlivec 52, 1× roční příjem + klesající smrt": {
+  "osoby": [
+   {
+    "jmeno": "Marie",
+    "vek": 52,
+    "plan": {
+     "hlavni": true,
+     "smrt": 1200000,
+     "smrtKonst": 600000,
+     "smrtKonec": 65,
+     "inv": [
+      300000,
+      600000,
+      1500000
+     ],
+     "invKonec": 65,
+     "pnDen": 400,
+     "maxKonec": 65
+    },
+    "opt": {}
+   }
+  ],
+  "koop": {
+   "celkem": 2281,
+   "sleva": 10,
+   "poplatek": 0,
+   "rows": [
+    [
+     "Marie",
+     "ZAKL",
+     10000,
+     65,
+     10
+    ],
+    [
+     "Marie",
+     "SMRT-K",
+     600000,
+     65,
+     476
+    ],
+    [
+     "Marie",
+     "SMRT-L",
+     1200000,
+     65,
+     416
+    ],
+    [
+     "Marie",
+     "INV3-L",
+     1500000,
+     65,
+     496
+    ],
+    [
+     "Marie",
+     "INV2-L",
+     600000,
+     65,
+     93
+    ],
+    [
+     "Marie",
+     "INV1-L",
+     300000,
+     65,
+     90
+    ],
+    [
+     "Marie",
+     "PN29",
+     400,
+     65,
+     456
+    ],
+    [
+     "Marie",
+     "TNU10",
+     1000000,
+     65,
+     244
+    ]
+   ]
+  }
+ }
+}
