@@ -891,6 +891,25 @@ tests["nastavení „Neřešit pojištění“: žádné slidy s pojištěním (
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["cash flow v čase: Dnes bez plánu, od 2. bodu výdaje vč. plateb do plánu (spoření + pojištění) a cash flow = co opravdu zbývá"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, { klient: { jmeno: "Petr Novák", narozen: "1988-03-01", zam: 62000, vydaje_osobni: 35000, starobni: 21000, inv1: 9000, inv2: 12000, inv3: 20000, bez_partnera: true }, partner: { zapnuto: false }, deti: [],
+    majetek: [{ typ: "Spořicí účet", nazev: "Účet", hodnota: 300000 }], uvery: [{ typ: "Hypotéka", nazev: "KB", zustatek: 900000, splatka: 12000, splatnost: (new Date().getFullYear() + 8) + "-06" }],
+    cile: [{ nazev: "Auto", castka: 300000, za_let: 4 }], renta: { mesicne: 0 }, pojisteni: { zivotni: { stav: 0, navrh: "" } } });
+  const r = await page.evaluate(() => { compute(); const T = cfTimeline(inp(), R), Ed = s => s.ost.reduce((a, b) => a + b, 0) + s.loans;
+    const tx = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
+    const F = FR.filter(f => f.g === "cft"), num = v => Math.round(v).toLocaleString("cs-CZ").replace(/\s/g, " ");
+    return { n: T.pts.length, p0: { I: T.pts[0].s.I, ed: Ed(T.pts[0].s), E: T.pts[0].s.E }, p1: { I: T.pts[1].s.I, ed: Ed(T.pts[1].s), E: T.pts[1].s.E, plan: T.pts[1].s.spor + T.pts[1].s.poj.reduce((a, b) => a + b, 0) + T.pts[1].s.pojS },
+      t0: tx(F[1].h), t1: tx(F[2].h), num: [num(Ed(T.pts[0].s)), num(T.pts[1].s.E), num(T.pts[1].s.I - T.pts[1].s.E)] }; });
+  assert(r.n >= 2 && r.p1.plan > 0, "plán má platby a aspoň dva body");
+  assert(r.t0.includes("Výdaje celkem") && !r.t0.includes("Výdaje celkem vč. plánu") && r.t0.includes(r.num[0] + " Kč"), "Dnes: výdaje bez plánu");
+  assert(/půjde do plánu/.test(r.t0), "Dnes: kolik půjde do plánu a co zbude");
+  assert(r.t1.includes("Výdaje celkem vč. plánu") && r.t1.includes(r.num[1] + " Kč"), "2. bod: výdaje včetně plánu " + r.num[1]);
+  assert(r.t1.includes("+" + r.num[2] + " Kč") || r.t1.includes("−" + r.num[2].replace("-", "") + " Kč"), "2. bod: cash flow po platbách do plánu " + r.num[2]);
+  assert(/finanční plán/.test(r.t1), "rozpis výdajů obsahuje finanční plán");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 tests["uvolněný cash flow: splacený úvěr na ose a v cash flow jako „Uvolněný cash flow +částka“, ne mínus"] = async function () {
   const { ctx, page, errors } = await open();
   await setPlan(page, { uvery: [{ typ: "Hypotéka", nazev: "na dům", zustatek: 900000, splatka: 17500, splatnost: "2035-09", fixace_do: "" }] });
