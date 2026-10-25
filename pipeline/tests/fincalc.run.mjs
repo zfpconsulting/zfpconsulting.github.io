@@ -338,6 +338,51 @@ const tests = {
       await ctx.close();
     }
   },
+  async "zhodnocení dle FP: sedí s enginem FP (alokace, výnosy produktů, inflace) a mění se podle let"() {
+    const { ctx, page, errors } = await open();
+    const r = await page.evaluate(async () => {
+      const html = await (await fetch("fp.html")).text(), m = /<script>(\/\* FP engine[\s\S]*?)<\/script>/.exec(html);
+      (0, eval)(m[1]);
+      const E = window.FPE, F = FinCalc.math, out = { diffAlok: [], diffNet: [] };
+      for (let y = 0; y <= 35; y += 0.5) if (JSON.stringify(E.alok(y)) !== JSON.stringify(F.fpAlok(y))) out.diffAlok.push(y);
+      E.PRODUKTY.forEach(p => { if (F.FP_NET[p.k] == null || Math.abs(F.FP_NET[p.k] - (p.vynos - p.sprava)) > 1e-9) out.diffNet.push(p.k) });
+      out.set = [E.DEFAULT_SET.inflace, E.DEFAULT_SET.hotovost_nom, E.DEFAULT_SET.renta_r];
+      out.fset = [F.FP_SET.inflace, F.FP_SET.hotovost_nom, F.FP_SET.renta_r];
+      out.r20 = F.fpRate("inv", 20, true); out.r5 = F.fpRate("inv", 5, false); out.renta = F.fpRate("renta", 20, true);
+      return out;
+    });
+    eq(r.diffAlok.length, 0, "alokace podle let jako ve FP: " + r.diffAlok.join(","));
+    eq(r.diffNet.length, 0, "výnosy produktů jako ve FP: " + r.diffNet.join(","));
+    eq(JSON.stringify(r.fset), JSON.stringify(r.set), "inflace / hotovost / renta jako ve FP");
+    /* 20 let: 85 % akcie (10 %), 13 % dluhopisy (ZFPI 5,15 % + Conseq 4,8 % → 4,975 %), 2 % hotovost (2 %) = 9,187 % nom., 6,187 % reálně */
+    assert(Math.abs(r.r20.rate - 6.18675) < 1e-3, "20 let reálně: " + r.r20.rate);
+    assert(Math.abs(r.r5.rate - (29 * 10 + 62 * 4.975 + 9 * 2) / 100) < 1e-3, "5 let nominálně: " + r.r5.rate);
+    eq(r.renta.rate, 4.5, "renta reálně 4,5 %");
+    /* UI: checkbox zamkne zhodnocení, roční úročení, přepočet podle let */
+    await page.click('[data-a="mode"][data-k="inv"]');
+    await page.check('input[data-x="fp"]');
+    assert(await page.$eval('input[data-k="rate"]', i => i.disabled), "zhodnocení je zamčené");
+    let t = await tiles(page);
+    assert(/6,19/.test(t["Zhodnocení p.a. (dle FP, reálně)"] || ""), "dlaždice 20 let: " + JSON.stringify(t));
+    await page.fill('input[data-k="years"]', "10"); await page.press('input[data-k="years"]', "Enter");
+    t = await tiles(page);
+    const exp = ((54 * 10 + 43 * 4.975 + 3 * 2) / 100 - 3).toFixed(2).replace(".", ",");
+    assert((t["Zhodnocení p.a. (dle FP, reálně)"] || "").includes(exp), "10 let: " + JSON.stringify(t) + " čekám " + exp);
+    const fv = await page.evaluate(() => { const v = { pv: 100000, pmt: 5000, years: 10, rate: ((54 * 10 + 43 * 4.975 + 3 * 2) / 100 - 3), freq: "y" }; return FinCalc.math.solve("inv", v, "fv").val });
+    assert(Math.abs(+t["Konečná hodnota inv."].replace(/[^\d]/g, "") - fv) < 2, "konečná hodnota s ročním úročením: " + t["Konečná hodnota inv."] + " vs " + fv);
+    assert(/Alokace pro 10 let/.test(await page.textContent(".fc-fpsrc")), "vysvětlivka alokace");
+    await page.selectOption('select[data-x="fpReal"]', "0");
+    t = await tiles(page);
+    assert((t["Zhodnocení p.a. (dle FP)"] || "").includes(((54 * 10 + 43 * 4.975 + 3 * 2) / 100).toFixed(2).replace(".", ",")), "nominálně: " + JSON.stringify(t));
+    /* dopočet doby: sazba se ustálí na alokaci pro vypočtenou dobu */
+    await page.click('[data-a="flag"][data-k="years"]');
+    await page.fill('input[data-k="fv"]', "2000000"); await page.press('input[data-k="fv"]', "Enter");
+    const st = await page.evaluate(() => { const v = ui.state().m.inv.v; return { y: v.years, rate: v.rate, exp: FinCalc.math.fpRate("inv", v.years, false).rate } });
+    assert(Math.abs(st.rate - st.exp) < 1e-6 && st.y > 5 && st.y < 30, "doba a sazba konzistentní: " + JSON.stringify(st));
+    await page.click('[data-a="mode"][data-k="renta"]'); await page.check('input[data-x="fp"]');
+    t = await tiles(page); assert(/4,50/.test(t["Zhodnocení p.a. (dle FP, reálně)"] || ""), "renta 4,5 %: " + JSON.stringify(t));
+    assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
+  },
   async "renta: změna výše v čase – libovolný počet změn, dopočet renty na začátku i kapitálu"() {
     const { ctx, page, errors } = await open({ width: 1300, height: 1100 });
     const m = await page.evaluate(() => {

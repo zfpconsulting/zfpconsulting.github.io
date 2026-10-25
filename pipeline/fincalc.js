@@ -121,6 +121,33 @@ const fmtYearsIn=y=>{if(!isFinite(y))return"";const r=Math.round(y*100)/100;retu
 const parseNum=s=>{const t=String(s??"").replace(/[\s ]/g,"").replace(/Kč|%|let|roky|rok|roku/gi,"").replace(",",".");if(t==="")return NaN;return +t};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+/* ================= zhodnocení dle finančního plánu =================
+   Zrcadlí výpočet ve FP (fp.html → FPE): alokace akcie/dluhopisy/hotovost podle horizontu (tabulka „Pro dosažení cíle“,
+   mezi body lineární interpolace), výnos složky = průměr čistých výnosů produktů ve složce (výchozí produkty z Pipeline → settings.fpProd),
+   hotovost = spořicí účet 2 % nominálně; reálně = nominálně − inflace 3 %. Renta (čerpání) = reálný výnos při čerpání 4,5 % jako ve FP.
+   Při změně čísel ve FPE (DEFAULT_SET, PRODUKTY, ALOK) uprav i tady. Složené roční úročení (FP počítá (1+r)^(1/12)). */
+const FP_ALOK={0:[0,0,100],5:[29,62,9],10:[54,43,3],15:[74,24,2],20:[85,13,2],25:[90,8,2],30:[93,7,0]};
+const FP_SET={inflace:0.03,hotovost_nom:0.02,renta_r:0.045};
+/* čistý výnos p.a. (výnos − správa) produktů FP */
+const FP_NET=(()=>{const o={cq_akc:.10,cq_dip:.10,cq_dluh:.048,zfpi:.0515,wi_rez:.035-.005,wi_konz:.06-.0199,wi_dluh:.05-.0099,wi_vyv:.075-.0199,wi_dyn:.09-.0199,premium:.07,zfpf:.08,auv:.05};
+  ["sp500","svetove","evropa","rozvojove","dividendove","technologicke","zdravotnictvi","ziva","px","blockchain"].forEach(k=>o["wi_"+k]=.10-.0199);return o})();
+const FP_DEF_MIX={mixA:[{k:"cq_akc",w:100}],mixD:[{k:"zfpi",w:50},{k:"cq_dluh",w:50}]};
+function fpAlok(y){y=Math.max(0,Math.min(30,+y||0));const k=Object.keys(FP_ALOK).map(Number);
+  for(let i=0;i<k.length-1;i++){const a=k[i],b=k[i+1];if(y>=a&&y<=b){const t=(y-a)/(b-a),A=Math.round(FP_ALOK[a][0]+t*(FP_ALOK[b][0]-FP_ALOK[a][0])),D=Math.round(FP_ALOK[a][1]+t*(FP_ALOK[b][1]-FP_ALOK[a][1]));return[A,D,100-A-D]}}
+  return FP_ALOK[30]}
+/* průměrný čistý výnos složky z mixu [{k,w}]; neznámé produkty (modelová portfolia) se přeskočí, prázdný mix → výchozí produkty */
+function fpClassR(mix,def){const L=(Array.isArray(mix)?mix:[]).filter(x=>FP_NET[x.k]!=null&&+x.w>0),use=L.length?L:def;
+  const t=use.reduce((s,x)=>s+(+x.w),0);return use.reduce((s,x)=>s+FP_NET[x.k]*(+x.w),0)/t}
+/* zhodnocení p.a. v % podle FP: mode "inv" = podle horizontu (let), "renta" = výnos při čerpání; real = v dnešních cenách */
+function fpRate(mode,years,real,prod){
+  const S=FP_SET;
+  if(mode==="renta"){const r=S.renta_r;return{rate:(real?r:r+S.inflace)*100,nom:(r+S.inflace)*100,real:r*100,alok:null}}
+  const a=fpAlok(years),rA=fpClassR(prod&&prod.mixA,FP_DEF_MIX.mixA),rD=fpClassR(prod&&prod.mixD,FP_DEF_MIX.mixD);
+  const nom=(a[0]*rA+a[1]*rD+a[2]*S.hotovost_nom)/100,rl=nom-S.inflace;
+  return{rate:(real?rl:nom)*100,nom:nom*100,real:rl*100,alok:a,rA:rA*100,rD:rD*100}}
+
+const zhLbl=v=>"Zhodnocení p.a."+(v.fp?(v.fpReal!==false?" (dle FP, reálně)":" (dle FP)"):"");
+
 /* ================= definice režimů ================= */
 const MODES={
   loan:{t:"Úvěr",chart:"Vývoj zůstatku úvěru",sa:"Zůstatek úvěru",sb:"Splaceno celkem",def:{pv:3000000,pmt:16000,years:30,rate:5,fv:0,freq:"m",price:3750000,ltvType:"own",live:false,fix:5,other:0,dsti:40,dti:8,feeOnce:5000,feeMonth:0},calc:"pmt",
@@ -139,21 +166,21 @@ const MODES={
       out.push(["Výše úvěru",fmtKc(v.pv)],["Měsíční splátka",fmtKc(v.pmt)],["Úroková sazba p.a."+(v.live?" (aktuální)":""),fmtPct(v.rate)],["RPSN",fmtPct(rpsn(v))],["Splatnost",yrsTxt(v.years)],["Celkem zaplatíte",fmtKc(t.paid)],["Přeplatek na úrocích",fmtKc(t.interest)],["Potřebný čistý příjem / měs.",fmtKc(L.need)]);
       return out},
     help:"Graf ukazuje, jak klesá dlužná částka, a kolik už bylo na splátkách zaplaceno celkem."},
-  inv:{t:"Investice",chart:"Vývoj hodnoty investice",sa:"Hodnota investice",sb:"Vloženo celkem",def:{pv:100000,pmt:5000,fv:0,years:20,rate:6,freq:"m"},calc:"fv",
+  inv:{t:"Investice",chart:"Vývoj hodnoty investice",sa:"Hodnota investice",sb:"Vloženo celkem",def:{pv:100000,pmt:5000,fv:0,years:20,rate:6,freq:"m",fp:false,fpReal:true},calc:"fv",
     f:{pv:{l:"Jednorázový vklad (CZK)",st:10000,h:"Částka, kterou vložíte hned na začátku."},
        pmt:{l:"Pravidelná měsíční investice (CZK)",st:500,h:"Částka, kterou investujete na konci každého měsíce."},
        fv:{l:"Konečná hodnota investice (CZK)",st:10000,h:"Hodnota investice na konci doby investování."},
        years:{l:"Splatnost (počet let)",st:1,h:"Jak dlouho se bude investovat."},
        rate:{l:"Zhodnocení p.a. (%)",st:0.25,h:"Očekávané průměrné roční zhodnocení. Minulé výnosy nejsou zárukou budoucích."}},
-    tiles:v=>{const t=totals("inv",v);return[["Jednorázový vklad",fmtKc(v.pv)],["Pravidelná měs. inv.",fmtKc(v.pmt)],["Zhodnocení p.a.",fmtPct(v.rate)],["Splatnost",yrsTxt(v.years)],["Celkem vložíte",fmtKc(t.deposited)],["Konečná hodnota inv.",fmtKc(t.final)]]},
+    tiles:v=>{const t=totals("inv",v);return[["Jednorázový vklad",fmtKc(v.pv)],["Pravidelná měs. inv.",fmtKc(v.pmt)],[zhLbl(v),fmtPct(v.rate)],["Splatnost",yrsTxt(v.years)],["Celkem vložíte",fmtKc(t.deposited)],["Konečná hodnota inv.",fmtKc(t.final)]]},
     help:"Graf ukazuje, jak roste hodnota investice oproti penězům, které do ní celkem vložíte. Rozdíl mezi křivkami je výnos."},
-  renta:{t:"Renta",chart:"Vývoj hodnoty kapitálu",sa:"Hodnota kapitálu",sb:"Vyplaceno celkem",def:{pv:3000000,pmt:15000,years:20,rate:4,fv:0,freq:"m"},calc:"pmt",
+  renta:{t:"Renta",chart:"Vývoj hodnoty kapitálu",sa:"Hodnota kapitálu",sb:"Vyplaceno celkem",def:{pv:3000000,pmt:15000,years:20,rate:4,fv:0,freq:"m",fp:false,fpReal:true},calc:"pmt",
     f:{pv:{l:"Naspořená částka (CZK)",st:50000,h:"Kapitál na začátku výplaty renty."},
        pmt:{l:"Měsíční renta (CZK)",st:500,h:"Částka vyplácená na konci každého měsíce."},
        years:{l:"Doba výplaty (počet let)",st:1,h:"Jak dlouho se bude renta vyplácet."},
        rate:{l:"Zhodnocení p.a. (%)",st:0.25,h:"Očekávané průměrné roční zhodnocení kapitálu během výplaty."},
        fv:{l:"Zůstatek na konci (CZK)",st:50000,h:"Kolik má z kapitálu zůstat po poslední výplatě (0 = renta kapitál vyčerpá)."}},
-    tiles:v=>{const t=totals("renta",v),Z=zmenyOf(v).filter(z=>z.m<v.years*12);return[["Naspořená částka",fmtKc(v.pv)],[Z.length?"Měsíční renta na začátku":"Měsíční renta",fmtKc(v.pmt)],...Z.map(z=>["Renta od "+zmTxt(z.m),fmtKc(z.r)]),["Zhodnocení p.a.",fmtPct(v.rate)],["Doba výplaty",yrsTxt(v.years)],["Celkem vyplaceno",fmtKc(t.paid)],["Zůstatek na konci",fmtKc(t.rest)]]},
+    tiles:v=>{const t=totals("renta",v),Z=zmenyOf(v).filter(z=>z.m<v.years*12);return[["Naspořená částka",fmtKc(v.pv)],[Z.length?"Měsíční renta na začátku":"Měsíční renta",fmtKc(v.pmt)],...Z.map(z=>["Renta od "+zmTxt(z.m),fmtKc(z.r)]),[zhLbl(v),fmtPct(v.rate)],["Doba výplaty",yrsTxt(v.years)],["Celkem vyplaceno",fmtKc(t.paid)],["Zůstatek na konci",fmtKc(t.rest)]]},
     help:"Graf ukazuje, jak se kapitál postupně čerpá rentou, a kolik už bylo celkem vyplaceno. Změny renty v čase (např. nižší renta po přiznání státního důchodu) se přidávají v Parametrech."}
 };
 const ORDER=["loan","inv","renta"];
@@ -364,14 +391,26 @@ function mount(root,opts={}){
   if(store)store.collection("fincalc").onSnapshot(s=>{saved=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));if(menuOpen)draw()});
 
   const cur=()=>st.m[st.mode];
+  /* výchozí produkty FP z Pipeline (settings.fpProd: mixA / mixD) – kvůli výnosu akciové a dluhopisové složky */
+  const fpProd=()=>{try{return typeof opts.fpProd==="function"?opts.fpProd():opts.fpProd||null}catch(e){return null}};
+  const fpOn=mode=>mode!=="loan"&&!!st.m[mode].v.fp;
   /* klienti z Pipeline pro přiřazení kalkulace (opts.clients = funkce → [{id,name}]) */
   const clientList=()=>{try{return typeof opts.clients==="function"?(opts.clients()||[]):[]}catch(e){return[]}};
   function compute(){lastRes=computeFor(st.mode);return lastRes}
   function computeFor(mode){
     const M=MODES[mode],c=st.m[mode],v={...c.v};
-    const live=mode==="loan"&&v.live;
+    const live=mode==="loan"&&v.live,fp=fpOn(mode);
     if(live&&c.calc==="rate")c.calc="pmt";
-    let r,lr=null;
+    if(fp){if(c.calc==="rate")c.calc=mode==="inv"?"fv":"pmt";v.freq="y"}
+    let r,lr=null,fr=null;
+    /* zhodnocení dle FP: sazba závisí na době investice – při dopočtu doby se iteruje, dokud se doba neustálí */
+    if(fp){const real=v.fpReal!==false,P=fpProd();
+      for(let it=0;it<30;it++){fr=fpRate(mode,v.years,real,P);v.rate=fr.rate;c.v.rate=fr.rate;
+        r=solve(mode,v,c.calc);if(!r.ok||c.calc!=="years")break;
+        const ny=r.val;if(Math.abs(ny-v.years)<1e-6){v.years=ny;break}v.years=ny}
+      if(r.ok){v[c.calc]=c.calc==="years"?r.val:Math.round(r.val*100)/100;c.v[c.calc]=v[c.calc]}
+      return {ok:r.ok,err:r.err,v,M,lr,fr};
+    }
     for(let it=0;it<3;it++){
       if(live){lr=liveRate(v.fix,loanInfo(v).ltv);if(lr){v.rate=lr.rate;c.v.rate=lr.rate}}
       r=solve(mode,v,c.calc);
@@ -386,10 +425,10 @@ function mount(root,opts={}){
 
   /* jedno číselné pole; pole mimo FIELDS (cena nemovitosti, bonita) nemají vlajku – nedopočítávají se */
   function fieldHTML(k,res){
-    const M=MODES[st.mode],c=cur(),solv=FIELDS[st.mode].includes(k),lock=st.mode==="loan"&&k==="rate"&&c.v.live;
+    const M=MODES[st.mode],c=cur(),solv=FIELDS[st.mode].includes(k),lock=k==="rate"&&(st.mode==="loan"?!!c.v.live:fpOn(st.mode));
     const f=M.f[k],isC=k===c.calc;
     return `<div class="fc-f${isC?" calc":""}${lock?" lock":""}${isC&&!res.ok?" err":""}" data-k="${k}">
-            <div class="fc-fl">${solv?`<button type="button" class="fc-flag" data-a="flag" data-k="${k}" title="${isC?"Tato hodnota se dopočítává":lock?"Aktuální sazba se nedopočítává":"Dopočítat tuto hodnotu"}" aria-label="Dopočítat: ${esc(f.l)}" aria-pressed="${isC}"${lock?" disabled":""}>${ICON.flag}</button>`:`<span class="fc-flag" aria-hidden="true"></span>`}<span>${esc(f.l)}</span><button type="button" class="fc-q" data-a="help" data-k="${k}" aria-label="Nápověda">${ICON.help}</button>${help===k?`<div class="fc-hp">${esc(f.h)}</div>`:""}</div>
+            <div class="fc-fl">${solv?`<button type="button" class="fc-flag" data-a="flag" data-k="${k}" title="${isC?"Tato hodnota se dopočítává":lock?(st.mode==="loan"?"Aktuální sazba se nedopočítává":"Zhodnocení dle FP se nedopočítává"):"Dopočítat tuto hodnotu"}" aria-label="Dopočítat: ${esc(f.l)}" aria-pressed="${isC}"${lock?" disabled":""}>${ICON.flag}</button>`:`<span class="fc-flag" aria-hidden="true"></span>`}<span>${esc(f.l)}</span><button type="button" class="fc-q" data-a="help" data-k="${k}" aria-label="Nápověda">${ICON.help}</button>${help===k?`<div class="fc-hp">${esc(f.h)}</div>`:""}</div>
             <div class="fc-in"><button type="button" data-a="dec" data-k="${k}" aria-label="Snížit" ${isC||lock?"disabled":""}>−</button><input data-k="${k}" inputmode="decimal" autocomplete="off" aria-label="${esc(f.l)}" value="${isC&&!res.ok?"–":fieldVal(k,c.v[k])}" ${isC||lock?"disabled":""}><button type="button" data-a="inc" data-k="${k}" aria-label="Zvýšit" ${isC||lock?"disabled":""}>+</button></div></div>`
   }
   function loanNotes(res){
@@ -403,6 +442,14 @@ function mount(root,opts={}){
     const rp=res.ok?rpsn(res.v):NaN;
     return `${lr?`Sazba ${fmtPct(lr.rate)}${isFinite(rp)?` · <b>RPSN ${fmtPct(rp)}</b>`:""} = průměrná nabídková sazba, fixace ${c.v.fix} ${c.v.fix===1?"rok":c.v.fix<5?"roky":"let"}, LTV ${lr.band}. `:""}Zdroj: <a href="${esc(R.url||"https://www.hypoindex.cz/")}" target="_blank" rel="noopener">${esc(R.source||"Swiss Life Hypoindex")}</a>, ${esc(periodTxt(R.period))}.${old?` <b>Data jsou starší než 2 měsíce – zkontroluj aktualizaci sazeb.</b>`:""}`;
   }
+  /* zhodnocení dle finančního plánu – vysvětlivka, odkud sazba je */
+  function fpSrc(res){const c=cur();if(!fpOn(st.mode))return"";const fr=res.fr||fpRate(st.mode,c.v.years,c.v.fpReal!==false,fpProd()),real=c.v.fpReal!==false;
+    if(st.mode==="renta")return `Výnos při čerpání renty jako ve FP: <b>${fmtPct(real?fr.real:fr.nom)}</b> ${real?`reálně (${fmtPct(fr.nom)} nominálně − inflace ${fmtPct(FP_SET.inflace*100)}). Částky jsou v dnešních cenách.`:`nominálně (${fmtPct(fr.real)} reálně + inflace ${fmtPct(FP_SET.inflace*100)}).`}`;
+    const a=fr.alok;
+    return `Alokace pro ${yrsTxt(res.v.years)}: akcie ${a[0]} % (${fmtPct(fr.rA)}), dluhopisy ${a[1]} % (${fmtPct(fr.rD)})${a[2]?`, hotovost ${a[2]} % (${fmtPct(FP_SET.hotovost_nom*100)})`:""} → ${real?`${fmtPct(fr.nom)} nominálně − inflace ${fmtPct(FP_SET.inflace*100)} = <b>${fmtPct(fr.real)} reálně</b>. Částky jsou v dnešních cenách (jako cíle ve FP).`:`<b>${fmtPct(fr.nom)} nominálně</b>.`} Úročení ročně, vstupní poplatek se nepočítá.`}
+  function fpHTML(res){const c=cur(),on=!!c.v.fp;
+    return `<div class="fc-f fc-live"><label class="fc-chk"><input type="checkbox" data-x="fp"${on?" checked":""}> Zhodnocení dle finančního plánu</label>
+      ${on?`<select class="fc-sel" data-x="fpReal" aria-label="Reálně nebo nominálně"><option value="1"${c.v.fpReal!==false?" selected":""}>Reálně – v dnešních cenách</option><option value="0"${c.v.fpReal===false?" selected":""}>Nominálně</option></select><p class="fc-src fc-fpsrc">${fpSrc(res)}</p>`:""}</div>`}
   /* renta: změny výše v čase – po kolika letech od začátku výplaty přijde nová měsíční renta (libovolný počet) */
   function zmNotes(){const c=cur(),v=c.v,Z=v.zmeny||[];
     return (Z.some(z=>+z.po>=+v.years)?`<p class="fc-note warn">Změna po skončení výplaty (${yrsTxt(v.years)}) se nepočítá.</p>`:"")+(Z.length&&c.calc==="pmt"?`<p class="fc-note">Dopočítává se renta na začátku; změny platí v zadané výši.</p>`:"")}
@@ -416,9 +463,10 @@ function mount(root,opts={}){
   /* panel Parametry: u úvěru navíc cena nemovitosti, typ (limit LTV), aktuální sazba a bonita */
   function parHTML(res){
     const c=cur();
-    const freq=`<div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="fc-sel" data-a="freq" aria-label="Frekvence připisování úroku">${FREQ.map(([k,t])=>`<option value="${k}"${c.v.freq===k?" selected":""}>${t}</option>`).join("")}</select></div>`;
-    if(st.mode==="renta")return FIELDS.renta.map(k=>fieldHTML(k,res)).join("")+freq+zmenyHTML();
-    if(st.mode!=="loan")return FIELDS[st.mode].map(k=>fieldHTML(k,res)).join("")+freq;
+    const fq=fpOn(st.mode)?"y":c.v.freq;
+    const freq=`<div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="fc-sel" data-a="freq" aria-label="Frekvence připisování úroku"${fpOn(st.mode)?' disabled title="Při zhodnocení dle FP se úročí ročně"':""}>${FREQ.map(([k,t])=>`<option value="${k}"${fq===k?" selected":""}>${t}</option>`).join("")}</select></div>`;
+    if(st.mode==="renta")return FIELDS.renta.map(k=>fieldHTML(k,res)).join("")+fpHTML(res)+freq+zmenyHTML();
+    if(st.mode!=="loan")return FIELDS[st.mode].map(k=>fieldHTML(k,res)).join("")+fpHTML(res)+freq;
     return fieldHTML("price",res)
       +`<div class="fc-f"><div class="fc-fl"><span>Účel / limit LTV</span></div><select class="fc-sel" data-x="ltvType" aria-label="Účel úvěru">${LTV_TYPES.map(([k,t,l])=>`<option value="${k}"${c.v.ltvType===k?" selected":""}>${esc(t)} – LTV ${l} %</option>`).join("")}</select></div>`
       +["pv","pmt","years","rate"].map(k=>fieldHTML(k,res)).join("")
@@ -461,7 +509,8 @@ function mount(root,opts={}){
     const em=root.querySelector(".fc-errm");if(em){em.hidden=res.ok;em.textContent=res.ok?"":res.err}
     const tl=root.querySelector(".fc-tiles");if(tl)tl.innerHTML=tilesHTML();
     const nt=root.querySelector(".fc-notes");if(nt)nt.innerHTML=st.mode==="loan"?loanNotes(res):"";
-    const sr=root.querySelector(".fc-src");if(sr)sr.innerHTML=rateSrc(res);
+    const sr=root.querySelector(".fc-src:not(.fc-fpsrc)");if(sr)sr.innerHTML=rateSrc(res);
+    const fs=root.querySelector(".fc-fpsrc");if(fs)fs.innerHTML=fpSrc(res);
     const zn=root.querySelector(".fc-zn");if(zn)zn.innerHTML=zmNotes();
     drawChart();
   }
@@ -521,7 +570,7 @@ function mount(root,opts={}){
     const a=b.dataset.a,k=b.dataset.k;
     if(a!=="help"&&a!=="menu"&&help){help=null}
     if(a==="mode"){st.mode=k;help=null;draw()}
-    else if(a==="flag"){const c=cur();if(st.mode==="loan"&&k==="rate"&&c.v.live){toast("Při aktuální sazbě se sazba nedopočítává");return}if(c.calc!==k){if(!lastRes.ok)c.v[c.calc]=MODES[st.mode].def[c.calc]||0;c.calc=k;draw()}}
+    else if(a==="flag"){const c=cur();if(st.mode==="loan"&&k==="rate"&&c.v.live){toast("Při aktuální sazbě se sazba nedopočítává");return}if(k==="rate"&&fpOn(st.mode)){toast("Při zhodnocení dle FP se zhodnocení nedopočítává");return}if(c.calc!==k){if(!lastRes.ok)c.v[c.calc]=MODES[st.mode].def[c.calc]||0;c.calc=k;draw()}}
     else if(a==="inc"||a==="dec")stepField(k,a==="inc"?1:-1);
     else if(a==="help"){help=help===k?null:k;draw()}
     else if(a==="coll"){minPar=!minPar;draw()}
@@ -551,6 +600,8 @@ function mount(root,opts={}){
     if(t.dataset&&t.dataset.x==="client"){st.clientId=t.value;st.clientName=t.value?(clientList().find(c=>c.id===t.value)||{}).name||st.clientName:"";persist();draw();return}
     if(t.dataset&&t.dataset.x){const c=cur(),x=t.dataset.x;
       if(x==="live"){c.v.live=t.checked;if(t.checked&&c.calc==="rate")c.calc="pmt";if(!t.checked)c.v.rate=lastRes&&isFinite(lastRes.v.rate)?lastRes.v.rate:c.v.rate}
+      else if(x==="fp"){c.v.fp=t.checked;if(t.checked&&c.calc==="rate")c.calc=st.mode==="inv"?"fv":"pmt"}
+      else if(x==="fpReal")c.v.fpReal=t.value==="1";
       else if(x==="fix")c.v.fix=+t.value;else c.v[x]=t.value;
       draw();return}
     if(t.matches("input[data-z]")){const z=(cur().v.zmeny||[])[+t.dataset.i];if(z)t.value=t.dataset.z==="po"?fmtYearsIn(z.po):fmtNum(z.renta);refresh();return}
@@ -583,6 +634,8 @@ function mount(root,opts={}){
     const ch=chartSVG(pts,{w:900,h:430,c:{a:"#F37520",b:"#e4e6e9",grid:"#e9ebee",txt:"#6b7280",ring:"#fff",wmGray:"#4f5052",wmGray2:"#7d8183",wmOrange:"#F37520",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
     const params=FIELDS[st.mode].map(k=>[M.f[k].l.replace(/ \((CZK|%|počet let)\)/,""),k==="rate"?fmtPct(v[k]):k==="years"?yrsTxt(v[k]):fmtKc(v[k]),k===c.calc]);
     params.push(["Frekvence připisování úroku",(FREQ.find(f=>f[0]===v.freq)||FREQ[0])[1],false]);
+    if(v.fp){const i=params.findIndex(p=>p[0].startsWith("Zhodnocení"));if(i>=0)params[i][0]=zhLbl(v);
+      params.splice(i+1,0,["Zdroj zhodnocení",fpSrc(res).replace(/<[^>]+>/g,""),false])}
     if(st.mode==="renta")zmenyOf(v).filter(z=>z.m<v.years*12).forEach(z=>params.push(["Renta od "+zmTxt(z.m),fmtKc(z.r),false]));
     let notes="";
     if(st.mode==="loan"){const L=loanInfo(v),pc=x=>nf2.format(x).replace(/,00$/,"");
@@ -618,5 +671,5 @@ function mount(root,opts={}){
   return{redraw:draw,state:()=>st};
 }
 
-window.FinCalc={mount,math:{iMonth,valueAt,solve,series,totals,rentaSeg,FIELDS,loanInfo,liveRate,periodAge,ltvLimit,rpsn},rates:()=>RATES,fmt:{fmtKc,yrsTxt,parseNum},logo:{svg:zfpLogo,w:LOGO_W,h:LOGO_H}};
+window.FinCalc={mount,math:{iMonth,valueAt,solve,series,totals,rentaSeg,FIELDS,loanInfo,liveRate,periodAge,ltvLimit,rpsn,fpRate,fpAlok,FP_NET,FP_SET},rates:()=>RATES,fmt:{fmtKc,yrsTxt,parseNum},logo:{svg:zfpLogo,w:LOGO_W,h:LOGO_H}};
 })();
