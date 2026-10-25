@@ -454,7 +454,24 @@ tests["Kooperativa FLEXI: testové případy sedí na korunu s kalkulačkou Koop
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["Kooperativa × NN: bez volby jde do plánu levnější pojišťovna, druhá je na slidu s logem a cenou; ruční volba; varianta se slevou za zdravý životní styl"] = async function () {
+/* UNIQA Život & radost: pojistné z pipeline = pojistné z kalkulačky UniPoint (fixture uniqa-kalkulacka.json = vstupy a výsledky přímo z UniPoint 10/2026) */
+tests["UNIQA Život & radost: testové případy sedí s kalkulačkou UniPoint (hlavní pojištění, klesající i konstantní PČ, pásma PČ, sleva za výši pojistného, dítě)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const fx = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./fixtures/uniqa-kalkulacka.json", import.meta.url), "utf8"));
+  const res = await page.evaluate(F => Object.entries(F).map(([nazev, c]) => {
+    const fl = [], osoby = c.osoby.map(o => ({ jmeno: o.jmeno, vek: o.vek, dite: !!o.dite, maxKonec: o.plan && o.plan.maxKonec,
+      rizika: o.dite ? FPE.uniqaRizikaDitete({ jmeno: o.jmeno, vek: o.vek }, fl) : FPE.uniqaRizikaOsoby(Object.assign({ jmeno: o.jmeno, vstup: o.vek }, o.plan), o.opt || {}, fl) }));
+    const R = FPE.uniqaOcen(osoby, fl);
+    return { nazev, celkem: R.celkem, sleva: R.sleva, rows: R.osoby.flatMap(o => o.rizika.map(r => [o.jmeno, r.tarif, r.pc, r.konec, r.mes])), ocek: c.uniqa };
+  }), fx);
+  for (const r of res) {
+    eq(r.rows, r.ocek.rows, r.nazev + " – rizika, PČ, konec a pojistné");
+    eq([r.celkem, r.sleva], [r.ocek.celkem, r.ocek.sleva], r.nazev + " – celkem a sleva");
+  }
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["NN × Kooperativa × UNIQA: bez volby jde do plánu nejlevnější pojišťovna, ostatní jsou na slidu s logem a cenou; ruční volba; varianta se slevou za zdraví"] = async function () {
   const { ctx, page, errors } = await open();
   const rodina = { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 52000, vydaje_dom: 44000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 75000 },
     partner: { zapnuto: true, jmeno: "Eva Nováková", narozen: "1991-02-02", zam: 38000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 52000 },
@@ -465,20 +482,22 @@ tests["Kooperativa × NN: bez volby jde do plánu levnější pojišťovna, druh
       const zp = FR.filter(f => /^zp\d$/.test(f.g) && !/FitSport|zdravý styl/.test(f.lbl)), alt = R.nnAlt;
       return { poj: R.nn.pojistovna, alt: alt.pojistovna, c: R.nn.celkem, a: alt.celkem, nove: R.pojNove, auto: R.pojAuto, kompl: R.nn.kompletni && alt.kompletni, volba: R.nn.volba,
         sum: R.nn.osoby.reduce((s, x) => s + x.rizika.reduce((b, r) => b + (r.mes || 0), 0), 0), lbl: FR.map(f => f.lbl), zp: zp.map(f => t(f.h)),
-        logo: zp.every(f => f.h.includes(pojInfo(R.nn).logo()) && f.h.includes(pojInfo(alt).logo())), altPer: R.pojOsAlt.dosp, deti: t(FR.find(f => f.g === "deti").h), detiAlt: R.pojOsAlt.deti[0],
+        logo: zp.every(f => f.h.includes(pojInfo(R.nn).logo()) && R.nnAlts.every(a => f.h.includes(pojInfo(a).logo()))), nAlt: R.nnAlts.length, altPer: R.pojOsAlt.dosp, altsPer: R.pojOsAlts.map(o => o.dosp), altsDeti: R.pojOsAlts.map(o => o.deti[0]), poradi: [R.nn.celkem].concat(R.nnAlts.map(a => a.celkem)), deti: t(FR.find(f => f.g === "deti").h), detiAlt: R.pojOsAlt.deti[0],
         fit: R.nnFit && { koop: R.nnFit.pojistovna, c: R.nnFit.celkem, zzs: R.nnFit.osoby.filter(o => !o.dite).every(o => o.zzs) },
         bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; }); };
   const k = v => v.toLocaleString("cs-CZ").replace(/\s/g, " ");
   const a = await run({});
   eq(a.volba, "auto", "bez volby automaticky"); assert(a.kompl, "obě pojišťovny spočítané"); assert(a.auto, "automatické pojistné");
   assert(a.c <= a.a, "do plánu jde levnější (" + a.poj + " " + a.c + " ≤ " + a.alt + " " + a.a + ")"); eq(a.nove, a.c, "pojistné v plánu = levnější pojišťovna"); eq(a.c, a.sum, "celkem = součet řádků");
-  assert(a.logo, "na slidu logo vybrané i druhé pojišťovny"); a.zp.forEach((t, i) => assert(t.includes("Pro srovnání") && t.includes(k(a.altPer[i]) + ",–"), "cena druhé pojišťovny za osobu na slidu " + i));
-  assert(a.deti.includes(k(a.detiAlt) + " Kč / měs"), "slide dětí: cena u druhé pojišťovny"); eq(a.bad, [], "bez Infinity / NaN / undefined");
-  for (const v of ["nn", "koop"]) {
+  eq(a.nAlt, 2, "srovnání se dvěma dalšími pojišťovnami"); eq(a.poradi, a.poradi.slice().sort((x, y) => x - y), "do plánu nejlevnější, ostatní seřazené podle ceny");
+  assert(a.logo, "na slidu logo vybrané i ostatních pojišťoven"); a.zp.forEach((t, i) => a.altsPer.forEach(p => assert(t.includes("Pro srovnání") && t.includes(k(p[i]) + ",–"), "cena další pojišťovny za osobu na slidu " + i)));
+  a.altsDeti.forEach(c => assert(a.deti.includes(k(c) + " Kč / měs"), "slide dětí: cena u další pojišťovny")); eq(a.bad, [], "bez Infinity / NaN / undefined");
+  for (const v of ["nn", "koop", "uniqa"]) {
     const m = await run({ pojistovna: v });
-    eq([m.poj, m.alt, m.volba], [v, v === "nn" ? "koop" : "nn", v], "ruční volba " + v); eq(m.nove, m.c, "pojistné v plánu = zvolená pojišťovna " + v);
-    assert(m.zp.every(t => t.includes(v === "nn" ? "NN Orange Risk" : "Kooperativa FLEXI")), "název zvolené pojišťovny na slidu");
+    eq([m.poj, m.alt !== v, m.volba], [v, true, v], "ruční volba " + v); eq(m.nove, m.c, "pojistné v plánu = zvolená pojišťovna " + v);
+    assert(m.zp.every(t => t.includes({ nn: "NN Orange Risk", koop: "Kooperativa FLEXI", uniqa: "UNIQA Život & radost" }[v])), "název zvolené pojišťovny na slidu");
     if (v === "nn") assert(m.lbl.some(l => /FitSport/.test(l)) && !m.lbl.some(l => /zdravý styl/.test(l)), "NN: varianta FitSport");
+    else if (v === "uniqa") assert(!m.fit && !m.lbl.some(l => /FitSport|zdravý styl/.test(l)), "UNIQA: bez varianty se slevou za zdraví");
     else { assert(m.lbl.some(l => /zdravý styl/.test(l)) && !m.lbl.some(l => /FitSport/.test(l)), "Kooperativa: varianta se slevou za zdravý životní styl");
       assert(m.fit.koop === "koop" && m.fit.zzs && m.fit.c < m.c, "varianta se slevou za zdravý styl je levnější (" + m.fit.c + " < " + m.c + ")"); }
   }
@@ -614,7 +633,7 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   eq(bad, "nejde", "cizím klíčem nejde přečíst");
   eq(await page.evaluate(() => localStorage.getItem("fp_dotaznik_draft_v1")), null, "po odeslání se koncept smaže");
   await page.goto(FP); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
-  const r = await page.evaluate(D => { const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; mergeDz(I, D); const N = FPE.compute(I, new Date()).nn; return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ, sp: I.klient.sporty.length, rs: N && N.osoby[0].rs };
+  const r = await page.evaluate(D => { const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; mergeDz(I, D); I.pojisteni = Object.assign({}, I.pojisteni, { pojistovna: "nn" }); const N = FPE.compute(I, new Date()).nn; return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ, sp: I.klient.sporty.length, rs: N && N.osoby[0].rs };
   }, x.plan);
   eq([r.j, r.zam, r.inv3, r.bez, r.doc, r.sp, r.rs], ["Petr Malý", 48000, 20000, true, "rodicovska", 1, 2], "sloučení s plánem (IOLDP z plánu zůstává; registrovaný fotbal = RS 2 automaticky)");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
@@ -1052,7 +1071,7 @@ tests["úmrtí (metodika VK): renta, kterou by pozůstalý potřeboval na všech
     const base = { klient: { jmeno: "Adam Test", narozen: "1986-01-01", zam: 80000, inv1: 14000, inv2: 19000, inv3: 33000, vdovsky: 19100, sirotci: 16200, starobni: 32000 },
       partner: { zapnuto: true, jmeno: "Eva Testová", narozen: "1988-01-01", zam: 40000, vdovsky: 14400, sirotci: 12500, inv1: 11000, inv2: 14000, inv3: 24000 }, kontakt: { stav: "zenaty" },
       deti: [{ jmeno: "A", narozen: (y - 10) + "-01-01" }], majetek: [{ typ: "Spořicí účet", hodnota: 500000 }], uvery: [], cile: [], renta: { mesicne: 0 }, vydaje: { domacnost: 100000 } };
-    const R = FPE.compute(base, T), k = R.katastrofy[0], e = R.katastrofy[1];
+    const R = FPE.compute(Object.assign({}, base, { pojisteni: Object.assign({}, base.pojisteni, { pojistovna: "nn" }) }), T), k = R.katastrofy[0], e = R.katastrofy[1];
     const sam = FPE.compute(Object.assign({}, base, { partner: { zapnuto: false }, klient: Object.assign({}, base.klient, { bez_partnera: true }), deti: [], uvery: [{ typ: "Hypotéka", zustatek: 2000000, splatka: 15000 }] }), T).katastrofy[0];
     const nnK = R.nn.dospeli.find(o => o.jmeno === "Adam Test").rizika;
     return { gap0: k.smrt.faze[0].gap, gapPo: k.smrt.faze.at(-1).gap, konec: k.smrt.konecRenty.getFullYear(), kles: k.smrt.pcKles, konst: k.smrt.pcKonst, pc: k.smrt.pc, eGap: e.smrt.faze[0].gap, eKonec: e.smrt.konecRenty.getFullYear(),
