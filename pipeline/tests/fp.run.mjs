@@ -477,7 +477,24 @@ tests["UNIQA Život & radost: pojistné sedí s kalkulačkou UniPoint (±2 Kč n
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["NN × Kooperativa × UNIQA: bez volby jde do plánu nejlevnější pojišťovna, ostatní jsou na slidu s logem a cenou; ruční volba; varianta se slevou za zdraví"] = async function () {
+/* Allianz ŽIVOT: pojistné z pipeline vs. výpočet nabídky v Allfa (fixture allianz-kalkulace.json = vstupy a výsledky přímo z Allfa 10/2026) */
+tests["Allianz ŽIVOT: pojistné sedí s Allfa (±1 Kč na krytí; miliónová sleva, sleva za počet skupin, hlavní pojištění 30 Kč, děti)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const fx = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./fixtures/allianz-kalkulace.json", import.meta.url), "utf8"));
+  const res = await page.evaluate(F => Object.entries(F.pripady).map(([k, c]) => { const fl = [];
+    const os = [{ jmeno: "A", vek: c.vek, rizika: c.rows.map(([t, pc, kon]) => ({ tarif: t, nazev: t, typ: FPE.ALLIANZ_DEF[t].typ, pc, jedn: FPE.ALLIANZ_DEF[t].den ? "Kč/den" : "Kč", konec: kon, doba: kon - c.vek })) }]
+      .concat(c.deti.map(v => ({ jmeno: "D", vek: v, dite: true, rizika: FPE.allianzRizikaDitete({ jmeno: "D", vek: v }, fl) })));
+    const R = FPE.allianzOcen(os, fl); return { k, mes: R.osoby.flatMap(o => o.rizika.map(r => r.mes)), ocek: c.ocek, celkem: R.celkem, ocekC: c.celkem }; }), fx);
+  let presne = 0;
+  for (const r of res) {
+    r.mes.forEach((m, i) => assert(Math.abs(m - r.ocek[i]) <= 1, `${r.k} – krytí ${i}: ${m} vs Allfa ${r.ocek[i]}`));
+    assert(Math.abs(r.celkem - r.ocekC) <= 1, `${r.k} – celkem ${r.celkem} vs Allfa ${r.ocekC}`); if (r.celkem === r.ocekC) presne++;
+  }
+  assert(presne >= res.length * 0.8, `na korunu aspoň 80 % případů (${presne}/${res.length})`);
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["NN × Kooperativa × UNIQA × Allianz: bez volby jde do plánu nejlevnější pojišťovna, ostatní jsou na slidu s logem a cenou; ruční volba; varianta se slevou za zdraví"] = async function () {
   const { ctx, page, errors } = await open();
   const rodina = { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 52000, vydaje_dom: 44000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 75000 },
     partner: { zapnuto: true, jmeno: "Eva Nováková", narozen: "1991-02-02", zam: 38000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 52000 },
@@ -495,15 +512,15 @@ tests["NN × Kooperativa × UNIQA: bez volby jde do plánu nejlevnější pojiš
   const a = await run({});
   eq(a.volba, "auto", "bez volby automaticky"); assert(a.kompl, "obě pojišťovny spočítané"); assert(a.auto, "automatické pojistné");
   assert(a.c <= a.a, "do plánu jde levnější (" + a.poj + " " + a.c + " ≤ " + a.alt + " " + a.a + ")"); eq(a.nove, a.c, "pojistné v plánu = levnější pojišťovna"); eq(a.c, a.sum, "celkem = součet řádků");
-  eq(a.nAlt, 2, "srovnání se dvěma dalšími pojišťovnami"); eq(a.poradi, a.poradi.slice().sort((x, y) => x - y), "do plánu nejlevnější, ostatní seřazené podle ceny");
+  eq(a.nAlt, 3, "srovnání se třemi dalšími pojišťovnami"); eq(a.poradi, a.poradi.slice().sort((x, y) => x - y), "do plánu nejlevnější, ostatní seřazené podle ceny");
   assert(a.logo, "na slidu logo vybrané i ostatních pojišťoven"); a.zp.forEach((t, i) => a.altsPer.forEach(p => assert(t.includes("Pro srovnání") && t.includes(k(p[i]) + ",–"), "cena další pojišťovny za osobu na slidu " + i)));
   a.altsDeti.forEach(c => assert(a.deti.includes(k(c) + " Kč / měs"), "slide dětí: cena u další pojišťovny")); eq(a.bad, [], "bez Infinity / NaN / undefined");
-  for (const v of ["nn", "koop", "uniqa"]) {
+  for (const v of ["nn", "koop", "uniqa", "allianz"]) {
     const m = await run({ pojistovna: v });
     eq([m.poj, m.alt !== v, m.volba], [v, true, v], "ruční volba " + v); eq(m.nove, m.c, "pojistné v plánu = zvolená pojišťovna " + v);
-    assert(m.zp.every(t => t.includes({ nn: "NN Orange Risk", koop: "Kooperativa FLEXI", uniqa: "UNIQA Život & radost" }[v])), "název zvolené pojišťovny na slidu");
+    assert(m.zp.every(t => t.includes({ nn: "NN Orange Risk", koop: "Kooperativa FLEXI", uniqa: "UNIQA Život & radost", allianz: "Allianz ŽIVOT" }[v])), "název zvolené pojišťovny na slidu");
     if (v === "nn") assert(m.lbl.some(l => /FitSport/.test(l)) && !m.lbl.some(l => /zdravý styl/.test(l)), "NN: varianta FitSport");
-    else if (v === "uniqa") assert(!m.fit && !m.lbl.some(l => /FitSport|zdravý styl/.test(l)), "UNIQA: bez varianty se slevou za zdraví");
+    else if (v === "uniqa" || v === "allianz") assert(!m.fit && !m.lbl.some(l => /FitSport|zdravý styl/.test(l)), v + ": bez varianty se slevou za zdraví");
     else { assert(m.lbl.some(l => /zdravý styl/.test(l)) && !m.lbl.some(l => /FitSport/.test(l)), "Kooperativa: varianta se slevou za zdravý životní styl");
       assert(m.fit.koop === "koop" && m.fit.zzs && m.fit.c < m.c, "varianta se slevou za zdravý styl je levnější (" + m.fit.c + " < " + m.c + ")"); }
   }
