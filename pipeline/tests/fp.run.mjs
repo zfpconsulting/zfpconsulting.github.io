@@ -512,7 +512,34 @@ tests["Generali Bel Mondo 20: pojistné sedí s kalkulačkou LISA (±1 Kč na kr
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["NN × Kooperativa × UNIQA × Allianz × Generali: bez volby jde do plánu nejlevnější pojišťovna, ostatní jsou na slidu s logem a cenou; ruční volba; varianta se slevou za zdraví"] = async function () {
+/* ČPP NEON Life: pojistné z pipeline vs. kalkulačka SUS Plus (fixture cpp-kalkulacka.json = vstupy a výsledky přímo ze SUS Plus 10/2026, počátek 26. 10. 2026).
+   SUS Plus ukazuje u krytí pojistné před slevami a slevu za celou smlouvu – model sedí na ±1 Kč u krytí a ±2 Kč u slevy i celé smlouvy. */
+tests["ČPP NEON Life: pojistné sedí s kalkulačkou SUS Plus (±1 Kč na krytí; sleva za vyšší ochranu a za výši pojistného, děti)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const fx = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./fixtures/cpp-kalkulacka.json", import.meta.url), "utf8"));
+  const r = await page.evaluate(F => F.smlouvy.map(c => { const os = c.os.map((o, i) => { const vek = 2026 - +o.nar.slice(0, 4);
+      return { jmeno: "O" + i, vek, dite: !!o.dite, rizika: o.rows.map(([t, pc, k]) => ({ tarif: t, nazev: t, typ: o.dite ? "dite" : FPE.CPP_DEF[t].typ, pc, konec: k, doba: k - vek })) }; });
+    const R = FPE.cppOcen(os, []);
+    return { n: c.n, z: R.osoby.map(o => o.rizika.map(x => x.zaklad)), ocek: c.os.map(o => o.rows.map(x => x[3])), pred: R.rozhodne, ocekP: c.pred, sleva: R.slevaKc, ocekS: c.sleva, celkem: R.celkem, ocekC: c.celkem,
+      soucet: R.osoby.reduce((a, o) => a + o.celkem, 0) }; }), fx);
+  for (const c of r) {
+    c.z.forEach((o, i) => o.forEach((m, j) => assert(m != null && Math.abs(m - c.ocek[i][j]) <= 1, `${c.n} – osoba ${i} krytí ${j}: ${m} vs SUS ${c.ocek[i][j]}`)));
+    assert(Math.abs(c.pred - c.ocekP) <= 2, `${c.n} – před slevami ${c.pred} vs SUS ${c.ocekP}`);
+    assert(Math.abs(c.sleva - c.ocekS) <= 2, `${c.n} – sleva ${c.sleva} vs SUS ${c.ocekS}`);
+    assert(Math.abs(c.celkem - c.ocekC) <= 2, `${c.n} – celkem ${c.celkem} vs SUS ${c.ocekC}`);
+    eq(c.soucet, c.celkem, `${c.n} – celkem = součet krytí po slevě`);
+  }
+  /* smrt jde jen 1. pojištěnému: plán se smrtí i u partnera → ČPP neúplná, do výběru nejlevnější nejde */
+  const d = await page.evaluate(() => { const fl = [];
+    const rz = FPE.cppRizikaOsoby({ jmeno: "Eva", vstup: 35, hlavni: false, smrt: 2e6, smrtKonst: 0, smrtKonec: 65, inv: [0, 0, 1e6], invKonec: 65, pnDen: 700, maxKonec: 65 }, {}, fl);
+    const R = FPE.cppOcen([{ jmeno: "Eva", vek: 35, rizika: rz }], []);
+    return { kompl: R.kompletni, fl, tar: rz.map(x => x.tarif) }; });
+  eq(d.kompl, false, "smrt 2. dospělého → smlouva neúplná"); eq(d.tar, ["SMRT-2P", "INV3-L", "PN29", "TNU"], "krytí 2. dospělého");
+  assert(d.fl.some(f => /jen prvnímu pojištěnému/.test(f)) && d.fl.some(f => /600 Kč\/den/.test(f)), "upozornění na smrt 2. dospělého a PN nad 600 Kč/den");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["NN × Kooperativa × UNIQA × Allianz × Generali × ČPP: bez volby jde do plánu nejlevnější pojišťovna, ostatní jsou na slidu s logem a cenou; ruční volba; varianta se slevou za zdraví"] = async function () {
   const { ctx, page, errors } = await open();
   const rodina = { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 52000, vydaje_dom: 44000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 75000 },
     partner: { zapnuto: true, jmeno: "Eva Nováková", narozen: "1991-02-02", zam: 38000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 52000 },
@@ -533,12 +560,12 @@ tests["NN × Kooperativa × UNIQA × Allianz × Generali: bez volby jde do plán
   eq(a.nAlt, 4, "srovnání se čtyřmi dalšími pojišťovnami"); eq(a.poradi, a.poradi.slice().sort((x, y) => x - y), "do plánu nejlevnější, ostatní seřazené podle ceny");
   assert(a.logo, "na slidu logo vybrané i ostatních pojišťoven"); a.zp.forEach((t, i) => a.altsPer.forEach(p => assert(t.includes("Pro srovnání") && t.includes(k(p[i]) + ",–"), "cena další pojišťovny za osobu na slidu " + i)));
   a.altsDeti.forEach(c => assert(a.deti.includes(k(c) + " Kč / měs"), "slide dětí: cena u další pojišťovny")); eq(a.bad, [], "bez Infinity / NaN / undefined");
-  for (const v of ["nn", "koop", "uniqa", "allianz", "generali"]) {
+  for (const v of ["nn", "koop", "uniqa", "allianz", "generali", "cpp"]) {
     const m = await run({ pojistovna: v });
     eq([m.poj, m.alt !== v, m.volba], [v, true, v], "ruční volba " + v); eq(m.nove, m.c, "pojistné v plánu = zvolená pojišťovna " + v);
-    assert(m.zp.every(t => t.includes({ nn: "NN Orange Risk", koop: "Kooperativa FLEXI", uniqa: "UNIQA Život & radost", allianz: "Allianz ŽIVOT", generali: "Generali Bel Mondo 20" }[v])), "název zvolené pojišťovny na slidu");
+    assert(m.zp.every(t => t.includes({ nn: "NN Orange Risk", koop: "Kooperativa FLEXI", uniqa: "UNIQA Život & radost", allianz: "Allianz ŽIVOT", generali: "Generali Bel Mondo 20", cpp: "ČPP NEON Life" }[v])), "název zvolené pojišťovny na slidu");
     if (v === "nn") assert(m.lbl.some(l => /FitSport/.test(l)) && !m.lbl.some(l => /zdravý styl/.test(l)), "NN: varianta FitSport");
-    else if (["uniqa", "allianz", "generali"].includes(v)) assert(!m.fit && !m.lbl.some(l => /FitSport|zdravý styl/.test(l)), v + ": bez varianty se slevou za zdraví");
+    else if (["uniqa", "allianz", "generali", "cpp"].includes(v)) assert(!m.fit && !m.lbl.some(l => /FitSport|zdravý styl/.test(l)), v + ": bez varianty se slevou za zdraví");
     else { assert(m.lbl.some(l => /zdravý styl/.test(l)) && !m.lbl.some(l => /FitSport/.test(l)), "Kooperativa: varianta se slevou za zdravý životní styl");
       assert(m.fit.koop === "koop" && m.fit.zzs && m.fit.c < m.c, "varianta se slevou za zdravý styl je levnější (" + m.fit.c + " < " + m.c + ")"); }
   }
