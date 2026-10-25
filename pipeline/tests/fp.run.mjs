@@ -561,6 +561,48 @@ tests["NN × Kooperativa × UNIQA × Allianz × Generali: bez volby jde do plán
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+/* ČSOB Náš život: pojistné z pipeline vs. kalkulace v Zeus (fixture csob-kalkulace.json = vstupy a výsledky přímo ze Zeus 10/2026) */
+tests["ČSOB Náš život: pojistné sedí se Zeus (±1 Kč na krytí; sleva za výši PČ u každého krytí, konstantní i klesající, základní pojištění 30 Kč)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const fx = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./fixtures/csob-kalkulace.json", import.meta.url), "utf8"));
+  const res = await page.evaluate(F => Object.entries(F.pripady).map(([k, c]) => { const fl = [];
+    const os = [{ jmeno: "A", vek: c.vek, rizika: c.rows.map(([t, pc, kon]) => ({ tarif: t, nazev: t, typ: FPE.CSOB_DEF[t].typ, pc, jedn: FPE.CSOB_DEF[t].den ? "Kč/den" : "Kč", konec: kon, doba: kon - c.vek })) }];
+    const R = FPE.csobOcen(os, fl); return { k, mes: R.osoby[0].rizika.map(r => r.mes), ocek: c.ocek, celkem: R.celkem, ocekC: c.ocek.reduce((a, b) => a + b, 0) }; }), fx);
+  let presne = 0;
+  for (const r of res) {
+    r.mes.forEach((m, i) => assert(Math.abs(m - r.ocek[i]) <= 1, `${r.k} – krytí ${i}: ${m} vs Zeus ${r.ocek[i]}`));
+    assert(Math.abs(r.celkem - r.ocekC) <= 2, `${r.k} – celkem ${r.celkem} vs Zeus ${r.ocekC}`); if (r.celkem === r.ocekC) presne++;
+  }
+  assert(presne >= res.length * 0.8, `na korunu aspoň 80 % případů (${presne}/${res.length})`);
+  /* s dětmi ČSOB do srovnání nejde (děti samostatnou smlouvou), bez dětí ano */
+  const d = await page.evaluate(() => FPE.csobOcen([{ jmeno: "A", vek: 40, rizika: FPE.csobRizikaOsoby({ jmeno: "A", vstup: 40, smrt: 2e6, smrtKonec: 65, inv: [5e5, 1e6, 2e6], invKonec: 65, pnDen: 500, maxKonec: 65 }, {}, []) }, { jmeno: "D", vek: 5, dite: true, rizika: [{ tarif: "D", typ: "dite", pc: 1e6, konec: 25 }] }], []).kompletni);
+  eq(d, false, "s dětmi není ČSOB kompletní");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["ČSOB ve srovnání: bez dětí šestá pojišťovna na slidu (logo + cena), ruční volba ČSOB; s dětmi mimo automatický výběr"] = async function () {
+  const { ctx, page, errors } = await open();
+  const par = { klient: { jmeno: "Petr Malý", narozen: "1987-03-03", zam: 60000, vydaje_osobni: 45000, vydaje_dom: 38000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 80000 },
+    partner: { zapnuto: true, jmeno: "Lenka Malá", narozen: "1990-08-08", zam: 42000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 56000 },
+    deti: [], motivace: "x", majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 200000 }], uvery: [{ nazev: "Hypotéka", zustatek: 3500000, splatka: 19000 }],
+    cile: [], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" } } };
+  const run = async (poj, deti) => { await setPlan(page, Object.assign({}, par, { deti: deti || [], pojisteni: Object.assign({ zivotni: { stav: 0, navrh: "" } }, poj) }));
+    return page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
+      const zp = FR.filter(f => /^zp\d$/.test(f.g) && !/FitSport|zdravý styl/.test(f.lbl));
+      return { poj: R.nn.pojistovna, alts: R.nnAlts.map(a => a.pojistovna), c: R.nn.celkem, nove: R.pojNove, csob: R.nnAlts.concat([R.nn]).find(a => a.pojistovna === "csob"),
+        logo: zp.every(f => f.h.includes(CSOB_LOGO)), zp: zp.map(f => t(f.h)), cmp: pojCmpTxt(R),
+        bad: FR.filter(f => /Infinity|NaN|undefined|null/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; }); };
+  const a = await run({});
+  eq(a.alts.length + 1, 6, "bez dětí se srovnává šest pojišťoven"); assert(a.csob && a.csob.kompletni && a.csob.celkem > 0, "ČSOB spočítaná");
+  assert(a.logo, "logo ČSOB na slidu ŽP"); assert(/ČSOB Náš život/.test(a.cmp), "ČSOB v textu srovnání"); eq(a.bad, [], "bez NaN / undefined");
+  const h = a.csob.osoby.map(o => o.rizika.filter(r => r.tarif === "SMRT-H").length); eq(h, [1, 1], "každý dospělý má vlastní základní pojištění smrti");
+  const m = await run({ pojistovna: "csob" });
+  eq(m.poj, "csob", "ruční volba ČSOB"); eq(m.nove, m.c, "pojistné v plánu = ČSOB"); assert(m.zp.every(t => t.includes("ČSOB Náš život")), "název ČSOB na slidu"); eq(m.bad, [], "bez NaN / undefined (ČSOB)");
+  const d = await run({}, [{ jmeno: "Ema", narozen: "2020-02-01" }]);
+  assert(d.poj !== "csob" && !d.alts.includes("csob"), "s dětmi ČSOB mimo srovnání"); eq(d.bad, [], "bez NaN / undefined (s dětmi)");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 tests["Kooperativa: sleva za zdravý životní styl +5 % jen na smrt a invaliditu dospělých a jen se slevou za komplexní rozsah; do součtu PČ jen pojištění do konce smlouvy nebo aspoň na 10 let"] = async function () {
   const { ctx, page, errors } = await open();
   const r = await page.evaluate(() => {
