@@ -736,8 +736,8 @@ const KOOP_DEF = {
 };
 /* děti (2. a další pojištění) – standardní balíček DETI_POJ, pojištění do 26 let (nejméně 5 let, nejvýš 22 let).
    KOOP_DITE[tarif].m[věk] = základní měsíční pojistné (před slevou) přesně pro PČ pc z kalkulačky KoopLife; jiná PČ se přepočte poměrem. */
-const KOOP_DITE = /*KOOP_DITE*/{}/*/KOOP_DITE*/;
-const KOOP_KOMPLEX = [[5e6, 30], [3e6, 20], [1e6, 10]];  // sleva za komplexní rozsah podle součtu PČ (smrt + invalidita III. st.; klesající PČ polovinou)
+const KOOP_DITE = /*KOOP_DITE*/{"D-TNU10":{"n":"Trvalé následky úrazu (10× progrese)","pc":1000000,"m":[86,86,86,86,86,87,87,88,88,89,90,91,92,93,94,96,98,101]},"D-VN":{"n":"Vážná onemocnění","pc":500000,"m":[54,54,54,55,56,56,57,57,58,59,59,60,61,62,64,66,68,71]},"D-DOU":{"n":"Denní odškodné úrazu","pc":400,"den":1,"m":[332,332,332,332,332,334,336,338,340,342,345,349,353,357,363,369,378,389]}}/*/KOOP_DITE*/;
+const KOOP_KOMPLEX = [[5e6, 30], [3e6, 20], [1e6, 10]];  // sleva za komplexní rozsah podle součtu PČ (smrt + invalidita III. st.; klesající PČ a vážná onemocnění dětí polovinou)
 const KOOP_DITE_SLEVA = true; /* sleva za komplexní rozsah se vztahuje i na pojištění dětí (kalkulačka KoopLife) */
 const KOOP_POPLATEK = 50;        // poplatek za správu pojištění / měs – odpadá, když pojistné po slevách je aspoň KOOP_POPLATEK_OD
 const KOOP_POPLATEK_OD = 1000;
@@ -787,8 +787,8 @@ function koopOcen(osoby, flags) {
   osoby.forEach(o => o.rizika.forEach(r => {
     r.zaklad = o.dite ? ditePoj(o, r) : (s => s == null ? null : Math.round(r.pc / KOOP_DEF[r.tarif].j * s))(koopSazba(r.tarif, o.vek, r.konec));
     if (r.zaklad == null) flags.push(`Kooperativa: ${o.jmeno} – ${r.nazev} pro vstupní věk ${o.vek} a konec ${r.konec} let kalkulačka nepočítá – doplň ručně.`); }));
-  /* součet PČ pro slevu za komplexní rozsah: základní + doplňková smrt a invalidita III. stupně všech dospělých, klesající PČ polovinou */
-  const suma = osoby.filter(o => !o.dite).reduce((a, o) => a + o.rizika.reduce((b, r) => b + (/^(ZAKL|SMRT-K|SMRT-KR|INV3-K)$/.test(r.tarif) ? r.pc : /^(SMRT-L|INV3-L)$/.test(r.tarif) ? r.pc / 2 : 0), 0), 0);
+  /* součet PČ pro slevu za komplexní rozsah: základní + doplňková smrt a invalidita III. stupně všech dospělých, klesající PČ polovinou, vážná onemocnění dětí polovinou */
+  const suma = osoby.reduce((a, o) => a + o.rizika.reduce((b, r) => b + (/^(ZAKL|SMRT-K|SMRT-KR|INV3-K)$/.test(r.tarif) ? r.pc : /^(SMRT-L|INV3-L|D-VN)$/.test(r.tarif) ? r.pc / 2 : 0), 0), 0);   /* vážná onemocnění dítěte se počítají polovinou (ověřeno v KoopLife) */
   const sleva = koopKomplexPct(suma);
   osoby.forEach(o => o.rizika.forEach(r => { if (r.zaklad == null) { r.mes = null; return; }
     const p = r.typ === "zakl" || (o.dite && !KOOP_DITE_SLEVA) ? 0 : sleva; r.sleva = Math.round(r.zaklad * p / 100); r.mes = r.zaklad - r.sleva; }));
@@ -1872,7 +1872,7 @@ function renderEditor(){
    ${KOOPI(I)?`<p class="hint">Hlavní pojištěný je primárně muž: má povinné základní pojištění smrti 10 000 Kč, smlouva končí v jeho 65 letech (invalidita a PN mohou až do 70).</p>`:`<p class="hint">Hlavní pojištěný je primárně muž: smlouva končí v jeho 65 letech, má povinné minimum na smrt a jen jemu jde Program Fit. Bez sjednaného Fitu se za jeho modelací ukáže stejná modelace s FitSport.</p>
    <label class="chk"><input type="checkbox" data-p="pojisteni.nn_hypo" ${get(I,"pojisteni.nn_hypo")?"checked":""}> Kampaň Hypotéka – klient má aktivní hypotéku (vyšší sleva za výši pojistného)</label>`}
    <div id="nnPrev" class="hint">${R&&R.nn?nnTable(R.nn,true):""}</div>
-   ${KOOPI(I)?`<p class="hint">Sazby z kalkulačky Kooperativy KoopLife (FLEXI, 10/2026) pro každý vstupní věk 18–64 a konec pojištění. Sleva za komplexní rozsah se počítá sama ze součtu PČ smrti a invalidity III. stupně obou dospělých (klesající PČ polovinou): od 1 mil. Kč 10 %, od 3 mil. 20 %, od 5 mil. 30 %. Poplatek za správu 50 Kč měsíčně odpadá od 1 000 Kč pojistného po slevách. Povolání ani sport kalkulačka do ceny nepromítá. Finální částka je vždy ta z KoopLife.</p>`:""}
+   ${KOOPI(I)?`<p class="hint">Sazby z kalkulačky Kooperativy KoopLife (FLEXI, 10/2026) pro každý vstupní věk 18–64 a konec pojištění. Sleva za komplexní rozsah se počítá sama ze součtu PČ smrti a invalidity III. stupně obou dospělých (klesající PČ a vážná onemocnění dětí polovinou): od 1 mil. Kč 10 %, od 3 mil. 20 %, od 5 mil. 30 %. Poplatek za správu 50 Kč měsíčně odpadá od 1 000 Kč pojistného po slevách. Povolání ani sport kalkulačka do ceny nepromítá. Finální částka je vždy ta z KoopLife.</p>`:""}
    <p class="hint"${KOOPI(I)?' style="display:none"':""}>Sazby z kalkulace NN Stela 2.0 (10/2026). Sleva za výši pojistného (propojištěnost) se počítá sama z celého pojistného smlouvy: od 1 300 Kč 10 %, od 1 700 Kč 15 %, od 2 000 Kč 20 % (s kampaní Hypotéka 12 / 20 / 25 %). Riziková skupina 2–4 přidá k úrazovým rizikům 100 / 200 / 450 %. Program Fit snižuje smrt a invaliditu. Finální částka je vždy ta ze Stely.</p>
    <label class="f">Screenshot modelace ŽP (zůstane jen do zavření stránky)<input type="file" id="shotIn" accept="image/*"></label>
    <p class="hint">Děti se pojišťují vždy stejně: trvalé následky úrazu 1 000 000 Kč s 10× progresí, závažná onemocnění dětí 500 000 Kč, denní odškodné léčení úrazu 400 Kč/den.</p></details>
@@ -2467,7 +2467,7 @@ function buildFrames(I,R){
       <div style="position:absolute;left:1020px;top:205px;font-size:22px;font-weight:900">${pojInfo(N).n}</div>
       <ul style="position:absolute;left:1020px;top:248px;width:480px;margin:0;padding-left:20px;font-size:16.5px;line-height:1.55">
        ${k.invAll.some(x=>x.pcDop>0)?`<li>Invalidita: ${(R.S.nn_inv||"klesajici")==="konstantni"?"konstantní":"klesající"} pojistná částka do ${no?no.rizika.find(r=>/^INV/.test(r.tarif))?.konec||65:65} let</li>`:""}
-       ${k.smrt.treba?`<li>Smrt: ${(()=>{const ko=no&&no.rizika&&no.rizika.length?Math.max(...no.rizika.map(r=>+r.konec||0)):65;return ({klesajici:"klesající PČ do "+ko+" let",konstantni:"konstantní PČ do "+ko+" let",kratsi:"konstantní PČ na kratší dobu"})[R.S.nn_smrt||"klesajici"]})()}${k.smrt.zavisli?"":' <span class="mut">(úvěry)</span>'}</li>`:`<li>Smrt: <b class="grn">nejsou závazky pro zajištění</b></li>`}
+       ${k.smrt.treba?`<li>Smrt: ${(()=>{const sm=no&&no.rizika?no.rizika.filter(r=>/^(SMTV|SMTK|SMRT)/.test(r.tarif)):[],ko=sm.length?Math.max(...sm.map(r=>+r.konec||0)):65;return ({klesajici:"klesající PČ do "+ko+" let",konstantni:"konstantní PČ do "+ko+" let",kratsi:"konstantní PČ na kratší dobu"})[R.S.nn_smrt||"klesajici"]})()}${k.smrt.zavisli?"":' <span class="mut">(úvěry)</span>'}</li>`:`<li>Smrt: <b class="grn">nejsou závazky pro zajištění</b></li>`}
        ${k.pn.treba?"":`<li>Pracovní neschopnost: <b class="grn">kryje rezerva</b></li>`}
        <li>${N&&N.pojistovna==="koop"?"Trvalé následky úrazu "+mil(1000000)+" s 10× progresí":"Trvalé následky úrazu PREMIUM "+mil(1000000)}</li>
        ${no&&no.rs>1?`<li>Riziková skupina ${no.rs}${no.rizika.some(r=>r.prirazka>0)?" – přirážka započtena":""}</li>`:""}${no&&no.fit?`<li>Program Fit ${({sport:"Sport",darce:"Dárce",prevence:"Prevence"})[no.fit]||no.fit} – sleva na smrt a invaliditu</li>`:""}${N&&N.sleva?`<li>${pojInfo(N).sleva} ${N.sleva} %${N.hypo?" (kampaň Hypotéka)":""} – celá smlouva</li>`:""}${N&&N.poplatek?`<li>Poplatek za správu ${kc(N.poplatek)} měsíčně (odpadá od ${kc(1000)} pojistného)</li>`:""}</ul>

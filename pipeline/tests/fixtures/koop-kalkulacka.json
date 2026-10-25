@@ -394,5 +394,172 @@
     ]
    ]
   }
+ },
+ "6 rodina: dva dospělí (sleva ze součtu obou, partnerka do konce smlouvy) + dítě": {
+  "osoby": [
+   {
+    "jmeno": "Karel",
+    "vek": 45,
+    "plan": {
+     "hlavni": true,
+     "smrt": 1500000,
+     "smrtKonec": 55,
+     "inv": [
+      1000000,
+      1000000,
+      2000000
+     ],
+     "invKonec": 67,
+     "pnDen": 1000,
+     "maxKonec": 67
+    },
+    "opt": {
+     "smrt": "kratsi"
+    }
+   },
+   {
+    "jmeno": "Eva",
+    "vek": 35,
+    "plan": {
+     "hlavni": false,
+     "smrt": 1000000,
+     "smrtKonst": 500000,
+     "smrtKonec": 57,
+     "inv": [
+      300000,
+      600000,
+      1000000
+     ],
+     "invKonec": 63,
+     "pnDen": 0,
+     "maxKonec": 57
+    },
+    "opt": {}
+   },
+   {
+    "jmeno": "Anna",
+    "vek": 8,
+    "dite": true
+   }
+  ],
+  "koop": {
+   "celkem": 3033,
+   "sleva": 20,
+   "poplatek": 0,
+   "rows": [
+    [
+     "Karel",
+     "ZAKL",
+     10000,
+     65,
+     10
+    ],
+    [
+     "Karel",
+     "SMRT-KR",
+     1500000,
+     55,
+     453
+    ],
+    [
+     "Karel",
+     "INV3-L",
+     2000000,
+     67,
+     398
+    ],
+    [
+     "Karel",
+     "INV2-L",
+     1000000,
+     67,
+     92
+    ],
+    [
+     "Karel",
+     "INV1-L",
+     1000000,
+     67,
+     186
+    ],
+    [
+     "Karel",
+     "PN29",
+     1000,
+     67,
+     789
+    ],
+    [
+     "Karel",
+     "TNU10",
+     1000000,
+     65,
+     204
+    ],
+    [
+     "Eva",
+     "SMRT-K",
+     500000,
+     57,
+     103
+    ],
+    [
+     "Eva",
+     "SMRT-L",
+     1000000,
+     57,
+     74
+    ],
+    [
+     "Eva",
+     "INV3-L",
+     1000000,
+     57,
+     83
+    ],
+    [
+     "Eva",
+     "INV2-L",
+     600000,
+     57,
+     25
+    ],
+    [
+     "Eva",
+     "INV1-L",
+     300000,
+     57,
+     26
+    ],
+    [
+     "Eva",
+     "TNU10",
+     1000000,
+     57,
+     202
+    ],
+    [
+     "Anna",
+     "D-TNU10",
+     1000000,
+     26,
+     70
+    ],
+    [
+     "Anna",
+     "D-VN",
+     500000,
+     26,
+     46
+    ],
+    [
+     "Anna",
+     "D-DOU",
+     400,
+     26,
+     272
+    ]
+   ]
+  }
  }
 }
