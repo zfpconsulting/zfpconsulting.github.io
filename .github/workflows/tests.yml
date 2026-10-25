@@ -37,6 +37,8 @@ jobs:
         run: node tests/docs.run.mjs
       - name: Testy finančního plánu a dotazníku
         run: node tests/fp.run.mjs
+        env:
+          PP_KEY: ${{ secrets.PP_KEY }}
       - name: Testy rezervace (volné termíny, kancelář a kolegové, uvolnění zrušené schůzky)
         run: node tests/booking.run.mjs
       - name: Testy kalendáře a SMS potvrzení rezervace (škola, osobní kalendář, šablony)

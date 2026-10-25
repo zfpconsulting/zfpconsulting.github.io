@@ -1,5 +1,7 @@
-// Testy finančního plánu (fp.html) v Chromiu – nepotřebují PP_KEY. Použití: node tests/fp.run.mjs
+// Testy finančního plánu (fp.html) v Chromiu. Sazby pojišťoven jsou ve fp.html zašifrované – potřebují PP_KEY (přístupový kód).
+// Použití: PP_KEY=XXXXX-… node tests/fp.run.mjs
 import { loadPlaywright, startServer, assert, eq } from "./helpers.mjs";
+if (!process.env.PP_KEY) { console.log("Chybí PP_KEY (přístupový kód) – sazby pojišťoven ve fp.html jsou zašifrované, testy přeskakuji."); process.exit(0); }
 
 const { chromium } = await loadPlaywright();
 const browser = await chromium.launch(process.env.PW_EXECUTABLE ? { executablePath: process.env.PW_EXECUTABLE } : {});
@@ -8,18 +10,20 @@ const FP = url.replace(/index\.html$/, "fp.html");
 
 async function open() {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  /* přístupový kód v zařízení – stejně jako ho tam uloží Pipeline */
+  await ctx.addInitScript(k => { try { if (!localStorage.getItem("pp_key")) localStorage.setItem("pp_key", k); } catch (e) {} }, process.env.PP_KEY);
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   await page.goto(FP);
-  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
+  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
   return { ctx, page, errors };
 }
 /* uloží plán klienta do localStorage a načte stránku znovu */
 async function setPlan(page, patch) {
   await page.evaluate(p => { const d = JSON.parse(JSON.stringify(DB)), c = d.clients[d.cur]; Object.assign(c, p); localStorage.setItem(LS, JSON.stringify(d)); }, patch);
   await page.reload();
-  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
+  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
 }
 const pvAnn = (m, n, r) => { const q = Math.pow(1 + r, 1 / 12) - 1; return n > 0 && m > 0 ? m * (1 - Math.pow(1 + q, -n)) / q : 0; };
 
@@ -27,7 +31,7 @@ const tests = {
   async "shrnutí mailem: oslovení podle titulu, následné kroky (zřízení + trvalý příkaz, ŽP), termín podpisu z kalendáře"() {
     const { ctx, page, errors } = await open();
     await page.evaluate(() => { const d = JSON.parse(JSON.stringify(DB)), c = d.clients[d.cur]; c.klient.titul = "Ing."; c.klient.jmeno = "Petr Novák"; c.kontakt = { email: "novak@example.cz" }; localStorage.setItem(LS, JSON.stringify(d)); });
-    await page.reload(); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
+    await page.reload(); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
     await page.click("#bMail"); await page.waitForSelector("#mTxt");
     let t = await page.$eval("#mTxt", e => e.value);
     assert(t.startsWith("Dobrý den, pane inženýre,\n\nposílám shrnutí finančního plánu"), "úvod: " + t.slice(0, 80));
@@ -673,7 +677,7 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   const bad = await page.evaluate(([priv, b]) => DzCrypto.open(priv, b).then(() => "otevřel", () => "nejde"), [other.priv, { epk: F.epk.stringValue, salt: F.salt.stringValue, iv: F.iv.stringValue, ct: posts.map(p => p.fields.ct.stringValue).join("") }]);
   eq(bad, "nejde", "cizím klíčem nejde přečíst");
   eq(await page.evaluate(() => localStorage.getItem("fp_dotaznik_draft_v1")), null, "po odeslání se koncept smaže");
-  await page.goto(FP); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
+  await page.goto(FP); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
   const r = await page.evaluate(D => { const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; mergeDz(I, D); I.pojisteni = Object.assign({}, I.pojisteni, { pojistovna: "nn" }); const N = FPE.compute(I, new Date()).nn; return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ, sp: I.klient.sporty.length, rs: N && N.osoby[0].rs };
   }, x.plan);
   eq([r.j, r.zam, r.inv3, r.bez, r.doc, r.sp, r.rs], ["Petr Malý", 48000, 20000, true, "rodicovska", 1, 2], "sloučení s plánem (IOLDP z plánu zůstává; registrovaný fotbal = RS 2 automaticky)");
@@ -699,7 +703,7 @@ tests["vynechat slide: checkbox u každého slidu, vynechaný se nezobrazí v pr
   const r = await page.evaluate(() => ({ sk: FR.map(f => f.skip), vis: visFR().length, saved: Object.keys(inp().vynechat || {}), cur: $("#skipCur").checked }));
   eq([r.sk[1], r.vis, r.saved.length], [true, n0 - 1, 1], "vynechán 1 slide");
   await page.reload();
-  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function");
+  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
   eq(await page.evaluate(() => FR[1].skip), true, "volba přežije reload");
   await page.evaluate(() => { cur = 0; startPres(); });
   await page.evaluate(() => go(1));
