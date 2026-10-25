@@ -2013,7 +2013,7 @@ function renderCalc(){
   if(calcUI||calcLoading)return;
   const go=()=>{calcLoading=false;if(!window.FinCalc){$("calcBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}calcUI=FinCalc.mount($("calcBox"),{store:db,toast,fpProd:()=>(settings&&settings.fpProd)||null,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clients.filter(c=>!c.hidden&&c.name).map(c=>({id:c.id,name:c.name})).sort((a,b)=>a.name.localeCompare(b.name,"cs"))})};
   if(window.FinCalc)return go();
-  calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=8";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=9";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* záložka Důchodová kalkulačka – modul duchod.js se načte až při prvním otevření */
 let duchUI=null,duchLoading=false,duchPending=null;

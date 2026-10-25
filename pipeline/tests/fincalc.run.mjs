@@ -383,6 +383,28 @@ const tests = {
     t = await tiles(page); assert(/4,50/.test(t["Zhodnocení p.a. (dle FP, reálně)"] || ""), "renta 4,5 %: " + JSON.stringify(t));
     assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
   },
+  async "investice: vstupní poplatek – checkbox, výchozí 3 %, nastavitelný, strhává se z každého vkladu"() {
+    const { ctx, page, errors } = await open();
+    await page.click('[data-a="mode"][data-k="inv"]');
+    const before = await tiles(page);
+    assert(!(await page.$('input[data-k="fee"]')), "bez checkboxu žádné pole poplatku");
+    await page.check('input[data-x="feeOn"]');
+    eq(await page.inputValue('input[data-k="fee"]'), "3,00 %", "výchozí 3 %");
+    let t = await tiles(page);
+    const num = x => +String(x).replace(/[^\d]/g, "");
+    assert(Math.abs(num(t["Konečná hodnota inv."]) - num(before["Konečná hodnota inv."]) * 0.97) < 2, "hodnota −3 %: " + JSON.stringify(t));
+    eq(num((Object.keys(t).find(k => k.startsWith("Celkem vložíte (z toho poplatek 3,00 %")) || "").split("=")[1]), 39000, "poplatek z 1 300 000 vkladů: " + JSON.stringify(t));
+    await page.fill('input[data-k="fee"]', "2"); await page.press('input[data-k="fee"]', "Enter");
+    t = await tiles(page);
+    eq(num((Object.keys(t).find(k => k.startsWith("Celkem vložíte (z toho poplatek 2,00 %")) || "").split("=")[1]), 26000, "nastavitelný poplatek");
+    /* dopočet pravidelné platby počítá s poplatkem */
+    await page.click('[data-a="flag"][data-k="pmt"]');
+    const r = await page.evaluate(() => { const v = ui.state().m.inv.v; return FinCalc.math.valueAt("inv", v, v.years * 12) - v.fv });
+    assert(Math.abs(r) < 1, "dopočet sedí: " + r);
+    await page.uncheck('input[data-x="feeOn"]');
+    assert(!(await page.$('input[data-k="fee"]')), "po vypnutí pole zmizí");
+    assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
+  },
   async "renta: změna výše v čase – libovolný počet změn, dopočet renty na začátku i kapitálu"() {
     const { ctx, page, errors } = await open({ width: 1300, height: 1100 });
     const m = await page.evaluate(() => {
