@@ -27,6 +27,8 @@ jobs:
         run: node tests/icons.run.mjs
       - name: Testy kalkulačky a editoru fotek
         run: node tests/fincalc.run.mjs
+      - name: Testy nahrávek schůzek (schválení, karta, schůzka)
+        run: node tests/nahravka.run.mjs
       - name: Testy důchodové kalkulačky
         run: node tests/duchod.run.mjs
       - name: Testy záložky Úvěry (dotazník, banky, podklady, nabídky, průběh)
