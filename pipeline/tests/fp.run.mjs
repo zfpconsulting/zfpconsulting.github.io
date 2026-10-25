@@ -437,6 +437,48 @@ tests["NN Orange Risk: dospělí mají vždy TNÚ PREMIUM 1 mil., pojistné do k
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+/* Kooperativa FLEXI: pojistné z pipeline = pojistné z kalkulačky KoopLife (fixture koop-kalkulacka.json = vstupy a výsledky přímo z KoopLife 10/2026) */
+tests["Kooperativa FLEXI: testové případy sedí na korunu s kalkulačkou KoopLife (jednotlivec, konstantní/klesající, invalidita do 67, sleva za komplexní rozsah, poplatek, rodina, děti)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const fx = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./fixtures/koop-kalkulacka.json", import.meta.url), "utf8"));
+  const res = await page.evaluate(F => Object.entries(F).map(([nazev, c]) => {
+    const fl = [], osoby = c.osoby.map(o => ({ jmeno: o.jmeno, vek: o.vek, dite: !!o.dite,
+      rizika: o.dite ? FPE.koopRizikaDitete({ jmeno: o.jmeno, vek: o.vek }, fl) : FPE.koopRizikaOsoby(Object.assign({ jmeno: o.jmeno, vstup: o.vek }, o.plan), o.opt || {}, fl) }));
+    const R = FPE.koopOcen(osoby, fl);
+    return { nazev, celkem: R.celkem, sleva: R.sleva, poplatek: R.poplatek, rows: R.osoby.flatMap(o => o.rizika.map(r => [o.jmeno, r.tarif, r.pc, r.konec, r.mes])), ocek: c.koop };
+  }), fx);
+  for (const r of res) {
+    eq(r.rows, r.ocek.rows, r.nazev + " – rizika, PČ, konec a pojistné");
+    eq([r.celkem, r.sleva, r.poplatek], [r.ocek.celkem, r.ocek.sleva, r.ocek.poplatek], r.nazev + " – celkem, sleva a poplatek");
+  }
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["Kooperativa FLEXI: volba pojišťovny přepne výpočet i slide modelace (název, logo, sleva za komplexní rozsah), NN zůstává výchozí"] = async function () {
+  const { ctx, page, errors } = await open();
+  const rodina = { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 52000, vydaje_dom: 44000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 75000 },
+    partner: { zapnuto: true, jmeno: "Eva Nováková", narozen: "1991-02-02", zam: 38000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 52000 },
+    deti: [{ jmeno: "Anička", narozen: "2018-04-01", vs: false }], motivace: "x", majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }],
+    cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" }, pojistovna: "koop" } };
+  await setPlan(page, rodina);
+  const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
+    const zp = FR.filter(f => /^zp\d$/.test(f.g));
+    return { poj: R.nn.pojistovna, auto: R.pojAuto, nove: R.pojNove, celkem: R.nn.celkem, sumRows: R.nn.osoby.reduce((a, x) => a + x.rizika.reduce((b, r) => b + (r.mes || 0), 0), 0), fit: !!R.nnFit,
+      lbl: FR.map(f => f.lbl), zp: zp.map(f => t(f.h)), logo: zp.every(f => f.h.includes(KOOP_LOGO) && !f.h.includes(NN_LOGO)), kompl: R.nn.kompletni,
+      zakl: R.nn.osoby[0].rizika.some(r => r.tarif === "ZAKL"), tnu: R.nn.dospeli.map(x => x.rizika.some(r => r.tarif === "TNU10" && r.pc === 1e6)),
+      bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; });
+  eq(o.poj, "koop", "výpočet Kooperativy"); assert(o.auto, "automatické pojistné"); eq(o.nove, o.celkem, "pojistné v plánu = výpočet Kooperativy"); eq(o.celkem, o.sumRows, "celkem = součet řádků");
+  assert(o.kompl, "všechna rizika mají sazbu"); eq(o.fit, false, "FitSport je jen u NN"); assert(!o.lbl.some(l => /FitSport/.test(l)), "žádný slide FitSport");
+  eq(o.zp.length, 2, "slide modelace pro oba partnery"); assert(o.logo, "logo Kooperativy na slidech");
+  assert(o.zp.every(t => /Kooperativa FLEXI/.test(t) && !/NN Orange Risk/.test(t)), "název pojišťovny na slidu"); assert(/Sleva za komplexní rozsah/.test(o.zp.join(" ")), "sleva za komplexní rozsah na slidu");
+  assert(o.zakl, "hlavní pojištěný má základní pojištění smrti 10 000 Kč"); eq(o.tnu, [true, true], "dospělí mají TNÚ 1 mil.");
+  eq(o.bad, [], "bez Infinity / NaN / undefined");
+  await setPlan(page, Object.assign({}, rodina, { pojisteni: { zivotni: { stav: 0, navrh: "" } } }));
+  const n = await page.evaluate(() => { compute(); return { poj: R.nn.pojistovna, fit: !!R.nnFit }; });
+  eq(n, { poj: "nn", fit: true }, "bez volby zůstává NN i s variantou FitSport");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 tests["pojistné za osobu: SOCKO, modelace i realizace jen za danou osobu; hlavní pojištěný = muž; FitSport i při ručním / nulovém pojistném"] = async function () {
   const { ctx, page, errors } = await open();
   const rodina = { klient: { jmeno: "Jana Dvořáková", narozen: "1990-03-03", zam: 40000, vydaje_osobni: 30000, vydaje_dom: 25000, inv1: 7000, inv2: 10000, inv3: 16000, vdovsky: 9000, sirotci: 7000, hruba: 52000, starobni: 18000 },
