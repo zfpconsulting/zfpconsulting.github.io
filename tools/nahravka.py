@@ -58,7 +58,8 @@ def post(box: dict) -> int:
     g = b64u(os.urandom(15))
     for i, part in enumerate(parts):
         fields = {"to": {"stringValue": TO}, "v": {"integerValue": "1"}, "g": {"stringValue": g},
-                  "i": {"integerValue": str(i)}, "n": {"integerValue": str(len(parts))},
+                  "i": {"integerValue": str(i)}, "n": {"integerValue": "999"},
+                  "nn": {"integerValue": str(len(parts))},  # n=999: starší verze Pipeline čeká na zbytek a nahrávku nezapíše bez schválení
                   "epk": {"stringValue": box["epk"]}, "salt": {"stringValue": box["salt"]},
                   "iv": {"stringValue": box["iv"]}, "ct": {"stringValue": part}}
         req = urllib.request.Request(FS, data=json.dumps({"fields": fields}).encode(),

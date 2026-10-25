@@ -1,4 +1,4 @@
-const CACHE="pipeline-v162", VCACHE="pipeline-vendor-v1";
+const CACHE="pipeline-v163", VCACHE="pipeline-vendor-v1";
 const CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png?v=2","./icon-512.png?v=2","./apple-touch-icon.png?v=2","./favicon-48.png?v=2","./fincalc.js?v=7","./duchod.js?v=7","./uvery.js?v=2","./databaze.js?v=8","./photoedit.js?v=2","./dmy.js?v=1","./docs.js?v=4","./fp.html?v=81","./dotaznik.html?v=23","./nnrs.js?v=1","./advimg.js?v=1","./dzcrypto.js?v=2","./pushcrypto.js?v=1"];
 /* knihovny pro náhled souborů (PDF, Word, Excel) mají vlastní cache, která se při vydání nové verze appky nemaže ani nestahuje znovu */
 const VENDOR=["./vendor/pdf.min.mjs","./vendor/pdf.worker.min.mjs","./vendor/mammoth.browser.min.js","./vendor/read-excel-file.min.js"];

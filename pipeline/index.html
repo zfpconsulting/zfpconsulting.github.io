@@ -2271,7 +2271,7 @@ async function dzRecording(x){
       let ff="";if(r.id)try{await pushApi("/ff/delete",{body:{id:String(r.id)}});ff=" a smazaný ve Fireflies"}catch(e){ff=e&&e.code===409?" (ve Fireflies zůstal – v Nastavení chybí API klíč Fireflies)":" (ve Fireflies se smazat nepovedl – smaž ho ručně)"}
       done.push("přepis uložený u klienta"+ff)}catch(e){console.warn("přepis",e);done.push("přepis se nepodařilo uložit")}}
   /* historie */
-  const sum=bl(r.summary),logT="Zpracovaná nahrávka "+day+(done.length?" – "+done.join(", "):"")+(filled.length?" (FP: "+filled.join(", ")+")":"");
+  const sum=bl(r.summary),logT="Nahrávka z "+day;
   if(l){const cl=leads.find(z=>z.id===l.id)||l;await db.doc("leads/"+cl.id).update({log:[...(cl.log||[]),{d:now,t:logT}].slice(-100),lastContact:now,updatedAt:now})}
   else if(curC){const cc=clients.find(z=>z.id===curC.id)||curC;await db.doc("clients/"+cc.id).update({log:[...(cc.log||[]),{d:now,t:logT}].slice(-100)})}
   dzNotify({ic:"nr",t:"Zpracovaná nahrávka – "+nm,s:(isNew?"nový lead · ":"")+(done.length?done.join(" · "):"nic k zápisu")+(sum.length?" · "+sum[0]:""),...(l?{lead:l.id}:{}),...(filled.length&&l?{plan:1}:{})});
@@ -2676,7 +2676,8 @@ function nrQueue(g,parts,x){NRQ.set(g,{parts,x});if(!document.hidden)setTimeout(
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&NRQ.size)setTimeout(nrReview,800)});
 async function dzHandle(docs){
   const G=new Map();docs.forEach(x=>{if(!G.has(x.g))G.set(x.g,[]);G.get(x.g).push(x)});nrSync(G);
-  for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
+  /* nn = skutečný počet částí; nahrávky mají n=999, aby je starší verze appky (otevřená na jiném zařízení) nechala ležet a nezapsala bez schválení */
+  for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=+parts[0].nn||parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
     const F=DZI.F,fdb=DZI.fdb,del=async()=>{for(const p of parts)try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}};
     try{parts.sort((a,b)=>a.i-b.i);await dzLib();let x;
       try{x=await DzCrypto.open(settings.dzKey.priv,{epk:parts[0].epk,salt:parts[0].salt,iv:parts[0].iv,ct:parts.map(p=>p.ct).join("")});if(!x||(x.type!=="fp-dotaznik"&&x.type!=="fp-booking"&&x.type!=="fp-nahravka"))throw 0}
