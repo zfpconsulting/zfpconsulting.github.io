@@ -55,11 +55,12 @@ def seal(pub_b64: str, obj: dict) -> dict:
 
 def post(box: dict) -> int:
     parts = [box["ct"][i:i + CHUNK] for i in range(0, len(box["ct"]), CHUNK)] or [""]
-    g = b64u(os.urandom(15))
+    # skupina „nr_…“ a n o jedna větší: starší verze Pipeline čeká na neexistující část a nahrávku bez schválení nezapíše;
+    # nová verze ví, že skutečný počet částí je n−1
+    g = "nr_" + b64u(os.urandom(15))
     for i, part in enumerate(parts):
         fields = {"to": {"stringValue": TO}, "v": {"integerValue": "1"}, "g": {"stringValue": g},
-                  "i": {"integerValue": str(i)}, "n": {"integerValue": "999"},
-                  "nn": {"integerValue": str(len(parts))},  # n=999: starší verze Pipeline čeká na zbytek a nahrávku nezapíše bez schválení
+                  "i": {"integerValue": str(i)}, "n": {"integerValue": str(len(parts) + 1)},
                   "epk": {"stringValue": box["epk"]}, "salt": {"stringValue": box["salt"]},
                   "iv": {"stringValue": box["iv"]}, "ct": {"stringValue": part}}
         req = urllib.request.Request(FS, data=json.dumps({"fields": fields}).encode(),

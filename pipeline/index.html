@@ -2676,8 +2676,9 @@ function nrQueue(g,parts,x){NRQ.set(g,{parts,x});if(!document.hidden)setTimeout(
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&NRQ.size)setTimeout(nrReview,800)});
 async function dzHandle(docs){
   const G=new Map();docs.forEach(x=>{if(!G.has(x.g))G.set(x.g,[]);G.get(x.g).push(x)});nrSync(G);
-  /* nn = skutečný počet částí; nahrávky mají n=999, aby je starší verze appky (otevřená na jiném zařízení) nechala ležet a nezapsala bez schválení */
-  for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=+parts[0].nn||parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
+  /* nahrávky (skupina „nr_…“) hlásí o část víc, než jich je – starší verze appky (otevřená na jiném zařízení) pak čeká na zbytek
+     a nahrávku nezapíše bez schválení; tahle verze ví, že skutečný počet je n−1 */
+  for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=String(g||"").startsWith("nr_")?parts[0].n-1:parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
     const F=DZI.F,fdb=DZI.fdb,del=async()=>{for(const p of parts)try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}};
     try{parts.sort((a,b)=>a.i-b.i);await dzLib();let x;
       try{x=await DzCrypto.open(settings.dzKey.priv,{epk:parts[0].epk,salt:parts[0].salt,iv:parts[0].iv,ct:parts.map(p=>p.ct).join("")});if(!x||(x.type!=="fp-dotaznik"&&x.type!=="fp-booking"&&x.type!=="fp-nahravka"))throw 0}
