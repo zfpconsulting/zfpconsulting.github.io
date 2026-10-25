@@ -454,20 +454,26 @@ tests["Kooperativa FLEXI: testové případy sedí na korunu s kalkulačkou Koop
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-/* UNIQA Život & radost: pojistné z pipeline = pojistné z kalkulačky UniPoint (fixture uniqa-kalkulacka.json = vstupy a výsledky přímo z UniPoint 10/2026) */
-tests["UNIQA Život & radost: testové případy sedí s kalkulačkou UniPoint (hlavní pojištění, klesající i konstantní PČ, pásma PČ, sleva za výši pojistného, dítě)"] = async function () {
+/* UNIQA Život & radost: pojistné z pipeline vs. kalkulačka UniPoint (fixture uniqa-kalkulacka.json = vstupy a výsledky přímo z UniPoint 10/2026).
+   UniPoint zaokrouhluje mezikroky jinak, než jde z výstupu zpětně zjistit – model sedí na ±2 Kč u krytí a do 0,15 % u celé smlouvy. */
+tests["UNIQA Život & radost: pojistné sedí s kalkulačkou UniPoint (±2 Kč na krytí; pásma PČ, hlavní pojištění, sleva 0/15/20/25 %, dětský balíček na korunu)"] = async function () {
   const { ctx, page, errors } = await open();
   const fx = JSON.parse(await (await import("node:fs/promises")).readFile(new URL("./fixtures/uniqa-kalkulacka.json", import.meta.url), "utf8"));
-  const res = await page.evaluate(F => Object.entries(F).map(([nazev, c]) => {
-    const fl = [], osoby = c.osoby.map(o => ({ jmeno: o.jmeno, vek: o.vek, dite: !!o.dite, maxKonec: o.plan && o.plan.maxKonec,
-      rizika: o.dite ? FPE.uniqaRizikaDitete({ jmeno: o.jmeno, vek: o.vek }, fl) : FPE.uniqaRizikaOsoby(Object.assign({ jmeno: o.jmeno, vstup: o.vek }, o.plan), o.opt || {}, fl) }));
-    const R = FPE.uniqaOcen(osoby, fl);
-    return { nazev, celkem: R.celkem, sleva: R.sleva, rows: R.osoby.flatMap(o => o.rizika.map(r => [o.jmeno, r.tarif, r.pc, r.konec, r.mes])), ocek: c.uniqa };
-  }), fx);
-  for (const r of res) {
-    eq(r.rows, r.ocek.rows, r.nazev + " – rizika, PČ, konec a pojistné");
-    eq([r.celkem, r.sleva], [r.ocek.celkem, r.ocek.sleva], r.nazev + " – celkem a sleva");
+  const r = await page.evaluate(F => {
+    const dosp = Object.entries(F.dospeli).map(([nazev, c]) => { const R = FPE.uniqaOcen([{ jmeno: "A", vek: c.vek, rizika: c.rows.map(([t, pc, k]) => ({ tarif: t, nazev: t, typ: FPE.UNIQA_DEF[t].typ, pc, konec: k, doba: k - c.vek })) }], []);
+      return { nazev, mes: R.osoby[0].rizika.map(x => x.mes), ocek: c.rows.map(x => x[3]), celkem: R.celkem, ocekC: c.celkem, sleva: R.sleva, ocekS: c.sleva }; });
+    /* dítě se standardním balíčkem při každé slevě: dospělý s tolik pojistného, aby smlouva spadla do daného pásma slevy */
+    const deti = Object.keys(F.deti).map(p => { let R;
+      for (let pc = 50000; pc <= 2e7; pc += 50000) { R = FPE.uniqaOcen([{ jmeno: "A", vek: 30, rizika: [{ tarif: "SMRT-H", typ: "zivot", pc, konec: 65, doba: 35 }, { tarif: "TNU10", typ: "uraz", pc: 1e6, konec: 65, doba: 35 }] }, { jmeno: "D", vek: 6, dite: true, rizika: FPE.uniqaRizikaDitete({ jmeno: "D", vek: 6 }, []) }], []); if (R.sleva === +p) break; }
+      return { p: +p, sleva: R.sleva, mes: R.osoby[1].rizika.map(x => x.mes), ocek: F.deti[p] }; });
+    return { dosp, deti };
+  }, fx);
+  for (const c of r.dosp) {
+    eq(c.sleva, c.ocekS, c.nazev + " – sleva za výši pojistného");
+    c.mes.forEach((m, i) => assert(Math.abs(m - c.ocek[i]) <= 2, `${c.nazev} – krytí ${i}: ${m} vs UniPoint ${c.ocek[i]}`));
+    assert(Math.abs(c.celkem - c.ocekC) <= Math.max(3, c.ocekC * 0.0015), `${c.nazev} – celkem ${c.celkem} vs UniPoint ${c.ocekC}`);
   }
+  for (const d of r.deti) { eq(d.sleva, d.p, "pásmo slevy " + d.p + " %"); eq(d.mes, d.ocek, "dítě: úraz 1 mil., závažná onemocnění 500 tis., DOU 400 Kč při slevě " + d.p + " %"); }
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 

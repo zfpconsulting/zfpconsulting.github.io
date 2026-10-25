@@ -847,12 +847,17 @@ const UNIQA_DEF = {
   "PN29": { n: "Pracovní neschopnost od 29. dne", kod: 231, j: 100, typ: "pn", max: 70 },
   "TNU10": { n: "Trvalé následky úrazu (progrese 1 000 %)", j: 1e6, typ: "uraz", max: 80, flat: 167.8 }   /* dospělí vždy 1 mil. Kč – sazba změřená přesně pro 1 mil. */,
 };
-/* pásma pojistné části: od které PČ platí další (nižší) koeficient sazby; poslední koeficient = sazba z tabulky */
+/* pásma pojistné částky (fit z ~150 hodnot UniPoint): od které PČ platí další koeficient sazby; poslední koeficient ≈ sazba z tabulky.
+   Smrt (205 i hlavní 201) má pod 300 000 Kč ještě vyšší koeficient (malé PČ UniPoint zaokrouhluje nahoru). */
 const UNIQA_PASMA = {
-  DK: { od: [1e6, 2e6, 2.5e6], f: [1.35855, 1.17186, 1.07954, 1.00032] },
-  DL: { od: [2e6, 4e6, 5e6], f: [1.39668, 1.18726, 1.08573, 1.00032] },
-  IK: { od: [1e6, 2.5e6], f: [1.35159, 1.04639, 1.00038] },
-  IL: { od: [2e6, 4e6, 5e6], f: [1.38191, 1.11611, 1.03707, 1.00023] },
+  205: { od: [1e5, 3e5, 1e6, 2e6, 2.5e6], f: [1.40, 1.38, 1.3585, 1.1719, 1.0795, 1.0003] },
+  204: { od: [2e6, 4e6, 5e6], f: [1.3967, 1.1873, 1.0855, 1.0003] },
+  211: { od: [1e6, 2.5e6], f: [1.3516, 1.0463, 1.0004] },
+  210: { od: [1e6, 2.5e6], f: [1.3592, 1.0486, 1.0003] },
+  209: { od: [1e6, 2.5e6], f: [1.3512, 1.0456, 1.0] },
+  214: { od: [2e6, 4e6, 5e6], f: [1.3879, 1.1182, 1.0365, 1.0002] },
+  213: { od: [2e6, 4e6, 5e6], f: [1.3828, 1.1168, 1.0365, 1.0] },
+  212: { od: [2e6, 4e6, 5e6], f: [1.3751, 1.1144, 1.0365, 1.0] },
 };
 /* děti – samostatná dětská krytí s pevnou sazbou (bez ohledu na věk 0–17), pojištění do 26 let */
 const UNIQA_DITE = /*UNIQA_DITE*/{"D-TNU10":{"n":"Trvalé následky úrazu (progrese 1 000 %)","j":1e6,"s":86.48},"D-VN":{"n":"Závažná onemocnění","j":1e6,"s":209.8},"D-DOU":{"n":"Denní odškodné úrazu","j":100,"s":75}}/*/UNIQA_DITE*/;
@@ -861,7 +866,7 @@ const UNIQA_HLAVNI_FIX = 15;      // pevná část hlavního pojištění, bez s
 const UNIQA_HLAVNI_MIN = 50000;   // minimální PČ hlavního pojištění smrti
 const UNIQA_TNU_DOSP = 1000000;
 const uniqaSlevaPct = s => { for (const [od, p] of UNIQA_SLEVA) if (s >= od) return p; return 0; };
-const uniqaPasmo = (p, pc) => { const P = UNIQA_PASMA[p]; if (!P) return 1; let i = 0; P.od.forEach(o => { if (pc >= o) i++; }); return P.f[i]; };
+const uniqaPasmo = (kod, pc) => { const P = UNIQA_PASMA[kod]; if (!P) return 1; let i = 0; P.od.forEach(o => { if (pc >= o) i++; }); return P.f[i]; };
 /* sazba za jednotku PČ (před slevou, nejvyšší pásmo); null = kalkulačka takovou kombinaci nepočítá */
 function uniqaSazba(tarif, vek, konec) {
   const d = UNIQA_DEF[tarif]; if (!d) return null;
@@ -905,7 +910,7 @@ function uniqaRizikaDitete(d, flags) {
 function uniqaOcen(osoby, flags) {
   osoby.forEach(o => o.rizika.forEach(r => {
     if (o.dite) { const D = UNIQA_DITE[r.tarif]; r.base = D && o.vek <= 17 ? r.pc / D.j * D.s : null; }
-    else { const s = uniqaSazba(r.tarif, o.vek, r.konec), d = UNIQA_DEF[r.tarif]; r.base = s == null ? null : r.pc / d.j * s * uniqaPasmo(d.p, r.pc); }
+    else { const s = uniqaSazba(r.tarif, o.vek, r.konec), d = UNIQA_DEF[r.tarif]; r.base = s == null ? null : r.pc / d.j * s * uniqaPasmo(d.kod, r.pc); }
     if (r.base == null) flags.push(`UNIQA: ${o.jmeno} – ${r.nazev} pro vstupní věk ${o.vek} a konec ${r.konec} let kalkulačka nepočítá – doplň ručně.`); }));
   /* sleva za výši pojistného: podle součtu pojistného všech krytí před slevou */
   const suma = osoby.reduce((a, o) => a + o.rizika.reduce((b, r) => b + (r.base || 0), 0), 0), sleva = uniqaSlevaPct(suma);
@@ -2600,7 +2605,7 @@ function buildFrames(I,R){
       <div style="position:absolute;left:1020px;top:205px;font-size:22px;font-weight:900">${pojInfo(N).n}</div>
       <ul style="position:absolute;left:1020px;top:248px;width:480px;margin:0;padding-left:20px;font-size:16.5px;line-height:1.55">
        ${k.invAll.some(x=>x.pcDop>0)?`<li>Invalidita: ${(R.S.nn_inv||"klesajici")==="konstantni"?"konstantní":"klesající"} pojistná částka do ${no?no.rizika.find(r=>/^INV/.test(r.tarif))?.konec||65:65} let</li>`:""}
-       ${k.smrt.treba?`<li>Smrt: ${(()=>{const sm=no&&no.rizika?no.rizika.filter(r=>/^(SMTV|SMTK|SMRT)/.test(r.tarif)):[],ko=sm.length?Math.max(...sm.map(r=>+r.konec||0)):65;return ({klesajici:"klesající PČ do "+ko+" let",konstantni:"konstantní PČ do "+ko+" let",kratsi:"konstantní PČ na kratší dobu"})[R.S.nn_smrt||"klesajici"]})()}${k.smrt.zavisli?"":' <span class="mut">(úvěry)</span>'}</li>`:`<li>Smrt: <b class="grn">nejsou závazky pro zajištění</b></li>`}
+       ${k.smrt.treba?`<li>Smrt: ${(()=>{const sm=no&&no.rizika?no.rizika.filter(r=>/^(SMTV|SMTK|SMRT)/.test(r.tarif)&&!(r.tarif==="SMRT-H"&&r.pc<=50000)):[],ko=sm.length?Math.max(...sm.map(r=>+r.konec||0)):65;return ({klesajici:"klesající PČ do "+ko+" let",konstantni:"konstantní PČ do "+ko+" let",kratsi:"konstantní PČ na kratší dobu"})[R.S.nn_smrt||"klesajici"]})()}${k.smrt.zavisli?"":' <span class="mut">(úvěry)</span>'}</li>`:`<li>Smrt: <b class="grn">nejsou závazky pro zajištění</b></li>`}
        ${k.pn.treba?"":`<li>Pracovní neschopnost: <b class="grn">kryje rezerva</b></li>`}
        <li>${N&&N.pojistovna==="koop"?"Trvalé následky úrazu "+mil(1000000)+" s 10× progresí":N&&N.pojistovna==="uniqa"?"Trvalé následky úrazu "+mil(1000000)+" s progresí 1 000 %":"Trvalé následky úrazu PREMIUM "+mil(1000000)}</li>
        ${no&&no.rs>1?`<li>Riziková skupina ${no.rs}${no.rizika.some(r=>r.prirazka>0)?" – přirážka započtena":""}</li>`:""}${no&&no.fit?`<li>Program Fit ${({sport:"Sport",darce:"Dárce",prevence:"Prevence"})[no.fit]||no.fit} – sleva na smrt a invaliditu</li>`:""}${no&&no.zzs&&N.sleva?`<li>Sleva za zdravý životní styl 5 % – smrt a invalidita</li>`:""}${N&&N.sleva?`<li>${pojInfo(N).sleva} ${N.sleva} %${N.hypo?" (kampaň Hypotéka)":""} – celá smlouva</li>`:""}${N&&N.poplatek?`<li>Poplatek za správu ${kc(N.poplatek)} měsíčně (odpadá od ${kc(1000)} pojistného)</li>`:""}</ul>
