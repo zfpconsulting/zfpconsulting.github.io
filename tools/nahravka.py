@@ -8,7 +8,11 @@ Použití:  python3 nahravka.py rec.json
                      "majetek": [{"nazev", "typ", "hodnota", "vklad"}], "nefin": [{"nazev", "typ", "hodnota", "najem"}],
                      "uvery": [{"typ", "nazev", "zustatek", "splatka", "fixace_do", "splatnost"}],
                      "cile": [{"nazev", "castka", "za_let"}], "deti": [{"jmeno", "narozen", "vs"}]},
-              "next": {"step": "…", "date": "YYYY-MM-DD"}}
+              "next": {"step": "…", "date": "YYYY-MM-DD"},
+              "birth": "YYYY-MM-DD",                                   # do karty klienta, jen když tam chybí
+              "meeting": {"start": "YYYY-MM-DDTHH:MM", "online": false}}  # domluvená schůzka – Pipeline ji po schválení
+                                                                          # zapíše do kalendáře (při kolizi založí úkol)
+Pipeline nahrávku nejdřív jen ukáže ke schválení (Přijmout / Odmítnout) – zapíše ji až po přijetí.
 
 Šifra (pipeline/dzcrypto.js): ECDH P-256 s veřejným klíčem poradce → HKDF-SHA-256 (sůl 16 B, info „zfp-dotaznik-v1“)
 → AES-256-GCM, první bajt otevřeného textu 1 = gzip. Přečíst to jde jen soukromým klíčem, který je jen v Pipeline poradce.
@@ -26,6 +30,7 @@ FS = "https://firestore.googleapis.com/v1/projects/zfp-pipeline/databases/(defau
 PUSH = "https://zfp-push.kudlicka-vojtech2002.workers.dev/ping"
 ORIGIN = "https://zfpconsulting.github.io"
 CHUNK = 900000
+UA = "zfp-nahravka/1.1 (+https://zfpconsulting.github.io/pipeline/)"  # Cloudflare odmítá výchozí „Python-urllib“ (403)
 
 
 def b64u(b: bytes) -> str:
@@ -57,7 +62,7 @@ def post(box: dict) -> int:
                   "epk": {"stringValue": box["epk"]}, "salt": {"stringValue": box["salt"]},
                   "iv": {"stringValue": box["iv"]}, "ct": {"stringValue": part}}
         req = urllib.request.Request(FS, data=json.dumps({"fields": fields}).encode(),
-                                     headers={"Content-Type": "application/json"}, method="POST")
+                                     headers={"Content-Type": "application/json", "User-Agent": UA}, method="POST")
         with urllib.request.urlopen(req, timeout=30) as r:
             if r.status >= 300:
                 raise RuntimeError("schránka odmítla zápis: %s" % r.status)
@@ -66,7 +71,7 @@ def post(box: dict) -> int:
 
 def ping() -> None:
     req = urllib.request.Request(PUSH, data=json.dumps({"to": TO, "k": "nr"}).encode(),
-                                 headers={"Content-Type": "application/json", "Origin": ORIGIN}, method="POST")
+                                 headers={"Content-Type": "application/json", "Origin": ORIGIN, "User-Agent": UA}, method="POST")
     try:
         urllib.request.urlopen(req, timeout=15).read()
     except Exception as e:  # notifikace je jen bonus – zápis do schránky už proběhl

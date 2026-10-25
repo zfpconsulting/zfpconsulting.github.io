@@ -2226,6 +2226,21 @@ async function dzRecording(x){
   const curL=l?leads.find(z=>z.id===l.id)||l:null,curC=c?clients.find(z=>z.id===c.id)||c:null,have=k=>(curL&&curL[k])||(curC&&curC[k]);
   if(ph&&!have("phone"))card.phone=ph;if(em&&!have("email"))card.email=em;
   if(Object.keys(card).length){if(curL)await aiUpdateLead(curL,card);else if(curC){await db.doc("clients/"+curC.id).update(card);await linkPushToLeads(curC,card)}done.push("kontakt do karty")}
+  /* karta: datum narození jen když chybí (karta klienta; lead ho má ve finančním plánu) */
+  const isoD=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||""))?String(v):"",birth=isoD(r.birth)||isoD(r.fp&&r.fp["klient.narozen"]);
+  if(birth&&curC&&!curC.birth){try{await db.doc("clients/"+curC.id).update({birth});curC.birth=birth;done.push("datum narození do karty")}catch(e){}}
+  /* domluvená schůzka → kalendář (s kontrolou kolizí jako u rezervace); při kolizi úkol domluvit jiný termín */
+  const mt=r.meeting&&typeof r.meeting==="object"?r.meeting:null,mS=mt&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(mt.start||""))?new Date(mt.start):null;
+  if(mS&&!isNaN(mS)&&mS>new Date()){const on=!!mt.online,kdy=DNY_V[mS.getDay()]+" "+mS.getDate()+". "+(mS.getMonth()+1)+". "+fmtHM(mS.toISOString()),mE=new Date(mS.getTime()+45*60000);
+    const task=async t=>{await db.collection("mytasks").add({text:t,client:nm,due:todayStr(),done:"",createdAt:now,...(l?{leadId:l.id}:{})});done.push("úkol k termínu")};
+    try{const ev=await dzBusy(mS,mE),dup=ev.some(e=>!e.allDay&&new Date(e.start).getTime()===mS.getTime()&&f(e.title).includes(f(surnameOf(nm)))),busy=ev.filter(e=>dzBlocks(e)||dzDayOff(e));
+      if(dup)done.push("schůzka "+kdy+" už v kalendáři je");
+      else if(busy.length)await task("Kolize v kalendáři – domluvit nový termín (domluveno "+kdy+(on?" online":"")+"; v tu dobu: "+busy.map(e=>e.title||"událost").slice(0,2).join(", ")+")");
+      else if(!l)await task("Zapsat schůzku do kalendáře: "+kdy+(on?" online":""));
+      else{const cur=leads.find(z=>z.id===l.id)||l,res=await saveMeeting(cur,mS,on,{moveStage:cur.stage==="novy"});
+        if(on&&res&&res.evId)ensureMeet(res.evId).catch(()=>{});
+        if(res&&res.evId)done.push("schůzka "+kdy+" v kalendáři");else await task("Zapsat schůzku do kalendáře: "+kdy+(on?" online":""))}}
+    catch(e){console.warn("schůzka z nahrávky",e);await task("Zapsat schůzku do kalendáře: "+kdy+(on?" online":"")+" (kalendář se nepodařilo ověřit)")}}
   /* finanční plán – jen prázdná pole */
   const V=r.fp&&typeof r.fp==="object"?r.fp:{},val=v=>v!==""&&v!=null&&!(typeof v==="number"&&isNaN(v)),filled=[];
   if(Object.keys(V).length){
@@ -2445,7 +2460,7 @@ async function pushTestAfter(q){const now=Date.now(),N=x=>String(x||"").normaliz
   const r=await pushApi("/send",{body:{items:out}});toast(r.sent?"Testová notifikace odeslaná ("+x.name+", "+meetDateTxt(x.start)+")":"Žádné zařízení nemá push zapnutý");return {...r,meet:{name:x.name,start:x.start}}}
 /* klepnutí na notifikaci → rovnou na správné místo */
 function pushOpen(u){try{const q=new URL(u||location.href,location.href).searchParams,k=q.get("push");if(!k)return;
-  const go=()=>{if(k==="after"){setView("pipe");afterMeetSheet({leadId:q.get("lead"),mid:q.get("m"),start:q.get("d"),name:q.get("n")})}else if(k==="bk"||k==="rem")setView("cal");else setView("pipe")};
+  const go=()=>{if(k==="after"){setView("pipe");afterMeetSheet({leadId:q.get("lead"),mid:q.get("m"),start:q.get("d"),name:q.get("n")})}else if(k==="bk"||k==="rem")setView("cal");else{setView("pipe");if(k==="nr"){let n=0;const t=()=>{if(!nrReview()&&++n<10)setTimeout(t,1500)};setTimeout(t,600)}}};
   if(Array.isArray(leads)&&leads.length)go();else setTimeout(go,1500);
   if(location.search.includes("push="))history.replaceState(null,"",location.pathname)}catch(e){}}
 setTimeout(()=>pushOpen(location.href),1200);
@@ -2634,13 +2649,40 @@ async function dzPublishSlots(force){
   }catch(e){console.warn("volné termíny",e)}}
 setInterval(()=>dzPublishSlots(false),5*60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(()=>dzPublishSlots(false),1500)});
+/* ================= nahrávky schůzek ke schválení =================
+   Zpracovaná nahrávka čeká zašifrovaná ve schránce, dokud ji neschválíš (Přijmout / Odmítnout). Až pak se zapíše ke klientovi
+   (poznámka, úkoly, karta, FP, schůzka do kalendáře). Schránka je společná pro všechna zařízení – rozhodne to, kdo klepne první. */
+const NRQ=new Map();
+function nrSync(G){for(const g of [...NRQ.keys()])if(!G.has(g)){NRQ.delete(g);DZI.busy.delete(g);if(NRQ.cur===g&&$("edDlg").open){NRQ.cur=null;$("edDlg").close()}}}
+function nrReview(own){const it=[...NRQ.entries()][0];if(!it)return false;if(!own&&$("edDlg").open&&NRQ.cur!==it[0])return false;
+  const [g,{x}]=it,r=x.rec||{},bl=a=>(Array.isArray(a)?a:[]).map(t=>String(t||"").trim()).filter(Boolean),sum=bl(r.summary);
+  const ok=el("button",{type:"button",class:"g"},"Přijmout"),no=el("button",{type:"button",class:"chipbtn"},"Odmítnout");
+  const go=async acc=>{ok.disabled=no.disabled=true;try{await nrDecide(g,acc)}finally{ok.disabled=no.disabled=false}};
+  ok.onclick=()=>go(true);no.onclick=()=>go(false);NRQ.cur=g;
+  openSheet("Nahrávka ke schválení",[
+    el("p",{class:"hint"},[String(r.client||"").trim()||"klient",r.at?meetDateTxt(r.at):"",NRQ.size>1?"další čekají: "+(NRQ.size-1):""].filter(Boolean).join(" · ")),
+    sum.length?el("ul",{},...sum.map(t=>el("li",{},t))):null,
+    el("div",{class:"chips"},ok,no)]);
+  return true}
+async function nrDecide(g,acc){const q=NRQ.get(g);if(!q)return;const F=DZI.F,fdb=DZI.fdb,r0=F.doc(fdb,"dzinbox",q.parts[0].id);
+  let mine=false;try{mine=await F.runTransaction(fdb,async tx=>{const sn=await tx.get(r0);if(!sn.exists())return false;tx.delete(r0);return true})}catch(e){toast("Nepodařilo se – zkus to znovu");return}
+  NRQ.delete(g);NRQ.cur=null;
+  if(!mine){toast("Nahrávku už vyřídilo jiné zařízení");if(!nrReview(true))$("edDlg").close();return}
+  for(const p of q.parts.slice(1))try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}
+  if(acc){try{await dzRecording(q.x);toast("Nahrávka zapsaná ke klientovi")}catch(e){console.error(e);const L=lsGet("dz_failed",[]);L.push({at:Date.now(),x:q.x});lsSet("dz_failed",L.slice(-10));toast("Nahrávku se nepodařilo zapsat – zkusím to znovu")}}
+  else toast("Nahrávka odmítnuta – nic se nezapsalo");
+  if(!nrReview(true))$("edDlg").close()}
+function nrQueue(g,parts,x){NRQ.set(g,{parts,x});if(!document.hidden)setTimeout(nrReview,400)}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&NRQ.size)setTimeout(nrReview,800)});
 async function dzHandle(docs){
-  const G=new Map();docs.forEach(x=>{if(!G.has(x.g))G.set(x.g,[]);G.get(x.g).push(x)});
+  const G=new Map();docs.forEach(x=>{if(!G.has(x.g))G.set(x.g,[]);G.get(x.g).push(x)});nrSync(G);
   for(const [g,parts] of G){if(DZI.busy.has(g))continue;const n=parts[0].n;if(parts.length<n)continue;DZI.busy.add(g);
     const F=DZI.F,fdb=DZI.fdb,del=async()=>{for(const p of parts)try{await F.deleteDoc(F.doc(fdb,"dzinbox",p.id))}catch(e){}};
     try{parts.sort((a,b)=>a.i-b.i);await dzLib();let x;
       try{x=await DzCrypto.open(settings.dzKey.priv,{epk:parts[0].epk,salt:parts[0].salt,iv:parts[0].iv,ct:parts.map(p=>p.ct).join("")});if(!x||(x.type!=="fp-dotaznik"&&x.type!=="fp-booking"&&x.type!=="fp-nahravka"))throw 0}
       catch(e){console.warn("dotazník – nejde dešifrovat, mažu",e);await del();continue}
+      /* nahrávka schůzky: nic nezapisovat, dokud ji neschválíš */
+      if(x.type==="fp-nahravka"){nrQueue(g,parts,x);continue}
       /* jen jedno zařízení: kdo smaže první část v transakci, ten dotazník zpracuje */
       const r0=F.doc(fdb,"dzinbox",parts[0].id);
       const mine=await F.runTransaction(fdb,async tx=>{const sn=await tx.get(r0);if(!sn.exists())return false;tx.delete(r0);return true});
