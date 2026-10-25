@@ -513,6 +513,12 @@ tests["Generali Bel Mondo 20: pojistné sedí s kalkulačkou LISA (±1 Kč na kr
     assert(Math.abs(c.celkem - c.ocekC) <= 3, `${c.n} – celkem ${c.celkem} vs LISA ${c.ocekC}`);
   }
   eq(r.map(c => c.pn), [0, 0, 0, 50, 0, 0, 0], "přirážka PN jen u smlouvy, kde PN tvoří přes polovinu pojistného");
+  /* plán → rizika: jen jedna varianta invalidity (I.+II.+III. stupeň), PČ podle III. stupně, nejvýš 5 mil. Kč */
+  const inv = await page.evaluate(() => { const fl = [], rows = FPE.generaliRizikaOsoby({ jmeno: "A", vstup: 37, hlavni: true, smrt: 7e6, smrtKonst: 9e5, smrtKonec: 65, inv: [4.1e6, 5.4e6, 7e6], invKonec: 67, pnDen: 0, maxKonec: 67 }, { smrt: "klesajici", inv: "klesajici" }, fl);
+    const mala = FPE.generaliRizikaOsoby({ jmeno: "B", vstup: 30, hlavni: false, smrt: 0, inv: [1e6, 2e6, 3e6], invKonec: 65, pnDen: 0, maxKonec: 65 }, { inv: "konstantni" }, []);
+    return { r: rows.filter(x => /^INV/.test(x.tarif)).map(x => [x.tarif, x.pc]), fl: fl.some(f => /nejvýš na 5 mil/.test(f)), m: mala.filter(x => /^INV/.test(x.tarif)).map(x => [x.tarif, x.pc]) }; });
+  eq(inv.r, [["INV1-L", 5e6]], "jedna varianta invalidity, PČ omezená na 5 mil. Kč"); assert(inv.fl, "upozornění na limit 5 mil. Kč");
+  eq(inv.m, [["INV1-K", 3e6]], "PČ invalidity podle potřeby na III. stupeň");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
