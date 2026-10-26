@@ -380,7 +380,7 @@ function mount(root,opts={}){
   let st=ls.get(LS);
   if(!st||!st.m||!ORDER.every(k=>st.m[k]))st=fresh();
   /* starší uložené kalkulace nemají nová pole úvěru (cena nemovitosti, bonita…) – doplnit výchozí */
-  const fill=s=>{ORDER.forEach(k=>{s.m[k].v={...MODES[k].def,...s.m[k].v}});const r=s.m.renta.v;r.zmeny=Array.isArray(r.zmeny)?r.zmeny.map(z=>({po:+z.po||0,renta:+z.renta||0})):[];return s};
+  const fill=s=>{ORDER.forEach(k=>{s.m[k].v={...MODES[k].def,...s.m[k].v};const v=s.m[k].v;if(k!=="loan"&&v.fp&&!v.fq2)v.freq="y";v.fq2=1});/* dřív se při FP vždy úročilo ročně – uložené kalkulace dostanou roční úročení, dál jde změnit */const r=s.m.renta.v;r.zmeny=Array.isArray(r.zmeny)?r.zmeny.map(z=>({po:+z.po||0,renta:+z.renta||0})):[];return s};
   fill(st);
   /* aktuální sazby hypoték (sazby.json vedle appky); když se nenačtou, zůstane záloha v kódu */
   if(opts.rates)RATES=opts.rates;
@@ -405,7 +405,7 @@ function mount(root,opts={}){
     const M=MODES[mode],c=st.m[mode],v={...c.v};
     const live=mode==="loan"&&v.live,fp=fpOn(mode);
     if(live&&c.calc==="rate")c.calc="pmt";
-    if(fp){if(c.calc==="rate")c.calc=mode==="inv"?"fv":"pmt";v.freq="y"}
+    if(fp){if(c.calc==="rate")c.calc=mode==="inv"?"fv":"pmt"}
     let r,lr=null,fr=null;
     /* zhodnocení dle FP: sazba závisí na době investice – při dopočtu doby se iteruje, dokud se doba neustálí */
     if(fp){const real=v.fpReal!==false,P=fpProd();
@@ -450,7 +450,7 @@ function mount(root,opts={}){
   function fpSrc(res){const c=cur();if(!fpOn(st.mode))return"";const fr=res.fr||fpRate(st.mode,c.v.years,c.v.fpReal!==false,fpProd()),real=c.v.fpReal!==false;
     if(st.mode==="renta")return `Výnos při čerpání renty jako ve FP: <b>${fmtPct(real?fr.real:fr.nom)}</b> ${real?`reálně (${fmtPct(fr.nom)} nominálně − inflace ${fmtPct(FP_SET.inflace*100)}). Částky jsou v dnešních cenách.`:`nominálně (${fmtPct(fr.real)} reálně + inflace ${fmtPct(FP_SET.inflace*100)}).`}`;
     const a=fr.alok;
-    return `Alokace pro ${yrsTxt(res.v.years)}: akcie ${a[0]} % (${fmtPct(fr.rA)}), dluhopisy ${a[1]} % (${fmtPct(fr.rD)})${a[2]?`, hotovost ${a[2]} % (${fmtPct(FP_SET.hotovost_nom*100)})`:""} → ${real?`${fmtPct(fr.nom)} nominálně − inflace ${fmtPct(FP_SET.inflace*100)} = <b>${fmtPct(fr.real)} reálně</b>. Částky jsou v dnešních cenách (jako cíle ve FP).`:`<b>${fmtPct(fr.nom)} nominálně</b>.`} Úročení ročně.`}
+    return `Alokace pro ${yrsTxt(res.v.years)}: akcie ${a[0]} % (${fmtPct(fr.rA)}), dluhopisy ${a[1]} % (${fmtPct(fr.rD)})${a[2]?`, hotovost ${a[2]} % (${fmtPct(FP_SET.hotovost_nom*100)})`:""} → ${real?`${fmtPct(fr.nom)} nominálně − inflace ${fmtPct(FP_SET.inflace*100)} = <b>${fmtPct(fr.real)} reálně</b>. Částky jsou v dnešních cenách (jako cíle ve FP).`:`<b>${fmtPct(fr.nom)} nominálně</b>.`} Úročení: ${((FREQ.find(f=>f[0]===c.v.freq)||FREQ[0])[1]).toLowerCase()}${c.v.freq==="y"?" (jako ve FP)":""}.`}
   function fpHTML(res){const c=cur(),on=!!c.v.fp;
     return `<div class="fc-f fc-live"><label class="fc-chk"><input type="checkbox" data-x="fp"${on?" checked":""}> Zhodnocení dle finančního plánu</label>
       ${on?`<select class="fc-sel" data-x="fpReal" aria-label="Reálně nebo nominálně"><option value="1"${c.v.fpReal!==false?" selected":""}>Reálně – v dnešních cenách</option><option value="0"${c.v.fpReal===false?" selected":""}>Nominálně</option></select><p class="fc-src fc-fpsrc">${fpSrc(res)}</p>`:""}</div>`}
@@ -470,8 +470,8 @@ function mount(root,opts={}){
   /* panel Parametry: u úvěru navíc cena nemovitosti, typ (limit LTV), aktuální sazba a bonita */
   function parHTML(res){
     const c=cur();
-    const fq=fpOn(st.mode)?"y":c.v.freq;
-    const freq=`<div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="fc-sel" data-a="freq" aria-label="Frekvence připisování úroku"${fpOn(st.mode)?' disabled title="Při zhodnocení dle FP se úročí ročně"':""}>${FREQ.map(([k,t])=>`<option value="${k}"${fq===k?" selected":""}>${t}</option>`).join("")}</select></div>`;
+    const fq=c.v.freq;
+    const freq=`<div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="fc-sel" data-a="freq" aria-label="Frekvence připisování úroku">${FREQ.map(([k,t])=>`<option value="${k}"${fq===k?" selected":""}>${t}</option>`).join("")}</select></div>`;
     if(st.mode==="renta")return FIELDS.renta.map(k=>fieldHTML(k,res)).join("")+fpHTML(res)+freq+zmenyHTML();
     if(st.mode!=="loan")return FIELDS[st.mode].map(k=>fieldHTML(k,res)).join("")+fpHTML(res)+feeHTML(res)+freq;
     return fieldHTML("price",res)
@@ -607,7 +607,7 @@ function mount(root,opts={}){
     if(t.dataset&&t.dataset.x==="client"){st.clientId=t.value;st.clientName=t.value?(clientList().find(c=>c.id===t.value)||{}).name||st.clientName:"";persist();draw();return}
     if(t.dataset&&t.dataset.x){const c=cur(),x=t.dataset.x;
       if(x==="live"){c.v.live=t.checked;if(t.checked&&c.calc==="rate")c.calc="pmt";if(!t.checked)c.v.rate=lastRes&&isFinite(lastRes.v.rate)?lastRes.v.rate:c.v.rate}
-      else if(x==="fp"){c.v.fp=t.checked;if(t.checked&&c.calc==="rate")c.calc=st.mode==="inv"?"fv":"pmt"}
+      else if(x==="fp"){c.v.fp=t.checked;if(t.checked&&c.calc==="rate")c.calc=st.mode==="inv"?"fv":"pmt";if(t.checked)c.v.freq="y"}/* FP úročí ročně – výchozí, ale frekvence jde dál změnit */
       else if(x==="fpReal")c.v.fpReal=t.value==="1";
       else if(x==="feeOn"){c.v.feeOn=t.checked;if(!isFinite(+c.v.fee))c.v.fee=3}
       else if(x==="fix")c.v.fix=+t.value;else c.v[x]=t.value;

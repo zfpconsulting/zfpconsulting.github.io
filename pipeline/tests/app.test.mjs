@@ -184,6 +184,41 @@ export default {
     await ctx.close();
   },
 
+  async "nahrávka: lead s překlepem ve jménu se sloučí do klienta, termín z textu do Deadline/Čas; pole úkolu podle textu"(env) {
+    const now = new Date().toISOString(), y = new Date(Date.now() - 864e5 * 30).toISOString();
+    const tmr = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") })();
+    const store = { ...STORE,
+      "leads/al": { name: "Alois Mareš", stage: "schuzka", items: [], phone: "777111222", note: "", log: [], createdAt: y, _u: 1 },
+      "leads/dup": { name: "Aloys Mareš", stage: "novy", items: [], meetings: [], note: "Nahrávka 26. 10.\n• chce DIP", log: [{ d: now, t: "Nahrávka z 26. 10." }], createdAt: now, _u: 1 },
+      "mytasks/t1": { text: "• Zavolat a domluvit schůzku\n• Zavolat panu Marešovi a domluvit si s ním schůzku (deadline zítra 11:00)", client: "Aloys Mareš", leadId: "dup", due: tmr, done: "", createdAt: now, _u: 1 },
+      "files/f1": { owner: "l:dup", name: "Přepis schůzky.txt", mime: "text/plain", size: 10, at: now, drv: null, _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store });
+    await page.waitForFunction(() => !leads.some(l => l.id === "dup"), null, { timeout: 15000 });
+    await page.waitForTimeout(800);
+    const r = await page.evaluate(() => ({ names: leads.map(l => l.name).sort(), al: leads.find(l => l.id === "al"),
+      tasks: myTasks.filter(t => !t.done && !t.hidden).map(t => ({ text: t.text, client: t.client, leadId: t.leadId, due: t.due, time: t.dueTime || "" })),
+      file: (window.Docs && Docs.filesFor(["l:al"]) || []).map(f => f.name) }));
+    assert(!r.names.includes("Aloys Mareš"), "duplicitní lead smazaný: " + r.names);
+    eq(r.tasks.length, 1, "jeden úkol: " + JSON.stringify(r.tasks));
+    eq([r.tasks[0].client, r.tasks[0].leadId, r.tasks[0].due, r.tasks[0].time], ["Alois Mareš", "al", tmr, "11:00"], "úkol u Aloise, deadline + čas");
+    assert(!/deadline/i.test(r.tasks[0].text) && /Zavolat panu Marešovi a domluvit si s ním schůzku$/m.test(r.tasks[0].text), "termín zmizel z textu: " + r.tasks[0].text);
+    assert(/chce DIP/.test(r.al.note || "") && (r.al.log || []).some(x => /Nahrávka z/.test(x.t)), "poznámka a historie u Aloise");
+    eq(r.file, ["Přepis schůzky.txt"], "přepis přesunutý k Aloisovi");
+    /* pole úkolu: přesně na obsah */
+    const h = await page.evaluate(async () => {
+      asOpenMine(asAllTasks().find(t => t.st !== "hotovo"));await new Promise(z => setTimeout(z, 400));
+      const ta = document.querySelector('#edDlg textarea[aria-label="Text úkolu"]'), one = ta.scrollHeight, H = ta.offsetHeight;
+      ta.value += "\n• další řádek\n• a ještě jeden"; ta.dispatchEvent(new Event("input"));
+      const H2 = ta.offsetHeight, fits = ta.scrollHeight <= ta.clientHeight + 1;
+      ta.value = "krátký"; ta.dispatchEvent(new Event("input"));
+      return { H, one, H2, fits, H3: ta.offsetHeight, lh: parseFloat(getComputedStyle(ta).lineHeight) };
+    });
+    assert(h.H2 > h.H && h.fits, "pole se zvětší, vše se vejde: " + JSON.stringify(h));
+    assert(h.H3 < h.H && Math.abs(h.H3 - h.lh) <= 2, "krátký text = jeden řádek: " + JSON.stringify(h));
+    assert(!errors.length, "chyby: " + errors.join(" | "));
+    await ctx.close();
+  },
+
   async "synchronizace slučuje změny ze dvou zařízení po položkách"(env) {
     const { ctx, page } = await openApp(env);
     const r = await page.evaluate(() => {

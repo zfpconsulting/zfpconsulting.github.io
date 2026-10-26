@@ -60,7 +60,7 @@ const tests = {
     const db = { doc: p => ({ async set(d) { docs[p] = { ...d } }, async update(d) { if (!docs[p]) throw new Error("neexistuje"); Object.assign(docs[p], d) }, async delete() { delete docs[p] } }) };
     const env = { leads: [], myTasks: [] };
     const refresh = () => { env.myTasks = Object.entries(docs).filter(([k]) => k.startsWith("mytasks/")).map(([k, v]) => ({ id: k.slice(8), ...v })); env.leads = Object.entries(docs).filter(([k]) => k.startsWith("leads/")).map(([k, v]) => ({ id: k.slice(6), ...v })); };
-    const F = new Function("db", "env", "ACTIVE", "taskDefDue", fn.replace("let tasksLoaded=false,leadsLoaded=false", "let tasksLoaded=true,leadsLoaded=true") + "; return {sync:()=>{leads=env.leads;myTasks=env.myTasks;return syncLeadTasks()},back:(t,p)=>{leads=env.leads;return leadFromTask(t,p)}};".replace(/^/, "let leads=[],myTasks=[];"))(db, env, s => s !== "podpis_hotovo" && s !== "lost", () => "2026-10-29");
+    const F = new Function("db", "env", "ACTIVE", "taskDefDue", "const consolidateClientTasks=async()=>{},cliLoaded=false;" + fn.replace("let tasksLoaded=false,leadsLoaded=false", "let tasksLoaded=true,leadsLoaded=true") + "; return {sync:()=>{leads=env.leads;myTasks=env.myTasks;return syncLeadTasks()},back:(t,p)=>{leads=env.leads;return leadFromTask(t,p)}};".replace(/^/, "let leads=[],myTasks=[];"))(db, env, s => s !== "podpis_hotovo" && s !== "lost", () => "2026-10-29");
     docs["leads/a"] = { name: "Jan Novák", stage: "probehla", nextStep: "Poslat modelaci ŽP", nextDate: "2026-10-28" };
     docs["leads/b"] = { name: "Eva Malá", stage: "schuzka", nextStep: "Schůzka online", nextDate: "2026-10-27" };
     docs["leads/c"] = { name: "Petr Starý", stage: "lost", nextStep: "Zavolat", nextDate: "2026-10-27" };

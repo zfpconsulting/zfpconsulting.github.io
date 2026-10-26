@@ -26,6 +26,9 @@ function nrEnv({ exists = true } = {}) {
   S.api = run(NR, S, "{NRQ,nrQueue,nrDecide,nrReview,nrSync}");
   return S;
 }
+/* pomocné funkce pro hledání klienta a termínů (nrFindPerson, tkDeadline…) – přímo ze zdroje */
+const HELP = ["function norm", "function ymd", "const tkLines", "function sameSurname", "const _ntM"].map(k => grab(new RegExp(k.replace(/[()]/g, "\\$&") + "[^\\n]*\\n"))).join("") + grab(/function sameName[^\n]*\n[^\n]*\n[^\n]*\n/)
+  + grab(/const nrPh=[\s\S]*?\nfunction tkDeadline[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n/);
 const rec = (g, client) => [g, [{ id: g + "-0" }, { id: g + "-1" }], { type: "fp-nahravka", rec: { client, at: "2026-10-25T18:45", summary: ["Shrnutí " + client] } }];
 const btn = (S, label) => { const ch = S.sheets.at(-1).n.find(x => x.a && x.a.class === "chips"); return ch.k.find(b => b.k[0] === label) };
 
@@ -65,12 +68,13 @@ const tests = {
     const T = nrEnv(); T.api.nrQueue(...rec("g1", "A")); T.api.nrSync(new Map()); eq(T.api.NRQ.size, 0, "odebráno"); assert(!T.dlg.open, "okno zavřené");
   },
   async "zápis: datum narození do karty jen když chybí; schůzka do kalendáře, při kolizi úkol místo schůzky"() {
-    const fn = grab(/async function dzRecording\(x\)\{[\s\S]*?\n\}\n/);
+    const fn = HELP + grab(/async function dzRecording\(x\)\{[\s\S]*?\n\}\n/);
     const mk = ({ busy = [], birth = "" } = {}) => {
       const S = { writes: [], tasks: [], meets: [], notes: [] }, client = { id: "c1", name: "Tomáš Novák", birth }, lead = { id: "l1", name: "Tomáš Novák", stage: "probehla", meetings: [] };
       Object.assign(S, {
         meetDateTxt: s => s.slice(0, 10), leads: [lead], clients: [client], clientOfLead: () => client, aiAddLead: async () => lead,
         db: { doc: p => ({ update: async o => S.writes.push([p, o]), set: async o => S.writes.push([p, o]) }), collection: () => ({ add: async o => S.tasks.push(o.text) }) },
+        addClientTask: async o => S.tasks.push(o.text), tkMerge: a => a.join("\n"), tkMinDue: a => a.filter(Boolean).sort()[0] || "", ACTIVE: () => true,
         linkPushToLeads: async () => {}, linkPushToClient: async () => {}, plural: (n, a) => a, aiUpdateLead: async () => {},
         DNY_V: ["v neděli", "v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu"], fmtHM: s => new Date(s).toTimeString().slice(0, 5), todayStr: () => "2026-10-26",
         dzBusy: async () => busy, dzBlocks: e => !e.allDay, dzDayOff: e => !!e.allDay, surnameOf: n => n.split(" ").pop().toLowerCase(),
@@ -90,6 +94,44 @@ const tests = {
     ({ S, f } = mk({ busy: [{ allDay: false, title: "VK: Novák", start: new Date(start).toISOString() }] })); await f(x({ start }));
     eq([S.meets.length, S.tasks.length], [0, 0], "stejná schůzka už v kalendáři je → nic dalšího");
     ({ S, f } = mk()); await f(x({ start: "2020-01-01T10:00" })); eq([S.meets.length, S.tasks.length], [0, 0], "termín v minulosti se ignoruje");
+  },
+  async "jméno s překlepem z přepisu → existující klient (Aloys = Alois), nový lead se nezaloží; Jan ≠ Jana"() {
+    const mk = (people) => {
+      const S = { tasks: [], added: [], writes: [] };
+      Object.assign(S, {
+        meetDateTxt: s => s.slice(0, 10), leads: people, clients: [], clientOfLead: () => null, aiAddLead: async d => { S.added.push(d.name); return { id: "new", name: d.name } },
+        db: { doc: p => ({ update: async o => S.writes.push([p, o]), set: async o => S.writes.push([p, o]) }) },
+        addClientTask: async o => S.tasks.push(o), tkMerge: a => a.join("\n"), tkMinDue: a => a.filter(Boolean).sort()[0] || "", ACTIVE: () => true,
+        linkPushToLeads: async () => {}, linkPushToClient: async () => {}, plural: (n, a) => a, aiUpdateLead: async () => {}, NR_FP_L: {}, NR_FP: [],
+        document: { getElementById: () => null }, window: {}, dzNotify: () => {}, console, Date, pushSyncReminders: async () => {},
+      });
+      return { S, f: run(fn, S, "dzRecording") };
+    };
+    const fn = HELP + grab(/async function dzRecording\(x\)\{[\s\S]*?\n\}\n/);
+    const x = (client, tasks) => ({ type: "fp-nahravka", rec: { client, at: "2026-10-26T18:45:00+01:00", notes: [], tasks } });
+    let { S, f } = mk([{ id: "a1", name: "Alois Mareš", stage: "novy" }]);
+    await f(x("Aloys Mareš", [{ text: "Zavolat panu Marešovi a domluvit si s ním schůzku (deadline zítra 11:00)", due: "" }]));
+    eq(S.added, [], "nový lead se nezaložil");
+    eq(S.tasks[0].leadId, "a1", "úkol u Aloise"); eq(S.tasks[0].client, "Alois Mareš", "jméno klienta z karty");
+    eq([S.tasks[0].text, S.tasks[0].due, S.tasks[0].dueTime], ["Zavolat panu Marešovi a domluvit si s ním schůzku", "2026-10-27", "11:00"], "termín do polí, ne do textu");
+    ({ S, f } = mk([{ id: "a1", name: "Mareš Alois", stage: "novy" }])); await f(x("Aloys Mares", [{ text: "Zavolat", due: "2026-10-28", time: "9:30" }]));
+    eq([S.added.length, S.tasks[0].leadId, S.tasks[0].dueTime], [0, "a1", "09:30"], "obrácené pořadí, bez diakritiky, čas z pole time");
+    ({ S, f } = mk([{ id: "j1", name: "Jana Nováková", stage: "novy" }])); await f(x("Jan Novák", [{ text: "Zavolat", due: "" }]));
+    eq(S.added, ["Jan Novák"], "Jan Novák není Jana Nováková");
+    ({ S, f } = mk([{ id: "p1", name: "Petr Dvořák", stage: "novy" }, { id: "p2", name: "Peter Dvorak", stage: "novy" }])); await f(x("Petr Dvorrak", [{ text: "Zavolat", due: "" }]));
+    eq(S.added, ["Petr Dvorrak"], "dva podobní lidé → nehádá, založí nový lead");
+  },
+  "termín v textu úkolu: zítra / dnes / den v týdnu / datum / čas"() {
+    const T = run(HELP, {}, "{tkDeadline,nrWhen}"), b = "2026-10-26T18:45:00+01:00"; /* pondělí */
+    eq(T.nrWhen("zítra 11:00", b), { due: "2026-10-27", time: "11:00" }, "zítra");
+    eq(T.nrWhen("pátek", b), { due: "2026-10-30", time: "" }, "pátek");
+    eq(T.nrWhen("pondělí v 9 h", b), { due: "2026-11-02", time: "09:00" }, "příští pondělí");
+    eq(T.nrWhen("5. 11.", b), { due: "2026-11-05", time: "" }, "datum");
+    eq(T.nrWhen("15.1.2027 14.30", b), { due: "2027-01-15", time: "14:30" }, "datum s rokem a čas s tečkou");
+    eq(T.tkDeadline("Poslat nabídku (do pátku)", b), { text: "Poslat nabídku", due: "2026-10-30", time: "" }, "do pátku");
+    eq(T.tkDeadline("• Zavolat\n• Poslat smlouvu, deadline 3. 11. 10:00", b), { text: "• Zavolat\n• Poslat smlouvu", due: "2026-11-03", time: "10:00" }, "víc bodů");
+    eq(T.tkDeadline("Dohodnout termín schůzky na pátek", b), null, "„termín“ v běžné větě není deadline");
+    eq(T.tkDeadline("Zjistit fixaci hypotéky (ČS)", b), null, "závorka bez termínu");
   },
 };
 let fail = 0;

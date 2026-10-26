@@ -383,6 +383,23 @@ const tests = {
     t = await tiles(page); assert(/4,50/.test(t["Zhodnocení p.a. (dle FP, reálně)"] || ""), "renta 4,5 %: " + JSON.stringify(t));
     assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
   },
+  async "zhodnocení dle FP + poplatek: frekvence připisování jde změnit (výchozí roční jako ve FP)"() {
+    const { ctx, page, errors } = await open();
+    await page.click('[data-a="mode"][data-k="inv"]');
+    await page.check('input[data-x="feeOn"]'); await page.check('input[data-x="fp"]');
+    const sel = 'select[data-a="freq"]';
+    assert(!(await page.$eval(sel, s => s.disabled)), "výběr frekvence není zamčený");
+    eq(await page.inputValue(sel), "y", "po zapnutí FP ročně");
+    const num = x => +String(x).replace(/[^\d]/g, "");
+    const yr = num((await tiles(page))["Konečná hodnota inv."]);
+    await page.selectOption(sel, "m");
+    eq(await page.inputValue(sel), "m", "měsíční zůstane vybrané");
+    const t = await tiles(page), mo = num(t["Konečná hodnota inv."]);
+    assert(mo > yr, "měsíční úročení dá víc než roční: " + mo + " vs " + yr);
+    assert(/Úročení: měsíční/.test(await page.textContent(".fc-fpsrc")), "vysvětlivka ukazuje měsíční úročení");
+    await page.selectOption(sel, "q"); eq(await page.inputValue(sel), "q", "čtvrtletní");
+    assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
+  },
   async "investice: vstupní poplatek – checkbox, výchozí 3 %, nastavitelný, strhává se z každého vkladu"() {
     const { ctx, page, errors } = await open();
     await page.click('[data-a="mode"][data-k="inv"]');

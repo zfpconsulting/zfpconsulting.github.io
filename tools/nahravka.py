@@ -3,7 +3,7 @@
 
 Použití:  python3 nahravka.py rec.json
   rec.json = {"id": "<Fireflies ID>", "at": "ISO", "client": "Jméno Příjmení", "phone": "", "email": "",
-              "notes": ["…"], "tasks": [{"text": "…", "due": "YYYY-MM-DD"}], "summary": ["…"],
+              "notes": ["…"], "tasks": [{"text": "…", "due": "YYYY-MM-DD", "time": "HH:MM"}], "summary": ["…"],
               "fp": {"klient.zam": 45000, …,
                      "majetek": [{"nazev", "typ", "hodnota", "vklad"}], "nefin": [{"nazev", "typ", "hodnota", "najem"}],
                      "uvery": [{"typ", "nazev", "zustatek", "splatka", "fixace_do", "splatnost"}],
