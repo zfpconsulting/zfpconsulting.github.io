@@ -2020,15 +2020,22 @@ function renderCalc(){
 }
 /* záložka Důchodová kalkulačka – modul duchod.js se načte až při prvním otevření */
 let duchUI=null,duchLoading=false,duchPending=null;
+/* klienti + leady z pipeline / obchodního procesu (i nepodepsané); u leadu se kalkulace ukládá pod „lead_<id>“ a klient se nezakládá */
+function duchEntries(){
+  const E=clientEntries(),have=new Set(E.map(e=>e.lead&&e.lead.id).filter(Boolean));
+  const extra=leads.filter(l=>l&&l.name&&!l._del&&!have.has(l.id)&&!clients.some(c=>c.leadId===l.id||l.clientId===c.id)&&!E.some(e=>sameName(e.name,l.name)))
+    .map(l=>({id:"l:"+l.id,lead:l,name:l.name,key:surnameOf(l.name),phone:l.phone||"",products:[],virtual:true,leadOnly:true,prospect:(ST(l.stage)||{}).t||null}));
+  return E.concat(extra);
+}
 function renderDuch(then){
   if(then)duchPending=then;
   const fire=()=>{const t=duchPending;duchPending=null;if(t&&duchUI)t(duchUI)};
   if(duchUI){duchUI.refreshClients();fire();return}
   if(duchLoading)return;
   const go=()=>{duchLoading=false;if(!window.DuchodCalc){$("duchBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}
-    duchUI=DuchodCalc.mount($("duchBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),ensure:ensureClient});fire()};
+    duchUI=DuchodCalc.mount($("duchBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>duchEntries(),ensure:ensureClient});fire()};
   if(window.DuchodCalc)return go();
-  duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=7";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=8";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* záložka Úvěry – modul uvery.js se načte až při prvním otevření; případy v kolekci „uvery“, vlastní pravidla bank v „uvcfg“ */
 let uvUI=null,uvLoading=false,uvPending=null;
@@ -7660,7 +7667,7 @@ async function openFP(e,rec){
   try{if(!rec)rec=await ensureClient(e)}catch(err){toast("Nepodařilo se založit klienta");return}
   if(!rec){toast("Klient chybí");return}
   try{$("edDlg").close()}catch(err){}try{$("dlg").open&&$("dlg").close()}catch(err){}
-  const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
+  const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id)||(rec.leadId&&duchod.find(x=>x.id==="lead_"+rec.leadId))||undefined,r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   /* plánovaná hypotéka: poslední uložená kalkulace úvěru přiřazená k tomuto klientovi (Kalkulačka → menu → Klient) */
   const hc=fincalcs.filter(x=>x.hypo&&(x.clientId===rec.id||x.clientId===id)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
   const hypo=hc?{...hc.hypo,at:hc.updatedAt||0,name:hc.name||""}:null;

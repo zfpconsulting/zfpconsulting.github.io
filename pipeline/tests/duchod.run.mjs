@@ -22,7 +22,7 @@ async function open({ width = 1300, height = 900, dark = false } = {}) {
     const store={collection:name=>({onSnapshot(cb){const f=()=>cb({docs:Object.entries(docs).filter(([k])=>k.startsWith(name+"/")).map(([k,v])=>({id:k.split("/")[1],data:()=>v}))});subs.add(f);f()},
       async add(d){const id="d"+(++n);docs[name+"/"+id]=d;emit();return{id}}}),
       doc:p=>({onSnapshot(cb){const f=()=>cb({exists:!!docs[p],data:()=>docs[p]});subs.add(f);f()},async set(d){docs[p]=d;emit()},async delete(){delete docs[p];emit()}})};
-    const cl=[{id:"c:a",rec:{id:"a"},name:"Novák Petr"},{id:"l:b",name:"Dvořáková Jana"}];
+    const cl=[{id:"c:a",rec:{id:"a"},name:"Novák Petr"},{id:"l:b",name:"Dvořáková Jana"},{id:"l:c",lead:{id:"c"},name:"Svoboda Karel",leadOnly:true,prospect:"Nový lead"}];
     window.toasts=[];window.ensured=[];
     window.ui=DuchodCalc.mount(document.getElementById("box"),{store,toast:m=>toasts.push(m),clients:()=>cl,ensure:async e=>{ensured.push(e.id);e.rec={id:"new"+e.id.slice(2)};return e.rec}});window.docs=docs;
     </script></body></html>` }));
@@ -115,6 +115,22 @@ const tests = {
     /* smazání vyžaduje potvrzení */
     await page.click('[data-a="del"] >> nth=0'); assert((await page.evaluate(() => Object.keys(docs).length)) === 2, "první klik jen žádá potvrzení");
     await page.click('[data-a="del"][data-sure="1"]'); await page.waitForFunction(() => Object.keys(docs).length === 1);
+    assert(!errors.length, "chyby: " + errors.join(" | "));
+    await ctx.close();
+  },
+  async "lead z pipeline (bez klienta): jde vybrat, uložit pod lead_<id> a klient se nezakládá"() {
+    const { ctx, page, errors } = await open();
+    await fill(page, "ovz", "30 000"); await fill(page, "tY", 25);
+    await page.fill('[data-k="evt"]', "2026-10-10"); await page.fill('[data-k="ret"]', "2051-10-10");
+    await page.fill("#dk_cq", "svobod");
+    assert(await page.isVisible('#dk_cl button[data-id="lead_c"]'), "lead je v nabídce");
+    await page.click('#dk_cl button[data-id="lead_c"]');
+    await page.click('[data-a="save"]'); await page.waitForFunction(() => Object.keys(docs).length);
+    const d = await page.evaluate(() => ({ keys: Object.keys(docs), ens: ensured }));
+    eq(d.ens, [], "klient se nezakládá");
+    eq(d.keys, ["duchod/lead_c"], "klíč dokumentu");
+    await page.click('[data-a="new"]'); await page.fill("#dk_cq", "svobod"); await page.click('#dk_cl button[data-id="lead_c"]');
+    eq(await page.inputValue('[data-k="ovz"]'), "30000", "načtená data leadu");
     assert(!errors.length, "chyby: " + errors.join(" | "));
     await ctx.close();
   },

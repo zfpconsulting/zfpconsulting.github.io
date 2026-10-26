@@ -169,9 +169,12 @@ function mount(root,opts={}){
   const persist=()=>ls.set(LS,st);
   if(store)store.collection("duchod").onSnapshot(s=>{saved=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));drawSaved()});
 
-  const keyOf=e=>e.rec?e.rec.id:e.id;
+  /* klíč uložené kalkulace: klient = id klienta, lead z pipeline (bez klienta) = "lead_<id>"; lead, který se později stal klientem, se dál najde přes starý klíč */
+  const keyOf=e=>e.rec?e.rec.id:e.leadOnly?"lead_"+e.lead.id:e.id;
+  const keysOf=e=>{const k=[keyOf(e)];if(e.lead&&e.lead.id&&!e.leadOnly)k.push("lead_"+e.lead.id);if(e.rec&&e.rec.leadId)k.push("lead_"+e.rec.leadId);return k};
+  const hasKey=(e,id)=>keysOf(e).includes(id);
   const entries=()=>{try{return clientsFn().slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","cs"))}catch(e){return[]}};
-  const nameOf=id=>{const e=entries().find(x=>keyOf(x)===id);return e?e.name:(saved.find(s=>s.id===id)||{}).name||"klient"};
+  const nameOf=id=>{const e=entries().find(x=>hasKey(x,id));return e?e.name:(saved.find(s=>s.id===id)||{}).name||"klient"};
 
   const val=k=>st[k]===""||st[k]==null?"":String(st[k]);
   const fld=(k,label,{type="text",ph="",hint="",step}={})=>`<div class="dk-f"><label for="dk_${k}">${esc(label)}</label><input id="dk_${k}" data-k="${k}" type="${type}" ${type==="text"?'inputmode="numeric" autocomplete="off"':""} ${step?`step="${step}"`:""} placeholder="${esc(ph)}" value="${esc(val(k))}">${hint?`<p class="dk-hint">${hint}</p>`:""}</div>`;
@@ -190,7 +193,7 @@ function mount(root,opts={}){
     const q=inp.value,cur=st.cid?nameOf(st.cid):"",its=csItems(q===cur?"":q);
     csHi=Math.min(csHi,its.length);
     box.innerHTML=`<button type="button" data-a="pick" data-id="" class="dk-none${csHi===0?" on":""}">— bez klienta (jen výpočet) —</button>`+
-      (its.length?its.map((e,i)=>{const k=keyOf(e),has=saved.some(x=>x.id===k);return `<button type="button" data-a="pick" data-id="${esc(k)}"${csHi===i+1?' class="on"':""}><span>${esc(e.name||"Bez jména")}</span>${has?'<span class="dk-ok">✓ uloženo</span>':""}</button>`}).join("")
+      (its.length?its.map((e,i)=>{const k=keyOf(e),sv=saved.find(x=>keysOf(e).includes(x.id)),has=!!sv;return `<button type="button" data-a="pick" data-id="${esc(sv?sv.id:k)}"${csHi===i+1?' class="on"':""}><span>${esc(e.name||"Bez jména")}${e.leadOnly&&e.prospect?` <small class="dk-none">· ${esc(e.prospect)}</small>`:""}</span>${has?'<span class="dk-ok">✓ uloženo</span>':""}</button>`}).join("")
         :`<div class="dk-empty">Žádný klient neodpovídá „${esc(q)}“</div>`);
     box.hidden=false;
   }
@@ -265,7 +268,7 @@ function mount(root,opts={}){
   function drawRes(){const el=root.querySelector("#dkRes");if(el)el.innerHTML=resHTML(calc(st))}
 
   function savedRow(s){
-    const e=entries().find(x=>keyOf(x)===s.id),nm=e?e.name:s.name||"klient",r=s.res||{};
+    const e=entries().find(x=>hasKey(x,s.id)),nm=e?e.name:s.name||"klient",r=s.res||{};
     return `<div class="dk-row"><div class="main"><b>${esc(nm)}</b><span>${s.ioldp?"IOLDP "+esc(fmtDate(s.ioldp))+" · ":""}${r.sta?"starobní "+kc(r.sta)+" · ":""}inv. III. ${kc(r.i3)} · vdovský ${kc(r.wid)} · sirotčí ${kc(r.orp)}</span></div><button type="button" class="dk-btn" data-a="open" data-id="${esc(s.id)}">Otevřít</button><button type="button" class="dk-btn danger" data-a="del" data-id="${esc(s.id)}">Smazat</button></div>`;
   }
   function drawSaved(){
@@ -284,16 +287,18 @@ function mount(root,opts={}){
   async function save(){
     if(!store){toast("Ukládání tu není k dispozici");return}
     if(!st.cid){toast("Nejdřív vyber klienta");return}
-    const e=entries().find(x=>keyOf(x)===st.cid);
+    const e=entries().find(x=>hasKey(x,st.cid));
     if(!e){toast("Klient už v seznamu není");return}
     const R=calc(st);
     if(!R.ok){toast("Doplň základ a dobu pojištění");return}
     try{
-      const rec=ensure&&!e.rec?await ensure(e):e.rec;
-      const id=rec?rec.id:st.cid;
+      const rec=ensure&&!e.rec&&!e.leadOnly?await ensure(e):e.rec;
+      const id=rec?rec.id:keyOf(e);
+      /* lead se mezitím stal klientem → kalkulace se přesune pod klienta, starý záznam „lead_…“ se smaže */
+      if(rec&&st.cid!==id&&/^lead_/.test(st.cid)&&saved.some(x=>x.id===st.cid))await store.doc("duchod/"+st.cid).delete();
       await store.doc("duchod/"+id).set({clientId:id,name:e.name||"",ioldp:st.ioldp||"",year:R.pr.use,in:snapshotInputs(),
         res:{sta:R.sta.total,i1:R.i1.total,i2:R.i2.total,i3:R.i3.total,wid:R.wid.total,orp:R.orp.total},updatedAt:Date.now()});
-      st.cid=id;persist();toast("Uloženo ke klientovi "+(e.name||""));
+      st.cid=id;persist();toast("Uloženo ke "+(e.leadOnly?"leadu ":"klientovi ")+(e.name||""));
       csClose();
     }catch(err){toast("Nepodařilo se uložit")}
   }
