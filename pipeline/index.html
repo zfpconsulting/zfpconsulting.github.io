@@ -2231,7 +2231,7 @@ async function dzRecording(x){
     done.push("poznámka")}
   /* úkoly – každý se svým termínem (YYYY-MM-DD) */
   const T=(Array.isArray(r.tasks)?r.tasks:[]).map(t=>({text:String((t&&t.text)||t||"").trim(),due:/^\d{4}-\d{2}-\d{2}$/.test((t&&t.due)||"")?t.due:""})).filter(t=>t.text);
-  for(const t of T)await db.collection("mytasks").add({text:t.text,client:nm,due:t.due,done:"",createdAt:now,...(l?{leadId:l.id}:{})});
+  if(T.length)await addClientTask({text:tkMerge(T.map(t=>t.text)),client:nm,due:tkMinDue(T.map(t=>t.due)),leadId:l?l.id:""});
   if(T.length)done.push(T.length+" "+plural(T.length,"úkol","úkoly","úkolů"));
   /* karta: telefon / e-mail jen když chybí */
   const ph=String(r.phone||"").trim(),card={};
@@ -2244,7 +2244,7 @@ async function dzRecording(x){
   /* domluvená schůzka → kalendář (s kontrolou kolizí jako u rezervace); při kolizi úkol domluvit jiný termín */
   const mt=r.meeting&&typeof r.meeting==="object"?r.meeting:null,mS=mt&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(mt.start||""))?new Date(mt.start):null;
   if(mS&&!isNaN(mS)&&mS>new Date()){const on=!!mt.online,kdy=DNY_V[mS.getDay()]+" "+mS.getDate()+". "+(mS.getMonth()+1)+". "+fmtHM(mS.toISOString()),mE=new Date(mS.getTime()+45*60000);
-    const task=async t=>{await db.collection("mytasks").add({text:t,client:nm,due:todayStr(),done:"",createdAt:now,...(l?{leadId:l.id}:{})});done.push("úkol k termínu")};
+    const task=async t=>{await addClientTask({text:t,client:nm,due:todayStr(),leadId:l?l.id:""});done.push("úkol k termínu")};
     try{const ev=await dzBusy(mS,mE),dup=ev.some(e=>!e.allDay&&new Date(e.start).getTime()===mS.getTime()&&f(e.title).includes(f(surnameOf(nm)))),busy=ev.filter(e=>dzBlocks(e)||dzDayOff(e));
       if(dup)done.push("schůzka "+kdy+" už v kalendáři je");
       else if(busy.length){await task("Kolize v kalendáři – domluvit nový termín (domluveno "+kdy+(on?" online":"")+"; v tu dobu: "+busy.map(e=>e.title||"událost").slice(0,2).join(", ")+")");if(typeof nrClashAlert==="function"&&!(r.id&&NRA.has(String(r.id))))nrClashAlert(r,{m:{kdy},busy})}
@@ -2421,9 +2421,8 @@ async function afterMeetSave(o,noteTxt,taskTxt,due){
     if(W.c){await db.doc("clients/"+W.c.id).update({note});await linkPushToLeads(W.c,{note});out.note=true}
     else if(W.l){await db.doc("leads/"+W.l.id).update({note,updatedAt:now});await linkPushToClient(W.l.id,{note});out.note=true}
     if(W.l){const cl=leads.find(x=>x.id===W.l.id)||W.l;try{await db.doc("leads/"+cl.id).update({log:[...(cl.log||[]),{d:now,t:"Zápis ze schůzky "+meetDateTxt(W.start)}].slice(-100),lastContact:now})}catch(e){}}}
-  for(const t of String(taskTxt||"").split(/\n+/).map(x=>x.replace(/^\s*([-•*–]|\d+[.)])\s*/,"").trim()).filter(Boolean)){
-    if(o.tasks&&t===String(o.tasks).trim())continue;/* úkol z okna úkolu už existuje – nezakládat znovu */
-    await db.collection("mytasks").add({text:t,client:W.name||"",due:due||"",done:"",createdAt:now});out.tasks++}
+  {const TL=String(taskTxt||"").split(/\n+/).map(x=>x.replace(/^\s*([-•*–]|\d+[.)])\s*/,"").trim()).filter(Boolean).filter(t=>!(o.tasks&&t===String(o.tasks).trim()));/* úkol z okna úkolu už existuje – nezakládat znovu */
+    if(TL.length){await addClientTask({text:tkMerge(TL),client:W.name||"",due:due||"",leadId:W.l?W.l.id:""});out.tasks=TL.length}}
   return {...out,who:W}}
 /* poznámky z bodů → hotové shrnutí pro klienta: odrážky očištěné, věty s velkým písmenem a tečkou, úkoly jako „Další kroky“ */
 function summaryMailText(name,start,notes,tasks,due){
@@ -3870,6 +3869,10 @@ function clientEntries(){
     if(DEMO&&!CLEAN)return; /* prezentace: lidé jen z tvého skutečného kalendáře se do klientely fiktivního poradce nepřidávají */
     const ids=new Set(p.meets.map(m=>m.id)), ld=leads.find(l=>!SIGNED(l.stage)&&(l.meetings||[]).some(m=>ids.has(m.id)));
     out.push({id:"k:"+p.key,cal:p,lead:ld||null,prospect:ld?ST(ld.stage).t:null,name:p.name,key:p.key,phone:ld?.phone||"",products:[],virtual:true,calOnly:true})});
+  /* všichni z pipeline (kromě Lost) jsou i v klientech: nepodepsaní jako „v pipeline · fáze“ (stejně jako lidé z kalendáře) */
+  leads.filter(l=>l&&l.name&&!l._del&&!l.shared&&!l.example&&!SIGNED(l.stage)&&l.stage!=="lost"&&!hidden.has(surnameOf(l.name))&&!hidden.has("l:"+l.id)
+    &&!clients.some(c=>c.leadId===l.id||l.clientId===c.id)&&!out.some(x=>(x.lead&&x.lead.id===l.id)||sameName(x.name,l.name))).forEach(l=>{
+    out.push({id:"l:"+l.id,lead:l,prospect:ST(l.stage).t,name:l.name,key:surnameOf(l.name),phone:l.phone||"",products:[],virtual:true,calOnly:true})});
   const now=new Date().toISOString(), today=todayStr();
   out.forEach(e=>{
     const ms=[...(e.cal?.meets||[]),...((e.lead?.meetings)||[]).map(m=>({start:m.start,title:m.title}))];
@@ -4401,7 +4404,7 @@ async function aiLogCall(l,res,text){
   if(no)offerNoAnswerSms(leadMsgCtx(cur),log,r=>logLeadMsg(cur,r),cur);
 }
 const aiTasks=()=>myTasks.filter(t=>!t.done).map(t=>({id:t.id,text:t.text||"",client:t.client||"",due:t.due||""}));
-async function aiAddTask(t){await db.collection("mytasks").add({text:t.text,client:t.client||"",due:t.due||"",done:"",createdAt:new Date().toISOString()})}
+async function aiAddTask(t){await addClientTask({text:t.text,client:t.client||"",due:t.due||""})}
 async function aiDoneTask(t){await db.doc("mytasks/"+t.id).update({done:new Date().toISOString()})}
 /* všechna jména osob v appce – štít soukromí podle nich pozná, co nesmí k modelu */
 function aiPeople(){
@@ -8672,6 +8675,33 @@ function asAdvisorClients(){ /* klienti a leady poradce – plná jména */
 }
 
 /* =====================  ÚKOLY  ===================== */
+/* Max jeden aktivní úkol na klienta: nový úkol se sloučí do otevřeného úkolu téhož klienta (víc bodů = víc řádků, termín = nejbližší). */
+const tkLines=s=>String(s||"").split(/\n+/).map(x=>x.replace(/^\s*([-•*–]|\d+[.)])\s*/,"").trim()).filter(Boolean);
+function tkMerge(texts){const seen=new Set(),out=[];for(const t of texts)for(const x of tkLines(t)){const k=x.toLowerCase();if(!seen.has(k)){seen.add(k);out.push(x)}}
+  return out.length>1?out.map(x=>"• "+x).join("\n"):(out[0]||"")}
+const tkMinDue=a=>a.filter(Boolean).sort()[0]||"";
+function tkSame(a,b){if(a.leadId&&b.leadId)return a.leadId===b.leadId;return !!(a.client&&b.client&&sameName(a.client,b.client))}
+async function addClientTask(o){ /* o={text,client,due,leadId} */
+  const nw={text:String(o.text||"").trim(),client:o.client||"",due:o.due||"",leadId:o.leadId||"",dueTime:o.dueTime||"",remind:+o.remind||0};if(!nw.text)return;
+  const ex=nw.client||nw.leadId?myTasks.find(t=>!t.done&&!t.hidden&&tkSame(t,nw)):null;
+  if(!ex){await db.collection("mytasks").add({text:nw.text,client:nw.client,due:nw.due,done:"",createdAt:new Date().toISOString(),...(nw.leadId?{leadId:nw.leadId}:{}),...(nw.dueTime?{dueTime:nw.dueTime,remind:nw.remind}:{})});return}
+  const text=tkMerge([ex.text,nw.text]),due=tkMinDue([ex.due,nw.due]),p={};
+  if(text!==ex.text)p.text=text;if(due!==(ex.due||""))p.due=due;
+  if(nw.dueTime&&nw.due&&nw.due===due){p.dueTime=nw.dueTime;p.remind=nw.remind}else if(p.due&&due!==(ex.due||"")&&ex.dueTime){p.dueTime="";p.remind=0}
+  if(Object.keys(p).length)await db.doc("mytasks/"+ex.id).update(p);
+  if(p.text)ex.text=p.text;if("due" in p)ex.due=p.due}
+let tkBusy=false;
+async function consolidateClientTasks(){if(tkBusy||!tasksLoaded||!leadsLoaded||!db)return;tkBusy=true;
+  try{const open=myTasks.filter(t=>!t.done&&!t.hidden&&(t.client||t.leadId)),used=new Set();
+    for(const a of open){if(used.has(a.id))continue;const G=open.filter(b=>!used.has(b.id)&&(b===a||tkSame(a,b)));G.forEach(b=>used.add(b.id));if(G.length<2)continue;
+      const keep=G.find(t=>t.auto)||G.slice().sort((x,y)=>String(x.createdAt||"").localeCompare(String(y.createdAt||"")))[0],rest=G.filter(t=>t!==keep);
+      const text=tkMerge(G.slice().sort((x,y)=>(x===keep?-1:y===keep?1:0)).map(t=>t.text)),due=tkMinDue(G.map(t=>t.due)),p={text};
+      if(due!==(keep.due||""))p.due=due;
+      if(!keep.dueTime){const w=G.find(t=>t.dueTime&&t.due===due);if(w){p.dueTime=w.dueTime;p.remind=+w.remind||0}}
+      if(!keep.leadId){const w=G.find(t=>t.leadId);if(w)p.leadId=w.leadId}
+      await db.doc("mytasks/"+keep.id).update(p);
+      for(const t of rest){if(t.auto)await db.doc("mytasks/"+t.id).update({hidden:true}).catch(()=>{});else await db.doc("mytasks/"+t.id).delete().catch(()=>{})}}
+  }catch(e){console.warn("consolidate",e)}finally{tkBusy=false}}
 function asAllTasks(){
   return myTasks.filter(t=>!t.hidden).map(t=>({id:"m:"+t.id,rid:t.id,own:true,text:t.text,client:t.client||"",due:t.due||"",time:t.dueTime||"",rm:+t.remind||0,st:t.done?"hotovo":"nový",done:t.done||"",at:t.createdAt||"",leadId:t.leadId||""}));
 }
@@ -8689,7 +8719,8 @@ async function syncLeadTasks(){if(!tasksLoaded||!leadsLoaded||!db)return;
     if(!t)await db.doc("mytasks/"+id).set({text:w.text,client:w.client,due:w.due,done:"",createdAt:now,leadId:l.id,auto:true,key:w.key}).catch(()=>{});
     else if(t.key!==w.key)await db.doc("mytasks/"+id).update({text:w.text,client:w.client,due:w.due,dueTime:"",remind:0,done:"",hidden:false,key:w.key}).catch(()=>{});
     else if(t.client!==w.client)await db.doc("mytasks/"+id).update({client:w.client}).catch(()=>{})}
-  for(const t of myTasks)if(t.auto&&!seen.has(t.id)&&!t.done)await db.doc("mytasks/"+t.id).delete().catch(()=>{})}
+  for(const t of myTasks)if(t.auto&&!seen.has(t.id)&&!t.done)await db.doc("mytasks/"+t.id).delete().catch(()=>{});
+  await consolidateClientTasks()}
 /* úkol → zpět do leadu (text = další krok, deadline = termín; hotovo = krok splněn → lead čeká na nový krok) */
 async function leadFromTask(t,patch){const id=t.leadId||(String(t.rid).startsWith("auto_")?String(t.rid).slice(5):"");if(!id)return;const l=leads.find(x=>x.id===id);if(!l||l.shared)return;
   const lp={updatedAt:new Date().toISOString()};if("text" in patch)lp.nextStep=patch.text;if("due" in patch)lp.nextDate=patch.due||null;
@@ -8730,7 +8761,7 @@ function asNewTask(preset){
   save.onclick=async()=>{
     const tx=text.value.trim();if(!tx){toast("Napiš, co je potřeba udělat");text.focus();return}
     save.disabled=true;
-    try{await db.collection("mytasks").add({text:tx,client:client?client.n:"",due:due.value||"",dueTime:due.value&&tm.value?tm.value:"",remind:due.value&&tm.value?+rmSel.value:0,done:"",createdAt:new Date().toISOString()});$("edDlg").close();toast(due.value&&tm.value?"Úkol uložen · upozorním "+(+rmSel.value?rmSel.options[rmSel.selectedIndex].text.toLowerCase():"v "+tm.value):"Úkol uložen");try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}}catch(e){toast("Nepodařilo se uložit");save.disabled=false}
+    try{await addClientTask({text:tx,client:client?client.n:"",due:due.value||"",dueTime:due.value&&tm.value?tm.value:"",remind:due.value&&tm.value?+rmSel.value:0});$("edDlg").close();toast(due.value&&tm.value?"Úkol uložen · upozorním "+(+rmSel.value?rmSel.options[rmSel.selectedIndex].text.toLowerCase():"v "+tm.value):"Úkol uložen");try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}}catch(e){toast("Nepodařilo se uložit");save.disabled=false}
   };
   openSheet("Nový úkol",[
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),text),el("div",{class:"frow"},el("label",{},"Deadline"),due),el("div",{class:"frow"},el("label",{},"Čas"),tm),el("div",{class:"frow"},el("label",{},"Upozornit"),rmSel)),

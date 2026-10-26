@@ -227,9 +227,9 @@ export default {
       const qs = [qShift(CURQ(), -3), qShift(CURQ(), -2), qShift(CURQ(), -1)];
       return { demo: DEMO, team: team.length, maxPos: Math.max(...team.map(m => +m.pos.slice(1))), stat: +career().stat.slice(1),
         me: qs.map(q => lv(quarterTotal(q))), tm: qs.map(q => lv(Math.max(...team.map(m => memberQPts(m, q))))),
-        clients: clientEntries().length, open: leads.filter(l => !SIGNED(l.stage)).length, sign: settings.sign };
+        clients: clientEntries().length, miss: leads.filter(l => l.stage !== "lost" && !clientEntries().some(e => (e.lead && e.lead.id === l.id) || sameName(e.name, l.name))).length, open: leads.filter(l => !SIGNED(l.stage)).length, sign: settings.sign };
     });
-    assert(r.demo, "běží demo"); eq(r.team, 8, "8 obchodníků"); eq(r.clients, 10, "10 klientů"); assert(r.open >= 5, "rozjednané leady");
+    assert(r.demo, "běží demo"); eq(r.team, 8, "8 obchodníků"); assert(r.clients >= 10, "klienti"); eq(r.miss, 0, "všichni z pipeline (kromě Lost) jsou i v klientech"); assert(r.open >= 5, "rozjednané leady");
     assert(r.stat > r.maxPos, "statická kariéra výš než tým");
     r.me.forEach((l, i) => assert(l > r.tm[i], `obratová výš než tým (kvartál ${i}: ${l} vs ${r.tm[i]})`));
     assert(/^V\S* K/.test(r.sign), "iniciály VK");
