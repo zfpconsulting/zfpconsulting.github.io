@@ -2236,7 +2236,7 @@ async function dzRecording(x){
     const task=async t=>{await db.collection("mytasks").add({text:t,client:nm,due:todayStr(),done:"",createdAt:now,...(l?{leadId:l.id}:{})});done.push("úkol k termínu")};
     try{const ev=await dzBusy(mS,mE),dup=ev.some(e=>!e.allDay&&new Date(e.start).getTime()===mS.getTime()&&f(e.title).includes(f(surnameOf(nm)))),busy=ev.filter(e=>dzBlocks(e)||dzDayOff(e));
       if(dup)done.push("schůzka "+kdy+" už v kalendáři je");
-      else if(busy.length)await task("Kolize v kalendáři – domluvit nový termín (domluveno "+kdy+(on?" online":"")+"; v tu dobu: "+busy.map(e=>e.title||"událost").slice(0,2).join(", ")+")");
+      else if(busy.length){await task("Kolize v kalendáři – domluvit nový termín (domluveno "+kdy+(on?" online":"")+"; v tu dobu: "+busy.map(e=>e.title||"událost").slice(0,2).join(", ")+")");if(typeof nrClashAlert==="function"&&!(r.id&&NRA.has(String(r.id))))nrClashAlert(r,{m:{kdy},busy})}
       else if(!l)await task("Zapsat schůzku do kalendáře: "+kdy+(on?" online":""));
       else{const cur=leads.find(z=>z.id===l.id)||l,res=await saveMeeting(cur,mS,on,{moveStage:cur.stage==="novy"});
         if(on&&res&&res.evId)ensureMeet(res.evId).catch(()=>{});
@@ -2655,15 +2655,42 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout
    (poznámka, úkoly, karta, FP, schůzka do kalendáře). Schránka je společná pro všechna zařízení – rozhodne to, kdo klepne první. */
 const NRQ=new Map();
 function nrSync(G){for(const g of [...NRQ.keys()])if(!G.has(g)){NRQ.delete(g);DZI.busy.delete(g);if(NRQ.cur===g&&$("edDlg").open){NRQ.cur=null;$("edDlg").close()}}}
+/* celoobrazovkové upozornění (vlastní <dialog>, aby bylo i nad otevřeným oknem) */
+const NRA=new Set();
+function nrAlert(title,lines){const d=document.createElement("dialog");d.className="nrAlert";
+  d.style.cssText="width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));background:#c62828;color:#fff;display:flex;flex-direction:column;justify-content:center;gap:18px;text-align:center;box-sizing:border-box";
+  const b=el("button",{type:"button",style:"margin-top:18px;align-self:center;font-size:18px;font-weight:700;padding:16px 48px;border-radius:14px;border:0;background:#fff;color:#c62828"},"Rozumím");
+  b.onclick=()=>{d.close();d.remove()};
+  d.append(el("div",{style:"font-size:64px;line-height:1"},"⚠"),el("div",{style:"font-size:30px;font-weight:800;line-height:1.2"},title),...lines.filter(Boolean).map(t=>el("div",{style:"font-size:18px;line-height:1.4"},t)),b);
+  document.body.append(d);try{d.showModal()}catch(e){d.setAttribute("open","")}}
+/* domluvená schůzka z nahrávky → {start,end,on,kdy}, nebo null (chybí / v minulosti) */
+function nrMeet(r){const mt=r&&r.meeting&&typeof r.meeting==="object"?r.meeting:null,st=mt&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(mt.start||""))?new Date(mt.start):null;
+  if(!st||isNaN(st)||st<=new Date())return null;
+  return {start:st,end:new Date(st.getTime()+45*60000),on:!!mt.online,kdy:DNY_V[st.getDay()]+" "+st.getDate()+". "+(st.getMonth()+1)+". v "+fmtHM(st.toISOString())+(mt.online?" (online)":"")}}
+async function nrClash(r){const m=nrMeet(r);if(!m)return null;const ev=await dzBusy(m.start,m.end),f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const nm=f(surnameOf(String(r.client||"")));
+  if(ev.some(e=>!e.allDay&&new Date(e.start).getTime()===m.start.getTime()&&nm&&f(e.title).includes(nm)))return null;/* stejná schůzka už v kalendáři je */
+  const busy=ev.filter(e=>dzBlocks(e)||dzDayOff(e));return busy.length?{m,busy}:null}
+function nrClashAlert(r,c){if(r.id)NRA.add(String(r.id));
+  nrAlert("Kolize v kalendáři",[String(r.client||"").trim()+" – domluveno "+c.m.kdy,"V tu dobu už máš: "+c.busy.map(e=>(e.title||"událost")+(e.allDay?" (celý den)":" "+fmtHM(e.start)+"–"+fmtHM(e.end))).slice(0,3).join(", "),
+    "Schůzka se do kalendáře nezapíše – po přijetí dostaneš úkol domluvit s klientem nový termín."])}
 function nrReview(own){const it=[...NRQ.entries()][0];if(!it)return false;if(!own&&$("edDlg").open&&NRQ.cur!==it[0])return false;
   const [g,{x}]=it,r=x.rec||{},bl=a=>(Array.isArray(a)?a:[]).map(t=>String(t||"").trim()).filter(Boolean),sum=bl(r.summary);
-  const ok=el("button",{type:"button",class:"g"},"Přijmout"),no=el("button",{type:"button",class:"chipbtn"},"Odmítnout");
+  const B="flex:1;font-size:17px;font-weight:700;padding:15px 0;border-radius:14px;border:0;",ok=el("button",{type:"button",style:B+"background:var(--tint);color:#fff"},"Přijmout"),no=el("button",{type:"button",style:B+"background:rgba(198,40,40,.12);color:#c62828"},"Odmítnout");
   const go=async acc=>{ok.disabled=no.disabled=true;try{await nrDecide(g,acc)}finally{ok.disabled=no.disabled=false}};
   ok.onclick=()=>go(true);no.onclick=()=>go(false);NRQ.cur=g;
+  /* co jedním klepnutím na Přijmout potvrzuješ */
+  const fp=r.fp&&typeof r.fp==="object"?Object.entries(r.fp).reduce((n,[k,v])=>n+(Array.isArray(v)?v.length:(v!==""&&v!=null?1:0)),0):0,
+    nT=(Array.isArray(r.tasks)?r.tasks:[]).filter(t=>t&&(t.text||t)).length,m=nrMeet(r);
+  const what=[fp?"finanční plán ("+fp+" "+plural(fp,"údaj","údaje","údajů")+")":"",bl(r.notes).length?"poznámky":"",nT?pxN(nT,"úkol","úkoly","úkolů"):"",m?"schůzku do kalendáře – "+m.kdy:""].filter(Boolean);
+  const warn=el("p",{class:"hint",style:"color:#c62828;font-weight:600;display:none"});
   openSheet("Nahrávka ke schválení",[
     el("p",{class:"hint"},[String(r.client||"").trim()||"klient",r.at?meetDateTxt(r.at):"",NRQ.size>1?"další čekají: "+(NRQ.size-1):""].filter(Boolean).join(" · ")),
     sum.length?el("ul",{},...sum.map(t=>el("li",{},t))):null,
-    el("div",{class:"chips"},ok,no)]);
+    what.length?el("p",{class:"hint"},"Přijmout zapíše najednou: "+what.join(" · ")):null,warn,
+    el("div",{class:"chips",style:"display:flex;gap:10px;margin-top:6px"},ok,no)]);
+  /* kolize hned při otevření – celoobrazovkově, ať ji nepřehlédneš */
+  if(m)nrClash(r).then(c=>{if(!c||NRQ.cur!==g)return;warn.textContent="⚠ Kolize v kalendáři – schůzka se nezapíše, dostaneš úkol domluvit nový termín";warn.style.display="";nrClashAlert(r,c)}).catch(()=>{});
   return true}
 async function nrDecide(g,acc){const q=NRQ.get(g);if(!q)return;const F=DZI.F,fdb=DZI.fdb,r0=F.doc(fdb,"dzinbox",q.parts[0].id);
   let mine=false;try{mine=await F.runTransaction(fdb,async tx=>{const sn=await tx.get(r0);if(!sn.exists())return false;tx.delete(r0);return true})}catch(e){toast("Nepodařilo se – zkus to znovu");return}

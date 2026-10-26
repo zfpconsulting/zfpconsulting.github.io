@@ -12,8 +12,12 @@ const NR = grab(/const NRQ=new Map\(\);[\s\S]*?\nfunction nrQueue\([^\n]*\n/);
 function nrEnv({ exists = true } = {}) {
   const S = { toasts: [], recs: [], sheets: [], deleted: [], dlg: { open: false, close() { this.open = false } } };
   Object.assign(S, {
-    $: () => S.dlg, document: { hidden: false, addEventListener() {} }, setTimeout: f => f(),
-    el: (t, a, ...k) => ({ t, a, k, onclick: null, disabled: false }), meetDateTxt: s => s.slice(0, 10),
+    $: () => S.dlg, setTimeout: f => f(), alerts: [],
+    document: { hidden: false, addEventListener() {}, body: { append() {} }, createElement: () => ({ style: {}, append(...k) { this.k = k }, showModal() { S.alerts.push(this.k) }, close() {}, remove() {} }) },
+    plural: (n, a, b, c) => n === 1 ? a : n > 1 && n < 5 ? b : c, pxN: (n, a, b, c) => n + " " + (n === 1 ? a : n > 1 && n < 5 ? b : c),
+    DNY_V: ["v neděli", "v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu"], fmtHM: s => new Date(s).toTimeString().slice(0, 5),
+    surnameOf: n => n.split(" ").pop().toLowerCase(), dzBlocks: e => !e.allDay, dzDayOff: e => !!e.allDay, dzBusy: async () => S.busy || [], Date,
+    el: (t, a, ...k) => ({ t, a, k, style: {}, onclick: null, disabled: false }), meetDateTxt: s => s.slice(0, 10),
     openSheet: (t, n) => { S.dlg.open = true; S.sheets.push({ t, n: n.flat().filter(Boolean) }) },
     toast: t => S.toasts.push(t), lsGet: () => [], lsSet() {}, console,
     dzRecording: async x => { S.recs.push(x.rec.client) },
@@ -31,6 +35,17 @@ const tests = {
     eq(S.recs, [], "nic se nezapsalo"); eq(S.deleted, [], "ze schránky nic nezmizelo");
     eq(S.sheets.length, 1, "otevřelo se schválení"); eq(S.sheets[0].t, "Nahrávka ke schválení", "titulek");
     const ch = S.sheets[0].n.find(x => x.a && x.a.class === "chips"); eq(ch.k.map(b => b.k[0]), ["Přijmout", "Odmítnout"], "jen dvě volby");
+  },
+  async "okno vyjmenuje, co jedno Přijmout zapíše; kolize termínu → celoobrazovkové upozornění hned při otevření"() {
+    const S = nrEnv(); S.busy = [{ allDay: false, title: "PV: Rozsypal Jakub", start: "2030-11-12T14:30:00+01:00", end: "2030-11-12T16:30:00+01:00" }];
+    const [g, parts, x] = rec("g1", "Tomáš Novák");
+    Object.assign(x.rec, { id: "ff1", meeting: { start: "2030-11-12T15:00" }, notes: ["a"], tasks: [{ text: "t1" }, { text: "t2" }], fp: { "klient.zam": 68000, majetek: [{}, {}] } });
+    S.api.nrQueue(g, parts, x); await new Promise(r => setTimeout(r, 0));
+    const txt = S.sheets[0].n.filter(n => n.t === "p").map(n => n.k.join("")).join(" | ");
+    assert(/Přijmout zapíše najednou: finanční plán \(3 údaje\) · poznámky · 2 úkoly · schůzku do kalendáře – v úterý 12\. 11\. v 15:00/.test(txt), "souhrn: " + txt);
+    eq(S.alerts.length, 1, "celoobrazovkové upozornění"); assert(/Kolize v kalendáři/.test(S.alerts[0].map(e => e.k && e.k.join("")).join(" ")), "titulek upozornění");
+    const T = nrEnv(); const y = rec("g2", "Eva Malá"); y[2].rec.meeting = { start: "2030-11-12T15:00" }; T.api.nrQueue(...y); await new Promise(r => setTimeout(r, 0));
+    eq(T.alerts.length, 0, "bez kolize žádné upozornění");
   },
   async "Přijmout → zapíše se ke klientovi a zmizí ze schránky; další čekající se ukáže hned po ní"() {
     const S = nrEnv(); S.api.nrQueue(...rec("g1", "Tomáš Novák")); S.api.nrQueue(...rec("g2", "Eva Malá"));
