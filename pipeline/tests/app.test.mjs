@@ -125,6 +125,35 @@ const noNames = (gem, msg) => { const s = gem.everything(); for (const p of PRIV
 const noPrivate = (gem, msg) => { const s = gem.everything(); for (const p of PRIVATE) assert(!s.includes(p), msg + ": modelu se poslalo „" + p + "“"); };
 
 export default {
+  async "potvrzení e-mailem: vlastní šablona v nastavení (osobně / online), předmět + text, uložení"(env) {
+    const { ctx, page, errors } = await openApp(env, { store: { ...STORE, "settings/main": { ...STORE["settings/main"], tpls: [TPL_ONLINE, TPL_MEET] } } });
+    const d = inDays(3, 15);
+    /* výchozí text: osobně končí termínem a místem (Trnitá, když místo chybí), online odkazem; bez podpisu a poděkování */
+    let r = await page.evaluate(iso => [confMailOut({ name: "Ing. Jan Novák", start: new Date(iso).toISOString(), online: false, place: "" }),
+      confMailOut({ name: "Eva Šikulová", start: new Date(iso).toISOString(), online: true, meetLink: "https://meet.google.com/x" })], d.iso);
+    assert(r[0].body.startsWith("Dobrý den, pane inženýre,") && r[0].body.endsWith("Místo: Brno, Trnitá 500/9"), "osobně: " + r[0].body);
+    assert(r[0].body.includes("Termín: " + d.say + " "), "termín: " + r[0].body);
+    assert(/^Potvrzení konzultace \d+\. \d+\.$/.test(r[0].subject), "předmět: " + r[0].subject);
+    assert(r[1].body.endsWith("Odkaz pro připojení: https://meet.google.com/x") && /^Potvrzení online konzultace/.test(r[1].subject), "online: " + JSON.stringify(r[1]));
+    assert(!/Test|Děkuji|S pozdravem/.test(r[0].body + r[1].body), "bez podpisu a poděkování");
+    /* nastavení: dvě karty, úprava se uloží a použije */
+    await page.evaluate(() => renderTpls());
+    eq(await page.$$eval("#mailConfList .tpl", n => n.length), 2, "osobně + online");
+    /* nastavení je skryté okno – hodnoty se zapíšou přímo do polí a vyvolá se change */
+    await page.evaluate(() => { const set = (sel, v) => { const e = document.querySelector(sel); e.value = v; e.dispatchEvent(new Event("change")); };
+      set('#mailConfList input[aria-label="Předmět – Osobně"]', "Schůzka {datum}");
+      set('#mailConfList textarea[aria-label="Text e-mailu – Osobně"]', "Dobrý den, {osloveni}, vidíme se {den} {vcas} – {misto}."); });
+    await page.waitForTimeout(200);
+    r = await page.evaluate(iso => ({ s: settings.mailConf, o: confMailOut({ name: "Jan Novák", start: new Date(iso).toISOString(), online: false, place: "Kavárna" }) }), d.iso);
+    eq(r.s.osobne.subject, "Schůzka {datum}", "uložený předmět");
+    assert(/^Schůzka \d/.test(r.o.subject) && r.o.body === "Dobrý den, pane Nováku, vidíme se " + d.say + " v 15:00 – Kavárna.", "vlastní text: " + JSON.stringify(r.o));
+    /* okno zprávy: u potvrzení osobní schůzky je i pole na e-mail s tlačítkem Potvrdit e-mailem */
+    await page.evaluate(iso => openMsg({ name: "Jan Novák", phone: "777111222", email: "n@example.com", start: new Date(iso).toISOString(), online: false, place: "", meetId: null }, "potvrzeni"), d.iso);
+    await page.waitForSelector("dialog[open] input[type=email]");
+    assert(await page.evaluate(() => [...document.querySelectorAll("dialog[open] button")].some(b => b.textContent.includes("Potvrdit e-mailem"))), "tlačítko Potvrdit e-mailem");
+    eq(errors, [], "bez chyb");
+    await ctx.close();
+  },
   async "appka naběhne a všechny záložky se vykreslí bez chyb"(env) {
     const { ctx, page, errors } = await openApp(env, { store: STORE });
     for (const v of TABS) { await page.evaluate(v => setView(v), v); await page.waitForTimeout(300); }

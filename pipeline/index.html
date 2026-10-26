@@ -1387,7 +1387,9 @@ html.locked body{overflow:hidden}
         <label>Podpis <input id="dSign" placeholder="např. Vojtěch Kudlička, ZFP Group" autocomplete="off"></label>
         <div id="tplList" class="tpllist"></div>
         <button type="button" class="dbtn" id="tplAdd">+ Nová šablona</button>
-        <p class="hint">Proměnné: <b>{osloveni}</b> (pane inženýre / paní Nováková / pane Nováku), <b>{jmeno}</b>, <b>{prijmeni}</b>, <b>{den}</b> (ve čtvrtek), <b>{datum}</b>, <b>{cas}</b>, <b>{zaKolik}</b> (dnes / zítra / za 3 dny), <b>{kde}</b> (online nebo místo), <b>{meet}</b> (odkaz na Google Meet – u online schůzky se vytvoří automaticky), <b>{rezervace}</b> (odkaz, kde si klient sám vybere termín schůzky), <b>{dotaznik}</b> (odkaz na vstupní dotazník), <b>{podpis}</b>. Zprávu pošleš z „Co tě dneska čeká“ nebo z volacího bloku – před odesláním ji ještě můžeš upravit.</p>
+        <label style="margin-top:6px">E-mail – potvrzení schůzky</label>
+        <div id="mailConfList" class="tpllist"></div>
+        <p class="hint">Proměnné: <b>{osloveni}</b> (pane inženýre / paní Nováková / pane Nováku), <b>{jmeno}</b>, <b>{prijmeni}</b>, <b>{den}</b> (ve čtvrtek), <b>{datum}</b>, <b>{cas}</b>, <b>{zaKolik}</b> (dnes / zítra / za 3 dny), <b>{kde}</b> (online nebo místo v závorce), <b>{misto}</b> (místo bez závorky – v e-mailu u osobní schůzky Trnitá, když místo není vyplněné), <b>{meet}</b> (odkaz na Google Meet – u online schůzky se vytvoří automaticky), <b>{rezervace}</b> (odkaz, kde si klient sám vybere termín schůzky), <b>{dotaznik}</b> (odkaz na vstupní dotazník), <b>{podpis}</b>. Zprávu pošleš z „Co tě dneska čeká“ nebo z volacího bloku – před odesláním ji ještě můžeš upravit.</p>
       </div>
       <button type="button" class="dbtn red" id="dLogout">Odhlásit Google</button>
       <p>Data jsou uložená v tomhle zařízení a zároveň v souboru „Vojtova pipeline – data.json“ na tvém Google Disku. Přes něj se synchronizuje Mac a iPhone. Aplikace funguje i bez internetu – změny se odešlou, až budeš online.</p>
@@ -5216,6 +5218,15 @@ const TPL_DEF=[{id:"potvrzeni",name:"Potvrzení schůzky",text:"Dobrý den, {osl
   {id:"nezvedl",name:"Nezvedl – dotaz na nabídku",text:"Dobrý den, {osloveni},\n\npoté, co jsem Vám zaslal nabídku, se mi Vás opakovaně nedaří zastihnout. Moje kapacita je omezená, proto potřebuji vědět, zda máte zájem pokračovat. Stačí mi do pátku odepsat ano, ne, nebo termín krátkého hovoru. Pokud se neozvete, budu záležitost považovat za uzavřenou.\n\nS pozdravem,\nVojtěch Kudlička"},
   {id:"nezvedl2",name:"Nezvedl – uzavření",text:"Dobrý den, {osloveni}, protože jsem se Vám nedovolal, beru to tak, že teď nabídku řešit nechcete, a nebudu Vás dál obtěžovat. Nabídka zůstává k dispozici, kdykoli se ozvěte a navážeme.\n{podpis}"},
   {id:"narozeniny",name:"Přání k narozeninám",text:"Dobrý den, {osloveni}, chtěl bych Vám popřát vše nejlepší k narozeninám – hodně zdraví, štěstí a pohody.\n{podpis}"}];
+/* e-mail k potvrzení schůzky má vlastní šablonu (předmět + text), zvlášť osobně a online – upravuje se v nastavení pod Šablonami zpráv.
+   Končí termínem s místem (osobně) nebo odkazem na Google Meet (online); bez vizitky, poděkování a podpisu. */
+const MAIL_CONF_DEF={osobne:{subject:"Potvrzení konzultace {datum}",text:"Dobrý den, {osloveni},\n\npotvrzuji naši konzultaci. Kdyby se Vám cokoli změnilo, dejte mi prosím vědět.\n\nTermín: {den} {datum} {vcas}\nMísto: {misto}"},
+  online:{subject:"Potvrzení online konzultace {datum}",text:"Dobrý den, {osloveni},\n\npotvrzuji naši online konzultaci {den} {datum} {vcas}. Kdyby se Vám cokoli změnilo, dejte mi prosím vědět.\n\nOdkaz pro připojení: {meet}"}};
+function mailConf(online){const k=online?"online":"osobne",s=((settings&&settings.mailConf)||{})[k]||{};
+  return {subject:typeof s.subject==="string"?s.subject:MAIL_CONF_DEF[k].subject,text:typeof s.text==="string"&&s.text.trim()?s.text:MAIL_CONF_DEF[k].text}}
+function confMailOut(ctx){const M=mailConf(ctx.online),mc={...ctx,place:ctx.online?ctx.place:(ctx.place||OFFICE_PLACE)};
+  return {subject:fillTpl(M.subject,mc),body:fillTpl(M.text,mc).split(MEET_PH).join("[doplň odkaz]")}}
+function isConfTpl(t){return !!t&&t.id!=="zitra"&&(t.id==="potvrzeni"||/potvrz/i.test(t.name||""))}
 /* stará online šablona slibovala odkaz „v den konzultace“ – teď se odkaz na Google Meet generuje hned a vkládá přes {meet} */
 const OLD_MEET_RE=/Na Vaši (?:e-)?mailovou adresu Vám v den konzultace zašlu\s+odkaz pro připojení\.?/;
 function tpls(){let L=settings.tpls&&settings.tpls.length?settings.tpls:TPL_DEF;
@@ -5288,23 +5299,30 @@ function openMsg(ctx,tplId,onSent){
   if(ctx.online&&ctx.meetId&&!ctx.meetLink&&meetCache[ctx.meetId])ctx.meetLink=meetCache[ctx.meetId];
   ta.value=fillTpl(cur.text,ctx);
   /* online schůzka → vždy zajistit Google Meet (přidá se i do události v kalendáři) a doplnit odkaz do textu */
+  let meetPending=false;
   if(ctx.online&&ctx.meetId&&!ctx.meetLink){
     if(!navigator.onLine||!GAuth.hasScope("calendar.events"))toast("Odkaz na Google Meet teď nejde vytvořit – chybí připojení nebo oprávnění ke kalendáři");
-    else ensureMeet(ctx.meetId).then(link=>{if(!link)throw new Error("bez odkazu");ctx.meetLink=link;if(ta.isConnected)ta.value=ta.value.split(MEET_PH).join(link);toast("Google Meet přidán do schůzky")})
-      .catch(()=>{toast("Odkaz na Google Meet se nepodařilo vytvořit");if(ta.isConnected)ta.value=ta.value.split(MEET_PH).join("[doplň odkaz]")});
+    else{meetPending=true;ensureMeet(ctx.meetId).then(link=>{if(!link)throw new Error("bez odkazu");ctx.meetLink=link;if(ta.isConnected)ta.value=ta.value.split(MEET_PH).join(link);toast("Google Meet přidán do schůzky")})
+      .catch(()=>{toast("Odkaz na Google Meet se nepodařilo vytvořit");if(ta.isConnected)ta.value=ta.value.split(MEET_PH).join("[doplň odkaz]")}).finally(()=>{meetPending=false})}
   }
-  const mailInp=ctx.online?el("input",{type:"email",placeholder:"e-mail klienta","aria-label":"E-mail klienta",autocomplete:"off",style:"flex:1;min-width:0"}):null;if(mailInp)mailInp.value=ctx.email||"";
+  /* potvrzení schůzky jde e-mailem podle vlastní e-mailové šablony (osobně / online); ostatní zprávy e-mailem tak, jak jsou v okně */
+  const confMail=isConfTpl(cur);
+  const mailInp=ctx.online||confMail?el("input",{type:"email",placeholder:"e-mail klienta","aria-label":"E-mail klienta",autocomplete:"off",style:"flex:1;min-width:0"}):null;if(mailInp)mailInp.value=ctx.email||"";
   const sendMail=async()=>{const to=(mailInp?mailInp.value:ctx.email||"").trim();if(!/^\S+@\S+\.\S+$/.test(to)){toast("Zadej e-mail klienta");mailInp?.focus();return}
-    if(ta.value.includes(MEET_PH)){toast("Ještě se generuje odkaz na Google Meet – chvilku počkej");return}
+    if(meetPending||(!confMail&&ta.value.includes(MEET_PH))){toast("Ještě se generuje odkaz na Google Meet – chvilku počkej");return}
+    let subject,body;
+    if(confMail)({subject,body}=confMailOut(ctx));
+    else{subject=ctx.online&&cur.id!=="narozeniny"?"Potvrzení online konzultace":cur.name;body=ta.value}
     if(ctx.leadRef&&to!==(ctx.email||"")){try{await db.doc("leads/"+ctx.leadRef.id).update({email:to,updatedAt:new Date().toISOString()});ctx.email=to}catch(e){}}
-    location.href="mailto:"+encodeURIComponent(to)+"?subject="+encodeURIComponent(ctx.online&&cur.id!=="narozeniny"?"Potvrzení online konzultace":cur.name)+"&body="+encodeURIComponent(ta.value);sent("e-mail")};
+    location.href="mailto:"+encodeURIComponent(to)+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);sent("e-mail")};
   let tel=(ctx.phone||"").replace(/[^\d+]/g,"");if(/^\d{9}$/.test(tel))tel="+420"+tel;const wa=tel.replace(/^\+/,"");
   const sent=ch=>{if(onSent)onSent({ch,tpl:cur.name,tplId:cur.id,start:ctx.start,meetId:ctx.meetId})};
   openSheet("Zpráva",[el("div",{class:"msgbox",style:"display:grid;gap:10px"},
     el("div",{class:"msgto"},(ctx.name||"")+(tel?" · "+tel:" · telefon chybí")+(ctx.start?" · schůzka "+fmtMeet(ctx.start):/\{(den|datum|cas|vcas)\}/.test(cur.text)?" · schůzka není v kalendáři – doplň [den] [datum] [čas] v textu":"")),
     (ctx.meets||[]).length>1?[el("div",{class:"msgto",style:"margin-top:2px"},"Kterou schůzku potvrdit:"),el("div",{class:"chips"},ctx.meets.map(m=>el("button",{type:"button",class:"chipbtn",style:m.id===ctx.meetId?"background:var(--orange);color:#fff":"",onclick:()=>openMsg({...ctx,start:m.start,online:m.online,place:m.place,meetId:m.id,meetLink:null},dDiff(m.start.slice(0,10),todayStr())===1?"zitra":"potvrzeni",onSent)},fmtMeet(m.start)+(m.online?" · online":""))))]:null,
     el("div",{class:"chips"},T.map(t=>el("button",{type:"button",class:"chipbtn",style:t.id===cur.id?"background:var(--tint);color:#fff":"",onclick:()=>openMsg(ctx,t.id,onSent)},t.name))),ta,
-    mailInp?el("div",{style:"display:flex;gap:8px;align-items:center"},mailInp,el("button",{type:"button",onclick:sendMail},"✉️ Potvrdit e-mailem")):null,
+    mailInp?el("div",{style:"display:flex;gap:8px;align-items:center"},mailInp,el("button",{type:"button",onclick:sendMail},confMail?"✉️ Potvrdit e-mailem":"✉️ Poslat e-mailem")):null,
+    confMail?el("p",{class:"hint",style:"margin:-4px 0 0"},"E-mail se vyplní podle šablony „E-mail – potvrzení "+(ctx.online?"online":"osobně")+"“ z nastavení, ne podle textu výše."):null,
     el("div",{class:"tdbtns"},
       tel?el("button",{type:"button",onclick:async()=>{try{await navigator.clipboard.writeText(ta.value)}catch(e){}sent("SMS");location.href="sms:"+tel+"?&body="+encodeURIComponent(ta.value);toast("Otevírám Zprávy · text je i ve schránce")}},"💬 Otevřít ve Zprávách"):null,
       tel?el("button",{type:"button",class:"sec",onclick:()=>{window.open("https://wa.me/"+wa+"?text="+encodeURIComponent(ta.value),"_blank");sent("WhatsApp")}},"WhatsApp"):null,
@@ -5319,6 +5337,16 @@ async function tplMigrate(){
   let ch=false;const L=settings.tpls.map(t=>{if(t.id!=="rezervace"||!String(t.text||"").includes(OLD))return t;ch=true;return {...t,text:t.text.replace(OLD,NEW).replace(/\s*$/,"")+"\n\n{rezervace}"}});
   settings={...settings,tplRezV2:true,...(ch?{tpls:L}:{})};
   try{await db.doc("settings/main").update(ch?{tpls:L,tplRezV2:true}:{tplRezV2:true})}catch(e){}}
+/* nastavení: e-mailová šablona potvrzení schůzky – osobně a online, každá s předmětem a textem */
+function renderMailConf(){const box=$("mailConfList");if(!box)return;
+  const mc={osobne:mailConf(false),online:mailConf(true)};
+  const save=async()=>{settings={...settings,mailConf:mc};try{await db.doc("settings/main").set({...settings,mailConf:mc});toast("E-mailová šablona uložena")}catch(e){toast("Nepodařilo se uložit")}};
+  box.replaceChildren(...[["osobne","Osobně"],["online","Online"]].map(([k,lbl])=>{
+    const s=el("input",{placeholder:"Předmět e-mailu","aria-label":"Předmět – "+lbl});s.value=mc[k].subject;s.onchange=()=>{mc[k].subject=s.value.trim();save()};
+    const x=el("textarea",{"aria-label":"Text e-mailu – "+lbl,rows:"7"});x.value=mc[k].text;x.onchange=()=>{mc[k].text=x.value;save()};
+    const def=MAIL_CONF_DEF[k],same=mc[k].subject===def.subject&&mc[k].text===def.text;
+    return el("div",{class:"tpl"},el("b",{style:"font-size:13px;color:var(--label2)"},"E-mail – potvrzení "+lbl.toLowerCase()),s,x,
+      same?null:el("button",{type:"button",class:"del",style:"color:var(--label2)",onclick:()=>{mc[k]={...def};save().then(renderMailConf)}},"Vrátit výchozí text"))}))}
 function renderTpls(){const box=$("tplList");if(!box)return;const list=tpls().map(t=>({...t}));
   const save=async()=>{try{await db.doc("settings/main").set({...settings,tpls:list,tplNezvedl:true});toast("Šablony uloženy")}catch(e){toast("Nepodařilo se uložit")}};
   box.replaceChildren(...list.map((t,i)=>{const n=el("input",{value:t.name,"aria-label":"Název šablony"});n.value=t.name;n.onchange=()=>{t.name=n.value.trim()||"Šablona";save()};
@@ -5326,6 +5354,7 @@ function renderTpls(){const box=$("tplList");if(!box)return;const list=tpls().ma
     return el("div",{class:"tpl"},n,x,el("button",{type:"button",class:"del",onclick:()=>{list.splice(i,1);save().then(renderTpls)}},"Smazat"))}));
   try{caches.keys().then(ks=>{const v=ks.filter(k=>/^pipeline-v\d+$/.test(k)).sort().pop();if(v&&box.isConnected)box.append(el("p",{class:"hint"},"Verze appky: "+v.replace("pipeline-","")))})}catch(e){}
   $("tplAdd").onclick=()=>{list.push({id:newId(),name:"Nová šablona",text:"Dobrý den, {osloveni}, \n{podpis}"});save().then(renderTpls)};
+  renderMailConf();
   const sg=$("dSign");sg.value=settings.sign||"";sg.onchange=async()=>{try{await db.doc("settings/main").set({...settings,sign:sg.value.trim()});toast("Uloženo")}catch(e){}}
   const an=$("dAppName");an.value=settings.appName||"";an.onchange=async()=>{try{await db.doc("settings/main").set({...settings,appName:an.value.trim()});toast("Uloženo");applyAppName();if(view==="pipe")render()}catch(e){}}
   renderTabsConfig();}
