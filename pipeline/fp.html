@@ -2865,15 +2865,19 @@ function buildFrames(I,R){
   });
   // pojištění dětí
   if(!NOINS&&R.detiPoj.length){const n=R.detiPoj.length,w=Math.min(440,(1440-(n-1)*30)/n);
+    /* karty dětí v jednom řádku: výška podle obsahu (stejná pro všechny), loga ostatních pojišťoven v mřížce uvnitř karty – nic nepřetéká */
     F.push({g:"deti",h:chrome("Pojištění dětí","U dětí pojišťujeme vždy stejně – úraz a vážná nemoc, ne výpadek příjmu")+
-     R.detiPoj.map((d,i)=>{const x=80+i*(w+30);return `<div class="card" style="left:${x}px;top:200px;width:${w}px;height:${(R.nnAlts||[]).length>2?572:(R.nnAlts||[]).length?545:520}px;border-top:5px solid #F37520"></div>
-      <div style="position:absolute;left:${x}px;top:225px;width:${w}px;text-align:center"><div style="display:inline-flex;width:96px;height:96px;border-radius:50%;background:#F37520;align-items:center;justify-content:center">${ICON.rodina}</div>
+     `<div style="position:absolute;left:80px;top:200px;display:flex;gap:30px;align-items:stretch">`+
+     R.detiPoj.map((d,i)=>{const al=(R.nnAlts||[]).map((A,j)=>({A,c:((R.pojOsAlts||[])[j]||{deti:[]}).deti[i]})).filter(x=>x.c!=null);
+      const altCol=w-60>=360?3:w-60>=236?2:1;
+      return `<div data-dite="${i}" style="box-sizing:border-box;width:${w}px;background:#202020;border:1px solid #2e2e2e;border-top:5px solid #F37520;border-radius:10px;padding:20px 30px 24px">
+      <div style="text-align:center"><div style="display:inline-flex;width:96px;height:96px;border-radius:50%;background:#F37520;align-items:center;justify-content:center">${ICON.rodina}</div>
       <div style="font-size:26px;font-weight:900;margin-top:16px">${esc(d.jmeno.split(" ")[0])}</div><div class="mut" style="font-size:16px">${Math.floor(d.vek)} let</div></div>
-      <div style="position:absolute;left:${x+30}px;top:${(R.nnAlts||[]).length?412:430}px;width:${w-60}px;font-size:17px;line-height:1.5">
+      <div style="margin-top:${al.length?14:30}px;font-size:17px;line-height:1.5">
        <div class="mut" style="font-size:14px">Trvalé následky úrazu</div><div style="font-size:24px;font-weight:900" class="o">${kc(d.tnu)}</div><div class="mut" style="font-size:13px;margin-bottom:12px">s ${d.progrese}× progresí – až ${mil(d.tnu*d.progrese)}</div>
        <div class="mut" style="font-size:14px">Závažná onemocnění dětí</div><div style="font-size:22px;font-weight:900">${kc(d.zo)}</div>
        <div class="mut" style="font-size:14px;margin-top:10px">Léčení úrazu</div><div style="font-size:22px;font-weight:900">${fmt(d.dou)} Kč/den</div>
-       ${R.pojOs&&R.pojOs.deti[i]!=null?`<div class="mut" style="font-size:14px;margin-top:14px">Pojistné · ${pojInfo(R.nn).n}</div><div style="font-size:22px;font-weight:900" class="o">${kc(R.pojOs.deti[i])} / měs</div>`:""}${(()=>{const al=(R.nnAlts||[]).map((A,j)=>({A,c:((R.pojOsAlts||[])[j]||{deti:[]}).deti[i]})).filter(x=>x.c!=null);return al.length?`<div class="mut" style="font-size:13px;margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px">${al.map(x=>`<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:44px;height:26px;border-radius:6px;background:#fff;display:inline-flex;align-items:center;justify-content:center"><img src="${pojInfo(x.A).logo()}" alt="${pojInfo(x.A).alt}" style="width:38px;height:auto"></span>${al.length===1?pojInfo(x.A).n+": ":""}${kc(x.c)} / měs</span>`).join("")}</div>`:""})()}</div>`}).join("")+
+       ${R.pojOs&&R.pojOs.deti[i]!=null?`<div class="mut" style="font-size:14px;margin-top:14px">Pojistné · ${pojInfo(R.nn).n}</div><div style="font-size:22px;font-weight:900" class="o">${kc(R.pojOs.deti[i])} / měs</div>`:""}${al.length?`<div class="mut" style="font-size:12.5px;line-height:1.2;margin-top:8px;display:grid;grid-template-columns:repeat(${al.length===1?1:Math.min(altCol,al.length)},max-content);justify-content:space-between;align-items:center;gap:7px 10px">${al.map(x=>`<span data-alt="1" style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span style="flex:none;width:40px;height:24px;border-radius:5px;background:#fff;display:inline-flex;align-items:center;justify-content:center;overflow:hidden"><img src="${pojInfo(x.A).logo()}" alt="${pojInfo(x.A).alt}" style="max-width:34px;max-height:18px;width:auto;height:auto;object-fit:contain"></span>${al.length===1?pojInfo(x.A).n+": ":""}${kc(x.c)} / měs</span>`).join("")}</div>`:""}</div></div>`}).join("")+`</div>`+
      `<div class="foot">Progrese 10×: při těžkém trvalém poškození se pojistné plnění násobí až desetkrát. Závažná onemocnění: rakovina, cukrovka 1. typu, meningitida a další dle podmínek pojišťovny.</div>`,lbl:"Pojištění dětí"})}
   if(!NOINS)F.push(...planFrames(true,"p2"));
   // realokace – struktura aktiv: nyní → nově (2 snímky, animovaný přechod)
