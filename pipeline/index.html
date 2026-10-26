@@ -2363,22 +2363,25 @@ function pushPlan(now){
       if(mins)add(st-mins*60000,{t:(mins>=60&&mins%60===0?(mins===60?"Za hodinu":"Za "+mins/60+" h"):"Za "+mins+" min")+" schůzka: "+x.name,b:fmtHM(x.start)+(x.online?" · online":x.ev&&x.ev.place?" · "+x.ev.place:""),u:"./?push=rem",tag:"rem-"+String(x.id).slice(-24)});
       if(+X.afterS)add(st+ +X.afterS*60000,pxAfter(x,+X.afterS));
       {const nc=pxNewConf(x,now);if(nc&&nc.at<lim)out.push(nc)}})}
+  /* úkoly s deadlinem a časem: upozornění v čas (nebo X min před) – jen otevřené */
+  try{if(typeof myTasks!=="undefined")myTasks.filter(x=>!x.hidden&&!x.done).forEach(x=>{const a=taskAt({due:x.due,time:x.dueTime});if(!a)return;const rm=+x.remind||0,tx=String(x.text||"").replace(/\s+/g," ").trim().slice(0,90);
+    add(a-rm*60000,{t:"Úkol"+(rm?" za "+(rm>=1440?"den":rm>=60?rm/60+" h":rm+" min"):" – termín teď")+": "+tx,b:(x.client?x.client+" · ":"")+"deadline "+x.dueTime,u:"./?push=task",tag:"task-"+String(x.id).replace(/[^A-Za-z0-9]/g,"").slice(-24)})})}catch(e){}
   /* denní cíl jen pro dnešek – na budoucí dny ještě nevíme, kolik toho domluvíš */
   if(X.goal&&pxWork(t))add(pxAt(t,X.goal),pxGoal(t));
   return out.sort((a,b)=>a.at-b.at).slice(0,180)}
 let pushUpAt=0,pushUpT=null,pushDemo=null;
-async function pushSyncReminders(force){
+async function pushSyncReminders(force,urgent){
   if(!PUSH_URL||DEMO||!settings||!settings.pushOn||!GAuth.token()||!navigator.onLine||!Array.isArray(calEvents))return;
   if(!pushSubsCache||force||Date.now()-pushSubsAt>30*60000){pushSubsCache=(await pushApi("/subs")).subs||[];pushSubsAt=Date.now()}
   const subs=pushSubsCache,now=Date.now(),plan=pushPlan(now).concat(pushDemo&&pushDemo.until>now?pushDemo.items:[]);
   const sig=JSON.stringify([subs.map(x=>x.id),plan.map(p=>[p.at,p.pl])]);
   if(!force&&sig===lsGet("push_sig"))return;
   if(!subs.length){lsSet("push_sig",sig);return}
-  if(!force&&now-pushUpAt<4*60000){clearTimeout(pushUpT);pushUpT=setTimeout(()=>pushSyncReminders().catch(()=>{}),4*60000-(now-pushUpAt)+500);return}
+  if(!force&&!urgent&&now-pushUpAt<4*60000){clearTimeout(pushUpT);pushUpT=setTimeout(()=>pushSyncReminders().catch(()=>{}),4*60000-(now-pushUpAt)+500);return}
   await pushLib();const items=[];
   for(const p of plan)for(const x of subs)items.push({id:x.id,at:p.at,body:PushCrypto.b64u(await PushCrypto.encrypt(x,p.pl)),tag:p.pl.tag});
   const r=await pushApi("/reminders",{body:{v:PUSH_PLAN_V,items:items.slice(0,400)}});lsSet("push_sig",sig);pushUpAt=Date.now();return r}
-const PUSH_PLAN_V=5;   /* zvýšit při změně plánu notifikací – prostředník pak nepřijme plán od starší verze appky na jiném zařízení */
+const PUSH_PLAN_V=6;   /* zvýšit při změně plánu notifikací – prostředník pak nepřijme plán od starší verze appky na jiném zařízení */
 /* ukázka všech typů jednou hned (do minuty) – z tvých skutečných dat */
 async function pushTestAll(){
   const t=todayStr(),tm=addDaysFrom(t,1),at=Date.now(),M=pxMeets(t).concat(pxMeets(tm)),last=(calEvents||[]).filter(e=>new Date(e.start)<new Date()).slice(-1)[0];
@@ -8621,9 +8624,12 @@ try{Object.keys(localStorage).filter(k=>/^(as_(adv|asst|flag|invites|snap_at|sna
 function asDefDays(){const n=+settings.asstDays;return isFinite(n)&&n>=0?n:3}
 /* výchozí deadline úkolu = za týden */
 function taskDefDue(){return addDays(7)}
-const asDue=t=>{if(!t.due||t.st==="hotovo")return"";const d=todayStr();return t.due<d?"late":t.due===d?"today":""};
+const asDue=t=>{if(!t.due||t.st==="hotovo")return"";const d=todayStr();if(t.due===d&&t.time&&t.time<fmtHM(new Date().toISOString()))return"late";return t.due<d?"late":t.due===d?"today":""};
+/* úkol s časem: notifikace přijde v daný čas (nebo X min / hodin / den před) – plán viz pushPlan */
+const TASK_REMS=[[0,"V čas termínu"],[15,"15 min předem"],[60,"1 hodinu předem"],[1440,"1 den předem"]];
+const taskAt=t=>{if(!t.due||!t.time||!/^\d{2}:\d{2}$/.test(t.time))return 0;const[y,m,d]=t.due.split("-").map(Number),[h,mi]=t.time.split(":").map(Number);return new Date(y,m-1,d,h,mi,0,0).getTime()};
 const asSortT=(a,b)=>(a.due||"9999").localeCompare(b.due||"9999")||(a.at||"").localeCompare(b.at||"");
-function asDueTag(t){const s=asDue(t);if(!t.due)return null;return{txt:s==="late"?"po termínu "+fmtDate(t.due):s==="today"?"dnes":fmtDate(t.due),cls:s==="late"?"red":s==="today"?"orange":""}}
+function asDueTag(t){const s=asDue(t);if(!t.due)return null;return{txt:s==="late"?"po termínu "+fmtDate(t.due)+(t.time?" "+t.time:""):s==="today"?"dnes"+(t.time?" "+t.time:""):fmtDate(t.due)+(t.time?" "+t.time:""),cls:s==="late"?"red":s==="today"?"orange":""}}
 
 /* ---------- společné: výběr klienta s hledáním ---------- */
 function asClientPicker(pool,initial,onPick){
@@ -8652,7 +8658,7 @@ function asAdvisorClients(){ /* klienti a leady poradce – plná jména */
 
 /* =====================  ÚKOLY  ===================== */
 function asAllTasks(){
-  return myTasks.filter(t=>!t.hidden).map(t=>({id:"m:"+t.id,rid:t.id,own:true,text:t.text,client:t.client||"",due:t.due||"",st:t.done?"hotovo":"nový",done:t.done||"",at:t.createdAt||"",leadId:t.leadId||""}));
+  return myTasks.filter(t=>!t.hidden).map(t=>({id:"m:"+t.id,rid:t.id,own:true,text:t.text,client:t.client||"",due:t.due||"",time:t.dueTime||"",rm:+t.remind||0,st:t.done?"hotovo":"nový",done:t.done||"",at:t.createdAt||"",leadId:t.leadId||""}));
 }
 /* další krok u klienta/leadu → automaticky úkol (mytasks/auto_<lead>): jeden otevřený úkol na lead, nový krok úkol přepíše a znovu otevře.
    Hotovo / změna u úkolu se propíše zpět do dalšího kroku leadu. Kroky, které jsou schůzkou v kalendáři („Schůzka“, „Podpis“), úkol nedělají. */
@@ -8666,7 +8672,7 @@ async function syncLeadTasks(){if(!tasksLoaded||!leadsLoaded||!db)return;
   for(const l of leads){const id="auto_"+l.id,t=byId.get(id),w=leadTaskWant(l);seen.add(id);
     if(!w){if(t&&!t.done&&!t.hidden)await db.doc("mytasks/"+id).delete().catch(()=>{});continue}
     if(!t)await db.doc("mytasks/"+id).set({text:w.text,client:w.client,due:w.due,done:"",createdAt:now,leadId:l.id,auto:true,key:w.key}).catch(()=>{});
-    else if(t.key!==w.key)await db.doc("mytasks/"+id).update({text:w.text,client:w.client,due:w.due,done:"",hidden:false,key:w.key}).catch(()=>{});
+    else if(t.key!==w.key)await db.doc("mytasks/"+id).update({text:w.text,client:w.client,due:w.due,dueTime:"",remind:0,done:"",hidden:false,key:w.key}).catch(()=>{});
     else if(t.client!==w.client)await db.doc("mytasks/"+id).update({client:w.client}).catch(()=>{})}
   for(const t of myTasks)if(t.auto&&!seen.has(t.id)&&!t.done)await db.doc("mytasks/"+t.id).delete().catch(()=>{})}
 /* úkol → zpět do leadu (text = další krok, deadline = termín; hotovo = krok splněn → lead čeká na nový krok) */
@@ -8701,26 +8707,32 @@ function asNewTask(preset){
   preset=preset||{};
   const text=el("textarea",{placeholder:"Co je potřeba udělat?","aria-label":"Text úkolu",rows:"3"});text.value=preset.text||"";
   const due=el("input",{type:"date","aria-label":"Deadline"});due.value=preset.due||taskDefDue();
+  const tm=el("input",{type:"time","aria-label":"Čas deadlinu"});tm.value=preset.time||"";
+  const rmSel=el("select",{"aria-label":"Upozornění"},TASK_REMS.map(([v,l])=>el("option",{value:String(v)},l)));
   let client=preset.client?{n:preset.client}:null;
   const pk=asClientPicker(asAdvisorClients(),preset.client||"",c=>{client=c});
   const save=el("button",{type:"button",class:"g"},"Uložit");
   save.onclick=async()=>{
     const tx=text.value.trim();if(!tx){toast("Napiš, co je potřeba udělat");text.focus();return}
     save.disabled=true;
-    try{await db.collection("mytasks").add({text:tx,client:client?client.n:"",due:due.value||"",done:"",createdAt:new Date().toISOString()});$("edDlg").close();toast("Úkol uložen")}catch(e){toast("Nepodařilo se uložit");save.disabled=false}
+    try{await db.collection("mytasks").add({text:tx,client:client?client.n:"",due:due.value||"",dueTime:due.value&&tm.value?tm.value:"",remind:due.value&&tm.value?+rmSel.value:0,done:"",createdAt:new Date().toISOString()});$("edDlg").close();toast(due.value&&tm.value?"Úkol uložen · upozorním "+(+rmSel.value?rmSel.options[rmSel.selectedIndex].text.toLowerCase():"v "+tm.value):"Úkol uložen");try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}}catch(e){toast("Nepodařilo se uložit");save.disabled=false}
   };
   openSheet("Nový úkol",[
-    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),text),el("div",{class:"frow"},el("label",{},"Deadline"),due)),
+    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),text),el("div",{class:"frow"},el("label",{},"Deadline"),due),el("div",{class:"frow"},el("label",{},"Čas"),tm),el("div",{class:"frow"},el("label",{},"Upozornit"),rmSel)),
     el("h3",{class:"sechead"},"Klient"),pk.node,el("div",{class:"chips"},save)]);
 }
 function asOpenMine(t){
   const tx=el("textarea",{rows:"3","aria-label":"Text úkolu"});tx.value=t.text;tx.onchange=async()=>{try{const v=tx.value.trim()||t.text;await db.doc("mytasks/"+t.rid).update({text:v});await leadFromTask(t,{text:v});toast("Uloženo")}catch(e){toast("Nepodařilo se uložit")}};
-  const dd=el("input",{type:"date","aria-label":"Deadline"});dd.value=t.due||"";dd.onchange=async()=>{try{await db.doc("mytasks/"+t.rid).update({due:dd.value});await leadFromTask(t,{due:dd.value});toast("Uloženo")}catch(e){}};
+  const dd=el("input",{type:"date","aria-label":"Deadline"});dd.value=t.due||"";dd.onchange=async()=>{try{await db.doc("mytasks/"+t.rid).update({due:dd.value,...(dd.value?{}:{dueTime:"",remind:0})});await leadFromTask(t,{due:dd.value});toast("Uloženo")}catch(e){}};
+  const tt=el("input",{type:"time","aria-label":"Čas deadlinu"});tt.value=t.time||"";
+  const rs=el("select",{"aria-label":"Upozornění"},TASK_REMS.map(([v,l])=>el("option",{value:String(v)},l)));rs.value=String(t.rm||0);if(rs.value!==String(t.rm||0))rs.value="0";
+  const saveTime=async()=>{if(tt.value&&!dd.value){toast("Nejdřív nastav deadline (datum)");tt.value="";return}try{await db.doc("mytasks/"+t.rid).update({dueTime:tt.value||"",remind:tt.value?+rs.value:0});toast(tt.value?"Upozorním "+(+rs.value?rs.options[rs.selectedIndex].text.toLowerCase():"v "+tt.value):"Čas odstraněn");pushSyncReminders(false,true).catch(()=>{})}catch(e){toast("Nepodařilo se uložit")}};
+  tt.onchange=saveTime;rs.onchange=saveTime;
   const cl=t.client?(leads.find(l=>asNorm(l.name)===asNorm(t.client))||null):null;
   const del=el("button",{type:"button",class:"danger-row"},"Smazat úkol");
   del.onclick=async()=>{if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="Opravdu smazat?";return}try{if(String(t.rid).startsWith("auto_"))await db.doc("mytasks/"+t.rid).update({hidden:true});/* automatický úkol jen skrýt – jinak by ho další krok leadu založil znovu */
       else await db.doc("mytasks/"+t.rid).delete();$("edDlg").close();toast("Smazáno")}catch(e){}};
-  openSheet("Můj úkol",[el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),tx),el("div",{class:"frow"},el("label",{},"Deadline"),dd),
+  openSheet("Můj úkol",[el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),tx),el("div",{class:"frow"},el("label",{},"Deadline"),dd),el("div",{class:"frow"},el("label",{},"Čas"),tt),el("div",{class:"frow"},el("label",{},"Upozornit"),rs),
       t.client?el("div",{class:"frow"},el("label",{},"Klient"),cl?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(cl)}},t.client+" ›"):el("span",{class:"mrate"},t.client)):null),
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:async()=>{await asMyDone(t);$("edDlg").close()}},t.st==="hotovo"?"Znovu otevřít":"Označit jako hotové"),
       t.client?el("button",{type:"button",class:"chipbtn",style:"background:var(--tint);color:#fff",onclick:()=>{$("edDlg").close();setTimeout(()=>afterMeetSheet({name:t.client,leadId:cl&&cl.id,tasks:t.st==="hotovo"?"":t.text,due:t.due||""}),340)}},"Poslat shrnutí e-mailem"):null),
@@ -8777,7 +8789,7 @@ async function asNotify(title,body,tag){
 /* =====================  START  ===================== */
 function asStart(){
   if(AsNet.enabled())AsNet.start();   /* připojení k databázi (sdílené obchody) hned po startu */
-  db.collection("mytasks").onSnapshot(snap=>{myTasks=snap.docs.map(d=>({id:d.id,...d.data()}));tasksLoaded=true;scheduleLeadTasks();if(view==="pipe")render()});
+  db.collection("mytasks").onSnapshot(snap=>{myTasks=snap.docs.map(d=>({id:d.id,...d.data()}));tasksLoaded=true;scheduleLeadTasks();if(view==="pipe")render();clearTimeout(window._ptT);window._ptT=setTimeout(()=>{try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}},2500)});
   setInterval(()=>{if(AsNet.enabled()&&!AsNet.on)AsNet.start()},5000);
   $("addTask").onclick=()=>asNewTask();
 }

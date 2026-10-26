@@ -161,6 +161,29 @@ export default {
     await ctx.close();
   },
 
+  async "úkoly s časem deadlinu: push notifikace v čas / X min předem, hotové a bez času ne"(env) {
+    const { ctx, page } = await openApp(env);
+    const r = await page.evaluate(() => {
+      const d = new Date(); d.setDate(d.getDate() + 1); const due = ymd(d);
+      myTasks = [
+        { id: "a1", text: "Zavolat Novákovi", client: "Novák", due, dueTime: "14:30", remind: 15, done: "" },
+        { id: "a2", text: "V čas", client: "", due, dueTime: "09:00", remind: 0, done: "" },
+        { id: "a3", text: "Hotový", due, dueTime: "10:00", done: "2026-01-01T00:00:00Z" },
+        { id: "a4", text: "Bez času", due, dueTime: "", done: "" },
+        { id: "a5", text: "Skrytý", due, dueTime: "11:00", hidden: true, done: "" }];
+      const pl = pushPlan(Date.now()).filter(x => x.pl.tag.startsWith("task-"));
+      const at = (h, m) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m).getTime();
+      const tag = asDueTag({ due, time: "14:30", st: "nový" });
+      return { n: pl.length, ats: pl.map(x => x.at), want: [at(9, 0), at(14, 15)], t0: pl[0] && pl[0].pl.t, b1: pl[1] && pl[1].pl.b, tag: tag && tag.txt.endsWith("14:30") };
+    });
+    eq(r.n, 2, "počet naplánovaných notifikací úkolů");
+    eq(r.ats, r.want, "časy notifikací");
+    assert(/termín teď/.test(r.t0), "titulek v čas termínu");
+    assert(/Novák/.test(r.b1) && /14:30/.test(r.b1), "tělo s klientem a časem");
+    assert(r.tag, "štítek s časem u úkolu");
+    await ctx.close();
+  },
+
   async "synchronizace slučuje změny ze dvou zařízení po položkách"(env) {
     const { ctx, page } = await openApp(env);
     const r = await page.evaluate(() => {
