@@ -1258,6 +1258,7 @@ html.locked body{overflow:hidden}
           <div class="frow"><label for="f_name">Jméno</label><input id="f_name" required placeholder="Jméno a příjmení" autocomplete="off"></div>
           <div class="frow"><label for="f_phone">Telefon</label><input id="f_phone" inputmode="tel" placeholder="777 123 456" autocomplete="off"><a id="f_call" class="chipbtn" href="#" hidden style="text-decoration:none;margin-left:8px;white-space:nowrap">📞</a></div>
           <div class="frow"><label for="f_email">E-mail</label><input id="f_email" type="email" placeholder="volitelné" autocomplete="off"></div>
+          <div class="frow"><label for="f_address">Adresa</label><input id="f_address" placeholder="ulice č. p., město" autocomplete="off"><a id="f_map" class="chipbtn" href="#" target="_blank" rel="noopener" hidden style="text-decoration:none;margin-left:8px;white-space:nowrap">📍 Mapa</a></div>
         </div>
       </div>
       <div class="fg">
@@ -2062,23 +2063,24 @@ function renderDb(){
   if(dbUI){dbUI.refresh();return}
   if(dbLoading)return;
   const go=()=>{dbLoading=false;if(!window.Databaze){$("dbBox").textContent="Databázi se nepodařilo načíst – zkontroluj připojení.";return}
-    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},addLeads:dbAddLead,lostLeads:dbLostLead,
+    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},addLeads:dbAddLead,lostLeads:dbLostLead,fillAddress:dbFillAddress,
       leadExists:id=>leads.some(x=>x.id===id),openLead:id=>{const l=leads.find(x=>x.id===id);if(l)openEdit(l);else toast("Lead už v pipeline není")},
       findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
         const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=8";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=9";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* Databáze → pipeline: nový lead (fáze Nový lead, zdroj „Databáze“) s telefonem a e-mailem ze smlouvy a PDF v dokumentech; poznámky se nepíšou.
    Stejný člověk už v pipeline → PDF se přidá k němu (poznámky ani zdroj se nemění). */
 async function dbAddLead(g){
   const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;const sm=(g.contracts||[]).filter(Boolean).join(", ");
   if(l){const log=[...(l.log||[]),{d:now,t:"Smlouva z Databáze (NN Stela) přidána"+(sm?" · "+sm:"")}].slice(-100);
-    await db.doc("leads/"+l.id).update({log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{})})}
-  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,source:"Databáze"});
+    await db.doc("leads/"+l.id).update({log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{}),...(!l.address&&g.address?{address:g.address}:{})})}
+  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,address:g.address,source:"Databáze"});
     await db.doc("leads/"+l.id).update({log:[{d:now,t:"Založeno z Databáze smluv (NN Stela)"+(sm?" · "+sm:"")}],updatedAt:now})}
   if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
   return l.id}
+async function dbFillAddress(id,a){const l=leads.find(x=>x.id===id);if(l&&!l.address&&a)try{await db.doc("leads/"+id).update({address:a})}catch(e){}}
 /* Databáze → Lost (tlačítko −): nový lead rovnou ve fázi Lost, nebo existující lead (stejný člověk) přesunout do Lost. Podepsané a sdílené obchody se nepřesouvají. */
 async function dbLostLead(g){
   const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;const sm=(g.contracts||[]).filter(Boolean).join(", ");
@@ -2088,7 +2090,7 @@ async function dbLostLead(g){
     if(l.stage!=="lost")await moveTo(l,"lost");
     const log=[...(l.log||[]),{d:now,t:"Přesunuto do Lost z Databáze (NN Stela)"+(sm?" · "+sm:"")}].slice(-100);
     await db.doc("leads/"+l.id).update({log,updatedAt:now})}
-  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,source:"Databáze"});
+  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,address:g.address,source:"Databáze"});
     await db.doc("leads/"+l.id).update({stage:"lost",stageAt:now,log:[{d:now,t:"Založeno z Databáze smluv (NN Stela) rovnou jako Lost"+(sm?" · "+sm:"")}],updatedAt:now})}
   if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
   return l.id}
@@ -3805,7 +3807,7 @@ function sameName(a,b){const A=nameToks(a),B=nameToks(b);if(!A.length||!B.length
   return S.length===1?L.some(t=>sameSurname(S[0],t)):S.every(t=>L.some(u=>sameSurname(t,u)))}
 /* ---------- propojení Klienti ↔ Pipeline: klient a jeho leady sdílejí telefon, e-mail a poznámku ----------
    lead patří ke klientovi podle c.leadId, l.clientId nebo jména (u samotného příjmení jen když je jednoznačné) */
-const LINK_F=["phone","email","note"];
+const LINK_F=["phone","email","note","address"];
 function linkNameHits(name,arr,nameOf){const h=arr.filter(x=>sameName(nameOf(x),name));if(h.length<2)return h;
   const full=h.filter(x=>nameToks(nameOf(x)).length>1&&nameToks(name).length>1);return nameToks(name).length>1?full:[]}
 /* mezipaměť platí, dokud se nezmění pole leads/clients (každý snapshot je vytvoří znovu); výsledek se kopíruje, ať ho volající může řadit */
@@ -4034,7 +4036,7 @@ async function stafleExport(){
 }
 async function ensureClient(e){
   if(e.rec)return e.rec;
-  const data={name:e.name,phone:e.phone||"",email:e.lead?.email||"",note:e.lead?.note||"",calKey:e.cal?.key||e.key||surnameOf(e.name),leadId:e.lead?.id||null,products:(e.products||[]).map(p=>({...p,id:newId()})),log:[],createdAt:new Date().toISOString()};
+  const data={name:e.name,phone:e.phone||"",email:e.lead?.email||"",address:e.lead?.address||"",note:e.lead?.note||"",calKey:e.cal?.key||e.key||surnameOf(e.name),leadId:e.lead?.id||null,products:(e.products||[]).map(p=>({...p,id:newId()})),log:[],createdAt:new Date().toISOString()};
   const r=await db.collection("clients").add(data);const rec={id:r.id,...data};e.rec=rec;e.id="c:"+r.id;return rec;
 }
 async function srvCall(e,ok){
@@ -4058,6 +4060,10 @@ async function srvPostpone(e,k){
     await db.doc("clients/"+rec.id).update({servisNext:next,log});toast("Odloženo na "+fmtDate(next)+" "+next.slice(0,4))}catch(err){toast("Nepodařilo se uložit")}
 }
 async function hideClient(e){const h=[...new Set([...(settings.hiddenClients||[]),e.calOnly?e.key:e.id])];if(e.rec)await db.doc("clients/"+e.rec.id).update({hidden:true});else await db.doc("settings/main").set({...settings,hiddenClients:h});$("edDlg").close();toast("Skryto ze seznamu klientů")}
+/* adresa → odkaz do Google Map (otevře se hledání adresy; v telefonu rovnou appka Mapy) */
+const mapsUrl=a=>"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(String(a||"").trim());
+function mapsLink(a,id){const l=el("a",{class:"chipbtn",target:"_blank",rel:"noopener",style:"text-decoration:none;margin-left:8px;white-space:nowrap"},"📍 Mapa");if(id)l.id=id;mapsLinkSet(l,a);return l}
+function mapsLinkSet(l,a){const v=String(a||"").trim();l.hidden=!v;if(v)l.href=mapsUrl(v)}
 /* datum narození: píše se ručně (1.5.1990, 01.05.1990, 01051990), ukládá se ISO RRRR-MM-DD */
 const dmyShow=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");return m?m[3]+"."+m[2]+"."+m[1]:""};
 function dmyParse(t){const s=String(t||"").trim();const r=/^(\d{1,2})\s*[.\/\-\s]\s*(\d{1,2})\s*[.\/\-\s]\s*(\d{4})$/.exec(s)||/^(\d{2})(\d{2})(\d{4})$/.exec(s);if(!r)return null;
@@ -4073,6 +4079,7 @@ function openClient(e0){
   const nm=inp(e.name,"Jméno a příjmení",v=>{save({name:v});$("edTitle").textContent=v});
   const ph=inp(e.phone,"telefon",v=>save({phone:v}),"tel");
   const em=inp(rec?.email||e.lead?.email,"e-mail",v=>save({email:v}),"email");
+  const adM=mapsLink(rec?.address||e.lead?.address);const ad=inp(rec?.address||e.lead?.address,"ulice č. p., město",v=>{save({address:v});mapsLinkSet(adM,v)});ad.setAttribute("autocomplete","street-address");
   const bd=el("input",{type:"text",inputmode:"numeric",autocomplete:"off",maxlength:"12",placeholder:"DD.MM.RRRR","aria-label":"Datum narození"});bd.value=dmyShow(rec?.birth);
   bd.addEventListener("input",ev=>{if(/^insert/.test(ev.inputType||""))bd.value=dmyLive(bd.value)});
   bd.addEventListener("change",()=>{const s=bd.value.trim();if(s===""){save({birth:""});return}const iso=dmyParse(s);if(!iso){toast("Datum zadej jako DD.MM.RRRR");bd.value=dmyShow(rec?.birth);return}bd.value=dmyShow(iso);save({birth:iso})});
@@ -4092,7 +4099,7 @@ function openClient(e0){
     el("div",{class:"mhero"},el("span",{class:"avatar big",style:"background:"+BAND[e.band][0]},initials(e.name)),el("div",{},el("div",{class:"mh-v",style:"font-size:20px;color:"+BAND[e.band][0]},daysTxt(e)),el("div",{class:"mh-s"},(e.active.length?e.active.length+" "+plural(e.active.length,"aktivní smlouva","aktivní smlouvy","aktivních smluv"):"bez smluv")+(e.lead?" · z pipeline":e.calOnly?" · z kalendáře":"")))),
     fpHero(e,rec),
     fpPlanOf(rec)?el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>rvCopy(rec)},"📝 Odkaz na výroční dotazník")):null,
-    el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),nm),el("div",{class:"frow"},el("label",{},"Telefon"),ph),el("div",{class:"frow"},el("label",{},"E-mail"),em),el("div",{class:"frow"},el("label",{},"Datum narození"),bd),el("div",{class:"frow"},el("label",{},"Poslední schůzka"),lm)),
+    el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),nm),el("div",{class:"frow"},el("label",{},"Telefon"),ph),el("div",{class:"frow"},el("label",{},"E-mail"),em),el("div",{class:"frow"},el("label",{},"Adresa"),ad,adM),el("div",{class:"frow"},el("label",{},"Datum narození"),bd),el("div",{class:"frow"},el("label",{},"Poslední schůzka"),lm)),
     el("div",{class:"group"},el("div",{class:"frow col"},nt))),col("cc2",
     el("h3",{class:"sechead"},"Produkty"),pwrap,add,
     el("p",{class:"hint"},"Produkty tady nemají vliv na výdělek – slouží jako přehled smluv. Výjimka: když u ŽP z pipeline označíš zánik, spočítá se storno a odečte se v Obratu."),
@@ -4359,7 +4366,7 @@ function aiFacts(){
 function aiOpenSms(tel,text){try{navigator.clipboard.writeText(text)}catch(e){}location.href="sms:"+tel+"?&body="+encodeURIComponent(text);toast("Otevírám Zprávy · text je i ve schránce")}
 async function aiAddLead(d){
   const now=new Date().toISOString();
-  const data={name:d.name,phone:d.phone||"",email:d.email||"",source:d.source||"",referredBy:"",stage:"novy",stageAt:now,items:[],share:null,pointsManual:null,points:null,signedAt:null,products:[],nextStep:"",nextDate:null,note:"",log:[],meetings:[],lastContact:now,createdAt:now,updatedAt:now};
+  const data={name:d.name,phone:d.phone||"",email:d.email||"",address:d.address||"",source:d.source||"",referredBy:"",stage:"novy",stageAt:now,items:[],share:null,pointsManual:null,points:null,signedAt:null,products:[],nextStep:"",nextDate:null,note:"",log:[],meetings:[],lastContact:now,createdAt:now,updatedAt:now};
   const ref=await db.collection("leads").add(data);
   return {id:ref.id,...data};
 }
@@ -6408,23 +6415,24 @@ $("f_phone").addEventListener("input",syncCallBtn);
 function openEdit(l){
   editing=l;
   $("fTitle").textContent=l?l.name:"Nový lead";
-  $("f_name").value=l?.name||"";$("f_phone").value=l?.phone||"";$("f_email").value=l?.email||"";
+  $("f_name").value=l?.name||"";$("f_phone").value=l?.phone||"";$("f_email").value=l?.email||"";$("f_address").value=l?.address||"";
   $("f_source").value=l?.source||"";$("f_stage").value=l?.stage||"novy";
   $("f_signed").value=l?.signedAt||"";$("f_ref").value=l?.referredBy||"";syncCallBtn();
   $("f_next").value=l?.nextStep||"";$("f_date").value=l?.nextDate||"";$("f_note").value=l?.note||"";
-  {const lc=l&&clientOfLead(l);if(lc){if(!l.phone&&lc.phone)$("f_phone").value=lc.phone;if(!l.email&&lc.email)$("f_email").value=lc.email;if(!l.note&&lc.note)$("f_note").value=lc.note}}$("f_log").value="";
+  {const lc=l&&clientOfLead(l);if(lc){if(!l.phone&&lc.phone)$("f_phone").value=lc.phone;if(!l.email&&lc.email)$("f_email").value=lc.email;if(!l.address&&lc.address)$("f_address").value=lc.address;if(!l.note&&lc.note)$("f_note").value=lc.note}}$("f_log").value="";
   formItems=(l?.items||[]).map(it=>{const n=normItem(it);return {...n,var:n.var||PROD[n.p]?.def,share:n.share??l?.share??100,_k:++itemSeq}});
   $("f_points").value=l?.pointsManual??(l&&!l.items?.length&&l.points!=null?l.points:"");
   $("taskHint").textContent=taskHintText();
   $("f_logAt").value=localDT();$("delBox").hidden=!l;$("toCliBtn").hidden=!(l&&!l.shared&&!SIGNED(l.stage)&&!(l.items||[]).length);delete $("toCliBtn").dataset.arm;$("toCliBtn").textContent="↩︎ Bez novinek – zpět do Klientů";$("delBtn").hidden=false;$("delConfirm").hidden=true;$("fErr").hidden=true;$("logBox").hidden=!l;
   try{fpLeadBox(l)}catch(err){console.warn("finanční plán",err)}
   {const b=$("docsBox");b.hidden=!l;try{if(l&&window.Docs)Docs.mount(b,docOwnerLead(l));else b.replaceChildren()}catch(err){console.warn("soubory",err);b.hidden=true}}
-  syncSigned();renderItems();renderLog(l);
+  mapsLinkSet($("f_map"),$("f_address").value);syncSigned();renderItems();renderLog(l);
   if(typeof Deals!=="undefined")Deals.lockForm(l);
   $("dlg").showModal();$("dlg").querySelector(".sbody").scrollTop=0;if(!l)$("f_name").focus();
 }
 function localDT(d=new Date()){const z=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"T"+z(d.getHours())+":"+z(d.getMinutes())}
 function fmtDT(iso){const d=new Date(iso);if(isNaN(d))return"";const z=n=>String(n).padStart(2,"0");return d.getDate()+". "+(d.getMonth()+1)+". "+d.getFullYear()+" "+z(d.getHours())+":"+z(d.getMinutes())}
+$("f_address").addEventListener("input",()=>mapsLinkSet($("f_map"),$("f_address").value));
 $("logNow").onclick=()=>$("f_logAt").value=localDT();
 async function addLog(t,extra={}){
   if(!t||!editing||!db)return false;
@@ -6461,7 +6469,7 @@ $("form").addEventListener("submit",async e=>{
   const items=formItems.filter(it=>+it.amt>0||["auv","plat"].includes(it.p==="Investice"&&varOf(it)?.cust)).map(it=>{const o={p:it.p,amt:+it.amt||0};["fee","yrs","var","age","vziz","g","price","pct","plusDph","mode","storno","zal","zan","gt","gw","qty","pre","tarif","kurz","koef","splatnost","feeMode","feePct","feeAmt","mf","sf","feeX","splitTo","splitToName","splitMail","prevod"].forEach(k=>{if(it[k]!=null&&it[k]!=="")o[k]=it[k]});if(!o.storno||!SIGNED(stage)){delete o.storno;delete o.zal;delete o.zan}o.pts=r1(itemCalc(it).pts);o.share=it.share??100;if(o.share>=100){delete o.splitTo;delete o.splitToName;delete o.splitMail}if(SIGNED(stage))o.signed=it.signed!==false;return o});
   const c=calcTotal();
   const data={
-    name:$("f_name").value.trim(),phone:$("f_phone").value.trim(),email:$("f_email").value.trim(),
+    name:$("f_name").value.trim(),phone:$("f_phone").value.trim(),email:$("f_email").value.trim(),address:$("f_address").value.trim(),
     source:$("f_source").value,referredBy:$("f_ref").value.trim(),stage,
     items,share:null,pointsManual:man===""?null:Math.max(0,+man),
     points:man!==""?Math.max(0,+man):(items.length?r1(c.total):null),
@@ -6473,13 +6481,13 @@ $("form").addEventListener("submit",async e=>{
   if(!editing||editing.stage!==stage)data.stageAt=now;
   if(editing&&editing.stage!==stage)armFlip({...editing,points:data.points},stage);
   if(!data.name){$("f_name").focus();return}
-  {const lc=clientOfLead({...(editing||{}),...data});if(lc){["phone","email"].forEach(k=>{if(!data[k]&&lc[k])data[k]=lc[k]});if(!data.note&&lc.note&&!editing?.note)data.note=lc.note;data.clientId=lc.id}}
+  {const lc=clientOfLead({...(editing||{}),...data});if(lc){["phone","email","address"].forEach(k=>{if(!data[k]&&lc[k])data[k]=lc[k]});if(!data.note&&lc.note&&!editing?.note)data.note=lc.note;data.clientId=lc.id}}
   try{
     let id=editing?.id;
     if(editing)await db.doc("leads/"+editing.id).update(data);
     else{data.createdAt=now;data.lastContact=now;data.log=[];id=(await db.collection("leads").add(data)).id}
     if(typeof Deals!=="undefined")Deals.afterSave(id,editing?.items||[],items);
-    linkPushToClient(id,{phone:data.phone,email:data.email,note:data.note}).catch(()=>{});
+    linkPushToClient(id,{phone:data.phone,email:data.email,address:data.address,note:data.note}).catch(()=>{});
     $("dlg").close();toast(editing?"Uloženo":"Lead přidán");
     if(from!==stage)afterStage(before,id,from,stage);
   }catch(err){showErr(err)}

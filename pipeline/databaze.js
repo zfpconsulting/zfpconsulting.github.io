@@ -130,6 +130,8 @@ function parseStelaFull(raw){
   Object.keys(I).forEach(k=>{if(I[k]===""||I[k]==null)delete I[k]});
   return Object.assign(base,{info:I});
 }
+/* adresa pro lead: kontaktní adresa z PDF, když chybí nebo je „stejná jako trvalé bydliště“, tak trvalé bydliště */
+const addrOf=I=>{const a=clean(I.adresa||""),b=clean(I.bydliste||"");return a&&!/^stejn/i.test(a)?a:b||""};
 /* poznámka k leadu ze všech údajů smlouvy (jedna osoba může mít víc smluv) */
 const fmtD=s=>czDate(s);
 function leadNote(list){
@@ -360,7 +362,7 @@ function mount(root,opts={}){
     /* jméno už v pipeline je (stejný člověk) → přidat k němu, ne zakládat znovu: navázat přes řádek, který už lead má */
     const groups=[];for(const g of G.values()){const sib=rows.find(x=>x.leadId&&key(x)===key(g[0])&&(!opts.leadExists||opts.leadExists(x.leadId)));
       const I=g[0].info||{},files=[];for(const r of g){const b=await pdfStore.get(r.id);if(b)files.push(b instanceof File?b:new File([b],r.pdf||("Smlouva_"+(r.key||r.id)+".pdf"),{type:"application/pdf"}))}
-      groups.push({rows:g,name:niceName(g[0].name),phone:I.telefon||"",email:I.email||"",contracts:g.map(r=>(r.info||{}).cislo||r.key||""),files,existing:sib?sib.leadId:(opts.findLead?opts.findLead(clean(g[0].name),I.telefon||""):null)||null})}
+      groups.push({rows:g,name:niceName(g[0].name),phone:I.telefon||"",email:I.email||"",address:addrOf(I),contracts:g.map(r=>(r.info||{}).cislo||r.key||""),files,existing:sib?sib.leadId:(opts.findLead?opts.findLead(clean(g[0].name),I.telefon||""):null)||null})}
     const ex=groups.filter(g=>g.existing).length;
     if(list.length>1&&!confirm("Založit v pipeline "+(groups.length-ex)+" "+(groups.length-ex===1?"nový lead":groups.length-ex<5?"nové leady":"nových leadů")+(ex?" a "+ex+"× doplnit smlouvu k existujícímu":"")+"? ("+(lost?"fáze Lost":"fáze Nový lead")+", zdroj Databáze, PDF smluv do dokumentů)"))return;
     busy=true;bLead.disabled=true;bLead.textContent="Zakládám…";
@@ -416,6 +418,8 @@ function mount(root,opts={}){
   box.addEventListener("drop",e=>{e.preventDefault();dragN=0;box.classList.remove("drop");if(e.dataTransfer&&e.dataTransfer.files.length)importFiles(e.dataTransfer.files)});
 
   draw();
+  /* doplnění adresy u leadů, které už z Databáze v pipeline jsou (adresa z uloženého PDF; jen když lead adresu nemá) */
+  if(typeof opts.fillAddress==="function")rows.forEach(r=>{const a=addrOf(r.info||{});if(r.leadId&&a)try{opts.fillAddress(r.leadId,a)}catch(e){}});
   return{refresh:()=>{if(busy)return;rows=load();draw()},importFiles,toPipeline,rows:()=>rows};
 }
 
