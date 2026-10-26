@@ -1303,6 +1303,20 @@ tests["rezerva vždy na 100 %: z účtů, pak z investic jdoucích do plánu, zb
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["invalidita: volba bude / nebude pracovat a vlastní % výdělku u osoby"] = async () => {
+  const { ctx, page, errors } = await open();
+  const r = await page.evaluate(() => { const base = { klient: { jmeno: "A B", narozen: "1990-01-01", zam: 50000, vydaje_osobni: 30000, inv1: 8000, inv2: 9000, inv3: 15000 }, partner: { zapnuto: false }, uvery: [], deti: [], hypo: {}, vydaje: { vcetne: false }, cile: [], majetek: [] };
+    const run = k => { const R = computeR(Object.assign(JSON.parse(JSON.stringify(inp())), base, { klient: Object.assign({}, base.klient, k) })); return R.katastrofy[0].invAll.map(v => [v.prac, Math.round(v.prijem), v.pcDop]); };
+    return { def: run({}), ne: run({ inv_prace: "ne" }), vlastni: run({ prac_inv1: 0.8, prac_inv2: "" }) }; });
+  eq(r.def.map(x => x[0]), [0.5, 0.3, 0], "výchozí % z nastavení");
+  eq(r.ne.map(x => x[0]), [0, 0, 0], "nebude pracovat = bez výdělku");
+  eq([r.ne[0][1], r.ne[1][1]], [8000, 9000], "příjem = jen invalidní důchod");
+  assert(r.ne[0][2] > r.def[0][2] && r.ne[1][2] > r.def[1][2], "bez práce vyšší pojistná částka I. a II. st.");
+  eq(r.ne[2], r.def[2], "III. st. beze změny");
+  eq(r.vlastni.map(x => x[0]), [0.8, 0.3, 0], "vlastní % u I. st., prázdné II. = nastavení");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests).filter(([n])=>n.includes(process.env.F||""))) {
   const t0 = Date.now();
