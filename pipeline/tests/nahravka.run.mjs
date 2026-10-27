@@ -8,7 +8,8 @@ const grab = re => { const m = re.exec(src); assert(m, "ve zdroji chybí: " + re
 /* kód se spustí nad podvrženým prostředím S (with), takže stačí podvrhnout jen to, co funkce opravdu volají */
 const run = (code, S, ret) => new Function("S", "with(S){" + code + ";return " + ret + "}")(S);
 
-const NR = grab(/const NRQ=new Map\(\);[\s\S]*?\nfunction nrQueue\([^\n]*\n/);
+const PICK = grab(/function nrIsTech[\s\S]*?(?=\nasync function dzRecording)/);
+const NR = PICK + grab(/const NRQ=new Map\(\);[\s\S]*?\nfunction nrQueue\([^\n]*\n/);
 function nrEnv({ exists = true } = {}) {
   const S = { toasts: [], recs: [], sheets: [], deleted: [], dlg: { open: false, close() { this.open = false } } };
   Object.assign(S, {
@@ -27,7 +28,7 @@ function nrEnv({ exists = true } = {}) {
   return S;
 }
 /* pomocné funkce pro hledání klienta a termínů (nrFindPerson, tkDeadline…) – přímo ze zdroje */
-const HELP = ["function norm", "function ymd", "const tkLines", "function sameSurname", "const _ntM"].map(k => grab(new RegExp(k.replace(/[()]/g, "\\$&") + "[^\\n]*\\n"))).join("") + grab(/function sameName[^\n]*\n[^\n]*\n[^\n]*\n/)
+const HELP = PICK + ["function norm", "function ymd", "const tkLines", "function sameSurname", "const _ntM"].map(k => grab(new RegExp(k.replace(/[()]/g, "\\$&") + "[^\\n]*\\n"))).join("") + grab(/function sameName[^\n]*\n[^\n]*\n[^\n]*\n/)
   + grab(/const nrPh=[\s\S]*?\nfunction tkDeadline[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n[^\n]*\n/);
 const rec = (g, client) => [g, [{ id: g + "-0" }, { id: g + "-1" }], { type: "fp-nahravka", rec: { client, at: "2026-10-25T18:45", summary: ["Shrnutí " + client] } }];
 const btn = (S, label) => { const ch = S.sheets.at(-1).n.find(x => x.a && x.a.class === "chips"); return ch.k.find(b => b.k[0] === label) };
@@ -108,7 +109,7 @@ const tests = {
       return { S, f: run(fn, S, "dzRecording") };
     };
     const fn = HELP + grab(/async function dzRecording\(x\)\{[\s\S]*?\n\}\n/);
-    const x = (client, tasks) => ({ type: "fp-nahravka", rec: { client, at: "2026-10-26T18:45:00+01:00", notes: [], tasks } });
+    const x = (client, tasks) => ({ type: "fp-nahravka", rec: { client, at: "2026-10-26T18:45:00+01:00", notes: ["Poznámka"], tasks } });
     let { S, f } = mk([{ id: "a1", name: "Alois Mareš", stage: "novy" }]);
     await f(x("Aloys Mareš", [{ text: "Zavolat panu Marešovi a domluvit si s ním schůzku (deadline zítra 11:00)", due: "" }]));
     eq(S.added, [], "nový lead se nezaložil");
@@ -120,6 +121,15 @@ const tests = {
     eq(S.added, ["Jan Novák"], "Jan Novák není Jana Nováková");
     ({ S, f } = mk([{ id: "p1", name: "Petr Dvořák", stage: "novy" }, { id: "p2", name: "Peter Dvorak", stage: "novy" }])); await f(x("Petr Dvorrak", [{ text: "Zavolat", due: "" }]));
     eq(S.added, ["Petr Dvorrak"], "dva podobní lidé → nehádá, založí nový lead");
+    /* technický záznam (jen úkol): nikdy nezakládá lead; ručně vybraný klient (pick) má přednost; klient ze záložky Klienti nejde do obchodní fáze */
+    const xt = (client, extra = {}) => ({ type: "fp-nahravka", rec: { client, at: "2026-10-26T18:45:00+01:00", tasks: [{ text: "Zavolat", due: "2026-10-27", time: "15:00" }], ...extra } });
+    ({ S, f } = mk([])); await f(xt("Lenka Růžičková"));
+    eq([S.added, S.tasks.length, S.tasks[0].leadId], [[], 1, ""], "tech záznam bez shody → žádný nový lead, úkol se jménem");
+    ({ S, f } = mk([{ id: "l9", name: "Karel Vondra", stage: "novy" }])); S.clients = [{ id: "c7", name: "Lenka Růžičková" }];
+    await f(xt("Lenka Ruzickova", { pick: { l: "", c: "c7" } }));
+    eq([S.added, S.tasks[0].client, S.tasks[0].leadId], [[], "Lenka Růžičková", ""], "pick na klienta → úkol u klienta, bez leadu / obchodní fáze");
+    ({ S, f } = mk([{ id: "l9", name: "Karel Vondra", stage: "novy" }])); await f(xt("Lenka Růžičková", { pick: { l: "l9", c: "" } }));
+    eq([S.added, S.tasks[0].client, S.tasks[0].leadId], [[], "Karel Vondra", "l9"], "pick na lead v pipeline přebije jméno z přepisu");
   },
   "termín v textu úkolu: zítra / dnes / den v týdnu / datum / čas"() {
     const T = run(HELP, {}, "{tkDeadline,nrWhen}"), b = "2026-10-26T18:45:00+01:00"; /* pondělí */

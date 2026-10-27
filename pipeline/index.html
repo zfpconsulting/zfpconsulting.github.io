@@ -2256,12 +2256,41 @@ function tkDeadline(text,base){const out=[];let due="",time="";
     for(const re of [NR_DLP,NR_DLT]){const m=x.match(re);if(!m)continue;const w=nrWhen(m[1],base);if(w){hit=w;x=(x.slice(0,m.index)+" "+x.slice(m.index+m[0].length)).replace(/\s+/g," ").replace(/\s+([,.;])/g,"$1").trim();break}}
     out.push(x||ln);if(hit&&(!due||hit.due<due)){due=hit.due;time=hit.time}else if(hit&&hit.due===due&&!time)time=hit.time}
   if(!due)return null;return {text:out.length>1?out.map(x=>"• "+x).join("\n"):out[0]||"",due,time}}
+/* technický záznam = jen pár úkolů / hlasová poznámka (žádný FP, poznámky ani schůzka, krátký přepis) nebo r.tech===true */
+function nrIsTech(r){if(!r)return false;if(r.tech===true)return true;
+  const has=a=>Array.isArray(a)&&a.some(t=>String(t||"").trim()),fp=r.fp&&typeof r.fp==="object"?Object.keys(r.fp).length:0;
+  return !fp&&!has(r.notes)&&!r.meeting&&(Array.isArray(r.tasks)?r.tasks.length:0)>0&&String(r.transcript||"").length<400}
+/* kandidáti pro přiřazení nahrávky: klienti ze záložky Klienti + leady v obchodní fázi (bez Lost / zamrzlých) */
+function nrCandidates(){const out=[],seen=new Set();
+  const add=(name,l,c)=>{const k=(c?"c"+c.id:"l"+(l&&l.id));if(!name||seen.has(k))return;seen.add(k);out.push({name,l:l?l.id:"",c:c?c.id:""})};
+  clients.filter(C=>!C.hidden&&C.name).forEach(C=>{const act=leadsOfClient(C).find(L=>ACTIVE(L.stage));add(C.name,act||null,C)});
+  leads.filter(L=>L&&L.name&&!L._del&&!L.shared&&!L.example&&!DEAD(L.stage)).forEach(L=>{const C=clientOfLead(L);if(C&&C.hidden)return;if(!C||!seen.has("c"+C.id))add(L.name,L,C||null);else{const o=out.find(z=>z.c===C.id);if(o&&!o.l&&ACTIVE(L.stage))o.l=L.id}});
+  return out}
+/* vyhledávač klienta v okně schválení; návrh je předvybraný (podle jména z přepisu) */
+function nrPicker(r,set){
+  if(typeof leads==="undefined"||typeof clients==="undefined"||typeof nrFindPerson!=="function")return null;
+  const cand=nrCandidates(),f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+  let sel=null;try{const g=nrFindPerson(String(r.client||""),r.phone,r.email);const id=g.c?"c"+g.c.id:g.l?"l"+g.l.id:"";
+    sel=cand.find(z=>(z.c&&"c"+z.c===id)||(!z.c&&z.l&&"l"+z.l===id))||cand.find(z=>g.l&&z.l===g.l.id)||null}catch(e){}
+  const box=el("div",{style:"margin:6px 0"}),cur=el("p",{class:"hint",style:"font-weight:600;margin:4px 0"}),
+    inp=el("input",{type:"search",placeholder:"Přiřadit ke klientovi – hledat jméno","aria-label":"Přiřadit ke klientovi",autocomplete:"off",style:"width:100%;box-sizing:border-box"}),
+    list=el("div",{style:"display:flex;flex-direction:column;gap:4px;margin-top:4px"});
+  const paint=()=>{cur.textContent=sel?"Přiřadit ke: "+sel.name+(sel.c&&!sel.l?" (klient)":sel.l?" (pipeline)":""):"Klient nevybrán"+(nrIsTech(r)?" – vyber ho, jinak úkol zůstane jen se jménem z přepisu":" – založí se nový lead");set(sel?{l:sel.l,c:sel.c}:null)};
+  const show=()=>{const q=f(inp.value);list.replaceChildren();if(!q)return;
+    cand.filter(z=>f(z.name).includes(q)).slice(0,6).forEach(z=>{const b=el("button",{type:"button",style:"text-align:left;padding:9px 12px;border-radius:10px;border:1px solid rgba(128,128,128,.3);background:transparent;color:inherit;font-size:15px"},z.name+(z.c&&!z.l?" · klient":z.l?" · pipeline":""));
+      b.addEventListener("click",()=>{sel=z;inp.value="";list.replaceChildren();paint()});list.append(b)})};
+  inp.addEventListener("input",show);paint();box.append(cur,inp,list);return box}
 async function dzRecording(x){
   const r=x.rec||{},name=String(r.client||"").trim().replace(/\s+/g," "),now=new Date().toISOString(),day=meetDateTxt(r.at||now);
   if(!name)throw new Error("nahrávka bez jména klienta");
   const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),em=String(r.email||"").toLowerCase();
-  const fnd=nrFindPerson(name,r.phone,em);let l=fnd.l,c=fnd.c;
-  const isNew=!l&&!c;if(isNew)l=await aiAddLead({name,phone:r.phone||"",email:em});
+  /* osoba: ručně vybraná při schválení (r.pick) → jinak automatický návrh podle jména / telefonu / e-mailu */
+  let l=null,c=null;const pk=r.pick&&typeof r.pick==="object"?r.pick:null;
+  if(pk){l=pk.l?leads.find(z=>z.id===pk.l)||null:null;c=pk.c?clients.find(z=>z.id===pk.c)||null:null;if(l&&!c)c=clientOfLead(l)}
+  if(!l&&!c){const fnd=nrFindPerson(name,r.phone,em);l=fnd.l;c=fnd.c}
+  /* technický záznam (krátká hlasová poznámka / úkol) nikdy nezakládá nový lead – patří ke stávajícímu leadu nebo klientovi */
+  const tech=nrIsTech(r);
+  const isNew=!l&&!c&&!tech;if(isNew)l=await aiAddLead({name,phone:r.phone||"",email:em});
   const nm=(l&&l.name)||(c&&c.name)||name;
   const done=[];
   /* poznámka ze schůzky (stejně jako „Zápis ze schůzky“) */
@@ -2322,7 +2351,7 @@ async function dzRecording(x){
   if(l&&String(nx.step||"").trim()){const p={nextStep:String(nx.step).trim()};if(/^\d{4}-\d{2}-\d{2}$/.test(nx.date||""))p.nextDate=nx.date;await db.doc("leads/"+l.id).update({...p,updatedAt:now});done.push("další krok")}
   /* celý přepis → soubor u klienta (jako IOLDP z dotazníku); teprve když je uložený, smaže se ve Fireflies */
   const tr=String(r.transcript||"").trim();
-  if(tr&&window.Docs){try{
+  if(tr&&window.Docs&&(l||curC)&&!tech){try{
       const own=l?docOwnerLead(leads.find(z=>z.id===l.id)||l):docOwnerClient(clientEntries().find(e=>e.rec&&e.rec.id===curC.id)||{id:"c:"+curC.id,rec:curC,name:curC.name});
       await Docs.add(own,[new File(["Přepis schůzky – "+nm+" – "+day+"\n\n"+tr],"Přepis schůzky "+day.replace(/\s/g,"")+".txt",{type:"text/plain"})]);
       try{if(Docs.sync)await Docs.sync()}catch(e){}
@@ -2736,7 +2765,8 @@ function nrClashAlert(r,c){if(r.id)NRA.add(String(r.id));
 function nrReview(own){const it=[...NRQ.entries()][0];if(!it)return false;if(!own&&$("edDlg").open&&NRQ.cur!==it[0])return false;
   const [g,{x}]=it,r=x.rec||{},bl=a=>(Array.isArray(a)?a:[]).map(t=>String(t||"").trim()).filter(Boolean),sum=bl(r.summary);
   const B="flex:1;font-size:17px;font-weight:700;padding:15px 0;border-radius:14px;border:0;",ok=el("button",{type:"button",style:B+"background:var(--tint);color:#fff"},"Přijmout"),no=el("button",{type:"button",style:B+"background:rgba(198,40,40,.12);color:#c62828"},"Odmítnout");
-  const go=async acc=>{ok.disabled=no.disabled=true;try{await nrDecide(g,acc)}finally{ok.disabled=no.disabled=false}};
+  let pick=null;
+  const go=async acc=>{ok.disabled=no.disabled=true;try{const q=NRQ.get(g);if(acc&&q&&q.x&&q.x.rec)q.x.rec.pick=pick||undefined;await nrDecide(g,acc)}finally{ok.disabled=no.disabled=false}};
   ok.onclick=()=>go(true);no.onclick=()=>go(false);NRQ.cur=g;
   /* co jedním klepnutím na Přijmout potvrzuješ */
   const fp=r.fp&&typeof r.fp==="object"?Object.entries(r.fp).reduce((n,[k,v])=>n+(Array.isArray(v)?v.length:(v!==""&&v!=null?1:0)),0):0,
@@ -2746,6 +2776,7 @@ function nrReview(own){const it=[...NRQ.entries()][0];if(!it)return false;if(!ow
   openSheet("Nahrávka ke schválení",[
     el("p",{class:"hint"},[String(r.client||"").trim()||"klient",r.at?meetDateTxt(r.at):"",NRQ.size>1?"další čekají: "+(NRQ.size-1):""].filter(Boolean).join(" · ")),
     sum.length?el("ul",{},...sum.map(t=>el("li",{},t))):null,
+    (()=>{try{return nrPicker(r,v=>{pick=v})}catch(e){console.warn("výběr klienta",e);return null}})(),
     what.length?el("p",{class:"hint"},"Přijmout zapíše najednou: "+what.join(" · ")):null,warn,
     el("div",{class:"chips",style:"display:flex;gap:10px;margin-top:6px"},ok,no)]);
   /* kolize hned při otevření – celoobrazovkově, ať ji nepřehlédneš */
