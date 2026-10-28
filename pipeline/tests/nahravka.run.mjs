@@ -73,10 +73,10 @@ const tests = {
     const mk = ({ busy = [], birth = "" } = {}) => {
       const S = { writes: [], tasks: [], meets: [], notes: [] }, client = { id: "c1", name: "Tomáš Novák", birth }, lead = { id: "l1", name: "Tomáš Novák", stage: "probehla", meetings: [] };
       Object.assign(S, {
-        meetDateTxt: s => s.slice(0, 10), leads: [lead], clients: [client], clientOfLead: () => client, aiAddLead: async () => lead,
+        meetDateTxt: s => s.slice(0, 10), leads: [lead], clients: [client], clientOfLead: () => client, leadAdd: async () => lead,
         db: { doc: p => ({ update: async o => S.writes.push([p, o]), set: async o => S.writes.push([p, o]) }), collection: () => ({ add: async o => S.tasks.push(o.text) }) },
         addClientTask: async o => S.tasks.push(o.text), tkMerge: a => a.join("\n"), tkMinDue: a => a.filter(Boolean).sort()[0] || "", ACTIVE: () => true,
-        linkPushToLeads: async () => {}, linkPushToClient: async () => {}, plural: (n, a) => a, aiUpdateLead: async () => {},
+        linkPushToLeads: async () => {}, linkPushToClient: async () => {}, plural: (n, a) => a, leadPatch: async () => {},
         DNY_V: ["v neděli", "v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu"], fmtHM: s => new Date(s).toTimeString().slice(0, 5), todayStr: () => "2026-10-26",
         dzBusy: async () => busy, dzBlocks: e => !e.allDay, dzDayOff: e => !!e.allDay, surnameOf: n => n.split(" ").pop().toLowerCase(),
         saveMeeting: async (l, st, on) => { S.meets.push([st.toISOString(), on]); return { evId: "ev1" } }, ensureMeet: async () => {},
@@ -100,10 +100,10 @@ const tests = {
     const mk = (people) => {
       const S = { tasks: [], added: [], writes: [] };
       Object.assign(S, {
-        meetDateTxt: s => s.slice(0, 10), leads: people, clients: [], clientOfLead: () => null, aiAddLead: async d => { S.added.push(d.name); return { id: "new", name: d.name } },
+        meetDateTxt: s => s.slice(0, 10), leads: people, clients: [], clientOfLead: () => null, leadAdd: async d => { S.added.push(d.name); return { id: "new", name: d.name } },
         db: { doc: p => ({ update: async o => S.writes.push([p, o]), set: async o => S.writes.push([p, o]) }) },
         addClientTask: async o => S.tasks.push(o), tkMerge: a => a.join("\n"), tkMinDue: a => a.filter(Boolean).sort()[0] || "", ACTIVE: () => true,
-        linkPushToLeads: async () => {}, linkPushToClient: async () => {}, plural: (n, a) => a, aiUpdateLead: async () => {}, NR_FP_L: {}, NR_FP: [],
+        linkPushToLeads: async () => {}, linkPushToClient: async () => {}, plural: (n, a) => a, leadPatch: async () => {}, NR_FP_L: {}, NR_FP: [],
         document: { getElementById: () => null }, window: {}, dzNotify: () => {}, console, Date, pushSyncReminders: async () => {},
       });
       return { S, f: run(fn, S, "dzRecording") };
