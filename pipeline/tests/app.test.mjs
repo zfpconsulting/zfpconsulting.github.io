@@ -307,6 +307,7 @@ export default {
     const { ctx, page } = await openApp(env, { store: STORE });
     const r0 = await page.evaluate(() => ({ cum: cumPts(), gs: groupSince("2026-06-15") }));
     eq(r0.gs, groupSinceExpected(), "body týmu za uzavřené měsíce");
+    await page.evaluate(() => setView("money")); await page.waitForTimeout(300); /* kariérní karta je v Obratu */
     await page.click("#c_cpts"); await page.waitForTimeout(300);
     const ins = page.locator("#edBody input");
     await ins.nth(0).fill("11000"); await ins.nth(0).press("Enter");
@@ -322,7 +323,7 @@ export default {
     eq(await page.evaluate(() => ["VK: Novák", "Vk: Novák", "MB a VK: Herka", "VK+MB Trnka", "JT + VK podpis", "VK podpis Chloupek", "Konzultace VK", "Porada", "MB: Novák"].map(x => meetInitials(x, "VK"))),
       ["VK", "VK", "VK+MB", "VK+MB", "VK+JT", "VK", null, null, null], "iniciály v názvu");
     const ev = (id, summary, dateTime, extra = {}) => ({ id, summary, start: { dateTime }, ...extra });
-    await page.evaluate(items => { calHist = items; _msMemo = null; render(); }, [
+    await page.evaluate(items => { calHist = items; _msMemo = null; setView("money"); render(); }, [
       ev("a", "VK: Novák", "2025-03-01T10:00:00+01:00"), ev("b", "VK: Dvořák", "2025-04-01T10:00:00+02:00"), ev("c", "Vk: Svoboda podpis", "2026-01-05T10:00:00+01:00"),
       ev("d", "MB a VK: Herka", "2024-10-18T13:00:00+02:00"), ev("e", "VK: Budoucí", "2099-01-01T10:00:00+01:00"),
       ev("f", "VK: Zrušená", "2025-05-01T10:00:00+02:00", { status: "cancelled" }), ev("g", "Konzultace VK", "2025-06-01T10:00:00+02:00"),
