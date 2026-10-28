@@ -1230,7 +1230,7 @@ html.locked body{overflow:hidden}
     <p class="secfoot" id="ctFoot"></p>
   </section>
   <section id="view_fp" hidden>
-    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán nebo jméno klienta…" autocomplete="off" aria-label="Hledat finanční plán nebo klienta, pro kterého ho vytvořit"><span class="fplink"><button type="button" id="fpLinkBtn" class="fpdzbtn" aria-haspopup="true" aria-expanded="false">Odkaz pro klienta ▾</button><span class="fplinkmenu" id="fpLinkMenu" hidden role="menu"><button type="button" role="menuitem" id="fpDzBtn" title="Odkaz na vstupní dotazník – klient ho vyplní a odešle, přijde ti zašifrovaný sem"><b>Dotazník</b><small>klient vyplní podklady k plánu a vybere termín</small></button><button type="button" role="menuitem" id="fpBkBtn" title="Odkaz jen na rezervaci schůzky (bez dotazníku) – klient si vybere volný blok, osobně nebo online"><b>Rezervace</b><small>jen výběr termínu schůzky, bez dotazníku</small></button></span></span><button type="button" id="fpNewBtn" class="fpnewbtn">+ Nový plán</button></div>
+    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán nebo jméno klienta…" autocomplete="off" aria-label="Hledat finanční plán nebo klienta, pro kterého ho vytvořit"><span class="fplink"><button type="button" id="fpLinkBtn" class="fpdzbtn" aria-haspopup="true" aria-expanded="false">Odkaz pro klienta ▾</button><span class="fplinkmenu" id="fpLinkMenu" hidden role="menu"><button type="button" role="menuitem" id="fpDzBtn" title="Odkaz na vstupní dotazník – klient ho vyplní a odešle, přijde ti zašifrovaný sem"><b>Dotazník</b><small>klient vyplní podklady k plánu a vybere termín</small></button><button type="button" role="menuitem" id="fpBkBtn" title="Odkaz jen na rezervaci schůzky (bez dotazníku) – klient si vybere volný blok, osobně nebo online"><b>Rezervace</b><small>jen výběr termínu schůzky, bez dotazníku</small></button></span></span></div>
     <div id="fpBox"></div>
     <p class="secfoot">Živý finanční plán: upravíš vstupy a prezentace se okamžitě přepočítá. Plán se ukládá ke klientovi (nebo k leadu z pipeline).</p>
   </section>
@@ -7707,7 +7707,6 @@ function renderFpTab(){
   box.replaceChildren(...out);
 }
 /* „+ Nový plán“ jen otevře nabídku pod polem a dá do něj kurzor (hledání a vytváření je jedno pole) */
-$("fpNewBtn")?.addEventListener("click",()=>{fpNew=!fpNew;renderFpTab();const i=$("fpSearchI");if(fpNew&&i)i.focus()});
 $("fpSearchI")?.addEventListener("input",e=>{fpSearch=e.target.value.trim();renderFpTab()});
 /* „Odkaz pro klienta ▾“: dotazník nebo jen rezervace */
 {const b=$("fpLinkBtn"),m=$("fpLinkMenu");if(b&&m){const tog=on=>{m.hidden=!on;b.setAttribute("aria-expanded",on)};

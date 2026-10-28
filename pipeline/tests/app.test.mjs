@@ -636,7 +636,7 @@ export default {
     const { ctx, page, errors } = await openApp(env, { store, width: 390, height: 844 });
     await page.evaluate(() => setView("fp")); await page.waitForTimeout(300);
     const rows = () => page.$$eval("#fpBox .row .main", r => r.map(x => x.firstChild.textContent.trim()));
-    eq(await page.$$eval("#view_fp .pfsearch > *", e => e.map(x => x.id || x.className)), ["fpSearchI", "fplink", "fpNewBtn"], "jedno pole + Odkaz pro klienta + Nový plán");
+    eq(await page.$$eval("#view_fp .pfsearch > *", e => e.map(x => x.id || x.className)), ["fpSearchI", "fplink"], "jedno pole + Odkaz pro klienta (nový plán = + v hlavičce)");
     await page.fill("#fpSearchI", "nov");
     let r = await rows();
     eq(r.filter(x => /Novák/.test(x)), ["Vytvořit pro Jan Novák"], "aktivní lead nabídnutý jen jednou");
@@ -646,7 +646,7 @@ export default {
     await page.fill("#fpSearchI", "Eva Klientová");
     r = await rows(); eq(r, ["Eva Klientová"], "přesné jméno existujícího plánu nenabízí založení duplicitního klienta");
     await page.fill("#fpSearchI", "");
-    await page.click("#fpNewBtn"); r = await rows();
+    await page.click("#addBtn"); r = await rows();
     eq([r.filter(x => /Novák/.test(x)).length, r.some(x => /Podepsaný/.test(x)), r.some(x => /Ztracený/.test(x)), r.some(x => /Vytvořit pro Eva/.test(x))], [1, true, false, false], "Nový plán: každý jednou, lost ne, kdo má plán ne");
     eq(await page.evaluate(() => document.activeElement.id), "fpSearchI", "kurzor v poli");
     /* vytvoření pro lead → plán k leadu, opakované vytvoření už se nenabízí */
