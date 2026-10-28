@@ -23,6 +23,8 @@ jobs:
         run: node ../tools/short-links.mjs --check
       - name: Parser sazeb hypoték (tools/sazby.mjs)
         run: node ../tools/sazby.test.mjs
+      - name: Verze souborů v service workeru (sw.js CORE = ?v= v index.html)
+        run: node tools/bump.mjs --check
       - name: Test ikon
         run: node tests/icons.run.mjs
       - name: Testy kalkulačky a editoru fotek

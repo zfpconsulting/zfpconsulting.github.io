@@ -1,6 +1,11 @@
 // Spustí všechny testy appky v Chromiu. Použití: PP_KEY=XXXXX-XXXXX-XXXXX-XXXXX node tests/run.mjs [filtr]
 import { loadPlaywright, startServer } from "./helpers.mjs";
 import tests from "./app.test.mjs";
+import { execFileSync } from "node:child_process";
+
+/* sw.js musí mít v CORE stejné verze souborů jako index.html (jinak by telefon offline běžel se starými soubory) */
+try { execFileSync(process.execPath, [new URL("../tools/bump.mjs", import.meta.url).pathname, "--check"], { stdio: "inherit" }); }
+catch { console.log("✗ sw.js nesedí s index.html – spusť node tools/bump.mjs"); process.exit(1); }
 
 const key = process.env.PP_KEY;
 if (!key) {

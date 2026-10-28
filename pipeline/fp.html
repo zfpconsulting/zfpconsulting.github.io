@@ -2313,7 +2313,7 @@ function hypoFromCalc(pl,h){if(!h||!(+h.pv>0))return;const o=pl.hypo||{};if(o.sr
    Nové pole plan.hypo: financ ("akontace" | "zastava"), akont (% – prázdné = podle věku), prodej (index nefin – prodaná nemovitost jde na koupi),
    zastava (index nefin | "jiny"), zastava_kc, inkaso_ted, inkaso_po (prázdné = odhad), stavajici (z dotazníku: prodej / zastava / najem).
    Starší plány (úvěr z Kalkulačky, bez „financ“) se počítají beze změny: vlastní zdroje = cena − úvěr. */
-let UVL=0;function uvLoad(){if(UVL||window.Uvery)return;UVL=1;const sc=document.createElement("script");sc.src="uvery.js?v=2";
+let UVL=0;function uvLoad(){if(UVL||window.Uvery)return;UVL=1;const sc=document.createElement("script");sc.src="uvery.js?v=3";
   sc.onload=()=>{try{fetch("sazby.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.fix&&window.Uvery){Uvery.math.setRates(j);HYB={};update()}}).catch(()=>{})}catch(e){}HYB={};update()};document.head.append(sc)}
 let HYB={};   /* cache doporučení bank podle parametrů */
 const BYDL=/bydlen|byt|d[uů]m|rodinn|chalup|chat|rekrea/i;

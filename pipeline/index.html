@@ -1391,7 +1391,9 @@ html.locked body{overflow:hidden}
         <p class="hint" id="dAdvHint"></p>
       </div>
       <div class="dcfg keepas">
-        <label>Tapeta<select id="dWp"><option value="auto">Automaticky (podle měsíce)</option><option value="1">Leden – zima</option><option value="2">Únor – zima</option><option value="3">Březen – tání</option><option value="4">Duben – déšť a duha</option><option value="5">Květen – rozkvetlé stromy</option><option value="6">Červen – léto</option><option value="7">Červenec – léto</option><option value="8">Srpen – západ slunce</option><option value="9">Září – javorové listí</option><option value="10">Říjen – podzim</option><option value="11">Listopad – Halloween</option><option value="12">Prosinec – Vánoce</option></select></label>
+        <label>Tapeta<select id="dWpMode"><option value="static">Statická (fotka v záhlaví)</option><option value="anim">Animovaná</option><option value="off">Vypnuto</option></select></label>
+        <label id="dWpM" hidden>Scéna animované tapety<select id="dWp"><option value="auto">Automaticky (podle měsíce)</option><option value="1">Leden – zima</option><option value="2">Únor – zima</option><option value="3">Březen – tání</option><option value="4">Duben – déšť</option><option value="5">Květen – jaro</option><option value="6">Červen – léto</option><option value="7">Červenec – léto</option><option value="8">Srpen – západ slunce</option><option value="9">Září – babí léto</option><option value="10">Říjen – podzim</option><option value="11">Listopad – noc</option><option value="12">Prosinec – zimní noc</option></select></label>
+        <p class="hint" id="dWpHint">Animovaná tapeta je přes celou obrazovku a víc vytěžuje procesor i baterii; při zapnutém „omezit pohyb“ v systému zůstane stát.</p>
       </div>
       <div class="dcfg" id="pushCfg"></div>
       <div class="dcfg">
@@ -1504,7 +1506,7 @@ const AppLock=(()=>{
     $("lockPin").addEventListener("keydown",e=>{if(e.key==="Enter")tryPin($("lockPin").value)});
     $("lockPin").addEventListener("input",()=>{const v=$("lockPin").value,c=cfg();if(c&&c.pin&&v.length>=(c.pin.len||4))tryPin(v)});
     $("lockForgot").onclick=()=>{if(!confirm("Odemknout nejde? Data z tohoto zařízení se smažou a zámek se vypne. Na Google Disku zůstanou – po přihlášení Googlem se stáhnou zpět."))return;
-      setCfg(null);let w;try{LStore.replace({});["g_fid","g_synced","cal_cache","cal_hist","g_tok","g_ok","pp_docs_folder","gem_key","db_rows_v1"].forEach(k=>localStorage.removeItem(k));w=window.Docs?Docs.wipe():indexedDB.deleteDatabase("pp_docs")}catch(e){}reloadAfter(w)};
+      setCfg(null);let w;try{w=wipeLocal();["g_tok","g_ok"].forEach(k=>localStorage.removeItem(k))}catch(e){}reloadAfter(w)};
     ["pointerdown","keydown","touchstart","wheel"].forEach(ev=>addEventListener(ev,()=>{if(!locked)lastAct=Date.now()},{capture:true,passive:true}));
     document.addEventListener("visibilitychange",()=>{const c=cfg();if(!c)return;
       if(document.visibilityState==="hidden"){hiddenAt=Date.now();if(!(+c.min))show()}
@@ -1708,9 +1710,24 @@ async function gfetch(url,opt={}){
   return r;
 }
 
-function wipeLocal(){LStore.replace({});["g_fid","g_synced","cal_cache","cal_hist","fc_draft_v1","db_rows_v1","as_flag","as_adv","as_asst","as_invites","as_notified","as_snap_at","as_snap_sig","as_auto","as_inv_at","pp_docs_folder","gem_key"].forEach(k=>localStorage.removeItem(k));
-  /* obsah souborů u klientů (IndexedDB) – vrací slib, ať s ním jde počkat před reloadem */
-  try{return window.Docs?Docs.wipe():Promise.resolve()}catch(e){return Promise.resolve()}}
+/* odhlášení / jiný účet / zapomenutý PIN: smazat z tohoto zařízení všechno, co obsahuje data klientů nebo účtu.
+   Zůstává jen nastavení zařízení (zámek, přístupový kód, motiv, tapeta, poslední záložka) a veřejná data (kurzy, fondy). */
+const WIPE_KEYS=["g_fid","g_synced","g_name","g_check","g_err","g_state","g_last","cal_cache","cal_hist","meet_links","call_pending","dz_failed","px_newconf",
+  "push_sig","tasks_sig","tasks_at","bk_week","bk_last","adm_list","team_share","share_mgr","snap_at","hb_last","fc_draft_v1","dk_draft_v1","uv_ui_v1","db_rows_v1",
+  "fp_dotaznik_draft_v1","dz_poradce_v1","pp_docs_folder","gem_key","demo_mode","crm_store_v1"];
+/* Firebase (app + auth + firestore, ~1 MB JS) – načte se jednou a až když je potřeba (sdílené obchody, schránka dotazníku), ne při startu appky */
+let fbP=null;
+function fbLib(){const B="https://www.gstatic.com/firebasejs/12.19.0/";
+  return fbP||(fbP=Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]).catch(e=>{fbP=null;throw e}))}
+const idbDrop=n=>new Promise(res=>{try{const r=indexedDB.deleteDatabase(n);r.onsuccess=r.onerror=r.onblocked=()=>res()}catch(e){res()}});
+function wipeLocal(){LStore.replace({});
+  try{Object.keys(localStorage).filter(k=>WIPE_KEYS.includes(k)||/^(demo:|clean:|deal_|inv_skip_|as_)/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  /* IndexedDB: soubory u klientů (pp_docs), PDF smluv z Databáze (pp_dbpdf), kopie sdílených obchodů a přihlášení Firebase – vrací slib, ať s ním jde počkat před reloadem */
+  const w=[];
+  try{w.push(window.Docs?Docs.wipe():idbDrop("pp_docs"))}catch(e){}
+  try{w.push(window.Databaze?Databaze.wipe():idbDrop("pp_dbpdf"))}catch(e){}
+  try{if(typeof AsNet!=="undefined")w.push(AsNet.wipe())}catch(e){}
+  return Promise.all(w).catch(()=>{})}
 /* reload až po smazání souborů (max 1,5 s), jinak by ho přerušil */
 function reloadAfter(p){let done=false;const go=()=>{if(!done){done=true;location.reload()}};try{Promise.resolve(p).then(go,go)}catch(e){go()}setTimeout(go,1500)}
 /* --- nastavení kalendáře (per uživatel, ukládá se do settings/main) --- */
@@ -1818,6 +1835,8 @@ if("serviceWorker"in navigator&&location.protocol==="https:"){
   /* nová verze appky převezme řízení → načíst ji (jinak by běžela stará, dokud appku ručně nezavřeš); při otevřeném okně jen upozornit */
   navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!hadSW||swReloaded)return;swReloaded=true;
     if(document.querySelector("dialog[open]"))toast("Je nová verze appky – po zavření okna ji obnov (potáhni dolů)");else location.reload()});
+  /* stránka se kvůli pomalé síti ukázala z mezipaměti a ze sítě mezitím přišla novější (service worker ji už uložil) */
+  navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="sw-new"&&!swReloaded)toast("Je nová verze appky – obnov ji (potáhni dolů)")});
   addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>{r.update().catch(()=>{});document.addEventListener("visibilitychange",()=>{if(!document.hidden)r.update().catch(()=>{})})}).catch(()=>{}))}
 AppLock.init();
 
@@ -2104,7 +2123,7 @@ function renderDb(){
       findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
         const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=9";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=10";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* Databáze → pipeline: nový lead (fáze Nový lead, zdroj „Databáze“) s telefonem a e-mailem ze smlouvy a PDF v dokumentech; poznámky se nepíšou.
    Stejný člověk už v pipeline → PDF se přidá k němu (poznámky ani zdroj se nemění). */
@@ -2837,8 +2856,7 @@ async function dzStart(){
   try{
     /* nevyřízené (dřív selhalo založení) */
     const fl=lsGet("dz_failed",[]);if(fl.length){lsSet("dz_failed",[]);for(const z of fl)try{await dzLib();if(z.x&&z.x.type==="fp-booking")await dzBooking(z.x);else if(z.x&&z.x.type==="fp-nahravka")await dzRecording(z.x);else await dzImport(z.x)}catch(e){}}
-    const B="https://www.gstatic.com/firebasejs/12.19.0/";
-    const [A,Au,F]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]);
+    const [A,Au,F]=await fbLib();
     const app=A.getApps().find(a=>a.name==="dz")||A.initializeApp(AS_FB,"dz");
     const fdb=F.getFirestore(app),au=Au.getAuth(app);
     await au.authStateReady();
@@ -8273,7 +8291,10 @@ async function updateEurRate(){
     try{await db.doc("settings/main").update({advName:v});toast("Uloženo");advHint();advPublish(true).then(advHint)}catch(err){toast("Nepodařilo se uložit")}};
   $("dFF").onchange=async e=>{const v=e.target.value.trim();try{const x=await pushApi("/ff/key",{body:{key:v}});e.target.value="";e.target.placeholder=x.on?"klíč je uložený – nový přepíše starý":"vlož klíč z Fireflies → Settings → Developer";toast(x.on?"Klíč Fireflies uložený":"Klíč Fireflies smazaný")}catch(err){toast(err&&err.code===400?"Tohle nevypadá jako API klíč Fireflies":"Nepodařilo se uložit – jsi přihlášený Googlem?")}};
   $("dTasks").onclick=()=>GAuth.login(false);
-  {const s=$("dWp");try{s.value=localStorage.getItem("wp_month")||"auto"}catch(e){}s.onchange=()=>{try{localStorage.setItem("wp_month",s.value)}catch(e){}if(window.__wpSet)window.__wpSet(s.value)}}
+  {const s=$("dWp"),m=$("dWpMode");let v="static";try{s.value=localStorage.getItem("wp_month")||"auto";v=localStorage.getItem("wp")||"static"}catch(e){}
+    m.value=["off","anim"].includes(v)?v:"static";const vis=()=>{$("dWpM").hidden=$("dWpHint").hidden=m.value!=="anim"};vis();
+    m.onchange=()=>{if(window.__wpMode)window.__wpMode(m.value);else try{localStorage.setItem("wp",m.value)}catch(e){}vis()};
+    s.onchange=()=>{try{localStorage.setItem("wp_month",s.value)}catch(e){}if(window.__wpSet)window.__wpSet(s.value)}}
   const err=lsGet("g_err");if(err){localStorage.removeItem("g_err");if(err!=="interaction_required"&&err!=="login_required"&&err!=="consent_required")toast("Přihlášení se nepovedlo ("+err+")")}
   if(!GAuth.maybeRefresh()){GSync.run().then(refreshCalendar).then(()=>{scheduleTasks();fetchCalHistory()})}
   addEventListener("online",()=>{GSync.run().then(refreshCalendar).then(()=>fetchCalHistory())});
@@ -8625,8 +8646,7 @@ const AsNet=(()=>{
   const W=(p,ms=12000)=>Promise.race([p,new Promise((_,rj)=>setTimeout(()=>rj(new Error("timeout")),ms))]);
   function emit(){S.ver++;clearTimeout(tm);tm=setTimeout(()=>{if(typeof asNetChanged==="function")asNetChanged()},120)}
   async function realFS(){
-    const B="https://www.gstatic.com/firebasejs/12.19.0/";
-    const [A,Au,F]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-auth.js"),import(B+"firebase-firestore.js")]);
+    const [A,Au,F]=await fbLib();
     const app=A.initializeApp(AS_FB);
     let db;try{db=F.initializeFirestore(app,{localCache:F.persistentLocalCache({tabManager:F.persistentMultipleTabManager()})})}catch(e){db=F.getFirestore(app)}
     const au=Au.getAuth(app), D=(c,id)=>F.doc(db,c,id);
@@ -8637,7 +8657,9 @@ const AsNet=(()=>{
       newId(c){return F.doc(F.collection(db,c)).id},
       set:(c,id,d)=>F.setDoc(D(c,id),d), update:(c,id,p)=>F.updateDoc(D(c,id),p), del:(c,id)=>F.deleteDoc(D(c,id)),
       async batch(ops){const b=F.writeBatch(db);ops.forEach(o=>{if(o.s)b.set(D(o.s[0],o.s[1]),o.s[2]);else if(o.u)b.update(D(o.u[0],o.u[1]),o.u[2]);else if(o.d)b.delete(D(o.d[0],o.d[1]))});await b.commit()},
-      signOut:()=>Au.signOut(au)
+      signOut:()=>Au.signOut(au),
+      /* odhlášení z appky: odhlásit Firebase a smazat jeho místní kopii databáze (sdílené obchody se jmény klientů) */
+      async wipe(){try{await Au.signOut(au)}catch(e){}try{await F.terminate(db);await F.clearIndexedDbPersistence(db)}catch(e){}}
     }}
   /* příjemce: obsah sdíleného obchodu (ddata/{id}) – po přijetí se čte přímo, vlastník nemusí mít appku otevřenou */
   const DD=new Map();
@@ -8668,7 +8690,12 @@ const AsNet=(()=>{
     }catch(e){S.err=e;S.fs=null}
     S.starting=false;return S.on}
   function stop(){S.unsub.forEach(u=>{try{u()}catch(e){}});S.unsub=[];DD.forEach(x=>{try{x.u&&x.u()}catch(e){}});DD.clear();Object.values(M).forEach(m=>m.clear());S.got.clear();S.on=false}
-  return {enabled,start,stop,get on(){return S.on},settled:()=>S.got.size>=3,get ver(){return S.ver},get err(){return S.err},get reads(){return S.reads},
+  /* odhlášení: zastavit, odhlásit Firebase a smazat jeho IndexedDB (mezipaměť Firestore + přihlášení) – i když se v tomhle spuštění vůbec nenačetl */
+  async function wipe(){stop();const fs=S.fs;S.fs=null;
+    if(fs&&fs.wipe)try{await W(fs.wipe(),1200)}catch(e){}
+    try{const L=indexedDB.databases?await indexedDB.databases():[];
+      await Promise.all(L.map(d=>d.name).filter(n=>/^firestore\/|^firebaseLocalStorageDb$|^firebase-/.test(n||"")).map(idbDrop))}catch(e){}}
+  return {enabled,start,stop,wipe,get on(){return S.on},settled:()=>S.got.size>=3,get ver(){return S.ver},get err(){return S.err},get reads(){return S.reads},
     _M:M, _i:{S,M,W,low,isoNow,myName,emit}};
 })();
 let asNetFirst=true;
@@ -8932,9 +8959,12 @@ async function asNotify(title,body,tag){
 }
 /* =====================  START  ===================== */
 function asStart(){
-  if(AsNet.enabled())AsNet.start();   /* připojení k databázi (sdílené obchody) hned po startu */
+  /* připojení k databázi (sdílené obchody) až chvíli po prvním vykreslení – Firebase (~1 MB JS) nesmí zdržovat start appky;
+     dokud se nepřipojí, sdílené obchody se ukazují z místní kopie v pipeline a změny se odešlou hned po připojení (Deals.tick) */
+  const kick=()=>{if(AsNet.enabled()&&!AsNet.on)AsNet.start()};
+  setTimeout(()=>window.requestIdleCallback?requestIdleCallback(kick,{timeout:2000}):kick(),1500);
   db.collection("mytasks").onSnapshot(snap=>{myTasks=snap.docs.map(d=>({id:d.id,...d.data()}));tasksLoaded=true;scheduleLeadTasks();if(view==="pipe")render();clearTimeout(window._ptT);window._ptT=setTimeout(()=>{try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}},2500)});
-  setInterval(()=>{if(AsNet.enabled()&&!AsNet.on)AsNet.start()},5000);
+  setInterval(kick,5000);
   $("addTask").onclick=()=>asNewTask();
 }
 {let n=0;const w=setInterval(()=>{if((typeof db!=="undefined"&&db)||n++>60){clearInterval(w);if(typeof db!=="undefined"&&db)asStart()}},100)}
@@ -9241,6 +9271,6 @@ const dealAskPending=()=>Deals.askPending(false);
 const dealTags=l=>Deals.tags(l);
 
 </script>
-<script src="wallpaper.js?v=5" defer></script>
+<script src="wallpaper.js?v=6" defer></script>
 </body>
 </html>
