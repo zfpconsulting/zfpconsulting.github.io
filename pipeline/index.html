@@ -2014,8 +2014,9 @@ function render(){
 /* záložka Kalkulačka – modul fincalc.js se načte až při prvním otevření */
 let calcUI=null,calcLoading=false;
 function renderCalc(){
-  if(calcUI||calcLoading)return;
-  const go=()=>{calcLoading=false;if(!window.FinCalc){$("calcBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}calcUI=FinCalc.mount($("calcBox"),{store:db,toast,fpProd:()=>(settings&&settings.fpProd)||null,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clients.filter(c=>!c.hidden&&c.name).map(c=>({id:c.id,name:c.name})).sort((a,b)=>a.name.localeCompare(b.name,"cs"))})};
+  if(calcLoading)return;
+  const go=()=>{calcLoading=false;if(!window.FinCalc){$("calcBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}calcUI=FinCalc.mount($("calcBox"),{store:db,toast,fpProd:()=>(settings&&settings.fpProd)||null,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>duchEntries(),ensure:ensureClient})};
+  if(calcUI){calcUI.refreshClients&&calcUI.refreshClients();return}
   if(window.FinCalc)return go();
   calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=10";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
@@ -7749,7 +7750,7 @@ async function openFP(e,rec){
   try{$("edDlg").close()}catch(err){}try{$("dlg").open&&$("dlg").close()}catch(err){}
   const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id)||(rec.leadId&&duchod.find(x=>x.id==="lead_"+rec.leadId))||undefined,r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
   /* plánovaná hypotéka: poslední uložená kalkulace úvěru přiřazená k tomuto klientovi (Kalkulačka → menu → Klient) */
-  const hc=fincalcs.filter(x=>x.hypo&&(x.clientId===rec.id||x.clientId===id)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+  const hc=fincalcs.filter(x=>x.hypo&&(x.clientId===rec.id||x.clientId===id||(rec.leadId&&x.clientId==="lead_"+rec.leadId))).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
   const hypo=hc?{...hc.hypo,at:hc.updatedAt||0,name:hc.name||""}:null;
   const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   /* kontakt z karty klienta → plán i dotazník (prázdná pole) */

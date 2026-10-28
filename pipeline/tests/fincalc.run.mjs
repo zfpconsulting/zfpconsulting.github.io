@@ -13,7 +13,7 @@ async function open({ width = 1300, height = 900, dark = false } = {}) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
-  page.on("dialog", d => d.accept(d.type() === "prompt" ? "Test klient" : undefined));
+  page.on("dialog", d => { errors.push("nečekaný dialog: " + d.type()); d.accept(); });
   await page.route(base + "harness.html", r => r.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="cs"><head><meta charset="utf-8">
     <style>:root{--bg:#F2F2F7;--bg2:#fff;--label:#000;--red:#FF3B30;--card-shadow:0 1px 2px rgba(0,0,0,.04)}
     @media (prefers-color-scheme: dark){:root{--bg:#000;--bg2:#1C1C1E;--label:#fff}}body{background:var(--bg);margin:0;padding:16px;font-family:-apple-system,system-ui,sans-serif}</style>
@@ -114,15 +114,18 @@ const tests = {
     // renta
     await page.click('button[data-a="mode"][data-k="renta"]');
     eq((await tiles(page))["Měsíční renta"], "18 179 Kč", "renta");
-    // uložení + načtení ze seznamu
+    // uložení jedním klikem (bez prompt) + načtení ze seznamu
     await page.click('button[data-a="save"]');
-    assert(await page.$eval(".fc-title", e => e.textContent.includes("Test klient")), "název v hlavičce");
-    assert(await page.evaluate(() => Object.keys(docs).length === 1), "uloženo do úložiště");
+    await page.waitForFunction(() => Object.keys(docs).length === 1);
+    const nm = await page.evaluate(() => Object.values(docs)[0].name);
+    assert(/^Renta – \d/.test(nm), "název doplněný automaticky (bez klienta typ + datum): " + nm);
+    assert(await page.$eval(".fc-cur", e => e.textContent.includes("Uloženo: Renta")), "stav uloženo");
     await page.click('button[data-a="new"]');
-    assert(await page.$eval(".fc-title", e => /Koncept$/.test(e.textContent)), "nová kalkulace = Koncept");
+    assert(!(await page.$(".fc-ask")), "uložená kalkulace se na nic neptá");
+    assert(await page.$eval(".fc-cur", e => /Bez klienta/.test(e.textContent)), "nová kalkulace");
     await page.click('button[data-a="menu"]');
     await page.click('button[data-a="load"]');
-    assert(await page.$eval(".fc-title", e => e.textContent.includes("Test klient")), "načtená kalkulace");
+    assert(await page.$eval(".fc-cur", e => e.textContent.includes("Uloženo: Renta")), "načtená kalkulace");
     // stav přežije znovunačtení
     await page.reload(); await page.waitForFunction(() => window.ui);
     eq(await page.$eval('.fc-tabs [aria-selected="true"]', b => b.textContent), "Renta", "zapamatovaný režim");
@@ -305,14 +308,13 @@ const tests = {
     await page.evaluate(() => { const old = document.getElementById("box"), nb = document.createElement("div"); nb.id = "box"; old.replaceWith(nb); localStorage.clear(); window.ui = FinCalc.mount(nb, { store: window.__store || null, toast: m => toasts.push(m), clients: () => [{ id: "c1", name: "Jana Petranová" }, { id: "c2", name: "Petr Novák" }] }); });
     await page.click('[data-a="mode"][data-k="loan"]');
     assert((await tiles(page))["RPSN"].endsWith("%"), "dlaždice RPSN");
-    await page.click('button[data-a="menu"]');
-    await page.selectOption('select[data-x="client"]', "c1");
-    assert((await page.textContent(".fc-title")).includes("Jana Petranová"), "klient v názvu");
+    await page.fill("#fc_cq", "petran"); await page.click('#fc_cl button[data-id="c1"]');
+    eq(await page.inputValue("#fc_cq"), "Jana Petranová", "klient v poli");
     eq(await page.evaluate(() => ui.state().clientId), "c1", "klient ve stavu");
     if (!(await page.evaluate(() => !!window.__store))) { eq(errors, [], "chyby"); await ctx.close(); return; }
     await page.click('button[data-a="save"]');
     const d = await page.waitForFunction(() => Object.values(docs).find(x => x.clientId === "c1")).then(h => h.jsonValue());
-    eq([d.clientName, d.mode, d.hypo.pv, d.hypo.price, d.hypo.own], ["Jana Petranová", "loan", 3000000, 3750000, 750000], "uložená hypotéka u klienta");
+    eq([d.name, d.clientName, d.mode, d.hypo.pv, d.hypo.price, d.hypo.own], ["Úvěr – Jana Petranová", "Jana Petranová", "loan", 3000000, 3750000, 750000], "uložená hypotéka u klienta");
     assert(d.hypo.rpsn > d.hypo.rate && d.hypo.need > 0, "RPSN a potřebný příjem v uložené kalkulaci");
     eq(errors, [], "chyby: " + errors.join(" | "));
     await ctx.close();
@@ -333,6 +335,20 @@ const tests = {
       const { ctx, page, errors } = await open(o);
       const over = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
       assert(over <= 0, "vodorovné přetečení o " + over + " px");
+      /* tlačítka v liště se nesmí useknout (text celý viditelný, nic nepřetéká kartu) */
+      const cut = await page.$$eval(".fc-acts .fc-btn", bs => bs.filter(b => b.scrollWidth > b.clientWidth + 1 || b.getBoundingClientRect().right > b.closest(".fc").getBoundingClientRect().right + 0.5).map(b => b.textContent));
+      eq(cut, [], "useknutá tlačítka");
+      eq(await page.$$eval(".fc-acts .fc-btn", bs => new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size), 1, "akce v jedné řadě");
+      assert(!(await page.$(".fc-head, .fc-logo")), "bez vlastní hlavičky s logem");
+      for (const m of ["loan", "inv", "renta"]) {
+        await page.click(`[data-a="mode"][data-k="${m}"]`);
+        const small = await page.$$eval(".fc input, .fc select", els => els.filter(e => e.offsetParent && e.type !== "checkbox" && e.type !== "range" && parseFloat(getComputedStyle(e).fontSize) < 16).length);
+        eq(small, 0, "pole min. 16 px: " + m);
+        if (o.width < 500) {
+          const tiny = await page.$$eval(".fc button, .fc input:not([type=checkbox]), .fc select", els => els.filter(e => e.offsetParent && (e.getBoundingClientRect().height < 40 || e.getBoundingClientRect().width < 40)).map(e => (e.dataset.a || e.dataset.k || e.tagName) + ":" + Math.round(e.getBoundingClientRect().width) + "x" + Math.round(e.getBoundingClientRect().height)));
+          eq(tiny, [], "dotykové cíle min. 40 px: " + m);
+        }
+      }
       if (SHOTS) { await page.waitForTimeout(1100); await page.screenshot({ path: `/tmp/fc-${o.width}${o.dark ? "-dark" : ""}.png`, fullPage: true }); }
       assert(!errors.length, "chyby: " + errors.join(" | "));
       await ctx.close();
@@ -420,6 +436,73 @@ const tests = {
     assert(Math.abs(r) < 1, "dopočet sedí: " + r);
     await page.uncheck('input[data-x="feeOn"]');
     assert(!(await page.$('input[data-k="fee"]')), "po vypnutí pole zmizí");
+    assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
+  },
+  async "Nová kalkulace: potvrzení jen při neuložené změně (vlastní UI), Zpět / Zahodit / Uložit a nová"() {
+    const { ctx, page, errors } = await open();
+    await page.click('button[data-a="new"]');
+    assert(!(await page.$(".fc-ask")), "bez změny se neptá");
+    await page.fill('input[data-k="pmt"]', "7000"); await page.press('input[data-k="pmt"]', "Enter");
+    await page.click('button[data-a="new"]');
+    assert(await page.isVisible(".fc-ask"), "neuložená změna → potvrzení");
+    await page.click('[data-a="askno"]');
+    eq(await page.inputValue('input[data-k="pmt"]'), "7 000", "Zpět nechá zadání");
+    await page.click('button[data-a="new"]'); await page.keyboard.press("Escape");
+    assert(!(await page.$(".fc-ask")), "Escape zavře potvrzení");
+    await page.click('button[data-a="new"]'); await page.click('[data-a="asksave"]');
+    await page.waitForFunction(() => Object.keys(docs).length === 1);
+    eq(await page.inputValue('input[data-k="pmt"]'), "5 000", "Uložit a nová: uloží a vrátí výchozí");
+    await page.fill('input[data-k="pmt"]', "8000"); await page.press('input[data-k="pmt"]', "Enter");
+    await page.click('button[data-a="new"]'); await page.click('[data-a="askyes"]');
+    eq(await page.inputValue('input[data-k="pmt"]'), "5 000", "Zahodit");
+    eq(await page.evaluate(() => Object.keys(docs).length), 1, "zahozená se neuložila");
+    assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
+  },
+  async "menu ⋯: Escape a klik mimo (i mimo kalkulačku) zavře; úvěr nemá volbu frekvence připisování"() {
+    const { ctx, page, errors } = await open();
+    await page.click('button[data-a="menu"]'); assert(await page.isVisible(".fc-menu"), "menu otevřené");
+    await page.keyboard.press("Escape"); assert(!(await page.$(".fc-menu")), "Escape zavře");
+    await page.click('button[data-a="menu"]');
+    await page.evaluate(() => { const d = document.createElement("div"); d.id = "outside"; d.style.cssText = "height:60px"; document.body.append(d); });
+    await page.click("#outside"); assert(!(await page.$(".fc-menu")), "klik mimo kalkulačku zavře");
+    await page.click('button[data-a="menu"]'); await page.click('[data-a="mode"][data-k="loan"]');
+    assert(!(await page.$(".fc-menu")), "klik do kalkulačky zavře a zároveň přepne režim");
+    eq(await page.$eval('.fc-tabs [aria-selected="true"]', b => b.textContent), "Úvěr", "klik se neztratil");
+    assert(!(await page.$('select[data-a="freq"]')), "u úvěru bez frekvence");
+    eq(await page.evaluate(() => ui.state().m.loan.v.freq), "m", "úvěr vždy měsíčně");
+    await page.click('[data-a="mode"][data-k="inv"]'); assert(await page.$('select[data-a="freq"]'), "u investice frekvence zůstává");
+    assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
+  },
+  async "klient nahoře: vyhledání klientů i leadů bez diakritiky, uložení ke klientovi jedním klikem (lead_<id>, ensure)"() {
+    const { ctx, page, errors } = await open({ width: 390, height: 844 });
+    await page.evaluate(() => { const old = document.getElementById("box"), nb = document.createElement("div"); nb.id = "box"; old.replaceWith(nb); localStorage.clear(); window.ensured = [];
+      const cl = [{ id: "c:a", rec: { id: "a" }, name: "Novák Petr" }, { id: "k:dvor", name: "Dvořáková Jana" }, { id: "l:c", lead: { id: "c" }, name: "Svoboda Karel", leadOnly: true, prospect: "Schůzka" }];
+      window.ui = FinCalc.mount(nb, { store: window.__store, toast: m => toasts.push(m), clients: () => cl, ensure: async e => { ensured.push(e.id); e.rec = { id: "new1" }; return e.rec } }); });
+    await page.fill("#fc_cq", "svobod");
+    assert(await page.isVisible('#fc_cl button[data-id="lead_c"]'), "lead z pipeline v nabídce");
+    assert((await page.textContent("#fc_cl")).includes("Schůzka"), "fáze leadu");
+    await page.keyboard.press("Enter");
+    eq(await page.inputValue("#fc_cq"), "Svoboda Karel", "vybráno Enterem");
+    await page.click('button[data-a="save"]');
+    await page.waitForFunction(() => Object.keys(docs).length === 1);
+    let d = await page.evaluate(() => Object.values(docs)[0]);
+    eq([d.name, d.clientId, d.clientName], ["Investice – Svoboda Karel", "lead_c", "Svoboda Karel"], "uloženo k leadu");
+    eq(await page.evaluate(() => ensured), [], "lead nezakládá klienta");
+    // klient z kalendáře se při uložení založí přes ensure
+    await page.fill("#fc_cq", "dvorak"); await page.click('#fc_cl button[data-id="k:dvor"]');
+    await page.click('button[data-a="save"]');
+    await page.waitForFunction(() => Object.keys(docs).length === 2);
+    d = await page.evaluate(() => Object.values(docs).find(x => x.clientName === "Dvořáková Jana"));
+    eq([d.clientId, d.name], ["new1", "Investice – Dvořáková Jana"], "založený klient");
+    // opakované uložení stejné kalkulace přepíše, nevytvoří novou
+    await page.fill('input[data-k="pmt"]', "6000"); await page.press('input[data-k="pmt"]', "Enter");
+    await page.click('button[data-a="save"]'); await page.waitForTimeout(100);
+    eq(await page.evaluate(() => Object.keys(docs).length), 2, "přepsáno");
+    // v nabídce je vidět, kolik má klient uložených kalkulací
+    await page.fill("#fc_cq", "svob");
+    assert((await page.textContent('#fc_cl button[data-id="lead_c"]')).includes("1 uložená"), "počet uložených");
+    await page.keyboard.press("Escape");
+    assert(await page.isHidden("#fc_cl"), "Escape zavře seznam");
     assert(!errors.length, "chyby: " + errors.join(" | ")); await ctx.close();
   },
   async "renta: změna výše v čase – libovolný počet změn, dopočet renty na začátku i kapitálu"() {
