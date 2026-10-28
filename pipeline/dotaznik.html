@@ -67,7 +67,7 @@ section>.body{margin-left:34px}
 h3{font-size:12px;margin:22px 0 10px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
 .g{display:grid;grid-template-columns:1fr 1fr;gap:14px 14px}
 .g .full{grid-column:1/-1}
-@media (max-width:560px){.g{grid-template-columns:1fr}}
+@media (max-width:560px){.g{grid-template-columns:1fr}.btn .long{display:none}}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--mut);min-width:0}
 label.f .q,.qq{color:var(--txt);font-weight:600;font-size:14.5px}
 label.f input,label.f select,label.f textarea{background:var(--inp);border:1px solid var(--line2);border-radius:8px;padding:11px 12px;width:100%;min-width:0;font-size:16px;color:var(--txt);-webkit-appearance:none;appearance:none}
@@ -111,8 +111,6 @@ label.f input:focus,label.f select:focus,label.f textarea:focus{outline:none;bor
 .toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:11px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
 .toast.on{opacity:1}
 .priv{font-size:12.5px;color:var(--mut);margin:26px 0 0;line-height:1.55}
-.lnk{border:1px solid var(--line);border-radius:10px;padding:14px;margin:18px 0 0}
-.lnk .g{margin-top:10px}
 .done{text-align:center;padding:60px 10px}
 .done .ic{width:64px;height:64px;border-radius:50%;background:var(--acc);display:inline-flex;align-items:center;justify-content:center;margin-bottom:18px}
 .done h1{font-size:26px;margin:0 0 8px}
@@ -363,7 +361,7 @@ function render(){
   $("#main").innerHTML=`<div class="hero">${EMB?`<h1>Vstupní dotazník</h1><p>Co tady vyplníš, se rovnou propíše do plánu klienta.</p>`
      :REV?`<h1>Před výroční schůzkou</h1><p>Níže jsou údaje z naší poslední konzultace${REV.at?" ("+esc(new Date(REV.at).toLocaleDateString("cs-CZ"))+")":""}. Projděte je prosím a <b>přepište, co se od té doby změnilo</b> – příjmy, výdaje, rodina, úvěry, cíle. Co platí dál, nechte beze změny.</p><p>Úspory, investice a pojištění, které spravujeme u nás, tu nejsou – do těch máme přehled.</p>`
      :`<h1>Než se potkáme</h1><p>Vyplňte prosím všechno – zabere to 10–15 minut. Kde si nejste jistí, stačí odhad.</p>`}</div>
-   ${EMB?linkBox(A):A.n?`<div class="adv"><span class="av">${esc(ini)}</span><span><b>${esc(A.n)}</b><small>váš finanční poradce${A.t?" · "+esc(A.t):""}${A.e?" · "+esc(A.e):""}</small></span></div>`:""}
+   ${EMB?"":A.n?`<div class="adv"><span class="av">${esc(ini)}</span><span><b>${esc(A.n)}</b><small>váš finanční poradce${A.t?" · "+esc(A.t):""}${A.e?" · "+esc(A.e):""}</small></span></div>`:""}
    ${EMB?"":`<div class="lock">${LOCK}<span>Odpovědi se před odesláním zašifrují přímo ve vašem zařízení. Přečíst je může jen váš poradce – nikdo jiný, ani provozovatel úložiště.</span></div>`}
    ${tried&&bad?`<div class="banner"><span>Ještě chybí údaje v <b>${bad}</b> ${bad===1?"části":"částech"}.</span><button type="button" id="goMiss">Ukázat</button></div>`:""}
    <datalist id="dlPov">${(window.NNRS?NNRS.POVOLANI:[]).map(x=>`<option value="${esc(x[0])}">`).join("")}</datalist><datalist id="dlSport">${(window.NNRS?NNRS.SPORTY:[]).map(x=>`<option value="${esc(x[0])}">`).join("")}</datalist>
@@ -444,8 +442,6 @@ document.addEventListener("click",e=>{if(!sent)return;const t=e.target.closest("
   else if(t.dataset.mode&&!t.disabled){BK.mode=t.dataset.mode;BK.err="";renderSent()}else if(t.id==="bBook")book();else if(t.id==="bMap"){BK.map=true;renderSent()}
   else if(t.id==="bSkip"){BK.slots=[];SENT=null;renderSent()}});
 let SENT=null;
-function linkBox(A){return `<div class="lnk"><b>Odkaz pro klienta</b><div class="hint">Klient dotazník vyplní u sebe a odešle – přijde ti zašifrovaný rovnou do Pipeline (nový lead + plán + IOLDP v dokumentech).</div>
-  <div class="g">${["n","t","e"].map((k,i)=>`<label class="f"><span class="q">${["Poradce","Telefon","E-mail"][i]}</span><input data-adv="${k}" value="${esc(A[k])}"></label>`).join("")}<span style="align-self:end"><button type="button" class="btn pri" id="copyLnk"${DZ?"":" disabled"}>Kopírovat odkaz</button></span></div>${DZ?"":`<p class="hint">Odkaz jde vytvořit jen v plánu otevřeném z Pipeline (je v něm tvůj šifrovací klíč).</p>`}</div>`}
 function status(per){per=per||check();const req=SEC.filter(s=>!s.optional),done=SEC.filter((s,i)=>!s.optional&&!per[i].length).length;
   $("#prog").style.width=Math.round(done/req.length*100)+"%";
   $("#st").textContent=done===req.length?"Vše vyplněno – můžete odeslat.":`Vyplněno ${done} z ${req.length} částí`+(EMB?" · ukládá se rovnou do plánu":"");
@@ -453,7 +449,7 @@ function status(per){per=per||check();const req=SEC.filter(s=>!s.optional),done=
   document.querySelectorAll(".row > b[data-t]").forEach(b=>{const L=get(P,b.dataset.t)||[],i=+b.dataset.i,f=TITLES[b.dataset.t];if(L[i]&&f)b.textContent=f(L[i],i)});
   document.querySelectorAll("section").forEach((el,i)=>{const s=SEC[i],h=el.querySelector("h2");let d=h.querySelector(".dn");const ok=!per[i].length&&!s.optional;if(ok&&!d){d=document.createElement("span");d.className="dn";d.textContent="✓";h.append(d)}else if(!ok&&d)d.remove()})}
 function buttons(){
-  if(EMB){$("#topBtns").innerHTML=`<button class="btn pri sm" id="bDone">Hotovo – zpět na plán</button>`;$("#botBtns").innerHTML=`<button class="btn pri" id="bDone2">Hotovo</button>`}
+  if(EMB){$("#topBtns").innerHTML=`<button class="btn pri sm" id="bDone">Hotovo<span class="long"> – zpět na plán</span></button>`;$("#botBtns").innerHTML=`<button class="btn pri" id="bDone2">Hotovo</button>`}
   else{$("#topBtns").innerHTML=`<button class="btn sm" id="bClr">Začít znovu</button>`;$("#botBtns").innerHTML=`<button class="btn pri" id="bSend">Odeslat poradci</button>`}
 }
 /* první chybějící údaj: posunout k němu a zvýraznit */
@@ -471,7 +467,6 @@ const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdej
 function autoDo(p){const m=/^docasne\.(\d+)\.(typ|dite|castka)$/.exec(p);if(!m)return false;const r=P.docasne[+m[1]];if(r.typ!=="materska"&&r.typ!=="rodicovska")return false;const c=docasneDo(r);r.do=c?c.do:"";
   const h=document.querySelector(`[data-p="docasne.${m[1]}.do"]`),hint=h&&h.parentElement.querySelector(".hint");if(hint)hint.innerHTML=c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte";return true}
 document.addEventListener("input",e=>{const t=e.target;
-  if(t.dataset.adv){const A=adv();A[t.dataset.adv]=t.value;try{localStorage.setItem(ADV,JSON.stringify(A))}catch(err){}return}
   const p=t.dataset.p;if(!p)return;
   let v=t.type==="checkbox"?t.checked:t.value;
   if(t.dataset.num){v=parseIn(t.value);const pos=t.selectionStart||0,dig=t.value.slice(0,pos).replace(/[^\d,.-]/g,"").length,keep=/[,.]$/.test(t.value)?",":"";
@@ -499,8 +494,6 @@ document.addEventListener("click",e=>{
   if(e.target.id==="bDone"||e.target.id==="bDone2"){clearTimeout(saveT);parent.postMessage({type:"dz:change",plan:P,close:true},location.origin);return}
   if(e.target.id==="bClr"){if(confirm("Smazat vyplněné odpovědi z tohoto zařízení?")){P=blank();Object.keys(FILES).forEach(k=>delete FILES[k]);tried=false;try{localStorage.removeItem(DRAFT)}catch(err){}render()}return}
   if(e.target.id==="bSend"){send();return}
-  if(e.target.id==="copyLnk"&&DZ){const A=adv(),h=new URLSearchParams({v:"1",to:DZ.to,k:DZ.k});["n","t","e"].forEach((k,i)=>{if(A[k])h.set(["p","t","e"][i],A[k])});
-    const s=location.href.replace(/[?#].*$/,"")+"#"+h.toString();(navigator.clipboard?navigator.clipboard.writeText(s):Promise.reject()).then(()=>toast("Odkaz zkopírovaný – pošli ho klientovi")).catch(()=>prompt("Zkopíruj odkaz:",s));return}
 });
 const MAXF=4*1024*1024;
 function pickIoldp(k){const i=document.createElement("input");i.type="file";i.accept=".pdf,application/pdf,image/*";i.hidden=true;
@@ -529,7 +522,6 @@ async function send(){
 }
 
 /* ---------- start ---------- */
-let DZ=null;   /* v plánu: {to,k} pro odkaz klientovi (posílá Pipeline) */
 function load(pl){const b=blank();P=Object.assign(b,JSON.parse(JSON.stringify(pl||{})));
   /* starší koncepty a plány: výdaje byly zadané bez investic a pojištění */
   if(pl&&(!pl.vydaje||pl.vydaje.vcetne==null)&&[pl.klient,pl.partner].some(o=>o&&(+o.vydaje_osobni>0||+o.vydaje_dom>0)||+((pl.vydaje||{}).domacnost)>0))P.vydaje=Object.assign({},P.vydaje,{vcetne:false});
@@ -549,7 +541,7 @@ function load(pl){const b=blank();P=Object.assign(b,JSON.parse(JSON.stringify(pl
   if(P.kontakt.renta_ma==null&&+P.renta.mesicne>0)P.kontakt.renta_ma=true;if(P.kontakt.zp_ma==null&&+P.pojisteni.zivotni.stav>0)P.kontakt.zp_ma=true;
   if(P.ioldp)Object.keys(P.ioldp).forEach(k=>{if(!FILES[k]&&!P.ioldp[k].pozdeji)delete P.ioldp[k]});}
 buttons();
-if(EMB){addEventListener("message",e=>{if(e.origin!==location.origin||e.source!==parent||!e.data||e.data.type!=="dz:init")return;DZ=e.data.dz||null;load(e.data.plan);render()});parent.postMessage({type:"dz:ready"},location.origin)}
+if(EMB){addEventListener("message",e=>{if(e.origin!==location.origin||e.source!==parent||!e.data||e.data.type!=="dz:init")return;load(e.data.plan);render()});parent.postMessage({type:"dz:ready"},location.origin)}
 else if(ONLY){sent=true;renderSent();loadSlots()}
 else if(RVZ){(async()=>{let pre=null;try{pre=await rvDecode(RVZ)}catch(e){console.warn(e)}
     if(pre&&pre.plan){REV={at:pre.at||0,id:String(pre.at||"")+":"+(pre.plan.klient&&pre.plan.klient.jmeno||"")};SEC=SEC.filter(x=>x.id!=="majetek"&&x.id!=="pojisteni");
