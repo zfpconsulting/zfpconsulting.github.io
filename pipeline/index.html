@@ -904,7 +904,7 @@ html.locked body{overflow:hidden}
 .cwev b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #ppGate{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:var(--bg);padding:16px}#ppGate .ppg{width:min(420px,100%);display:grid;gap:12px;background:var(--bg2);border-radius:var(--r-lg);padding:22px;box-shadow:var(--card-shadow)}#ppGate h2{margin:0;font-size:20px}#ppGate p{margin:0;color:var(--label2);font-size:14px;line-height:1.4}#ppGate input{border:1px solid var(--sep);border-radius:12px;padding:12px 14px;font-size:17px;letter-spacing:.06em;background:var(--bg);color:var(--label);text-transform:uppercase}#ppGate button{background:var(--tint);color:#fff;border-radius:12px;padding:12px;font-size:16px;font-weight:600}
 
-/* ---- v35: úkoly + asistentka ---- */
+/* ---- úkoly ---- */
 .sh-actions{display:flex;align-items:center;gap:8px;margin:0 4px 6px 0}.sh-actions .chipbtn{margin:0}
 .tkrow{align-items:center}.tkrow.done .t{text-decoration:line-through;color:var(--label2)}
 .tkchk{width:22px;height:22px;border-radius:50%;border:2px solid var(--label3,#c7c7cc);flex:none;margin-right:2px;display:grid;place-items:center;cursor:pointer}
@@ -926,18 +926,18 @@ html.locked body{overflow:hidden}
 .cpit span{color:var(--label2);font-size:13px}.cpit.free{color:var(--tint)}
 .cpchip{display:inline-flex;align-items:center;gap:8px;background:var(--tint-soft);color:var(--tint);border-radius:999px;padding:6px 8px 6px 12px;font-weight:600;font-size:15px}.cpchip button{border:none;background:none;color:inherit;font-size:14px;cursor:pointer;padding:0 4px}
 .chipbtn.on{background:var(--tint);color:#fff}
-#asBan{position:fixed;inset:auto;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);width:min(calc(100vw - 16px),420px);margin:0;padding:0;border:0;background:none;overflow:visible;display:grid;gap:8px;pointer-events:none;z-index:2147483000}
-.asb{pointer-events:auto;display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-radius:22px;background:rgba(246,246,250,.88);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);box-shadow:0 8px 30px rgba(0,0,0,.22);color:#111;cursor:pointer;animation:asbIn .38s cubic-bezier(.2,.9,.24,1)}
-@media (prefers-color-scheme:dark){.asb{background:rgba(44,44,48,.88);color:#f5f5f7}}
-.asb.out{animation:asbOut .26s ease-in forwards}
-@keyframes asbIn{from{transform:translateY(-140%);opacity:0}to{transform:none;opacity:1}}
-@keyframes asbOut{to{transform:translateY(-140%);opacity:0}}
-.asb-i{width:38px;height:38px;border-radius:9px;flex:none;object-fit:cover;background:var(--tint,#0a84ff)}
-.asb-m{min-width:0;flex:1}
-.asb-h{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.04em;opacity:.55;font-weight:600}
-.asb-t{font-weight:600;font-size:15px;line-height:1.25;margin-top:1px}
-.asb-b{font-size:14px;line-height:1.3;opacity:.85;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-@media (prefers-reduced-motion:reduce){.asb,.asb.out{animation:none}}
+#appBan{position:fixed;inset:auto;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);width:min(calc(100vw - 16px),420px);margin:0;padding:0;border:0;background:none;overflow:visible;display:grid;gap:8px;pointer-events:none;z-index:2147483000}
+.appb{pointer-events:auto;display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-radius:22px;background:rgba(246,246,250,.88);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);box-shadow:0 8px 30px rgba(0,0,0,.22);color:#111;cursor:pointer;animation:appbIn .38s cubic-bezier(.2,.9,.24,1)}
+@media (prefers-color-scheme:dark){.appb{background:rgba(44,44,48,.88);color:#f5f5f7}}
+.appb.out{animation:appbOut .26s ease-in forwards}
+@keyframes appbIn{from{transform:translateY(-140%);opacity:0}to{transform:none;opacity:1}}
+@keyframes appbOut{to{transform:translateY(-140%);opacity:0}}
+.appb-i{width:38px;height:38px;border-radius:9px;flex:none;object-fit:cover;background:var(--tint,#0a84ff)}
+.appb-m{min-width:0;flex:1}
+.appb-h{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.04em;opacity:.55;font-weight:600}
+.appb-t{font-weight:600;font-size:15px;line-height:1.25;margin-top:1px}
+.appb-b{font-size:14px;line-height:1.3;opacity:.85;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+@media (prefers-reduced-motion:reduce){.appb,.appb.out{animation:none}}
 /* v37: sdílený obchod */
 .shl #itemsList,.shl #addItemWrap,.shl #manWrap,.shl #calcSum,.shl #signedWrap{display:none!important}
 .dealres{min-height:0;padding:0 16px 4px;color:var(--label2)}.dealres:empty{display:none}.dealres.ok{color:var(--green)}
@@ -1395,7 +1395,7 @@ html.locked body{overflow:hidden}
       </div>
       <button type="button" class="dbtn red" id="dLogout">Odhlásit Google</button>
       <p>Data jsou uložená v tomhle zařízení a zároveň v souboru „Vojtova pipeline – data.json“ na tvém Google Disku. Přes něj se synchronizuje Mac a iPhone. Aplikace funguje i bez internetu – změny se odešlou, až budeš online.</p>
-      <p class="hint">Při přihlášení se pro správu přístupů zaznamená tvůj e-mail, typ zařízení a čas strávený v aplikaci. Data klientů se neodesílají nikam – jedinou výjimkou je asistentka, které zadáš úkol: jen s jejím souhlasem se jí sdílí jméno, telefon, e-mail a stav klienta, ke kterému úkol zadáš. Druhou výjimkou je sdílený obchod: jen poradci, kterému obchod výslovně sdílíš a který sdílení přijme, se pošle jméno klienta, produkty, fáze obchodu a jeho podíl bodů (bez telefonu a e-mailu). Volitelný asistent pro psané a diktované příkazy (vypnutý, dokud ho nezapneš) běží celý v telefonu a nic neodesílá; jediné, co z něj odchází, je potvrzení schůzky klientovi – e-mail přes tvůj Gmail a SMS, kterou sám odešleš ve Zprávách.</p>
+      <p class="hint">Co z appky reálně odchází: při přihlášení se pro správu přístupů zaznamená tvůj e-mail, typ zařízení a čas strávený v aplikaci. Sdílený obchod – jen se souhlasem obou stran se poradci, kterému obchod sdílíš, pošle jméno klienta, produkty, fáze obchodu a jeho podíl bodů (bez telefonu a e-mailu). Potvrzení schůzky klientovi odchází z tvého Gmailu nebo jako SMS, kterou sám odešleš ve Zprávách. Rezervace termínu a vstupní dotazník od klienta přicházejí přes tvůj server šifrovaně (server je přečíst neumí), stejně tak push připomínky. Jiná data klientů se nikam neposílají.</p>
     </div>
   </div>
 </dialog>
@@ -2084,7 +2084,7 @@ async function dbAddLead(g){
   const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;const sm=(g.contracts||[]).filter(Boolean).join(", ");
   if(l){const log=[...(l.log||[]),{d:now,t:"Smlouva z Databáze (NN Stela) přidána"+(sm?" · "+sm:"")}].slice(-100);
     await db.doc("leads/"+l.id).update({log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{}),...(!l.address&&g.address?{address:g.address}:{})})}
-  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,address:g.address,source:"Databáze"});
+  else{l=await leadAdd({name:g.name,phone:g.phone,email:g.email,address:g.address,source:"Databáze"});
     await db.doc("leads/"+l.id).update({log:[{d:now,t:"Založeno z Databáze smluv (NN Stela)"+(sm?" · "+sm:"")}],updatedAt:now})}
   if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
   return l.id}
@@ -2098,7 +2098,7 @@ async function dbLostLead(g){
     if(l.stage!=="lost")await moveTo(l,"lost");
     const log=[...(l.log||[]),{d:now,t:"Přesunuto do Lost z Databáze (NN Stela)"+(sm?" · "+sm:"")}].slice(-100);
     await db.doc("leads/"+l.id).update({log,updatedAt:now})}
-  else{l=await aiAddLead({name:g.name,phone:g.phone,email:g.email,address:g.address,source:"Databáze"});
+  else{l=await leadAdd({name:g.name,phone:g.phone,email:g.email,address:g.address,source:"Databáze"});
     await db.doc("leads/"+l.id).update({stage:"lost",stageAt:now,log:[{d:now,t:"Založeno z Databáze smluv (NN Stela) rovnou jako Lost"+(sm?" · "+sm:"")}],updatedAt:now})}
   if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
   return l.id}
@@ -2176,7 +2176,7 @@ async function dzImport(x){
   const pl=x.plan||{},K=pl.klient||{},kt=pl.kontakt||{},name=String(K.jmeno||"").trim()||"Klient z dotazníku";
   const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9),now=new Date().toISOString();
   let l=leads.find(L=>(kt.email&&L.email&&L.email.toLowerCase()===String(kt.email).toLowerCase())||(d(kt.telefon).length===9&&d(L.phone)===d(kt.telefon)))||leads.find(L=>f(L.name)===f(name));
-  if(!l)l=await aiAddLead({name,phone:kt.telefon||"",email:kt.email||""});
+  if(!l)l=await leadAdd({name,phone:kt.telefon||"",email:kt.email||""});
   const cur=leads.find(L=>L.id===l.id)||l;
   await db.doc("leads/"+l.id).update({log:[...(cur.log||[]),{d:now,t:"Klient vyplnil a odeslal vstupní dotazník"}].slice(-100),updatedAt:now,...(!cur.phone&&kt.telefon?{phone:kt.telefon}:{}),...(!cur.email&&kt.email?{email:kt.email}:{})});
   const t=fpLeadTarget(cur),key=fpKeyOf(t.rec),saved=fplans.find(p=>p.id===key);
@@ -2192,7 +2192,7 @@ async function dzBooking(x){
   if(isNaN(start))throw new Error("termín");
   const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
   let l=leads.find(L=>(x.email&&L.email&&L.email.toLowerCase()===String(x.email).toLowerCase())||(d(x.phone).length===9&&d(L.phone)===d(x.phone)))||leads.find(L=>f(L.name)===f(name));
-  if(!l)l=await aiAddLead({name,phone:x.phone||"",email:x.email||""});
+  if(!l)l=await leadAdd({name,phone:x.phone||"",email:x.email||""});
   const cur=leads.find(L=>L.id===l.id)||l;
   const near=(await dzBusy(start,new Date(start.getTime()+DZS.len*60000)).catch(()=>[])).filter(e=>!x.hold||e.id!==x.hold),busy=near.filter(e=>dzBlocks(e)||dzDayOff(e)),offBusy=!online&&near.some(dzOffice);
   const r=await saveMeeting(cur,start,online,{holdId:x.hold||""});
@@ -2290,7 +2290,7 @@ async function dzRecording(x){
   if(!l&&!c){const fnd=nrFindPerson(name,r.phone,em);l=fnd.l;c=fnd.c}
   /* technický záznam (krátká hlasová poznámka / úkol) nikdy nezakládá nový lead – patří ke stávajícímu leadu nebo klientovi */
   const tech=nrIsTech(r);
-  const isNew=!l&&!c&&!tech;if(isNew)l=await aiAddLead({name,phone:r.phone||"",email:em});
+  const isNew=!l&&!c&&!tech;if(isNew)l=await leadAdd({name,phone:r.phone||"",email:em});
   const nm=(l&&l.name)||(c&&c.name)||name;
   const done=[];
   /* poznámka ze schůzky (stejně jako „Zápis ze schůzky“) */
@@ -2312,7 +2312,7 @@ async function dzRecording(x){
   const ph=String(r.phone||"").trim(),card={};
   const curL=l?leads.find(z=>z.id===l.id)||l:null,curC=c?clients.find(z=>z.id===c.id)||c:null,have=k=>(curL&&curL[k])||(curC&&curC[k]);
   if(ph&&!have("phone"))card.phone=ph;if(em&&!have("email"))card.email=em;
-  if(Object.keys(card).length){if(curL)await aiUpdateLead(curL,card);else if(curC){await db.doc("clients/"+curC.id).update(card);await linkPushToLeads(curC,card)}done.push("kontakt do karty")}
+  if(Object.keys(card).length){if(curL)await leadPatch(curL,card);else if(curC){await db.doc("clients/"+curC.id).update(card);await linkPushToLeads(curC,card)}done.push("kontakt do karty")}
   /* karta: datum narození jen když chybí (karta klienta; lead ho má ve finančním plánu) */
   const isoD=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||""))?String(v):"",birth=isoD(r.birth)||isoD(r.fp&&r.fp["klient.narozen"]);
   if(birth&&curC&&!curC.birth){try{await db.doc("clients/"+curC.id).update({birth});curC.birth=birth;done.push("datum narození do karty")}catch(e){}}
@@ -2537,16 +2537,6 @@ function afterMeetSheet(o){
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkoly"),tasks),el("div",{class:"frow"},el("label",{},"Deadline"),due)),
     el("div",{class:"chips"},save,sm,W.l?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setTimeout(()=>openEdit(leads.find(x=>x.id===W.l.id)||W.l),340)}},"Otevřít lead"):null)]);
   setTimeout(()=>{try{notes.focus()}catch(e){}},350)}
-/* testová notifikace „po schůzce“ o poslední proběhlé schůzce s klientem (hledá se podle jména) – odejde hned */
-async function pushTestAfter(q){const now=Date.now(),N=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(),k=N(q),hit=[];
-  /* bez diakritiky („Petranova“ najde Petráňovou) a podle skutečného času (začátky v kalendáři mají posun +01:00/+02:00, řetězce nejde porovnávat) */
-  const past=x=>x&&new Date(x).getTime()<now;
-  (calEvents||[]).forEach(e=>{if(past(e.start)&&N((e.name||"")+" "+(e.title||"")).includes(k))hit.push({id:e.id,start:e.start,name:e.name||e.title,ev:e})});
-  leads.forEach(l=>{if(!N(l.name).includes(k))return;(l.meetings||[]).forEach(m=>{if(past(m.start)&&!hit.some(x=>x.id===m.id))hit.push({id:m.id,start:m.start,name:l.name,lead:l})})});
-  const x=hit.sort((a,b)=>new Date(a.start)-new Date(b.start)).pop();if(!x){toast("Žádná proběhlá schůzka: "+q);return {ok:false}}
-  if(!pushSubsCache)pushSubsCache=(await pushApi("/subs")).subs||[];await pushLib();
-  const pl={...pxAfter(x,15),tag:"t-after-"+Date.now()},out=[];for(const s of pushSubsCache)out.push({id:s.id,body:PushCrypto.b64u(await PushCrypto.encrypt(s,pl))});
-  const r=await pushApi("/send",{body:{items:out}});toast(r.sent?"Testová notifikace odeslaná ("+x.name+", "+meetDateTxt(x.start)+")":"Žádné zařízení nemá push zapnutý");return {...r,meet:{name:x.name,start:x.start}}}
 /* klepnutí na notifikaci → rovnou na správné místo */
 function pushOpen(u){try{const q=new URL(u||location.href,location.href).searchParams,k=q.get("push");if(!k)return;
   const go=()=>{if(k==="after"){setView("pipe");afterMeetSheet({leadId:q.get("lead"),mid:q.get("m"),start:q.get("d"),name:q.get("n")})}else if(k==="bk"||k==="rem")setView("cal");else{setView("pipe");if(k==="nr"){let n=0;const t=()=>{if(!nrReview()&&++n<10)setTimeout(t,1500)};setTimeout(t,600)}}};
@@ -3883,7 +3873,7 @@ function calPeople(){
     let p=map.get(ev.key);if(!p){p={key:ev.key,names:{},meets:[]};map.set(ev.key,p)}p.names[ev.name]=(p.names[ev.name]||0)+1;p.meets.push({id:e.id,start:ev.start,title:ev.title,podpis:ev.podpis})});
   return [...map.values()].map(p=>({...p,name:Object.entries(p.names).sort((a,b)=>b[1]-a[1]||b[0].length-a[0].length)[0][0],meets:p.meets.sort((a,b)=>a.start.localeCompare(b.start))}));
 }
-/* stejná osoba i při jiném pořadí jmen („Veselý Michal“ = „Michal Veselý“) nebo když je v kalendáři jen příjmení („Šikulová“ = „Šikulová Soňa“) */
+/* stejná osoba i při jiném pořadí jmen („Veselý Michal“ = „Michal Veselý“) nebo když je v kalendáři jen příjmení („Pirková“ = „Pirková Soňa“) */
 const _ntM=new Map();const nameToks=n=>{n=String(n||"");let t=_ntM.get(n);if(!t){t=n.replace(/\(.*?\)/g," ").split(/\s+/).map(norm).filter(w=>w.length>=3);if(_ntM.size>20000)_ntM.clear();_ntM.set(n,t)}return t};
 function sameName(a,b){const A=nameToks(a),B=nameToks(b);if(!A.length||!B.length)return false;
   const [S,L]=A.length<=B.length?[A,B]:[B,A];
@@ -4408,7 +4398,7 @@ function openToday(preserve){
   openSheet("Co tě dneska čeká",nodes);
 }
 /* volací blok */
-/* zápis schůzky do kalendáře (je-li to možné) a do leadu – společné pro ruční formulář i pro asistenta.
+/* zápis schůzky do kalendáře (je-li to možné) a do leadu – společné pro formulář v leadu, Kalendář, nahrávky i rezervace.
    opt.moveStage:false = fázi nesahat (jinak se lead přesune do „Schůzka domluvena“) */
 async function saveMeeting(l,start,online,opt={}){
   const cfg=calCfg(), canWrite=!!(GAuth.token()&&GAuth.hasScope("calendar.events")&&cfg.prefix), startISO=start.toISOString();
@@ -4436,41 +4426,22 @@ async function saveMeeting(l,start,online,opt={}){
   if(opt.moveStage!==false&&l.stage!=="schuzka")await moveTo(l,"schuzka");
   return {evId,startISO,canWrite,cfg,evErr};
 }
-/* pomocné zápisy pro asistenta (assistant.js) */
-/* data pro odpovědi asistenta na dotazy (úkoly, schůzky, výsledky) – jen čtení, nic se tu nemění */
-function aiFacts(){
-  const F={today:todayStr(),tasks:[],calls:[],meets:[],quarter:null,month:null,pipe:null};
-  try{F.tasks=asAllTasks().filter(t=>t.st!=="hotovo").map(t=>({text:t.text||"",client:t.client||"",due:t.due||"",who:""}))}catch(e){}
-  try{F.calls=leads.filter(l=>ACTIVE(l.stage)&&!l.shared).map(l=>({name:l.name||"",date:l.nextDate||"",step:l.nextStep||""}))}catch(e){}
-  try{const seen=new Set();(calEvents||[]).forEach(ev=>{if(ev&&ev.start){seen.add(ev.id);F.meets.push({name:ev.name||ev.title||"",start:ev.start,online:!!ev.online})}});
-    leads.forEach(l=>(l.meetings||[]).forEach(m=>{if(m&&m.start&&!seen.has(m.id))F.meets.push({name:l.name||"",start:m.start,online:!!m.online||/online/i.test(m.title||"")})}))}catch(e){}
-  try{const g=goalInfo();F.quarter={label:qLabel(g.cq),pts:g.cur.total,kc:g.cur.earned,rate:g.cur.rate,nextRate:g.nx?g.nx.rate:0,nextTier:g.nx?g.nx.t:"",need:g.need,perWeek:g.perWeek,days:g.days}}catch(e){}
-  try{F.month={pts:monthPoints(ymOf(todayStr())).total}}catch(e){}
-  try{const act=leads.filter(l=>ACTIVE(l.stage)),cur=quarterRow(CURQ()),pts=act.reduce((s,l)=>s+(+l.points||0),0);
-    F.pipe={active:act.length,meetings:leads.filter(l=>l.stage==="schuzka").length,pts,ptsKc:pts*cur.rate,late:act.filter(l=>["late","none"].includes(dueState(l))).length}}catch(e){}
-  return F;
-}
-function aiOpenSms(tel,text){try{navigator.clipboard.writeText(text)}catch(e){}location.href="sms:"+tel+"?&body="+encodeURIComponent(text);toast("Otevírám Zprávy · text je i ve schránce")}
-async function aiAddLead(d){
+/* zápisy do leadu sdílené Databází, nahrávkami a volacím blokem */
+async function leadAdd(d){
   const now=new Date().toISOString();
   const data={name:d.name,phone:d.phone||"",email:d.email||"",address:d.address||"",source:d.source||"",referredBy:"",stage:"novy",stageAt:now,items:[],share:null,pointsManual:null,points:null,signedAt:null,products:[],nextStep:"",nextDate:null,note:"",log:[],meetings:[],lastContact:now,createdAt:now,updatedAt:now};
   const ref=await db.collection("leads").add(data);
   return {id:ref.id,...data};
 }
-async function aiAddNote(l,text){
-  const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l;
-  const log=[...(cur.log||[]),{d:now,t:text}].slice(-100);
-  await db.doc("leads/"+cur.id).update({log,lastContact:now,updatedAt:now});
-}
-/* úprava existujícího klienta hlasem (telefon, e-mail, zdroj, doporučitel, jméno, další krok); telefon a e-mail se propíšou i do karty klienta */
-async function aiUpdateLead(l,patch){
+/* úprava existujícího leadu (telefon, e-mail, zdroj, jméno, další krok); telefon a e-mail se propíšou i do karty klienta */
+async function leadPatch(l,patch){
   const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l;
   await db.doc("leads/"+cur.id).update({...patch,updatedAt:now});
   const lk={};["phone","email"].forEach(k=>{if(k in patch)lk[k]=patch[k]});
   if(Object.keys(lk).length)await linkPushToClient(cur.id,lk);
 }
 /* zápis telefonátu stejně jako tlačítka „Volal“ v kartě klienta: nezvedl → další pokus příští pracovní den */
-async function aiLogCall(l,res,text){
+async function leadLogCall(l,res,text){
   const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l, no=res==="no", extra=String(text||"").trim();
   const n=(cur.log||[]).filter(x=>x.call==="no").length+1;
   const t=(no?"Volal, nezvedl"+(n>1?" ("+n+". pokus)":""):"Volal · hovor proběhl")+(extra?" – "+extra:"");
@@ -4479,105 +4450,6 @@ async function aiLogCall(l,res,text){
   if(no&&(!cur.nextDate||cur.nextDate<=todayStr())){patch.nextDate=addWorkDays(1);if(!cur.nextStep)patch.nextStep="Zavolat znovu"}
   await db.doc("leads/"+cur.id).update(patch);
   if(no)offerNoAnswerSms(leadMsgCtx(cur),log,r=>logLeadMsg(cur,r),cur);
-}
-const aiTasks=()=>myTasks.filter(t=>!t.done).map(t=>({id:t.id,text:t.text||"",client:t.client||"",due:t.due||""}));
-async function aiAddTask(t){await addClientTask({text:t.text,client:t.client||"",due:t.due||""})}
-async function aiDoneTask(t){await db.doc("mytasks/"+t.id).update({done:new Date().toISOString()})}
-/* všechna jména osob v appce – štít soukromí podle nich pozná, co nesmí k modelu */
-function aiPeople(){
-  const out=[];const add=n=>{if(n&&typeof n==="string")out.push(n)};
-  leads.forEach(l=>add(l.name));clients.forEach(c=>add(c.name));recruits.forEach(r=>add(r.name));team.forEach(m=>add(m.name));
-  (calEvents||[]).forEach(e=>add(e&&e.name));myTasks.forEach(t=>add(t.client));
-  return out;
-}
-/* otevření obrazovky: vrací {ok,run}; run provede asistent, až domluví (hlasové okno se mezitím zavře) */
-function aiNavigate({screen,view:vw,lead}){
-  if(screen==="today")return {ok:true,run:()=>openToday()};
-  if(screen==="client"){const l=lead&&(leads.find(x=>x.id===lead.id)||lead);if(!l)return {ok:false,error:"klient nenalezen"};return {ok:true,run:()=>openEdit(l)}}
-  if(!vw)return {ok:false,error:"neznámá obrazovka"};
-  if(!visibleTabs().includes(vw))return {ok:false,error:"tahle záložka teď není zapnutá"};
-  return {ok:true,run:()=>setView(vw)};
-}
-function aiOpenMessage(lead,tplId){
-  const l=leads.find(x=>x.id===lead.id)||lead, T=tpls();
-  if(tplId&&!T.find(t=>t.id===tplId))return {ok:false,error:"taková šablona není, dostupné: "+T.map(t=>t.id+" ("+t.name+")").join(", ")};
-  const ctx=leadMsgCtx(l), cur=T.find(t=>t.id===tplId)||T[0];
-  const note=!ctx.start&&/\{(den|datum|cas|vcas)\}/.test(cur.text||"")?"Klient nemá žádnou budoucí schůzku, v textu zůstanou doplňky [den] [čas] – uživatel je musí doplnit.":"";
-  return {ok:true,template:cur.name,note,run:()=>openMsg(ctx,tplId||null,r=>logLeadMsg(l,r))};
-}
-/* smazání klienta hlasem: stejné jako tlačítko Smazat v kartě (sdílený obchod se jen opustí) */
-async function aiDeleteLead(l){
-  const cur=leads.find(x=>x.id===l.id)||l;
-  if(cur.shared){if(typeof Deals!=="undefined")await Deals.leave(cur.shared.id);return}
-  if(typeof Deals!=="undefined")Deals.afterSave(cur.id,cur.items||[],[]);
-  await db.doc("leads/"+cur.id).delete();
-}
-/* přesun / zrušení schůzky: Google Kalendář (když je událost tam a je povolený zápis) + karta klienta */
-function aiCalUrl(id){return "https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(calCfg().id)+"/events/"+encodeURIComponent(id)}
-const aiCanCal=()=>!!(GAuth.token()&&GAuth.hasScope("calendar.events")&&calCfg().prefix);
-async function aiMoveMeeting(l,m,start){
-  const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l, startISO=start.toISOString();
-  let calendar=false;
-  if(m.id&&!String(m.id).startsWith("local:")&&aiCanCal()){
-    const r=await gfetch(aiCalUrl(m.id),{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({start:{dateTime:startISO},end:{dateTime:new Date(start.getTime()+45*60000).toISOString()}})});
-    if(!r.ok)throw new Error("kalendář odmítl změnu ("+r.status+")");calendar=true;
-  }
-  const has=(cur.meetings||[]).some(x=>x.id===m.id);
-  const meetings=(has?(cur.meetings||[]).map(x=>x.id===m.id?{...x,start:startISO}:x):[...(cur.meetings||[]),{id:m.id,start:startISO,title:cur.name||"",online:!!m.online}]).sort((a,b)=>a.start.localeCompare(b.start));
-  const log=[...(cur.log||[]),{d:now,t:"Schůzka přesunuta: "+fmtMeet(m.start)+" → "+fmtMeet(startISO)}].slice(-100);
-  await db.doc("leads/"+cur.id).update({meetings,log,updatedAt:now});
-  if(calendar)setTimeout(()=>{try{refreshCalendar()}catch(e){}},300);
-  return {calendar};
-}
-async function aiCancelMeeting(l,m){
-  const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l;
-  let calendar=false;
-  if(m.id&&!String(m.id).startsWith("local:")&&aiCanCal()){
-    const r=await gfetch(aiCalUrl(m.id),{method:"DELETE"});
-    if(!r.ok&&r.status!==404&&r.status!==410)throw new Error("kalendář odmítl smazání ("+r.status+")");calendar=true;
-  }
-  const meetings=(cur.meetings||[]).filter(x=>x.id!==m.id);
-  const log=[...(cur.log||[]),{d:now,t:"Schůzka zrušena: "+fmtMeet(m.start)}].slice(-100);
-  await db.doc("leads/"+cur.id).update({meetings,log,updatedAt:now});
-  if(calendar)setTimeout(()=>{try{refreshCalendar()}catch(e){}},300);
-  return {calendar};
-}
-/* produkty hlasem: katalog (názvy a varianty, žádná klientská data), náhled bodů stejným výpočtem jako karta klienta, zápis */
-const aiProdOk=()=>typeof PROD!=="undefined"&&typeof PRODUCTS!=="undefined"&&typeof itemCalc==="function";
-function aiProducts(){
-  if(!aiProdOk())return [];
-  return PRODUCTS.filter(p=>PROD[p]).map(p=>{const P=PROD[p];return {p,unit:P.unit||"Kč",kind:P.kind||"",def:P.def||"",vars:(P.vars||[]).filter(v=>!v.hid&&!v.cust).map(v=>({v:v.v,t:v.t||v.v}))}});
-}
-function aiProductPreview(spec){
-  const nn=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
-  if(!aiProdOk())return {ok:false,error:"výpočet bodů není k dispozici (odemkni provizní přílohu)"};
-  const p=PRODUCTS.find(x=>nn(x)===nn(spec.product||""))||PRODUCTS.find(x=>nn(x).startsWith(nn(spec.product||"").slice(0,3))&&nn(spec.product||"").length>=3);
-  if(!p||!PROD[p])return {ok:false,error:"neznámý produkt „"+(spec.product||"")+"“, povolené: "+PRODUCTS.join(", ")};
-  const P=PROD[p], vs=(P.vars||[]).filter(v=>!v.hid&&!v.cust), assumed=[];
-  let V=null;const q=nn(spec.variant||"");
-  if(q){V=vs.find(v=>nn(v.t)===q||nn(v.v)===q)||vs.find(v=>nn(v.t).includes(q)||(nn(v.v).length>=3&&q.includes(nn(v.v))))||vs.find(v=>q.split(" ").filter(w=>w.length>2).some(w=>nn(v.t).includes(w)));
-    if(!V)return {ok:false,error:"varianta „"+spec.variant+"“ u produktu "+p+" není, možnosti: "+vs.slice(0,15).map(v=>v.t).join(", ")}}
-  else{V=vs.find(v=>v.v===P.def)||vs[0];if(!V)return {ok:false,error:"produkt "+p+" nemá variantu pro hlasový zápis – zadej ho v kartě klienta"};if(vs.length>1)assumed.push("varianta "+V.t)}
-  const amt=+spec.amount;if(!(amt>0))return {ok:false,error:"chybí částka"};
-  const it={p,amt,var:V.v};
-  if(p==="Investice"){const W=varOf(it);it.mode=W.nomode?"jednorazove":(spec.mode==="mesicne"?"mesicne":spec.mode==="jednorazove"?"jednorazove":(assumed.push("jednorázový vklad"),"jednorazove"));
-    const f=spec.fee_percent!=null&&spec.fee_percent!==""?+spec.fee_percent:null;it.fee=W.nofee?0:Math.min(Math.max(f!=null&&isFinite(f)?f:Math.min(3,W.max),W.min||0),W.max);if(f==null&&!W.nofee)assumed.push("vstupní poplatek "+String(it.fee).replace(".",",")+" %")}
-  if(p==="ŽP"){it.yrs=+spec.years>0?+spec.years:(assumed.push("10 let"),10);it.g="M"}
-  if(p==="DPS"){it.age=+spec.age>0?+spec.age:(assumed.push("věk klienta 35"),35)}
-  if(p==="Reality"){it.price=amt;it.pct=+spec.fee_percent>0?+spec.fee_percent:(assumed.push("provize 3 %"),3);it.plusDph=false;syncReal(it)}
-  let pts;try{pts=r1(itemCalc(it).pts)}catch(e){return {ok:false,error:"body se nepodařilo spočítat ("+e.message+")"}}
-  it.pts=pts;it.share=100;
-  let rate=0;try{rate=quarterRow(CURQ()).rate}catch(e){}
-  const unit=p==="Investice"?(it.mode==="mesicne"?"Kč/měs":"Kč"):(P.unit||"Kč");
-  return {ok:true,item:it,pts,kc:Math.round(pts*rate),label:p==="Reality"?"Reality · cena "+fmt0(it.price)+" Kč, provize "+it.pct+" %":p+" "+V.t+" · "+fmt0(it.amt)+" "+unit,assumed};
-}
-async function aiAddProducts(l,items){
-  const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l, stage=cur.stage;
-  const all=[...(cur.items||[]),...items.map(it=>{const o={...it};if(SIGNED(stage))o.signed=true;return o})];
-  const data={items:all,products:[...new Set(all.map(i=>{try{return itemLabel(i)}catch(e){return i.p}}))],updatedAt:now};
-  if(cur.pointsManual==null)data.points=leadPointsFromItems(all,stage);
-  await db.doc("leads/"+cur.id).update(data);
-  if(typeof Deals!=="undefined")try{Deals.afterSave(cur.id,cur.items||[],all)}catch(e){}
 }
 function scheduleMeeting(l,onDone){
   const cfg=calCfg(), canWrite=!!(GAuth.token()&&GAuth.hasScope("calendar.events")&&cfg.prefix);
@@ -4627,7 +4499,7 @@ function openCallBlock(ids,i=0){
     return}
   const last=(l.log||[]).slice(-2).reverse();
   /* dovolal jsem se: zapíše hovor, nový lead posune do „Kontaktován“ a když nemá budoucí termín, další pokus za 3 pracovní dny */
-  const contacted=async()=>{try{await aiLogCall(l,"yes","");if(l.stage==="novy")await moveTo(l,"kontaktovan");
+  const contacted=async()=>{try{await leadLogCall(l,"yes","");if(l.stage==="novy")await moveTo(l,"kontaktovan");
     const cur=leads.find(x=>x.id===l.id)||l;if(!cur.nextDate||cur.nextDate<=todayStr())await db.doc("leads/"+l.id).update({nextDate:addWorkDays(3),nextStep:cur.nextStep||"Zavolat znovu",updatedAt:new Date().toISOString()});
     toast("Kontaktován · další krok "+fmtDate(addWorkDays(3)))}catch(e){toast("Nepodařilo se uložit")}next()};
   const later=async(days,txt)=>{const now=new Date().toISOString();const log=[...(l.log||[]),{d:now,t:txt}].slice(-100);try{await db.doc("leads/"+l.id).update({log,lastContact:now,updatedAt:now,nextDate:addWorkDays(days),nextStep:l.nextStep||"Zavolat znovu"});toast(txt)}catch(e){toast("Nepodařilo se uložit")}next()};
@@ -5772,18 +5644,6 @@ async function addFromCal(name,evs){
   const data={name,phone:"",email:"",source:"",referredBy:"",stage,stageAt:now,items:[],share:null,pointsManual:null,points:null,signedAt,products:[],nextStep,nextDate,note:"",log:[],meetings,lastContact:past?past.start:now,createdAt:now,updatedAt:now};
   try{await db.collection("leads").add(data);toast(name+" přidán do fáze "+ST(stage).t)}catch(e){toast("Nepodařilo se uložit")}
 }
-function calErrorText(e){
-  switch(e?.code){
-    case "server_not_connected":return "Google Kalendář není připojený. Přidej ho na claude.ai v Nastavení → Konektory.";
-    case "needs_reauth":return "Google Kalendář potřebuje znovu přihlásit (claude.ai → Nastavení → Konektory).";
-    case "not_in_manifest":return "Přístup ke kalendáři jsi pro tuto stránku nepovolil.";
-    case "selection_required":return "Máš připojených víc Google Kalendářů. Vyber jeden v nabídce, kterou ukázal Claude.";
-    case "blocked_by_policy":case "approval_required":return "Přístup ke kalendáři blokuje nastavení organizace.";
-    case "server_unavailable":return "Kalendář teď neodpovídá. Zkusím to znovu.";
-    case "tool_error":return "Kalendář vrátil chybu: "+(e.message||"");
-    default:return "Kalendář se nenačetl ("+(e?.code||"chyba")+").";
-  }
-}
 function calFootText(){const c=calCfg();return c.prefix?"Schůzky „"+c.prefix+" Příjmení“ z kalendáře "+c.name+" za posledních 60 dní a nadcházející. Porady a jiné události se ignorují. Změníš v nastavení synchronizace (tlačítko ✓).":"Z kalendáře se nic nenačítá – v nastavení synchronizace (tlačítko ✓) vyplň začátek názvu schůzek, např. „VK:“."}
 function applyCalItems(items){try{$("calFoot").textContent=calFootText()}catch(e){}if(!calCfg().prefix){calEvents=null;calState="error";calMsg="Nastav začátek názvu schůzek (např. VK:) v nastavení synchronizace – tlačítko ✓ vpravo nahoře.";render();return}calEvents=items.map(parseEvent).filter(Boolean);calState="ok";calMsg="";render();scheduleSync();setTimeout(()=>pushSyncReminders().catch(()=>{}),3000)}
 async function refreshCalendar(){
@@ -6245,7 +6105,7 @@ async function askCallResult(){
   const secs=Math.round(age/1000), ok=secs>=40, mins=Math.max(1,Math.round(secs/60)), txt=ok?"hovor ~"+mins+" min":"";
   const dropLast=async()=>{try{if(p.kind==="lead"){const l=leads.find(x=>x.id===p.id);if(l)await db.doc("leads/"+l.id).update({log:(l.log||[]).slice(0,-1)})}
     else{const c=clients.find(x=>x.id===p.id);if(c)await db.doc("clients/"+c.id).update({log:(c.log||[]).slice(0,-1)})}}catch(e){}};
-  const write=async good=>{if(p.kind==="lead"){const l=leads.find(x=>x.id===p.id);if(l)await aiLogCall(l,good?"yes":"no",good?txt||"hovor":"")}
+  const write=async good=>{if(p.kind==="lead"){const l=leads.find(x=>x.id===p.id);if(l)await leadLogCall(l,good?"yes":"no",good?txt||"hovor":"")}
     else{const ce=clientEntries().find(x=>x.rec&&x.rec.id===p.id);if(ce)await srvCall(ce,good)}};
   try{await write(ok)}catch(e){toast("Hovor se nepodařilo zapsat");return}
   const bar=el("div",{id:"callBar",class:"noans",role:"status"},el("span",{},"Zapsáno: "+(p.name||"kontakt")+" – "+(ok?txt:"nezvedl")),
@@ -8716,7 +8576,6 @@ const asMeMail=()=>Acc.me();
 const asFirst=n=>{const w=String(n||"").trim().split(/[\s._-]+/)[0]||"";return w.replace(/^./,c=>c.toUpperCase())};
 /* úklid po zrušeném režimu asistentky: smazat lokální kopie propojení, úkolů a seznamů klientů z tohoto zařízení */
 try{Object.keys(localStorage).filter(k=>/^(as_(adv|asst|flag|invites|snap_at|snap_sig|auto|inv_at|notified)|as_skip_|fl_)/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
-function asDefDays(){const n=+settings.asstDays;return isFinite(n)&&n>=0?n:3}
 /* výchozí deadline úkolu = za týden */
 function taskDefDue(){return addDays(7)}
 const asDue=t=>{if(!t.due||t.st==="hotovo")return"";const d=todayStr();if(t.due===d&&t.time&&t.time<fmtHM(new Date().toISOString()))return"late";return t.due<d?"late":t.due===d?"today":""};
@@ -8931,20 +8790,20 @@ function asChime(){ /* tři krátké zvonivé tóny ve stylu iPhonu („Tri-tone
         g.gain.setValueAtTime(0.0001,t0+dt);g.gain.exponentialRampToValueAtTime(vol,t0+dt+0.006);g.gain.exponentialRampToValueAtTime(0.0001,t0+dt+len);
         o.connect(g);g.connect(out);o.start(t0+dt);o.stop(t0+dt+len+0.05)})})}catch(e){}
 }
-function asAlert(o){ /* banner + zvuk; když je aplikace skrytá, i systémové upozornění */
-  asBanner(o);
+function appAlert(o){ /* banner + zvuk; když je aplikace skrytá, i systémové upozornění */
+  appBanner(o);
   if(document.visibilityState!=="visible")asNotify(o.title,o.body||"",o.tag);
 }
-function asBanner({title,body,tag,onTap,sound=true}){
-  let box=$("asBan");
-  if(!box){box=el("div",{id:"asBan","aria-live":"polite"});box.setAttribute("popover","manual");document.body.append(box)}
+function appBanner({title,body,tag,onTap,sound=true}){
+  let box=$("appBan");
+  if(!box){box=el("div",{id:"appBan","aria-live":"polite"});box.setAttribute("popover","manual");document.body.append(box)}
   try{if(box.showPopover&&!box.matches(":popover-open"))box.showPopover()}catch(e){}
   [...box.children].forEach(c=>{if(tag&&c.dataset.tag===tag)c.remove()});
   let timer=null;
   const close=()=>{clearTimeout(timer);b.classList.add("out");setTimeout(()=>b.remove(),260)};
-  const ic=el("img",{class:"asb-i",src:"icon-192.png",alt:"",onerror:e=>{e.target.style.visibility="hidden"}});
-  const b=el("div",{class:"asb",role:"status","data-tag":tag||""},ic,
-    el("div",{class:"asb-m"},el("div",{class:"asb-h"},el("span",{},"PIPELINE"),el("span",{},"teď")),el("div",{class:"asb-t"},title),body?el("div",{class:"asb-b"},body):null));
+  const ic=el("img",{class:"appb-i",src:"icon-192.png",alt:"",onerror:e=>{e.target.style.visibility="hidden"}});
+  const b=el("div",{class:"appb",role:"status","data-tag":tag||""},ic,
+    el("div",{class:"appb-m"},el("div",{class:"appb-h"},el("span",{},"PIPELINE"),el("span",{},"teď")),el("div",{class:"appb-t"},title),body?el("div",{class:"appb-b"},body):null));
   b.addEventListener("click",()=>{close();if(onTap)onTap()});
   let y0=null;b.addEventListener("touchstart",e=>{y0=e.touches[0].clientY},{passive:true});
   b.addEventListener("touchend",e=>{if(y0!=null&&e.changedTouches[0].clientY-y0<-18)close();y0=null});
@@ -9063,17 +8922,17 @@ const Deals=(()=>{
     });
   }
   function announce(d,cur){
-    if(typeof asAlert!=="function")return;
-    asAlert({title:"Sdílený obchod · "+(d.name||cur.name),body:nameOf(d,"o")+": "+ST(d.stage).t+(SIGNED(d.stage)&&d.pts?" · tvůj podíl "+fmt1(d.pts)+" b":""),tag:"deal"+d.id,onTap:()=>{if(typeof setView==="function")setView("pipe")}});
+    if(typeof appAlert!=="function")return;
+    appAlert({title:"Sdílený obchod · "+(d.name||cur.name),body:nameOf(d,"o")+": "+ST(d.stage).t+(SIGNED(d.stage)&&d.pts?" · tvůj podíl "+fmt1(d.pts)+" b":""),tag:"deal"+d.id,onTap:()=>{if(typeof setView==="function")setView("pipe")}});
   }
   /* upozornění: nová žádost / odpověď druhé strany (jen po první synchronizaci, ať se nespustí při startu) */
   function notices(){
     if(!AsNet.settled())return;
     const seen=lsGet(K_SEEN),first=!seen||typeof seen!=="object";const sv=first?{}:seen;let chg=false;
     M.dr.forEach(d=>{const k="r"+d.id+d.st;if(sv[k])return;sv[k]=1;chg=true;
-      if(!first&&d.st==="žádost")asAlert({title:"Nabídka sdíleného obchodu",body:nameOf(d,"o")+" ti chce předat podíl na obchodu. Klepni a rozhodni.",tag:"dealq"+d.id,onTap:()=>{askPending(true)}})});
+      if(!first&&d.st==="žádost")appAlert({title:"Nabídka sdíleného obchodu",body:nameOf(d,"o")+" ti chce předat podíl na obchodu. Klepni a rozhodni.",tag:"dealq"+d.id,onTap:()=>{askPending(true)}})});
     M.do.forEach(d=>{const k="o"+d.id+d.st;if(sv[k])return;sv[k]=1;chg=true;
-      if(!first&&(d.st==="sdílí"||d.st==="odmítnuto"))asAlert({title:d.st==="sdílí"?"Sdílení přijato":"Sdílení odmítnuto",body:nameOf(d,"r")+(d.st==="sdílí"?" přijal(a) podíl na obchodu.":" odmítl(a) podíl na obchodu."),tag:"dealr"+d.id})});
+      if(!first&&(d.st==="sdílí"||d.st==="odmítnuto"))appAlert({title:d.st==="sdílí"?"Sdílení přijato":"Sdílení odmítnuto",body:nameOf(d,"r")+(d.st==="sdílí"?" přijal(a) podíl na obchodu.":" odmítl(a) podíl na obchodu."),tag:"dealr"+d.id})});
     if(chg||first)lsSet(K_SEEN,sv);
   }
   let lastSig="",tm=null;

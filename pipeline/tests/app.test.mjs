@@ -11,118 +11,13 @@ const STORE = {
 };
 
 
-/* ---------- AI asistent: běží celý v appce; podvržený je jen Google (kalendář, Gmail) a otevření Zpráv ---------- */
+/* ---------- šablony potvrzení schůzky a termín „za n dní“ ---------- */
 const TPL_ONLINE = { id: "potvrzeni", name: "Potvrzení schůzky", text: "Dobrý den, {osloveni}, potvrzuji naši schůzku {den} {datum} {vcas}{kde}.\n{podpis}" };
 const TPL_MEET = { id: "onl", name: "Potvrzení online konzultace", text: "Dobrý den, {osloveni}, potvrzuji naši schůzku {den} {datum} {vcas}{kde}. Zde Vám zasílám odkaz pro připojení: {meet}.\n{podpis}" };
-const MEET_LINK = "https://meet.google.com/abc-defg-hij";
 const DAY_PH = ["v neděli", "v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu"];
 /* „za n dní“ jako česká věta a jako ISO čas – n = 2…6, ať se nikdy netrefí na dnešek ani na „zítra“ */
 const inDays = (n, hour) => { const d = new Date(); d.setDate(d.getDate() + n); d.setHours(hour, 0, 0, 0);
   const z = x => String(x).padStart(2, "0"); return { say: DAY_PH[d.getDay()], iso: d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()) + "T" + z(hour) + ":00" }; };
-async function aiApp(env, { delay = 0, tpls = [TPL_ONLINE, TPL_MEET], leads = {}, ai = {}, scope = "calendar.events gmail.send", pre = null } = {}) {
-  const store = { ...STORE,
-    "settings/main": { ...STORE["settings/main"], calPrefix: "VK:", calId: "primary", tpls, ai: { on: true, delay, sms: true, mail: true, from: "", ...ai } },
-    "leads/n1": { name: "Jan Novák", phone: "777 111 222", email: "novak@example.com", stage: "kontaktovan", items: [], meetings: [], log: [], _u: 1 },
-    ...leads };
-  const { ctx, page, errors } = await openApp(env, { store, pre });
-  const calls = { cal: [], mail: [], outside: [], ops: [] };
-  const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" };
-  const json = (route, obj, status = 200) => route.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(obj) });
-  ctx.on("request", r => { const u = r.url(); if (!/^(http:\/\/localhost|data:|blob:|about:)/.test(u)) calls.outside.push(u); });
-  await ctx.route(/googleapis\.com\/(calendar|gmail)/, route => {
-    const r = route.request(), u = r.url();
-    if (r.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
-    if (/gmail/.test(u)) { calls.mail.push(JSON.parse(r.postData())); return json(route, { id: "m1" }); }
-    if (r.method() === "POST") { calls.cal.push(JSON.parse(r.postData())); return json(route, { id: "ev1" }); }
-    if (r.method() === "PATCH" || r.method() === "DELETE") { calls.ops.push({ method: r.method(), url: u, body: r.postData() ? JSON.parse(r.postData()) : null }); return r.method() === "DELETE" ? route.fulfill({ status: 204, headers: cors }) : json(route, { id: "ok" }); }
-    return json(route, { hangoutLink: MEET_LINK, description: "Připojit se přes Google Meet: " + MEET_LINK });
-  });
-  await page.evaluate(sc => { lsSet("g_tok", { at: "test-token-123456789012345", exp: Date.now() + 36e5, scope: sc }); window.__sms = []; window.aiOpenSms = (tel, text) => window.__sms.push({ tel, text }); }, scope);
-  await page.evaluate(() => Assistant.refresh());
-  return { ctx, page, errors, calls };
-}
-const aiSay = async (page, text) => { await page.evaluate(() => Assistant.open()); await page.waitForSelector("dialog[open] .aiIn textarea");
-  await page.fill("dialog[open] .aiIn textarea", text); await page.click('dialog[open] .aiIn button[aria-label="Odeslat"]'); };
-const aiLead = (page, name) => page.evaluate(n => { const l = leads.find(x => x.name === n); return l ? JSON.parse(JSON.stringify(l)) : null }, name);
-const aiSms = page => page.evaluate(() => window.__sms.slice());
-/* podvržené rozpoznávání řeči: start() jen počítá, stop() „doslyší“ window.__say a skončí */
-const fakeSpeech = (page, say) => page.evaluate(t => {
-  window.__say = t; window.__recStarts = 0;
-  window.SpeechRecognition = class {
-    start() { window.__recStarts++; }
-    stop() { const x = window.__say; if (x) this.onresult({ results: [Object.assign([{ transcript: x }], { isFinal: true })] }); this.onend && this.onend(); }
-    abort() { this.onend = null; }
-  };
-}, say);
-
-/* podvržený hlasový výstup: speak() si jen zapíše text a hlas a hned „domluví“ */
-const fakeVoice = (page, voices = [{ name: "Daniel", lang: "en-GB" }, { name: "Jakub", lang: "cs-CZ" }, { name: "Zuzana", lang: "cs-CZ" }]) => page.evaluate(vs => {
-  window.__spoken = [];
-  window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
-  Object.defineProperty(window, "speechSynthesis", { configurable: true, value: {
-    getVoices: () => vs.map(v => ({ ...v, voiceURI: v.name, localService: true })), cancel() {}, addEventListener() {},
-    speak(u) { window.__spoken.push({ text: u.text, voice: u.voice && u.voice.name, lang: u.lang }); setTimeout(() => u.onend && u.onend(), 30); } } });
-}, voices);
-const ymdIn = n => { const d = new Date(); d.setDate(d.getDate() + n); const z = x => String(x).padStart(2, "0"); return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); };
-const dmIn = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.getDate() + "." + (d.getMonth() + 1) + "."; };
-const SIKULOVA = { "leads/s1": { name: "Eva Šikulová", phone: "777 333 444", email: "", stage: "kontaktovan", items: [], meetings: [], log: [], _u: 1 } };
-const noFocus = page => page.evaluate(() => document.activeElement && document.activeElement.blur());
-const voiceBars = page => page.evaluate(() => [...document.querySelectorAll(".aiVoice .veq i")].map(i => i.style.transform).join());
-
-/* ---------- chytrý režim (Gemini): síť k Googlu AI je podvržená (REST i WebSocket), klíč je testovací ---------- */
-const GKEY = "AIzaSyTESTKEY0123456789abcdefghij";
-const GEM_CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" };
-const gen = parts => ({ candidates: [{ content: { role: "model", parts }, finishReason: "STOP", index: 0 }] });
-const pcmPart = (n, rate = 24000) => ({ inlineData: { data: Buffer.from(new Int16Array(n).fill(1000).buffer).toString("base64"), mimeType: "audio/L16;codec=pcm;rate=" + rate } });
-const fcPart = (name, args, id) => ({ functionCall: { id, name, args } });
-const lastPart = body => { const c = body.contents[body.contents.length - 1]; return c.parts.find(p => typeof p.text === "string") || c.parts[0]; };   /* odpovědi nástrojů mohou jít spolu s další větou */
-const until = async (f, what, ms = 10000) => { const t0 = Date.now(); for (;;) { const v = await f(); if (v) return v; if (Date.now() - t0 > ms) throw new Error("nedočkáno: " + what); await new Promise(r => setTimeout(r, 40)); } };
-const PRIVATE = ["777 111 222", "777111222", "novak@example.com"];
-/* v soukromém režimu nesmí Googlu odejít ani jméno klienta */
-const PRIVATE_NAMES = ["Novák", "Nováka", "Novákem", "Novákovi", "Šikulov", "Černá"];
-/* čekání s výpisem okna asistenta, když se nic nestane (ať je z chyby poznat proč) */
-const seen = async (page, sel, ms = 15000) => { try { return await page.waitForSelector(sel, { timeout: ms }); } catch (e) { throw new Error("nenalezeno " + sel + "\n--- okno ---\n" + String(await page.evaluate(() => { const d = document.querySelector("dialog[open]"); return d ? d.innerText + "\n--- html ---\n" + (document.getElementById("edBody") || d).innerHTML.slice(0, 1500) + "\n--- uzivatel/hlas ---\n" + (document.querySelector(".aiVoice") ? document.querySelector(".aiVoice").innerText : "-") : "(žádné otevřené okno) " + document.body.innerText.slice(0, 300); }).catch(() => "?")).slice(0, 2600)); } };
-/* rest({model, body, n, all}) → {status?, body}; ws(sock, msg) se zavolá na každou zprávu od appky (setup se potvrdí sám, pokud ws nevrátí false) */
-async function smartApp(env, { rest = null, ws = null, key = GKEY, ...o } = {}) {
-  const gem = { rest: [], socks: [] };
-  const r = await aiApp(env, { ...o, pre: page => page.routeWebSocket(/BidiGenerateContent/, w => {
-    const sock = { url: w.url(), sent: [], closed: false, send: m => w.send(JSON.stringify(m)), close: (code, reason) => w.close({ code, reason }) };
-    gem.socks.push(sock);
-    w.onMessage(raw => {
-      const m = JSON.parse(String(raw)); sock.sent.push(m);
-      const handled = ws ? ws(sock, m) : undefined;
-      if (m.setup && handled !== false) sock.send({ setupComplete: {} });
-    });
-    w.onClose(() => { sock.closed = true; });
-  }) });
-  await r.ctx.route(/generativelanguage\.googleapis\.com/, async route => {
-    const q = route.request();
-    if (q.method() === "OPTIONS") return route.fulfill({ status: 204, headers: GEM_CORS });
-    const body = JSON.parse(q.postData() || "null"), model = (q.url().match(/models\/([^:/]+):/) || [])[1];
-    const rec = { url: q.url(), model, body, headers: q.headers() }; gem.rest.push(rec);
-    const out = rest ? await rest({ model, body, n: gem.rest.length, all: gem.rest }) : { body: /tts/.test(model) ? gen([pcmPart(7200)]) : gen([{ text: "Dobře." }]) };
-    await route.fulfill({ status: out.status || 200, headers: GEM_CORS, contentType: "application/json", body: JSON.stringify(out.body) });
-  });
-  if (key) await r.page.evaluate(k => { Jarvis.setKey(k); Assistant.refresh(); }, key);
-  gem.everything = () => JSON.stringify([gem.rest.map(x => x.body), gem.socks.map(s => s.sent)]);
-  return { ...r, gem };
-}
-/* mikrofon: tón 440 Hz jako MediaStream (stránka nemá skutečný mikrofon); počítá otevření a zastavení stopy */
-const fakeMic = page => page.evaluate(() => {
-  window.__mic = { asked: 0, stopped: 0 };
-  navigator.mediaDevices.getUserMedia = async () => {
-    window.__mic.asked++;
-    const ac = new AudioContext(), o = ac.createOscillator(), d = ac.createMediaStreamDestination();
-    o.frequency.value = 440; o.connect(d); o.start(); ac.resume && ac.resume();
-    const tr = d.stream.getAudioTracks()[0], stop = tr.stop.bind(tr);
-    tr.stop = () => { window.__mic.stopped++; stop(); ac.close().catch(() => {}); };
-    return d.stream;
-  };
-});
-/* nastavení asistenta je v okně Data a synchronizace */
-const openData = async page => { await page.evaluate(() => { document.getElementById("dataDlg").showModal(); Assistant.renderSettings(document.getElementById("aiCfg")); }); await page.waitForTimeout(300); };
-const noNames = (gem, msg) => { const s = gem.everything(); for (const p of PRIVATE_NAMES) assert(!s.includes(p), msg + ": modelu se poslalo „" + p + "“"); };
-const noPrivate = (gem, msg) => { const s = gem.everything(); for (const p of PRIVATE) assert(!s.includes(p), msg + ": modelu se poslalo „" + p + "“"); };
 
 export default {
   async "potvrzení e-mailem: vlastní šablona v nastavení (osobně / online), předmět + text, uložení"(env) {
@@ -130,7 +25,7 @@ export default {
     const d = inDays(3, 15);
     /* výchozí text: osobně končí termínem a místem (Trnitá, když místo chybí), online odkazem; bez podpisu a poděkování */
     let r = await page.evaluate(iso => [confMailOut({ name: "Ing. Jan Novák", start: new Date(iso).toISOString(), online: false, place: "" }),
-      confMailOut({ name: "Eva Šikulová", start: new Date(iso).toISOString(), online: true, meetLink: "https://meet.google.com/x" })], d.iso);
+      confMailOut({ name: "Eva Pirková", start: new Date(iso).toISOString(), online: true, meetLink: "https://meet.google.com/x" })], d.iso);
     assert(r[0].body.startsWith("Dobrý den, pane inženýre,") && r[0].body.endsWith("Místo: Brno, Trnitá 500/9"), "osobně: " + r[0].body);
     assert(r[0].body.includes("Termín: " + d.say + " "), "termín: " + r[0].body);
     assert(/^Potvrzení konzultace \d+\. \d+\.$/.test(r[0].subject), "předmět: " + r[0].subject);
