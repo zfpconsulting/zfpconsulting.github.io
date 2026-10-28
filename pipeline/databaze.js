@@ -194,57 +194,51 @@ const csvCell=v=>{let s=String(v??"");if(/^[=+\-@\t\r]/.test(s))s="'"+s;return /
 const toCsv=rows=>"﻿"+["Jméno a příjmení;Datum narození;Pojistné;Odkupné;Datum technického počátku"].concat(rows.map(r=>[r.name,czDate(r.narozen),r.premium==null?"":String(r.premium).replace(".",","),r.surrender==null?"":String(r.surrender).replace(".",","),czDate(r.start)].map(csvCell).join(";"))).join("\r\n");
 
 /* ================= vzhled ================= */
+/* jen rozvržení tabulky – tlačítka, pole, menu, zprávy a vysvětlivky jsou globální komponenty z index.html */
 const CSS=`
-.dbx{font-family:var(--font,-apple-system,system-ui,sans-serif);color:var(--ink);background:var(--surface);border-radius:16px;box-shadow:var(--card-shadow);padding:16px 18px 18px;margin-bottom:22px}
+.dbx{padding:var(--sp-4);margin-bottom:var(--sp-5);position:relative}
 .dbx.drop{outline:2px dashed var(--accent);outline-offset:-6px}
-.dbx .db-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
-.dbx .db-top h3{margin:0;font-size:17px;font-weight:700;flex:1 1 auto}
-.dbx .db-btn{height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;white-space:nowrap}
-.dbx .db-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
-.dbx .db-btn.danger{color:var(--accent-text);border-color:var(--accent)}
-.dbx .db-btn:disabled{opacity:.45;cursor:default}
-.dbx .db-search{width:100%;box-sizing:border-box;height:42px;border:1px solid var(--line);border-radius:10px;background:var(--canvas);color:var(--ink);font:inherit;font-size:16px;padding:0 12px;margin-bottom:12px}
-.dbx .db-msg{font-size:13.5px;line-height:1.45;border-radius:10px;padding:9px 12px;margin:0 0 12px;background:var(--canvas)}
-.dbx .db-prog{font-size:13.5px;line-height:1.45;border-radius:10px;padding:9px 12px;margin:0 0 12px;background:var(--canvas);color:var(--ink-2)}
-.dbx .db-msg.warn{background:var(--accent-soft)}
-.dbx .db-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
-.dbx table{border-collapse:collapse;width:100%;min-width:760px;font-size:14.5px}
-.dbx th{position:sticky;top:0;background:var(--canvas);text-align:left;font-size:12.5px;font-weight:600;color:var(--ink-2);padding:10px 10px;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--line)}
+.db-top{display:flex;flex-wrap:wrap;gap:var(--sp-2);align-items:center;margin-bottom:var(--sp-3)}
+.db-top .db-cnt{flex:1 1 auto;margin:0;font-size:var(--fs-s);color:var(--ink-2)}
+.db-more{position:relative}
+.db-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:220px;box-shadow:var(--shadow-pop)}
+.db-search{margin-bottom:var(--sp-3)}
+.db-msg{font-size:var(--fs-s);line-height:1.45;border-radius:var(--r-m);padding:var(--sp-2) var(--sp-3);margin:0 0 var(--sp-3);background:var(--fill)}
+.db-msg.warn{background:var(--accent-soft)}
+.db-prog{color:var(--ink-2)}
+.db-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--r-m)}
+.dbx table{border-collapse:collapse;width:100%;min-width:760px;font-size:var(--fs-m);font-variant-numeric:tabular-nums}
+.dbx th{position:sticky;top:0;background:var(--canvas);text-align:left;font-size:var(--fs-xs);font-weight:600;color:var(--ink-2);padding:var(--sp-2) var(--sp-3);white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--line)}
 .dbx th.num,.dbx td.num{text-align:right}
 .dbx th .ar{color:var(--accent-text);margin-left:4px}
-.dbx td{padding:3px 4px;border-bottom:1px solid var(--line)}
-.dbx tr:last-child td{border-bottom:0}
-.dbx td input{width:100%;box-sizing:border-box;height:38px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--ink);font:inherit;font-size:14.5px;padding:0 8px}
-.dbx td.num input{text-align:right;font-variant-numeric:tabular-nums}
-.dbx td input:hover{border-color:var(--line)}
-.dbx td input:focus{outline:2px solid var(--accent);outline-offset:-1px;background:var(--surface)}
+.dbx td{padding:2px var(--sp-1);border-bottom:1px solid var(--line)}
+.dbx tbody tr:last-child td{border-bottom:0}
+.dbx td input:not([type=checkbox]){width:100%;height:40px;border:1px solid transparent;border-radius:var(--r-s);background:transparent;color:var(--ink);font:inherit;font-size:16px;padding:0 var(--sp-2)}
+.dbx td.num input{text-align:right}
+.dbx td input:not([type=checkbox]):hover{border-color:var(--line)}
+.dbx td input:not([type=checkbox]):focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--surface)}
 .dbx td input.miss{background:var(--accent-soft)}
-.dbx td.x{width:44px;text-align:center}
-.dbx td.x button{border:0;background:none;color:var(--ink-2);font-size:20px;line-height:1;cursor:pointer;padding:6px 10px;border-radius:8px}
-.dbx td.x button:hover{color:var(--accent-text)}
-.dbx tfoot td{padding:11px 12px;font-weight:700;background:var(--canvas);border-top:1px solid var(--line);border-bottom:0;font-variant-numeric:tabular-nums;white-space:nowrap}
-.dbx tfoot td.num{text-align:right}
-.dbx tfoot .db-sub{font-weight:400;font-size:12.5px;color:var(--ink-2)}
-.dbx .db-empty{padding:28px 12px;text-align:center;color:var(--ink-2);font-size:14.5px;line-height:1.5}
-.dbx .db-note{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin:12px 0 0}
-.dbx td:not(.num) input{text-align:left}
+.dbx td.x{width:52px;text-align:center}
+.dbx tfoot td{padding:var(--sp-3);font-weight:700;background:var(--canvas);border-top:1px solid var(--line);border-bottom:0;white-space:nowrap}
+.dbx tfoot .db-sub{font-weight:400;font-size:var(--fs-xs);color:var(--ink-2)}
 .dbx th.a{text-align:center;cursor:default}
-.dbx td.c,.dbx th.c{width:40px;text-align:center;padding-left:8px;padding-right:2px;cursor:default}
-.dbx td.c input,.dbx th.c input{width:19px;height:19px;accent-color:var(--accent);cursor:pointer;margin:0;vertical-align:middle}
-.dbx td.a{width:96px;text-align:center;white-space:nowrap}
-.dbx .db-plus{width:34px;height:34px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:21px;font-weight:600;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-.dbx .db-minus{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink-2);font-size:21px;font-weight:600;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;margin-left:6px}
-.dbx .db-minus:hover{color:var(--accent-text);border-color:var(--accent)}
-.dbx .db-plus:hover{filter:brightness(1.08)}
-.dbx .db-in{height:30px;border-radius:999px;border:1px solid var(--accent);background:none;color:var(--accent-text);font:inherit;font-size:12.5px;font-weight:600;padding:0 10px;cursor:pointer;white-space:nowrap}
+.dbx td.c,.dbx th.c{width:44px;text-align:center;padding-left:var(--sp-2);padding-right:2px;cursor:default}
+.dbx td.c input,.dbx th.c input{width:20px;height:20px;accent-color:var(--accent);cursor:pointer;margin:0;vertical-align:middle}
+.dbx td.a{width:104px;text-align:center;white-space:nowrap}
+.dbx td.a .icon-btn+.icon-btn{margin-left:var(--sp-1)}
 .dbx tr.sel td{background:var(--accent-soft)}
-.dbx details.db-map{margin:14px 0 0;font-size:13px;color:var(--ink-2)}
-.dbx details.db-map summary{cursor:pointer;font-weight:600;color:var(--ink)}
-.dbx .db-mapg{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(150px,1.1fr) minmax(150px,1.2fr);margin-top:8px;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12.5px}
-.dbx .db-mapg>*{padding:5px 9px;border-bottom:1px solid var(--line)}
-.dbx .db-mapg>b{background:var(--canvas);font-weight:600;color:var(--ink-2)}
-.dbx .db-mapg>span{color:var(--ink)}
+.db-foot{margin-top:var(--sp-3)}
+.db-mapg{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(150px,1.1fr) minmax(150px,1.2fr);margin-top:var(--sp-2);border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;font-size:var(--fs-xs)}
+.db-mapg>*{padding:5px var(--sp-2);border-bottom:1px solid var(--line)}
+.db-mapg>b{background:var(--canvas);font-weight:600;color:var(--ink-2)}
+.db-mapg>span{color:var(--ink)}
+@media (max-width:640px){.db-top>.btn{flex:1 1 auto}}
 `;
+/* liniové ikony appky (ICON z index.html); záloha pro samostatné testy modulu */
+const ICL={more:'<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>',plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',x:'<path d="M6 6l12 12M18 6 6 18"/>',check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>'};
+const icoEl=n=>{const s=document.createElementNS("http://www.w3.org/2000/svg","svg");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("class","ico");s.setAttribute("aria-hidden","true");s.innerHTML=(n!=="minus"&&typeof ICON==="object"&&ICON&&ICON[n])||ICL[n]||"";return s};
+/* jediné potvrzení appky (confirmSheet z index.html); v samostatných testech modulu záloha přes window.confirm */
+const ask_=(t,o)=>typeof window.confirmSheet==="function"?window.confirmSheet(t,o):Promise.resolve(window.confirm(t));
 
 /* ================= modul ================= */
 function mount(root,opts={}){
@@ -259,28 +253,42 @@ function mount(root,opts={}){
 
   const h=(tag,attrs={},...kids)=>{const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==undefined&&v!==null&&v!==false)e.setAttribute(k,v===true?"":v)}for(const k of kids.flat(3)){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(String(k)))}return e};
 
-  const box=h("div",{class:"dbx"});
+  const box=h("div",{class:"card dbx"});
   root.replaceChildren(box);
   const fileI=h("input",{type:"file",accept:".pdf,application/pdf",multiple:true,hidden:true});
   box.append(fileI);
+  /* hlavička: počet smluv, jediné primární tlačítko (Nahrát PDF), akce s výběrem, ⋯ (Export CSV, Smazat vše); nadpis dává appka */
   const top=h("div",{class:"db-top"});
-  const title=h("h3",{});
-  const bImp=h("button",{type:"button",class:"db-btn pri",onclick:()=>fileI.click()},"Nahrát PDF ze Stely");
+  const title=h("p",{class:"db-cnt"});
+  const bImp=h("button",{type:"button",class:"btn btn--primary",onclick:()=>fileI.click()},"Nahrát PDF ze Stely");
   const canLead=typeof opts.addLeads==="function",canLost=typeof opts.lostLeads==="function";
   const sel=new Set();
-  const bLead=h("button",{type:"button",class:"db-btn pri",hidden:!canLead,onclick:()=>toPipeline([...sel].map(id=>rows.find(r=>r.id===id)).filter(Boolean))},"＋ Do pipeline");
-  const bLost=h("button",{type:"button",class:"db-btn",hidden:!canLost,onclick:()=>toPipeline([...sel].map(id=>rows.find(r=>r.id===id)).filter(Boolean),true)},"− Do Lost");
-  const bCsv=h("button",{type:"button",class:"db-btn",onclick:()=>exportCsv()},"Export CSV");
-  const bClr=h("button",{type:"button",class:"db-btn danger",onclick:()=>{if(rows.length&&confirm("Smazat celou databázi ("+rows.length+" smluv) z tohoto zařízení?")){rows=[];sel.clear();pdfStore.clear();persist();msg=null;draw()}}},"Smazat vše");
-  top.append(title,bImp,bLead,bLost,bCsv,bClr);
-  const search=h("input",{type:"search",class:"db-search",placeholder:"Hledat podle jména…",autocomplete:"off","aria-label":"Hledat v databázi"});
-  search.addEventListener("input",()=>{q=search.value;drawTable()});
+  const bLead=h("button",{type:"button",class:"btn btn--secondary",hidden:!canLead,onclick:()=>toPipeline([...sel].map(id=>rows.find(r=>r.id===id)).filter(Boolean))},"Do pipeline");
+  const bLost=h("button",{type:"button",class:"btn btn--secondary",hidden:!canLost,onclick:()=>toPipeline([...sel].map(id=>rows.find(r=>r.id===id)).filter(Boolean),true)},"Do Lost");
+  let menuOpen=false;
+  const menu=h("div",{class:"group db-menu",role:"menu",hidden:true});
+  const mCsv=h("button",{type:"button",class:"row row-btn",role:"menuitem",onclick:()=>{closeMenu();exportCsv()}},h("span",{class:"main t"},"Export CSV"));
+  const mClr=h("button",{type:"button",class:"row row-btn",role:"menuitem",onclick:async()=>{closeMenu();if(!rows.length)return;
+    if(!await ask_("Smazat celou databázi ("+rows.length+" "+(rows.length===1?"smlouva":rows.length<5?"smlouvy":"smluv")+") z tohoto zařízení?",{okLabel:"Smazat vše",danger:true}))return;
+    rows=[];sel.clear();pdfStore.clear();persist();msg=null;draw();toast("Databáze smazána")}},h("span",{class:"main t"},"Smazat vše"));
+  menu.append(mCsv,mClr);
+  const bMore=h("button",{type:"button",class:"icon-btn","aria-haspopup":"menu","aria-expanded":"false","aria-label":"Další akce",title:"Další akce",onclick:()=>{menuOpen?closeMenu():openMenu()}},icoEl("more"));
+  function openMenu(){menuOpen=true;menu.hidden=false;bMore.setAttribute("aria-expanded","true")}
+  function closeMenu(){menuOpen=false;menu.hidden=true;bMore.setAttribute("aria-expanded","false")}
+  document.addEventListener("pointerdown",e=>{if(menuOpen&&box.isConnected&&!e.target.closest(".db-more"))closeMenu()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&menuOpen){closeMenu();bMore.focus()}});
+  top.append(title,bLead,bLost,bImp,h("div",{class:"db-more"},bMore,menu));
+  const searchI=h("input",{type:"search",placeholder:"Hledat podle jména…",autocomplete:"off","aria-label":"Hledat v databázi"});
+  const search=h("label",{class:"field field--search db-search"},icoEl("search"),searchI);
+  searchI.addEventListener("input",()=>{q=searchI.value;drawTable()});
   const msgBox=h("div",{});
   const tblBox=h("div",{});
-  const note=h("p",{class:"db-note"},"PDF se čtou přímo v tomhle zařízení a nikam se neposílají (ani k AI). Řádky i PDF zůstávají jen v tomto prohlížeči (nesynchronizují se s Google Diskem); při odhlášení se smažou. Stejnou smlouvu stačí nahrát znovu – řádek se aktualizuje."+(canLead?" Teprve tlačítkem ＋ se kontakt přesune do pipeline jako „Nový lead“ se zdrojem Databáze (jméno, telefon, e-mail a PDF smlouvy v dokumentech, poznámky se nepíšou) a od té chvíle se synchronizuje jako každý jiný lead.":""));
-  const map=h("details",{class:"db-map"},h("summary",{},"Odkud se co bere (vzorec čtení PDF)"),
+  /* vysvětlivky jsou dlouhé – sbalené v details.more */
+  const note=h("details",{class:"more db-foot"},h("summary",{},"Kde jsou data a jak to funguje"),
+    h("p",{},"PDF se čtou přímo v tomhle zařízení a nikam se neposílají (ani k AI). Řádky i PDF zůstávají jen v tomto prohlížeči (nesynchronizují se s Google Diskem); při odhlášení se smažou. Stejnou smlouvu stačí nahrát znovu – řádek se aktualizuje."+(canLead?" Teprve tlačítkem + se kontakt přesune do pipeline jako „Nový lead“ se zdrojem Databáze (jméno, telefon, e-mail a PDF smlouvy v dokumentech, poznámky se nepíšou) a od té chvíle se synchronizuje jako každý jiný lead.":"")));
+  const map=h("details",{class:"more db-map"},h("summary",{},"Odkud se co bere (vzorec čtení PDF)"),
     h("div",{class:"db-mapg"},h("b",{},"Sekce v PDF"),h("b",{},"Popisek v PDF"),h("b",{},"Kam"),MAP.map(([,a,b,c])=>[h("span",{},a),h("span",{},b),h("span",{},c)])),
-    h("p",{class:"db-note"},"Jméno se vždy převede na „Jméno Příjmení“ (bez kapitálek). Hodnota se bere za popiskem až po další popisek na stejném řádku (Stela má dva sloupce vedle sebe). Jméno jen ze sekce Pojistník. Rodné číslo se záměrně nepřebírá. Víc smluv stejného člověka (stejné jméno + datum narození) = jeden lead."));
+    h("p",{},"Jméno se vždy převede na „Jméno Příjmení“ (bez kapitálek). Hodnota se bere za popiskem až po další popisek na stejném řádku (Stela má dva sloupce vedle sebe). Jméno jen ze sekce Pojistník. Rodné číslo se záměrně nepřebírá. Víc smluv stejného člověka (stejné jméno + datum narození) = jeden lead."));
   box.append(top,search,msgBox,tblBox,note,map);
 
   const COLS=[["name","Jméno a příjmení",false],["narozen","Datum narození",false],["premium","Pojistné",true],["surrender","Odkupné",true],["start","Datum technického počátku",false]];
@@ -319,12 +327,12 @@ function mount(root,opts={}){
   function drawTable(){
     const f=fold(q).split(/\s+/).filter(Boolean);
     const list=sorted(rows.filter(r=>{const n=fold(r.name);return f.every(w=>n.includes(w))}));
-    title.textContent="Databáze"+(rows.length?" · "+rows.length+(rows.length===1?" smlouva":rows.length<5?" smlouvy":" smluv"):"");
-    bCsv.disabled=bClr.disabled=!rows.length;search.hidden=!rows.length;
+    title.textContent=rows.length?rows.length+(rows.length===1?" smlouva":rows.length<5?" smlouvy":" smluv"):"";
+    mCsv.disabled=mClr.disabled=!rows.length;bMore.hidden=!rows.length;if(!rows.length)closeMenu();search.hidden=!rows.length;bLead.hidden=!canLead||!rows.length;bLost.hidden=!canLost||!rows.length;
     [...sel].forEach(id=>{if(!rows.some(r=>r.id===id))sel.delete(id)});
-    bLead.disabled=!sel.size||busy;bLead.textContent=sel.size?"＋ Do pipeline ("+sel.size+")":"＋ Do pipeline";bLost.disabled=!sel.size||busy;bLost.textContent=sel.size?"− Do Lost ("+sel.size+")":"− Do Lost";
-    if(!rows.length){tblBox.replaceChildren(h("div",{class:"db-empty"},"Zatím prázdno.",h("br"),"Nahraj PDF s detailem smlouvy ze Stely (nebo je sem přetáhni) – přečtu z nich jméno, datum narození, pojistné, odkupné a datum technického počátku."));return}
-    if(!list.length){tblBox.replaceChildren(h("div",{class:"db-empty"},"Nic nenalezeno."));return}
+    bLead.disabled=!sel.size||busy;bLead.textContent=sel.size?"Do pipeline ("+sel.size+")":"Do pipeline";bLost.disabled=!sel.size||busy;bLost.textContent=sel.size?"Do Lost ("+sel.size+")":"Do Lost";
+    if(!rows.length){tblBox.replaceChildren(h("p",{class:"empty"},"Zatím prázdno. Nahraj PDF s detailem smlouvy ze Stely (nebo je sem přetáhni) – přečtu z nich jméno, datum narození, pojistné, odkupné a datum technického počátku."));return}
+    if(!list.length){tblBox.replaceChildren(h("p",{class:"empty"},"Nic nenalezeno."));return}
     const inP=r=>!!(r.leadId&&(!opts.leadExists||opts.leadExists(r.leadId)));
     const vis=list.filter(r=>!inP(r)).map(r=>r.id),allOn=vis.length&&vis.every(id=>sel.has(id));
     const ca=h("input",{type:"checkbox","aria-label":"Vybrat vše, co ještě není v pipeline",title:"Vybrat vše, co ještě není v pipeline"});ca.checked=!!allOn;ca.indeterminate=!allOn&&vis.some(id=>sel.has(id));
@@ -333,12 +341,12 @@ function mount(root,opts={}){
     const body=list.map(r=>{const cb=h("input",{type:"checkbox","aria-label":"Vybrat "+(r.name||"řádek")});cb.checked=sel.has(r.id);
       cb.addEventListener("change",()=>{cb.checked?sel.add(r.id):sel.delete(r.id);drawTable()});
       const inPipe=r.leadId&&(!opts.leadExists||opts.leadExists(r.leadId));
-      const act=!canLead?null:h("td",{class:"a"},inPipe?h("button",{type:"button",class:"db-in",title:"Otevřít lead v pipeline",onclick:()=>opts.openLead&&opts.openLead(r.leadId)},"✓ lead")
-        :h("button",{type:"button",class:"db-plus",title:"Do pipeline jako Nový lead","aria-label":"Do pipeline: "+(r.name||""),onclick:()=>toPipeline([r])},"+"),
-        canLost?h("button",{type:"button",class:"db-minus",title:"Do pipeline do fáze Lost","aria-label":"Do Lost: "+(r.name||""),onclick:()=>toPipeline([r],true)},"−"):null);
+      const act=!canLead?null:h("td",{class:"a"},inPipe?h("button",{type:"button",class:"btn btn--ghost btn--s db-in",title:"Otevřít lead v pipeline",onclick:()=>opts.openLead&&opts.openLead(r.leadId)},icoEl("check"),"lead")
+        :h("button",{type:"button",class:"icon-btn icon-btn--primary db-plus",title:"Do pipeline jako Nový lead","aria-label":"Do pipeline: "+(r.name||""),onclick:()=>toPipeline([r])},icoEl("plus")),
+        canLost&&!inPipe?h("button",{type:"button",class:"icon-btn db-minus",title:"Do pipeline do fáze Lost","aria-label":"Do Lost: "+(r.name||""),onclick:()=>toPipeline([r],true)},icoEl("minus")):null);
       const nm=cell(r,"name");
       return h("tr",{class:sel.has(r.id)?"sel":""},canLead?h("td",{class:"c"},cb):null,COLS.map(([k,,n])=>h("td",{class:n?"num":""},k==="name"?nm:cell(r,k))),act,
-      h("td",{class:"x"},h("button",{type:"button",title:"Smazat řádek","aria-label":"Smazat řádek "+(r.name||""),onclick:()=>{if(confirm("Smazat řádek"+(r.name?" „"+r.name+"“":"")+"?")){rows=rows.filter(x=>x!==r);sel.delete(r.id);pdfStore.del(r.id);persist();drawTable()}}},"×")))});
+      h("td",{class:"x"},h("button",{type:"button",class:"icon-btn icon-btn--plain",title:"Smazat řádek","aria-label":"Smazat řádek "+(r.name||""),onclick:async()=>{if(await ask_("Smazat řádek"+(r.name?" „"+r.name+"“":"")+"?",{okLabel:"Smazat",danger:true})){rows=rows.filter(x=>x!==r);sel.delete(r.id);pdfStore.del(r.id);persist();drawTable()}}},icoEl("x"))))});
     /* součet odkupného zobrazených řádků (při hledání jen vyhledané); smlouvy bez odkupného se nepočítají, ale je to vidět */
     const withS=list.filter(r=>typeof r.surrender==="number"&&isFinite(r.surrender)),no=list.length-withS.length;
     const sum=Math.round(withS.reduce((a,r)=>a+r.surrender,0)*100)/100;
@@ -366,11 +374,11 @@ function mount(root,opts={}){
       const I=g[0].info||{},files=[];for(const r of g){const b=await pdfStore.get(r.id);if(b)files.push(b instanceof File?b:new File([b],r.pdf||("Smlouva_"+(r.key||r.id)+".pdf"),{type:"application/pdf"}))}
       groups.push({rows:g,name:niceName(g[0].name),phone:I.telefon||"",email:I.email||"",address:addrOf(I),contracts:g.map(r=>(r.info||{}).cislo||r.key||""),files,existing:sib?sib.leadId:(opts.findLead?opts.findLead(clean(g[0].name),I.telefon||""):null)||null})}
     const ex=groups.filter(g=>g.existing).length;
-    if(list.length>1&&!confirm("Založit v pipeline "+(groups.length-ex)+" "+(groups.length-ex===1?"nový lead":groups.length-ex<5?"nové leady":"nových leadů")+(ex?" a "+ex+"× doplnit smlouvu k existujícímu":"")+"? ("+(lost?"fáze Lost":"fáze Nový lead")+", zdroj Databáze, PDF smluv do dokumentů)"))return;
+    if(list.length>1&&!await ask_("Založit v pipeline "+(groups.length-ex)+" "+(groups.length-ex===1?"nový lead":groups.length-ex<5?"nové leady":"nových leadů")+(ex?" a "+ex+"× doplnit smlouvu k existujícímu":"")+"? ("+(lost?"fáze Lost":"fáze Nový lead")+", zdroj Databáze, PDF smluv do dokumentů)",{okLabel:lost?"Do Lost":"Do pipeline"}))return;
     busy=true;bLead.disabled=true;bLead.textContent="Zakládám…";
     let ok=0,bad=0,files=0,miss=0;
     try{for(let i=0;i<groups.length;i++){const g=groups[i];
-      msgBox.replaceChildren(h("div",{class:"db-prog"},"Do pipeline "+(i+1)+" / "+groups.length+"…"));
+      msgBox.replaceChildren(h("div",{class:"db-msg db-prog"},"Do pipeline "+(i+1)+" / "+groups.length+"…"));
       try{const id=await add(g);if(!id)throw 0;g.rows.forEach(r=>{const cur=rows.find(x=>x.id===r.id)||r;cur.leadId=id;sel.delete(r.id)});ok++;files+=g.files.length;miss+=g.rows.length-g.files.length}catch(e){console.warn(e);bad++}
       persist()}}
     finally{busy=false}
@@ -392,7 +400,7 @@ function mount(root,opts={}){
       for(let i=0;i<pdfs.length;i++){
         const f=pdfs[i];
         bImp.textContent="Čtu "+(i+1)+" / "+pdfs.length+"…";
-        msgBox.replaceChildren(h("div",{class:"db-prog"},"Zpracovávám PDF "+(i+1)+" z "+pdfs.length+"…"));
+        msgBox.replaceChildren(h("div",{class:"db-msg db-prog"},"Zpracovávám PDF "+(i+1)+" z "+pdfs.length+"…"));
         await new Promise(r=>setTimeout(r,0));          /* ať se průběh stihne vykreslit */
         let res;
         try{res=parseStelaFull(await pdfText(f))}catch(e){bad.push(f.name);continue}

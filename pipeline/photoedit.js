@@ -7,21 +7,19 @@
 const OUT=320,SRC_MAX=720,V=280,ZMAX=5;
 const CSS=`
 .pe{display:grid;gap:16px;justify-items:center}
-.pe-view{position:relative;width:min(${V}px,100%);aspect-ratio:1;overflow:hidden;border-radius:16px;background:#111;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.pe-view{position:relative;width:min(${V}px,100%);aspect-ratio:1;overflow:hidden;border-radius:var(--r-l);background:#000;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .pe-view:active{cursor:grabbing}
 .pe-view:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
 .pe-img{position:absolute;left:50%;top:50%;max-width:none;pointer-events:none;-webkit-user-drag:none}
 .pe-mask{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);pointer-events:none;border:2px solid rgba(255,255,255,.85)}
-.pe-zoom{display:flex;align-items:center;gap:10px;width:min(${V}px,100%)}
+.pe-zoom{display:flex;align-items:center;gap:var(--sp-3);width:min(${V}px,100%)}
 .pe-zoom span{font-size:20px;line-height:1;color:var(--ink-2);width:18px;text-align:center}
-.pe-zoom input{flex:1}
-.pe-hint{font-size:13px;color:var(--ink-2);text-align:center;margin:-6px 0 0}
-.pe-tools{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.pe-tools button{background:var(--surface);border-radius:999px;padding:7px 13px;font-size:14px;color:var(--accent-text);font-weight:500;box-shadow:var(--card-shadow)}
-.pe-tools .pe-del{color:var(--accent-text)}
-.pe-foot{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(${V+40}px,100%)}
-.pe-foot button{height:46px;border-radius:12px;font-size:16px;font-weight:600;background:var(--fill,rgba(120,120,128,.12));color:var(--ink)}
-.pe-foot .pe-ok{background:var(--accent);color:#fff}`;
+.pe-zoom input{flex:1;accent-color:var(--accent)}
+.pe .hint{text-align:center;margin:-6px 0 0}
+.pe-tools{display:flex;flex-wrap:wrap;gap:var(--sp-2);justify-content:center}
+.pe-foot{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2);width:min(${V+40}px,100%)}`;
+/* liniové ikony appky (ICON z index.html); záloha pro samostatné testy modulu */
+const icoH=n=>'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">'+((typeof ICON==="object"&&ICON&&ICON[n])||{reset:'<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4v4h4"/>',image:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="9.5" r="1.8"/><path d="m4 17.5 5-5 4 4 2.5-2.5 5 5"/>'}[n]||"")+'</svg>';
 function css(){if(document.getElementById("peCss"))return;const s=document.createElement("style");s.id="peCss";s.textContent=CSS;document.head.append(s)}
 const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
 async function shrink(dataUrl,max=SRC_MAX){
@@ -47,9 +45,9 @@ function create({src,crop,onSave,onCancel,onRemove}={}){
   const root=document.createElement("div");root.className="pe";
   root.innerHTML=`<div class="pe-view" tabindex="0" role="img" aria-label="Výřez fotky – táhni pro posun, šipkami posuneš, + a − přiblížíš"><img class="pe-img" alt=""><div class="pe-mask"></div></div>
     <div class="pe-zoom"><span aria-hidden="true">−</span><input type="range" min="1" max="${ZMAX}" step="0.01" aria-label="Přiblížení"><span aria-hidden="true">+</span></div>
-    <p class="pe-hint">Táhni fotku prstem nebo myší, přibliž posuvníkem nebo dvěma prsty.</p>
-    <div class="pe-tools"><button type="button" data-pe="rot">↻ Otočit</button><button type="button" data-pe="pick">Vybrat jinou fotku</button>${onRemove?'<button type="button" class="pe-del" data-pe="del">Odebrat fotku</button>':""}</div>
-    <div class="pe-foot"><button type="button" data-pe="cancel">Zrušit</button><button type="button" class="pe-ok" data-pe="save">Uložit</button></div>`;
+    <p class="hint">Táhni fotku prstem nebo myší, přibliž posuvníkem nebo dvěma prsty.</p>
+    <div class="pe-tools"><button type="button" class="btn btn--secondary btn--s" data-pe="rot">${icoH("reset")}Otočit</button><button type="button" class="btn btn--secondary btn--s" data-pe="pick">${icoH("image")}Jiná fotka</button>${onRemove?'<button type="button" class="btn btn--danger btn--s pe-del" data-pe="del">Odebrat fotku</button>':""}</div>
+    <div class="pe-foot"><button type="button" class="btn btn--secondary" data-pe="cancel">Zrušit</button><button type="button" class="btn btn--primary pe-ok" data-pe="save">Uložit</button></div>`;
   const view=root.querySelector(".pe-view"),im=root.querySelector(".pe-img"),zr=root.querySelector("input[type=range]");
   let img=null;
   const dims=()=>{const w=img.naturalWidth,h=img.naturalHeight,rot=((st.r%180)+180)%180!==0,W=rot?h:w,H=rot?w:h;return{w,h,W,H,s:Math.max(V/W,V/H)*st.z}};

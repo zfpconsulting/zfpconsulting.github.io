@@ -30,6 +30,19 @@ export function startServer() {
   });
 }
 
+/* CSS design systému z index.html (tokeny + globální komponenty) – moduly ho v appce dědí, tak ho dostanou i samostatné testy */
+let _css = null;
+export async function appCss() {
+  if (_css == null) { const s = await readFile(join(ROOT, "index.html"), "utf8"), m = /<style>([\s\S]*?)<\/style>/.exec(s); _css = m ? m[1] : ""; }
+  return _css.replace(/<\/style/gi, "<\\/style");
+}
+/* dotykové cíle: běžné prvky min. 40 px; malé komponenty (.btn--s, .chip, .icon-btn, tlačítka v .seg) min. 32 px – plochu do 44 px jim rozšiřuje ::after */
+export const smallTargets = (page, sel, { width = false } = {}) => page.$$eval(sel, (els, width) => els.filter(e => {
+  if (!e.offsetParent || e.type === "checkbox" || e.type === "range" || e.type === "file") return false;
+  const r = e.getBoundingClientRect(), min = e.matches(".btn--s,.chip,.icon-btn,.seg>button") ? 32 : 40;
+  return r.height < min || (width && e.tagName === "BUTTON" && r.width < min);
+}).map(e => (e.dataset.a || e.dataset.k || e.id || e.className || e.tagName) + ":" + Math.round(e.getBoundingClientRect().width) + "x" + Math.round(e.getBoundingClientRect().height)), width);
+
 export class AssertionError extends Error {}
 export function assert(cond, msg) { if (!cond) throw new AssertionError(msg); }
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a < b ? -1 : a > b)) : x);

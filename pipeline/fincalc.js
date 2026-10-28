@@ -190,13 +190,20 @@ const MODES={
 const ORDER=["loan","inv","renta"];
 
 /* ================= grafika ================= */
-const ICON={
-  flag:'<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3.8 2h9.2l-2.2 3.4L13 8.8H3.8z" fill="currentColor"/></svg>',
-  help:'<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6a6.2 6.2 0 1 0 0 12.4c.6 0 1.2-.1 1.8-.3l2.9 1.1-.6-2.6A6.2 6.2 0 0 0 8 1.6z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.3 6.2a1.8 1.8 0 1 1 2.5 1.6c-.5.3-.8.6-.8 1.1v.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11" r=".8" fill="currentColor"/></svg>',
-  pen:'<svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 2.2l3 3-8.4 8.4-3.6.6.6-3.6z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.3 3.7l3 3" stroke="currentColor" stroke-width="1.4"/></svg>',
-  dbl:'<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3 3 8l5 5M13 3 8 8l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  menu:'<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 6h16M3 11h16M3 16h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+/* ikony: liniové SVG z appky (window.ICON z index.html), vlastní jen vlajka, nápověda, tužka a sbalení; záloha pro samostatné testy */
+const ICL={
+  flag:'<path d="M5.5 21V4"/><path class="fl" d="M5.5 4.5h12l-2.6 4.2 2.6 4.3h-12z"/>',
+  help:'<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.4M12 16.8v.1"/>',
+  pen:'<path d="M15.5 4.5l4 4L8.5 19.5l-5 1 1-5z"/><path d="M13.5 6.5l4 4"/>',
+  dbl:'<path d="M11.5 6l-6 6 6 6M18.5 6l-6 6 6 6"/>',
+  more:'<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
+  search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>'
 };
+const APPI=()=>typeof ICON==="object"&&ICON?ICON:{};   /* const ICON z index.html není vlastností window – čte se jako globální jméno */
+const ico=n=>'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">'+(["flag","help","pen","dbl","search"].includes(n)?ICL[n]:(APPI()[n]||ICL[n]||""))+'</svg>';
+/* jediné potvrzení appky (confirmSheet z index.html); v samostatných testech modulu záloha přes window.confirm */
+const ask_=(t,o)=>typeof window.confirmSheet==="function"?window.confirmSheet(t,o):Promise.resolve(window.confirm(t));
 /* logo ZFP Consulting (vodoznak i hlavička) – proporce podle oficiálního loga: „ZFP“ tmavě šedé, vlajka s vykrojenou
    špičkou vyšší než písmena, „CONSULTING“ světleji šedé přes celou šířku; textLength drží přesné šířky v každém písmu */
 function zfpLogo({x=0,y=0,s=1,gray="#4f5052",gray2="#7d8183",orange="#E8571A",op=1}={}){
@@ -250,142 +257,103 @@ function chartSVG(pts,{w=900,h=440,c,labelA,labelB,wm=true}){
 }
 
 /* ================= CSS ================= */
+/* jen rozvržení – barvy, písmo, tlačítka, pole, přepínače a dlaždice jsou globální komponenty z index.html (.card .btn .seg .field .switch .tile …) */
 const CSS=`
-.fc{--fc-navy:#111111;--fc-orange:#E8571A;--fc-green:#E8571A;--fc-area:#e4e6e9;--fc-tile:#f0f2f5;--fc-line:#d5d9df;--fc-calc:#e3e8ef;--fc-flagc:#E8571A;--fc-txt:#6b7280;--fc-grid:#e9ebee;--fc-logo1:#4f5052;--fc-logo2:#7d8183;
-  font-family:Roboto,var(--font,-apple-system,system-ui,sans-serif);color:var(--fc-navy);background:var(--surface);border-radius:16px;box-shadow:var(--card-shadow);overflow:hidden;margin-bottom:28px;letter-spacing:0}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#E8571A;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}}
-:root[data-theme="dark"] .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#E8571A;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}
-:where(.fc) button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
-/* horní lišta: výběr klienta (klienti + leady z pipeline) a akce v jedné řadě; titulek dává appka */
-.fc-top{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 12px;padding:12px 18px;border-bottom:1px solid var(--fc-line);container-type:inline-size}
-.fc-cs{position:relative;flex:1 1 260px;min-width:0;max-width:440px}
-.fc-cs label{display:block;font-size:13px;color:var(--fc-txt);margin-bottom:5px}
-.fc-cs input{width:100%;box-sizing:border-box;height:44px;border:1px solid var(--fc-line);border-radius:8px;background:var(--surface);color:var(--fc-navy);font:inherit;font-size:16px;padding:0 12px}
-.fc-cs input:focus{outline:2px solid var(--fc-orange);outline-offset:-1px}
-.fc-cl{position:absolute;left:0;right:0;top:72px;z-index:30;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--fc-line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
-.fc-cl button{display:flex!important;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:44px;text-align:left;font-size:16px!important;padding:9px 10px!important;border-radius:7px}
-.fc-cl button.on,.fc-cl button:hover{background:var(--fc-tile)}
-.fc-cl .none,.fc-cl small{color:var(--fc-txt)}
-.fc-cl .ok{color:var(--fc-orange);font-weight:700;font-size:13px;white-space:nowrap}
-.fc-cl .empty{padding:10px;color:var(--fc-txt);font-size:14px}
-.fc-cur{font-size:12.5px;color:var(--fc-txt);margin:4px 0 0;min-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fc-cur b{color:var(--fc-orange);font-weight:600}
-.fc-acts{display:flex;align-items:center;gap:8px;margin-left:auto;margin-top:18px}
-.fc-btn{height:44px;padding:0 14px;border-radius:8px;border:1.5px solid var(--fc-navy);font-size:15px;font-weight:500;white-space:nowrap}
-.fc-btn.pri{background:var(--fc-orange);border-color:var(--fc-orange);color:#fff}
-.fc-ico{width:44px;height:44px;display:grid;place-items:center;border-radius:8px;padding:0!important;font-size:22px!important;line-height:1}
-.fc-ask{position:absolute;right:14px;top:calc(100% - 6px);z-index:25;background:var(--surface);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.25);padding:12px 14px;max-width:calc(100vw - 32px);width:340px;box-sizing:border-box}
-.fc-ask p{margin:0 0 10px;font-size:14.5px;line-height:1.4}
-.fc-ask div{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
-.fc-ask .fc-btn{height:40px;padding:0 12px;font-size:14.5px}
-.fc-body{display:flex;min-height:560px}
-.fc-tabs{display:flex;flex-direction:column;background:var(--fc-tile);flex:none;width:54px}
-.fc-tabs button{writing-mode:vertical-rl;transform:rotate(180deg);padding:30px 0;width:54px;font-size:15px;color:var(--fc-navy);border-left:2px solid transparent}
-.fc-tabs button[aria-selected="true"]{background:var(--surface);font-weight:700;border-left-color:var(--fc-orange)}
-.fc-par{flex:none;width:320px;padding:16px 16px 24px;box-shadow:4px 0 10px -6px rgba(0,0,0,.18);position:relative;z-index:1;background:var(--surface)}
-.fc-par.min{width:52px;padding-inline:8px}
-.fc-par.min .fc-pin{display:none}
-.fc-ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.fc-ph h3{margin:0;font-size:19px;font-weight:700}
-.fc-par.min .fc-ph h3{display:none}
-.fc-coll{width:40px;height:40px;margin:-5px -8px -5px 0;display:grid;place-items:center;color:var(--fc-navy);border-radius:6px}
-.fc-par.min .fc-coll{transform:rotate(180deg)}
-.fc-f{margin-bottom:12px}
-.fc-fl{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--fc-txt);margin-bottom:7px;position:relative}
-.fc-flag{color:var(--fc-navy);display:grid;place-items:center;width:40px;height:40px;margin:-9px;flex:none;border-radius:4px}
-.fc-f.calc .fc-flag{color:var(--fc-flagc)}
-.fc-q{color:var(--fc-navy);display:inline-grid;place-items:center;width:40px;height:40px;margin:-10px}
-.fc-hp{position:absolute;left:28px;top:100%;margin-top:4px;z-index:5;background:var(--fc-navy);color:var(--surface);font-size:13px;line-height:1.4;padding:8px 10px;border-radius:8px;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
-.fc-in{display:flex;align-items:center;height:50px;border:1px solid var(--fc-line);border-radius:6px;background:var(--surface)}
-.fc-in button{width:44px;height:100%;font-size:22px;line-height:1;color:var(--fc-navy);flex:none}
-.fc-in input{flex:1;min-width:0;border:none;background:transparent;text-align:center;font:inherit;font-size:16px;color:var(--fc-navy);outline:none;height:100%}
-.fc-f.calc .fc-in{background:var(--fc-calc);border-color:var(--fc-calc)}
-.fc-f.calc .fc-in button{color:var(--fc-txt);opacity:.6;cursor:default}
-.fc-f.err .fc-in{border-color:var(--accent)}
-.fc-sel{width:100%;height:50px;border:1px solid var(--fc-line);border-radius:6px;background:var(--surface);color:var(--fc-navy);font:inherit;font-size:16px;padding:0 14px;appearance:auto}
-.fc-errm{color:var(--accent-text);font-size:13.5px;line-height:1.4;margin:4px 0 0}
-.fc-f.lock .fc-in{background:var(--fc-calc);border-color:var(--fc-calc)}
-.fc-f.lock .fc-in button{opacity:.4;cursor:default}
-.fc-flag[disabled]{opacity:.35;cursor:default}
-.fc-chk{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--fc-navy);font-weight:600;cursor:pointer;margin-bottom:8px;min-height:40px}
-.fc-chk input{width:20px;height:20px;accent-color:var(--fc-orange);margin:0}
-.fc-src{font-size:12.5px;line-height:1.4;color:var(--fc-txt);margin:6px 0 0}
-.fc-src a{color:inherit}
-.fc-sub{font-size:15px;margin:20px 0 10px;padding-top:12px;border-top:1px solid var(--fc-line)}
-.fc-zm{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;align-items:end;margin-bottom:8px}
-.fc-zm label{display:grid;gap:4px;font-size:12.5px;color:var(--fc-txt)}
-.fc-zm input{height:44px;border:1px solid var(--fc-line);border-radius:8px;padding:0 10px;font:inherit;font-size:16px;background:var(--surface);color:var(--fc-navy);min-width:0}
-.fc-zdel{width:40px;height:44px;border-radius:8px;font-size:20px!important;color:var(--fc-txt)}
-.fc-zdel:hover{background:var(--fc-tile)}
-.fc-zadd{color:var(--fc-orange);font-weight:600;font-size:14.5px!important;padding:8px 0!important;min-height:40px}
-.fc-note{font-size:13.5px;line-height:1.45;color:var(--fc-txt);margin:10px 0 0;padding:9px 11px;background:var(--fc-tile);border-radius:8px}
-.fc-note b{color:var(--fc-navy)}
-.fc-note.warn{background:transparent;border:1px solid var(--fc-orange);color:var(--fc-navy)}
-.fc-main{flex:1;min-width:0;padding:22px 26px 26px;container-type:inline-size}
-.fc-tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:22px}
-.fc-tile{background:var(--fc-tile);border-radius:10px;padding:12px 14px;min-width:0}
-.fc-tile .k{font-size:13.5px;color:var(--fc-navy);margin-bottom:4px;line-height:1.25}
-.fc-tile .v{font-size:18px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
-@container (max-width:1040px){.fc-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container (max-width:520px){.fc-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.fc-ch{display:flex;align-items:center;gap:12px;margin-bottom:10px;position:relative}
-.fc-ch h2{margin:0;font-size:19px;font-weight:700}
-.fc-ch button{color:var(--fc-navy);width:40px;height:40px;margin:-7px -6px;display:grid;place-items:center}
-.fc-ch .fc-hp{left:0}
-.fc-chart{position:relative}
-.fc-tip{position:absolute;pointer-events:none;background:var(--surface);color:var(--fc-navy);font-size:13px;padding:8px 11px;border-radius:8px;white-space:nowrap;box-shadow:0 6px 22px rgba(0,0,0,.18);transform:translate(-50%,calc(-100% - 12px));font-variant-numeric:tabular-nums;line-height:1.5;z-index:3}
-.fc-tip i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
-.fc-leg{display:flex;gap:26px;justify-content:flex-start;padding-left:40px;margin-top:12px;font-size:13px;color:var(--fc-txt)}
-.fc-leg span{display:flex;align-items:center;gap:6px}
-.fc-leg i{width:13px;height:13px;border-radius:50%;display:inline-block}
-.fc-empty{display:grid;place-items:center;height:300px;color:var(--fc-txt);font-size:15px;text-align:center;padding:20px}
-.fc-menu{position:absolute;right:14px;top:calc(100% - 6px);z-index:20;background:var(--surface);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.25);min-width:280px;max-width:calc(100vw - 32px);max-height:60vh;overflow:auto;padding:6px 0}
-.fc-menu h4{margin:6px 14px 6px;font-size:12px;color:var(--fc-txt);text-transform:uppercase;letter-spacing:.03em;font-weight:500}
-.fc-mi{display:flex;align-items:center;gap:10px;padding:9px 14px}
-.fc-mi .t{flex:1;min-width:0}
-.fc-mi .t b{display:block;font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fc-mi .t small{color:var(--fc-txt);font-size:12.5px}
-.fc-mi .t{min-height:40px}
-.fc-mi .del{color:var(--accent-text);font-size:13px;min-height:40px;padding:0 4px!important}
-.fc-mi.cur b{color:var(--fc-orange)}
-.fc-wm{padding:2px 14px 12px;display:grid;gap:10px;border-top:1px solid var(--fc-line);margin-top:6px}
-.fc-wm h4{margin:10px 0 0!important}
-.fc-wseg{display:grid;grid-template-columns:repeat(4,1fr);background:var(--fc-tile);border-radius:8px;padding:2px}
-.fc-wseg button{font-size:13px!important;padding:6px 4px!important;border-radius:6px;min-height:40px}
-.fc-wseg button[aria-pressed="true"]{background:var(--surface);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.15)}
-.fc-wrow{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--fc-txt)}
-.fc-wrow span{width:92px;flex:none}
-.fc-wrow input[type=range]{flex:1;min-width:0}
-.fc-wrow input[type=text]{flex:1;min-width:0;height:44px;border:1px solid var(--fc-line);border-radius:6px;padding:0 10px;font:inherit;font-size:16px;background:var(--surface);color:var(--fc-navy)}
-.fc-wimg{display:flex;align-items:center;gap:10px}
-.fc-wimg img{width:56px;height:40px;object-fit:contain;background:var(--fc-tile);border-radius:6px}
-.fc-wimg button{color:var(--accent-text);font-size:14px!important;font-weight:500;min-height:40px}
-.fc-wnote{font-size:12px;color:var(--fc-txt);margin:0}
+.fc{overflow:visible;margin-bottom:var(--sp-5);font-variant-numeric:tabular-nums}
 .fc-wrapH{position:relative}
-/* úzká lišta (mobil): klient přes celou šířku, akce pod ním v jedné řadě s krátkými popisky – nic se neusekne */
-@container (max-width:620px){
-  .fc-cs{flex-basis:100%;max-width:none}
-  .fc-acts{width:100%;margin:0}
-  .fc-acts .fc-btn{flex:1 1 auto;padding:0 10px}
-  .fc-acts .fc-ico{flex:none}
-  .fc-long{display:none}
-}
+.fc-top{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--sp-2) var(--sp-3);padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line);container-type:inline-size}
+.fc-cs{position:relative;flex:1 1 260px;min-width:0;max-width:440px}
+.fc-lbl{display:block;font-size:var(--fs-s);color:var(--ink-2);margin:0 0 var(--sp-1)}
+.fc-cur{font-size:var(--fs-xs);color:var(--ink-2);margin:var(--sp-1) 0 0;min-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-cur b{color:var(--accent-text);font-weight:600}
+.fc-acts{display:flex;align-items:center;gap:var(--sp-2);margin-left:auto;padding-bottom:20px}
+/* vyskakovací seznamy a menu = .group s řádky; modul jen umisťuje */
+.fc-pop{position:absolute;z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);box-shadow:var(--shadow-pop);overflow:auto}
+.fc-csw{position:relative}
+.fc-cl{left:0;right:0;top:calc(100% + 4px);max-height:320px}
+.fc-cl .row-btn.on{background:var(--fill)}
+.fc-cl .row .end{font-size:var(--fs-s);color:var(--accent-text);font-weight:600}
+.fc-menu{right:var(--sp-3);top:calc(100% - 6px);width:320px;max-width:calc(100vw - 32px);max-height:70vh;padding:var(--sp-3) 0 var(--sp-2)}
+.fc-menu .section-head{margin:0 var(--sp-4) var(--sp-2)}
+.fc-menu .group{border:0;border-radius:0;border-block:1px solid var(--line)}
+.fc-mi.cur .t{color:var(--accent-text)}
+.fc-mi .main .t,.fc-mi .main .s{display:block}
+.fc-wm{padding:var(--sp-4) var(--sp-4) var(--sp-2);display:grid;gap:var(--sp-3)}
+.fc-wm .section-head{margin:0}
+.fc-wrow{display:flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-s);color:var(--ink-2)}
+.fc-wrow>span{width:84px;flex:none}
+.fc-wrow input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.fc-wimg{display:flex;align-items:center;gap:var(--sp-3)}
+.fc-wimg img{width:56px;height:40px;object-fit:contain;background:var(--fill);border-radius:var(--r-s)}
+.fc-ask{right:var(--sp-3);top:calc(100% - 6px);width:360px;max-width:calc(100vw - 32px);padding:var(--sp-4);display:grid;gap:var(--sp-3)}
+.fc-ask p{margin:0;font-size:var(--fs-m);line-height:1.4}
+.fc-ask div{display:flex;flex-wrap:wrap;gap:var(--sp-2);justify-content:flex-end}
+.fc-modes{padding:var(--sp-3) var(--sp-4);border-bottom:1px solid var(--line)}
+.fc-mi .main{text-align:left;min-height:40px;display:flex;flex-direction:column;justify-content:center}
+.fc-body{display:grid;grid-template-columns:320px minmax(0,1fr);min-height:560px}
+.fc-par{padding:var(--sp-4);border-right:1px solid var(--line);min-width:0}
+.fc-par.min{width:auto}
+.fc-body.min{grid-template-columns:64px minmax(0,1fr)}
+.fc-par.min .fc-pin,.fc-par.min .fc-ph h3{display:none}
+.fc-ph{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);margin-bottom:var(--sp-3)}
+.fc-ph h3{margin:0;font-size:var(--fs-l);font-weight:600}
+.fc-par.min .fc-coll .ico{transform:rotate(180deg)}
+.fc-f{margin-bottom:var(--sp-3)}
+.fc-fl{display:flex;align-items:center;gap:var(--sp-1);font-size:var(--fs-s);color:var(--ink-2);margin-bottom:var(--sp-1);position:relative;min-height:36px}
+.fc-fl>span:not(.fc-flag){flex:1;min-width:0}
+.fc-flag{color:var(--ink-3)}
+.fc-flag[aria-pressed="true"]{color:var(--accent)}
+.fc-flag[aria-pressed="true"] .fl{fill:currentColor}
+.fc-flag.none{visibility:hidden}
+.fc-hp{position:absolute;left:0;top:100%;margin-top:2px;z-index:5;background:var(--ink);color:var(--canvas);font-size:var(--fs-s);line-height:1.4;padding:var(--sp-2) var(--sp-3);border-radius:var(--r-s);max-width:280px;box-shadow:var(--shadow-pop)}
+/* krokovací pole = .field s tlačítky −/+ */
+.fc-in.field{display:flex;align-items:center;padding:0 4px}
+.fc-in input{flex:1;min-width:0;border:0;background:transparent;text-align:center;font:inherit;font-size:16px;color:var(--ink);outline:none;height:calc(var(--h-m) - 2px);font-variant-numeric:tabular-nums}
+.fc-in .icon-btn{font-size:20px;line-height:1}
+.fc-f.calc .fc-in,.fc-f.lock .fc-in{background:var(--fill);border-color:transparent}
+.fc-f.calc .fc-in input{font-weight:600;color:var(--accent-text);-webkit-text-fill-color:var(--accent-text);opacity:1}
+.fc-f.lock .fc-in input{color:var(--ink-2);-webkit-text-fill-color:var(--ink-2);opacity:1}
+.fc-f.err .fc-in{border-color:var(--accent)}
+.fc-errm{color:var(--accent-text);font-size:var(--fs-s);line-height:1.4;margin:var(--sp-1) 0 0}
+.fc-sw{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);font-size:var(--fs-m);font-weight:500;cursor:pointer;min-height:var(--h-m)}
+.fc-src{margin-top:var(--sp-2)}
+.fc-src a{color:inherit}
+.fc-live select{margin-top:var(--sp-1)}
+.fc-par .section-head{margin:var(--sp-5) 0 var(--sp-2);padding-top:var(--sp-3);border-top:1px solid var(--line)}
+.fc-zm{display:grid;grid-template-columns:1fr 1.4fr auto;gap:var(--sp-2);align-items:end;margin-bottom:var(--sp-2)}
+.fc-zm label{display:grid;gap:var(--sp-1);font-size:var(--fs-xs);color:var(--ink-2);min-width:0}
+.fc-zm .icon-btn{margin-bottom:4px}
+.fc-note{font-size:var(--fs-s);line-height:1.45;color:var(--ink-2);margin:var(--sp-3) 0 0;padding:var(--sp-2) var(--sp-3);background:var(--fill);border-radius:var(--r-s)}
+.fc-note b{color:var(--ink)}
+.fc-note.warn{background:var(--accent-soft);color:var(--ink)}
+.fc-main{min-width:0;padding:var(--sp-5) var(--sp-5) var(--sp-5);container-type:inline-size}
+.fc-main .tiles{margin-bottom:var(--sp-5)}
+.fc .tile .v{font-size:var(--fs-xl);white-space:nowrap}
+@container (min-width:700px){.fc-main .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.fc-ch{display:flex;align-items:center;gap:var(--sp-1);margin-bottom:var(--sp-2);position:relative}
+.fc-ch h2{margin:0 var(--sp-1) 0 0;font-size:var(--fs-l);font-weight:600;min-width:0}
+.fc-chart{position:relative}
+.fc-tip{position:absolute;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--line);font-size:var(--fs-s);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-s);white-space:nowrap;box-shadow:var(--shadow-pop);transform:translate(-50%,calc(-100% - 12px));line-height:1.5;z-index:3}
+.fc-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:0}
+.fc-dot.a{background:var(--accent)}.fc-dot.b{background:var(--line);box-shadow:inset 0 0 0 1px var(--ink-3)}
+.fc-leg{display:flex;flex-wrap:wrap;gap:var(--sp-5);padding-left:40px;margin-top:var(--sp-3);font-size:var(--fs-s);color:var(--ink-2)}
 @media (max-width:860px){
-  .fc-top{padding:12px 16px}
-  .fc-body{flex-direction:column}
-  .fc-tabs{flex-direction:row;width:auto}
-  .fc-tabs button{writing-mode:horizontal-tb;transform:none;padding:12px 0;flex:1;width:auto;border-left:none;border-bottom:2px solid transparent}
-  .fc-tabs button[aria-selected="true"]{border-bottom-color:var(--fc-orange)}
-  .fc-par,.fc-par.min{width:auto;box-shadow:none;border-bottom:1px solid var(--fc-line);padding:16px}
-  .fc-par.min .fc-pin{display:none}
+  .fc-top{padding:var(--sp-3) var(--sp-4)}
+  .fc-cs{flex-basis:100%;max-width:none}
+  .fc-acts{width:100%;margin:0;padding:0}
+  .fc-acts .btn{flex:1 1 auto;padding:0 var(--sp-2)}
+  .fc-long{display:none}
+  .fc-body,.fc-body.min{grid-template-columns:minmax(0,1fr);min-height:0}
+  .fc-par,.fc-par.min{border-right:0;border-bottom:1px solid var(--line)}
   .fc-par.min .fc-ph h3{display:block}
-  .fc-coll{transform:rotate(90deg)}
-  .fc-par.min .fc-coll{transform:rotate(-90deg)}
-  .fc-par.min .fc-ph{margin-bottom:0}
-  .fc-main{padding:18px 16px}
-  .fc-tile{padding:10px 12px}
-  .fc-tile .k{font-size:12.5px}
-  .fc-tile .v{font-size:16px}
+  .fc-modes .seg{display:grid;width:100%}
+  .fc-coll .ico{transform:rotate(90deg)}
+  .fc-par.min .fc-coll .ico{transform:rotate(-90deg)}
+  .fc-par.min .fc-ph{margin-bottom:var(--sp-3)}
+  .fc-main{padding:var(--sp-4)}
+  .fc-main .tiles{margin-inline:calc(-1 * var(--sp-4));padding-inline:var(--sp-4)}
+  .fc-main .tiles>.tile{width:auto;min-width:136px;max-width:220px}
+  .fc .tile .v{font-size:var(--fs-l)}
   .fc-leg{padding-left:0;justify-content:center}
 }`;
 
@@ -463,8 +431,8 @@ function mount(root,opts={}){
     const M=MODES[st.mode],c=cur(),solv=FIELDS[st.mode].includes(k),lock=k==="rate"&&(st.mode==="loan"?!!c.v.live:fpOn(st.mode));
     const f=M.f[k],isC=k===c.calc;
     return `<div class="fc-f${isC?" calc":""}${lock?" lock":""}${isC&&!res.ok?" err":""}" data-k="${k}">
-            <div class="fc-fl">${solv?`<button type="button" class="fc-flag" data-a="flag" data-k="${k}" title="${isC?"Tato hodnota se dopočítává":lock?(st.mode==="loan"?"Aktuální sazba se nedopočítává":"Zhodnocení dle FP se nedopočítává"):"Dopočítat tuto hodnotu"}" aria-label="Dopočítat: ${esc(f.l)}" aria-pressed="${isC}"${lock?" disabled":""}>${ICON.flag}</button>`:`<span class="fc-flag" aria-hidden="true"></span>`}<span>${esc(f.l)}</span><button type="button" class="fc-q" data-a="help" data-k="${k}" aria-label="Nápověda">${ICON.help}</button>${help===k?`<div class="fc-hp">${esc(f.h)}</div>`:""}</div>
-            <div class="fc-in"><button type="button" data-a="dec" data-k="${k}" aria-label="Snížit" ${isC||lock?"disabled":""}>−</button><input data-k="${k}" inputmode="decimal" autocomplete="off" aria-label="${esc(f.l)}" value="${isC&&!res.ok?"–":fieldVal(k,c.v[k])}" ${isC||lock?"disabled":""}><button type="button" data-a="inc" data-k="${k}" aria-label="Zvýšit" ${isC||lock?"disabled":""}>+</button></div></div>`
+            <div class="fc-fl">${solv?`<button type="button" class="icon-btn icon-btn--plain fc-flag" data-a="flag" data-k="${k}" title="${isC?"Tato hodnota se dopočítává":lock?(st.mode==="loan"?"Aktuální sazba se nedopočítává":"Zhodnocení dle FP se nedopočítává"):"Dopočítat tuto hodnotu"}" aria-label="Dopočítat: ${esc(f.l)}" aria-pressed="${isC}"${lock?" disabled":""}>${ico("flag")}</button>`:`<span class="icon-btn icon-btn--plain fc-flag none" aria-hidden="true"></span>`}<span>${esc(f.l)}</span><button type="button" class="icon-btn icon-btn--plain fc-q" data-a="help" data-k="${k}" aria-label="Nápověda" aria-expanded="${help===k}">${ico("help")}</button>${help===k?`<div class="fc-hp" role="note">${esc(f.h)}</div>`:""}</div>
+            <div class="field fc-in"><button type="button" class="icon-btn icon-btn--plain" data-a="dec" data-k="${k}" aria-label="Snížit" ${isC||lock?"disabled":""}>−</button><input data-k="${k}" inputmode="decimal" autocomplete="off" aria-label="${esc(f.l)}" value="${isC&&!res.ok?"–":fieldVal(k,c.v[k])}" ${isC||lock?"disabled":""}><button type="button" class="icon-btn icon-btn--plain" data-a="inc" data-k="${k}" aria-label="Zvýšit" ${isC||lock?"disabled":""}>+</button></div></div>`
   }
   function loanNotes(res){
     const v=res.v,L=loanInfo(v),out=[];
@@ -483,58 +451,58 @@ function mount(root,opts={}){
     const a=fr.alok;
     return `Alokace pro ${yrsTxt(res.v.years)}: akcie ${a[0]} % (${fmtPct(fr.rA)}), dluhopisy ${a[1]} % (${fmtPct(fr.rD)})${a[2]?`, hotovost ${a[2]} % (${fmtPct(FP_SET.hotovost_nom*100)})`:""} → ${real?`${fmtPct(fr.nom)} nominálně − inflace ${fmtPct(FP_SET.inflace*100)} = <b>${fmtPct(fr.real)} reálně</b>. Částky jsou v dnešních cenách (jako cíle ve FP).`:`<b>${fmtPct(fr.nom)} nominálně</b>.`} Úročení: ${((FREQ.find(f=>f[0]===c.v.freq)||FREQ[0])[1]).toLowerCase()}${c.v.freq==="y"?" (jako ve FP)":""}.`}
   function fpHTML(res){const c=cur(),on=!!c.v.fp;
-    return `<div class="fc-f fc-live"><label class="fc-chk"><input type="checkbox" data-x="fp"${on?" checked":""}> Zhodnocení dle finančního plánu</label>
-      ${on?`<select class="fc-sel" data-x="fpReal" aria-label="Reálně nebo nominálně"><option value="1"${c.v.fpReal!==false?" selected":""}>Reálně – v dnešních cenách</option><option value="0"${c.v.fpReal===false?" selected":""}>Nominálně</option></select><p class="fc-src fc-fpsrc">${fpSrc(res)}</p>`:""}</div>`}
+    return `<div class="fc-f fc-live"><label class="fc-sw">Zhodnocení dle finančního plánu<input type="checkbox" class="switch" role="switch" data-x="fp"${on?" checked":""}></label>
+      ${on?`<select class="field" data-x="fpReal" aria-label="Reálně nebo nominálně"><option value="1"${c.v.fpReal!==false?" selected":""}>Reálně – v dnešních cenách</option><option value="0"${c.v.fpReal===false?" selected":""}>Nominálně</option></select><p class="hint fc-src fc-fpsrc">${fpSrc(res)}</p>`:""}</div>`}
   /* vstupní poplatek investice – checkbox + nastavitelné % (výchozí 3 %) */
   function feeHTML(res){const c=cur(),on=!!c.v.feeOn;
-    return `<div class="fc-f fc-live"><label class="fc-chk"><input type="checkbox" data-x="feeOn"${on?" checked":""}> Vstupní poplatek</label></div>${on?fieldHTML("fee",res):""}`}
+    return `<div class="fc-f fc-live"><label class="fc-sw">Vstupní poplatek<input type="checkbox" class="switch" role="switch" data-x="feeOn"${on?" checked":""}></label></div>${on?fieldHTML("fee",res):""}`}
   /* renta: změny výše v čase – po kolika letech od začátku výplaty přijde nová měsíční renta (libovolný počet) */
   function zmNotes(){const c=cur(),v=c.v,Z=v.zmeny||[];
     return (Z.some(z=>+z.po>=+v.years)?`<p class="fc-note warn">Změna po skončení výplaty (${yrsTxt(v.years)}) se nepočítá.</p>`:"")+(Z.length&&c.calc==="pmt"?`<p class="fc-note">Dopočítává se renta na začátku; změny platí v zadané výši.</p>`:"")}
   function zmenyHTML(){const v=cur().v,Z=v.zmeny||[];
-    return `<h4 class="fc-sub">Změna renty v čase</h4>${Z.map((z,i)=>`<div class="fc-zm" data-i="${i}">
-      <label><span>Po (letech)</span><input data-z="po" data-i="${i}" inputmode="decimal" autocomplete="off" value="${fmtYearsIn(z.po)}" aria-label="Po kolika letech od začátku"></label>
-      <label><span>Nová renta (CZK/měs.)</span><input data-z="renta" data-i="${i}" inputmode="decimal" autocomplete="off" value="${fmtNum(z.renta)}" aria-label="Nová měsíční renta"></label>
-      <button type="button" class="fc-zdel" data-a="zdel" data-k="${i}" aria-label="Odebrat změnu" title="Odebrat změnu">×</button></div>`).join("")}
+    return `<h4 class="section-head">Změna renty v čase</h4>${Z.map((z,i)=>`<div class="fc-zm" data-i="${i}">
+      <label><span>Po (letech)</span><input class="field" data-z="po" data-i="${i}" inputmode="decimal" autocomplete="off" value="${fmtYearsIn(z.po)}" aria-label="Po kolika letech od začátku"></label>
+      <label><span>Nová renta (CZK/měs.)</span><input class="field" data-z="renta" data-i="${i}" inputmode="decimal" autocomplete="off" value="${fmtNum(z.renta)}" aria-label="Nová měsíční renta"></label>
+      <button type="button" class="icon-btn icon-btn--plain" data-a="zdel" data-k="${i}" aria-label="Odebrat změnu" title="Odebrat změnu">${ico("x")}</button></div>`).join("")}
       <div class="fc-zn">${zmNotes()}</div>
-      <button type="button" class="fc-zadd" data-a="zadd">+ Přidat změnu renty</button>`}
+      <button type="button" class="btn btn--ghost btn--s" data-a="zadd">+ Přidat změnu renty</button>`}
   /* panel Parametry: u úvěru navíc cena nemovitosti, typ (limit LTV), aktuální sazba a bonita */
   function parHTML(res){
     const c=cur();
     const fq=c.v.freq;
-    const freq=`<div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="fc-sel" data-a="freq" aria-label="Frekvence připisování úroku">${FREQ.map(([k,t])=>`<option value="${k}"${fq===k?" selected":""}>${t}</option>`).join("")}</select></div>`;
+    const freq=`<div class="fc-f"><div class="fc-fl"><span>Frekvence připisování úroku</span></div><select class="field" data-a="freq" aria-label="Frekvence připisování úroku">${FREQ.map(([k,t])=>`<option value="${k}"${fq===k?" selected":""}>${t}</option>`).join("")}</select></div>`;
     if(st.mode==="renta")return FIELDS.renta.map(k=>fieldHTML(k,res)).join("")+fpHTML(res)+freq+zmenyHTML();
     if(st.mode!=="loan")return FIELDS[st.mode].map(k=>fieldHTML(k,res)).join("")+fpHTML(res)+feeHTML(res)+freq;
     return fieldHTML("price",res)
-      +`<div class="fc-f"><div class="fc-fl"><span>Účel / limit LTV</span></div><select class="fc-sel" data-x="ltvType" aria-label="Účel úvěru">${LTV_TYPES.map(([k,t,l])=>`<option value="${k}"${c.v.ltvType===k?" selected":""}>${esc(t)} – LTV ${l} %</option>`).join("")}</select></div>`
+      +`<div class="fc-f"><div class="fc-fl"><span>Účel / limit LTV</span></div><select class="field" data-x="ltvType" aria-label="Účel úvěru">${LTV_TYPES.map(([k,t,l])=>`<option value="${k}"${c.v.ltvType===k?" selected":""}>${esc(t)} – LTV ${l} %</option>`).join("")}</select></div>`
       +["pv","pmt","years","rate"].map(k=>fieldHTML(k,res)).join("")
-      +`<div class="fc-f fc-live"><label class="fc-chk"><input type="checkbox" data-x="live"${c.v.live?" checked":""}> Aktuální úroková sazba</label>
-        ${c.v.live?`<select class="fc-sel" data-x="fix" aria-label="Délka fixace">${FIXES.map(f=>`<option value="${f}"${+c.v.fix===f?" selected":""}>Fixace ${f} ${f===1?"rok":f<5?"roky":"let"}</option>`).join("")}</select><p class="fc-src">${rateSrc(res)}</p>`:""}</div>`
-      +`<h4 class="fc-sub">Poplatky (do RPSN)</h4>`+["feeOnce","feeMonth"].map(k=>fieldHTML(k,res)).join("")
-      +`<h4 class="fc-sub">Bonita</h4>`+["other","dsti","dti"].map(k=>fieldHTML(k,res)).join("");
+      +`<div class="fc-f fc-live"><label class="fc-sw">Aktuální úroková sazba<input type="checkbox" class="switch" role="switch" data-x="live"${c.v.live?" checked":""}></label>
+        ${c.v.live?`<select class="field" data-x="fix" aria-label="Délka fixace">${FIXES.map(f=>`<option value="${f}"${+c.v.fix===f?" selected":""}>Fixace ${f} ${f===1?"rok":f<5?"roky":"let"}</option>`).join("")}</select><p class="hint fc-src">${rateSrc(res)}</p>`:""}</div>`
+      +`<h4 class="section-head">Poplatky (do RPSN)</h4>`+["feeOnce","feeMonth"].map(k=>fieldHTML(k,res)).join("")
+      +`<h4 class="section-head">Bonita</h4>`+["other","dsti","dti"].map(k=>fieldHTML(k,res)).join("");
   }
   function draw(){
     const res=compute(),M=MODES[st.mode],c=cur();persist();
-    root.innerHTML=`<div class="fc"><div class="fc-wrapH">
-      <div class="fc-top">${opts.clients?`<div class="fc-cs"><label for="fc_cq">Klient</label><input id="fc_cq" type="search" role="combobox" aria-autocomplete="list" aria-controls="fc_cl" aria-expanded="false" autocomplete="off" spellcheck="false" placeholder="Hledat klienta nebo lead…" value="${esc(cliName())}"><div id="fc_cl" class="fc-cl" role="listbox" hidden></div><p class="fc-cur">${curHTML()}</p></div>`:`<p class="fc-cur" style="flex:1 1 200px;margin-top:18px">${curHTML()}</p>`}
-        <div class="fc-acts"><button class="fc-btn" data-a="save" type="button" title="${st.clientId?"Uložit ke klientovi "+esc(cliName()):"Uložit kalkulaci"}">Uložit${st.clientId?`<span class="fc-long"> ke klientovi</span>`:""}</button><button class="fc-btn" data-a="pdf" type="button"><span class="fc-long">Stáhnout </span>PDF</button><button class="fc-btn pri" data-a="new" type="button">Nová<span class="fc-long"> kalkulace</span></button><button class="fc-btn fc-ico" data-a="menu" type="button" aria-haspopup="menu" aria-expanded="${menuOpen}" aria-label="Uložené kalkulace a vodoznak" title="Uložené kalkulace a vodoznak">⋯</button></div></div>
+    root.innerHTML=`<div class="card fc"><div class="fc-wrapH">
+      <div class="fc-top">${opts.clients?`<div class="fc-cs"><label class="fc-lbl" for="fc_cq">Klient</label><div class="fc-csw"><label class="field field--search">${ico("search")}<input id="fc_cq" type="search" role="combobox" aria-autocomplete="list" aria-controls="fc_cl" aria-expanded="false" autocomplete="off" spellcheck="false" placeholder="Hledat klienta nebo lead…" value="${esc(cliName())}"></label><div id="fc_cl" class="fc-pop fc-cl" role="listbox" hidden></div></div><p class="fc-cur">${curHTML()}</p></div>`:`<p class="fc-cur fc-cs">${curHTML()}</p>`}
+        <div class="fc-acts"><button class="btn btn--secondary" data-a="save" type="button" title="${st.clientId?"Uložit ke klientovi "+esc(cliName()):"Uložit kalkulaci"}">Uložit${st.clientId?`<span class="fc-long"> ke klientovi</span>`:""}</button><button class="btn btn--secondary" data-a="pdf" type="button"><span class="fc-long">Stáhnout </span>PDF</button><button class="btn btn--primary" data-a="new" type="button">Nová<span class="fc-long"> kalkulace</span></button><button class="icon-btn" data-a="menu" type="button" aria-haspopup="menu" aria-expanded="${menuOpen}" aria-label="Uložené kalkulace a vodoznak" title="Uložené kalkulace a vodoznak">${ico("more")}</button></div></div>
       ${menuOpen?menuHTML():""}${ask?askHTML():""}</div>
-      <div class="fc-body">
-        <div class="fc-tabs" role="tablist" aria-label="Typ výpočtu">${ORDER.map(k=>`<button type="button" role="tab" data-a="mode" data-k="${k}" aria-selected="${k===st.mode}">${MODES[k].t}</button>`).join("")}</div>
-        <div class="fc-par${minPar?" min":""}"><div class="fc-ph"><h3>Parametry</h3><button class="fc-coll" type="button" data-a="coll" aria-label="${minPar?"Rozbalit":"Sbalit"} parametry">${ICON.dbl}</button></div>
+      <div class="fc-modes"><div class="seg fc-tabs" role="tablist" aria-label="Typ výpočtu">${ORDER.map(k=>`<button type="button" role="tab" data-a="mode" data-k="${k}" aria-selected="${k===st.mode}">${MODES[k].t}</button>`).join("")}</div></div>
+      <div class="fc-body${minPar?" min":""}">
+        <div class="fc-par${minPar?" min":""}"><div class="fc-ph"><h3>Parametry</h3><button class="icon-btn icon-btn--plain fc-coll" type="button" data-a="coll" aria-label="${minPar?"Rozbalit":"Sbalit"} parametry" aria-expanded="${!minPar}">${ico("dbl")}</button></div>
           <div class="fc-pin">${parHTML(res)}
             <p class="fc-errm" role="alert"${res.ok?" hidden":""}>${res.ok?"":esc(res.err)}</p>
             <div class="fc-notes">${st.mode==="loan"?loanNotes(res):""}</div>
           </div></div>
         <div class="fc-main">
-          <div class="fc-tiles">${tilesHTML()}</div>
-          <div class="fc-ch"><h2>${esc(st.titles[st.mode]||M.chart)}</h2><button type="button" data-a="help" data-k="_chart" aria-label="Nápověda ke grafu">${ICON.help}</button><button type="button" data-a="ctitle" aria-label="Upravit název grafu" title="Upravit název grafu">${ICON.pen}</button>${help==="_chart"?`<div class="fc-hp">${esc(M.help)}</div>`:""}</div>
+          <div class="tiles fc-tiles">${tilesHTML()}</div>
+          <div class="fc-ch"><h2>${esc(st.titles[st.mode]||M.chart)}</h2><button type="button" class="icon-btn icon-btn--plain" data-a="help" data-k="_chart" aria-label="Nápověda ke grafu" aria-expanded="${help==="_chart"}">${ico("help")}</button><button type="button" class="icon-btn icon-btn--plain" data-a="ctitle" aria-label="Upravit název grafu" title="Upravit název grafu">${ico("pen")}</button>${help==="_chart"?`<div class="fc-hp" role="note">${esc(M.help)}</div>`:""}</div>
           <div class="fc-chart" id="fcChart"></div>
-          <div class="fc-leg"><span><i style="background:var(--fc-green)"></i>${esc(M.sa)}</span><span><i style="background:var(--fc-area)"></i>${esc(M.sb)}</span></div>
+          <div class="fc-leg"><span><i class="fc-dot a"></i>${esc(M.sa)}</span><span><i class="fc-dot b"></i>${esc(M.sb)}</span></div>
         </div></div></div>`;
     drawChart();
   }
-  function tilesHTML(){const {ok,v,M}=lastRes,c=cur();return (ok?M.tiles(v):M.tiles({...v,[c.calc]:NaN})).map(([k,x])=>`<div class="fc-tile"><div class="k">${esc(k)}</div><div class="v">${esc(x)}</div></div>`).join("")}
+  function tilesHTML(){const {ok,v,M}=lastRes,c=cur();return (ok?M.tiles(v):M.tiles({...v,[c.calc]:NaN})).map(([k,x])=>`<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(x)}</div></div>`).join("")}
   /* přepočet bez překreslení formuláře (aby při psaní nezmizel kurzor) */
   function refresh(){
     const res=compute(),c=cur();persist();
@@ -549,12 +517,13 @@ function mount(root,opts={}){
     const zn=root.querySelector(".fc-zn");if(zn)zn.innerHTML=zmNotes();
     drawChart();
   }
-  const scrColors=()=>({a:"var(--fc-green)",b:"var(--fc-area)",grid:"var(--fc-grid)",txt:"var(--fc-txt)",ring:"var(--surface)",wmGray:"var(--fc-logo1)",wmGray2:"var(--fc-logo2)",wmOrange:"#E8571A",wmOp:.3});
+  /* barvy grafu z tokenů appky: oranžová křivka, šedá plocha, mřížka --line, popisky --ink-2, logo šedé */
+  const scrColors=()=>({a:"var(--accent)",b:"var(--line)",grid:"var(--line)",txt:"var(--ink-2)",ring:"var(--surface)",wmGray:"var(--ink-2)",wmGray2:"var(--ink-3)",wmOrange:"var(--accent)",wmOp:.3});
   let anim=0,lastSig="";
   function drawChart(){
     const box=root.querySelector("#fcChart");if(!box)return;
     const {ok,v,M}=lastRes;
-    if(!ok){box.innerHTML=`<div class="fc-empty">${esc(lastRes.err)}</div>`;return}
+    if(!ok){box.innerHTML=`<p class="empty">${esc(lastRes.err)}</p>`;return}
     const pts=series(st.mode,v),w=Math.max(320,Math.round(box.clientWidth||900)),h=Math.round(Math.min(480,Math.max(280,w*0.5)));
     const ch=chartSVG(pts,{w,h,c:scrColors(),labelA:M.sa,labelB:M.sb,wm});
     box.innerHTML=ch.svg;
@@ -573,13 +542,13 @@ function mount(root,opts={}){
       const X=ch.sx(best.x),Y=ch.sy(best.a);hg.style.display="";hx.setAttribute("x1",X);hx.setAttribute("x2",X);ha.setAttribute("cx",X);ha.setAttribute("cy",Y);
       if(!tip){tip=document.createElement("div");tip.className="fc-tip";box.append(tip)}
       const mo=Math.round(best.x*12),yy=Math.floor(mo/12),mm=mo%12;
-      tip.innerHTML=`<b>${yy} ${yy===1?"rok":yy>=2&&yy<=4?"roky":"let"}${mm?` ${mm} měs.`:""}</b><br><i style="background:var(--fc-green)"></i>${esc(M.sa)}: <b>${fmtKc(best.a)}</b><br><i style="background:var(--fc-area)"></i>${esc(M.sb)}: <b>${fmtKc(best.b)}</b>`;
+      tip.innerHTML=`<b>${yy} ${yy===1?"rok":yy>=2&&yy<=4?"roky":"let"}${mm?` ${mm} měs.`:""}</b><br><i class="fc-dot a"></i>${esc(M.sa)}: <b>${fmtKc(best.a)}</b><br><i class="fc-dot b"></i>${esc(M.sb)}: <b>${fmtKc(best.b)}</b>`;
       tip.style.left=Math.max(90,Math.min(r.width-90,X*r.width/w))+"px";tip.style.top=(Y*r.height/h)+"px"};
     const leave=()=>{hg.style.display="none";if(tip){tip.remove();tip=null}};
     hit.addEventListener("pointermove",move);hit.addEventListener("pointerdown",move);hit.addEventListener("pointerleave",leave);
   }
   function menuHTML(){
-    return `<div class="fc-menu" role="menu"><h4>Uložené kalkulace</h4>${saved.length?saved.map(s=>`<div class="fc-mi${s.id===st.id?" cur":""}"><button type="button" class="t" data-a="load" data-id="${esc(s.id)}" style="text-align:left"><b>${esc(s.name||"Bez názvu")}</b><small>${esc(MODES[s.mode]?.t||"")}${s.clientName?" · "+esc(s.clientName):""} · ${s.updatedAt?new Date(s.updatedAt).toLocaleDateString("cs-CZ"):""}</small></button><button type="button" class="del" data-a="delsaved" data-id="${esc(s.id)}">Smazat</button></div>`).join(""):`<div class="fc-mi"><span class="t"><small>${store?"Zatím nic uloženého. Kalkulaci uložíš tlačítkem Uložit – vyber nahoře klienta a uloží se k němu.":"Ukládání tu není k dispozici."}</small></span></div>`}${wmHTML()}</div>`;
+    return `<div class="fc-pop fc-menu" role="menu"><h4 class="section-head">Uložené kalkulace</h4><div class="group">${saved.length?saved.map(s=>`<div class="row fc-mi${s.id===st.id?" cur":""}"><button type="button" class="main" data-a="load" data-id="${esc(s.id)}" role="menuitem"><div class="t">${esc(s.name||"Bez názvu")}</div><div class="s">${esc(MODES[s.mode]?.t||"")}${s.clientName?" · "+esc(s.clientName):""} · ${s.updatedAt?new Date(s.updatedAt).toLocaleDateString("cs-CZ"):""}</div></button><button type="button" class="btn btn--danger btn--s" data-a="delsaved" data-id="${esc(s.id)}">Smazat</button></div>`).join(""):`<p class="empty">${store?"Zatím nic uloženého. Kalkulaci uložíš tlačítkem Uložit – vyber nahoře klienta a uloží se k němu.":"Ukládání tu není k dispozici."}</p>`}</div>${wmHTML()}</div>`;
   }
   /* jméno vybraného klienta / leadu (i když už v seznamu není) */
   function cliName(){if(!st.clientId)return"";const e=entryOf(st.clientId);return e?e.name||"":st.clientName||"klient"}
@@ -588,17 +557,17 @@ function mount(root,opts={}){
     if(sv)return `Uloženo: <b>${esc(sv.name||"kalkulace")}</b>${dirty()?" · neuložené změny":""}`;
     return st.clientId?(st.mode==="loan"?"Uložený úvěr se u klienta objeví ve finančním plánu (slajd „Plánujeme hypotéku“).":"Neuloženo – uloží se ke klientovi jedním klikem."):"Bez klienta – jen výpočet.";
   }
-  function askHTML(){return `<div class="fc-ask" role="alertdialog" aria-label="Neuložená kalkulace"><p>Kalkulace má neuložené změny. Začít novou?</p><div><button type="button" class="fc-btn" data-a="askno">Zpět</button><button type="button" class="fc-btn" data-a="asksave">Uložit a nová</button><button type="button" class="fc-btn pri" data-a="askyes">Zahodit</button></div></div>`}
+  function askHTML(){return `<div class="fc-pop fc-ask" role="alertdialog" aria-label="Neuložená kalkulace"><p>Kalkulace má neuložené změny. Začít novou?</p><div><button type="button" class="btn btn--secondary" data-a="askno">Zpět</button><button type="button" class="btn btn--secondary" data-a="asksave">Uložit a nová</button><button type="button" class="btn btn--danger is-armed" data-a="askyes">Zahodit</button></div></div>`}
   /* výběr klienta: vyhledávání bez diakritiky po slovech (jako Důchodová kalkulačka) */
   function csList(){
     const inp=root.querySelector("#fc_cq"),box=root.querySelector("#fc_cl");if(!inp||!box)return;
     const q=inp.value===cliName()?"":inp.value,words=fold(q).split(/\s+/).filter(Boolean);
     const its=clientList().filter(e=>{const n=fold(e.name);return words.every(w=>n.includes(w))}).slice(0,40);
     csHi=Math.min(csHi,its.length);
-    box.innerHTML=`<button type="button" data-a="cpick" data-id="" class="none${csHi===0?" on":""}">— bez klienta (jen výpočet) —</button>`+
+    box.innerHTML=`<button type="button" role="option" data-a="cpick" data-id="" class="row row-btn${csHi===0?" on":""}" aria-selected="${csHi===0}"><span class="main s">Bez klienta (jen výpočet)</span></button>`+
       (its.length?its.map((e,i)=>{const n=saved.filter(x=>x.clientId&&keysOf(e).includes(x.clientId)).length;
-        return `<button type="button" data-a="cpick" data-id="${esc(keyOf(e))}"${csHi===i+1?' class="on"':""}><span>${esc(e.name||"Bez jména")}${e.leadOnly&&e.prospect?` <small>· ${esc(e.prospect)}</small>`:""}</span>${n?`<span class="ok">✓ ${n} ${n===1?"uložená":n<5?"uložené":"uložených"}</span>`:""}</button>`}).join("")
-        :`<div class="empty">Žádný klient neodpovídá „${esc(q)}“</div>`);
+        return `<button type="button" role="option" data-a="cpick" data-id="${esc(keyOf(e))}" class="row row-btn${csHi===i+1?" on":""}" aria-selected="${csHi===i+1}"><span class="main"><span class="t">${esc(e.name||"Bez jména")}</span>${e.leadOnly&&e.prospect?`<span class="s">${esc(e.prospect)}</span>`:""}</span>${n?`<span class="end">${n} ${n===1?"uložená":n<5?"uložené":"uložených"}</span>`:""}</button>`}).join("")
+        :`<p class="empty">Žádný klient neodpovídá „${esc(q)}“</p>`);
     box.hidden=false;inp.setAttribute("aria-expanded","true");
   }
   function csClose(){const box=root.querySelector("#fc_cl");if(box)box.hidden=true;const inp=root.querySelector("#fc_cq");if(inp){inp.setAttribute("aria-expanded","false");if(document.activeElement!==inp)inp.value=cliName()}}
@@ -610,10 +579,10 @@ function mount(root,opts={}){
   }
   function wmHTML(){
     const T=[["zfp","ZFP"],["img","Obrázek"],["text","Text"],["none","Žádný"]];
-    return `<div class="fc-wm"><h4>Vodoznak v grafu a PDF</h4>
-      <div class="fc-wseg" role="group" aria-label="Typ vodoznaku">${T.map(([k,t])=>`<button type="button" data-a="wmt" data-k="${k}" aria-pressed="${wm.t===k}">${t}</button>`).join("")}</div>
-      ${wm.t==="img"?`<div class="fc-wimg">${wm.img?`<img src="${wm.img}" alt="Nahraný vodoznak">`:""}<button type="button" data-a="wmpick">${wm.img?"Nahrát jiný obrázek":"Nahrát obrázek (logo)…"}</button></div><p class="fc-wnote">Nejlépe PNG s průhledným pozadím.</p>`:""}
-      ${wm.t==="text"?`<label class="fc-wrow"><span>Text</span><input type="text" data-w="txt" maxlength="40" placeholder="např. tvoje jméno" value="${esc(wm.txt)}"></label>`:""}
+    return `<div class="fc-wm"><h4 class="section-head">Vodoznak v grafu a PDF</h4>
+      <div class="seg seg--block" role="group" aria-label="Typ vodoznaku">${T.map(([k,t])=>`<button type="button" data-a="wmt" data-k="${k}" aria-pressed="${wm.t===k}">${t}</button>`).join("")}</div>
+      ${wm.t==="img"?`<div class="fc-wimg">${wm.img?`<img src="${wm.img}" alt="Nahraný vodoznak">`:""}<button type="button" class="btn btn--secondary btn--s" data-a="wmpick">${wm.img?"Nahrát jiný obrázek":"Nahrát obrázek (logo)…"}</button></div><p class="hint">Nejlépe PNG s průhledným pozadím.</p>`:""}
+      ${wm.t==="text"?`<label class="fc-wrow"><span>Text</span><input type="text" class="field" data-w="txt" maxlength="40" placeholder="např. tvoje jméno" value="${esc(wm.txt)}"></label>`:""}
       ${wm.t!=="none"?`<label class="fc-wrow"><span>Průhlednost</span><input type="range" data-w="op" min="0.05" max="0.8" step="0.01" value="${wm.op}" aria-label="Viditelnost vodoznaku"></label>
       <label class="fc-wrow"><span>Velikost</span><input type="range" data-w="sz" min="0.5" max="2.2" step="0.05" value="${wm.sz}" aria-label="Velikost vodoznaku"></label>`:""}
     </div>`;
@@ -649,7 +618,7 @@ function mount(root,opts={}){
     else if(a==="save")save();
     else if(a==="pdf")pdf();
     else if(a==="load"){const s=saved.find(x=>x.id===b.dataset.id);if(s){const f=fresh();st={...f,...JSON.parse(JSON.stringify(s.state||{})),id:s.id,name:s.name,clientId:s.clientId||"",clientName:s.clientName||"",base:""};ORDER.forEach(m=>{if(!st.m[m])st.m[m]=f.m[m]});fill(st);menuOpen=false;draw();toast("Načteno: "+(s.name||"kalkulace"))}}
-    else if(a==="delsaved"){const s=saved.find(x=>x.id===b.dataset.id);if(s&&confirm(`Smazat uloženou kalkulaci „${s.name||"Bez názvu"}“?`)){await store.doc("fincalc/"+s.id).delete();if(st.id===s.id){st.id=null;st.name=""}draw()}}
+    else if(a==="delsaved"){const s=saved.find(x=>x.id===b.dataset.id);if(s&&await ask_(`Smazat uloženou kalkulaci „${s.name||"Bez názvu"}“?`,{okLabel:"Smazat",danger:true})){await store.doc("fincalc/"+s.id).delete();if(st.id===s.id){st.id=null;st.name=""}draw();toast("Kalkulace smazána")}}
   });
   /* nová kalkulace: klient zůstává vybraný (další výpočet pro stejného klienta), zadání se vrátí na výchozí */
   function newCalc(){const keep=st.mode,cid=st.clientId,cn=st.clientName;st=fresh();st.mode=keep;st.clientId=cid;st.clientName=cn;st.base="";menuOpen=false;draw();toast("Nová kalkulace")}
@@ -725,7 +694,7 @@ function mount(root,opts={}){
     const res=lastRes;if(!res.ok){toast("Nejdřív oprav zadání – "+res.err);return}
     const M=MODES[st.mode],v=res.v,c=cur();
     const pts=series(st.mode,v);
-    const ch=chartSVG(pts,{w:900,h:430,c:{a:"#E8571A",b:"#e4e6e9",grid:"#e9ebee",txt:"#6b7280",ring:"#fff",wmGray:"#4f5052",wmGray2:"#7d8183",wmOrange:"#E8571A",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
+    const ch=chartSVG(pts,{w:900,h:430,c:{a:"#E8571A",b:"#E6E6E8",grid:"#E6E6E8",txt:"#5C5C60",ring:"#fff",wmGray:"#5C5C60",wmGray2:"#8A8A8E",wmOrange:"#E8571A",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
     const params=FIELDS[st.mode].map(k=>[M.f[k].l.replace(/ \((CZK|%|počet let)\)/,""),k==="rate"?fmtPct(v[k]):k==="years"?yrsTxt(v[k]):fmtKc(v[k]),k===c.calc]);
     if(st.mode!=="loan")params.push(["Frekvence připisování úroku",(FREQ.find(f=>f[0]===v.freq)||FREQ[0])[1],false]);
     if(st.mode==="inv"&&v.feeOn){const t=totals("inv",v);params.push(["Vstupní poplatek",`${fmtPct(+v.fee||0)} z každého vkladu = ${fmtKc(t.fee)}`,false])}
@@ -741,19 +710,19 @@ function mount(root,opts={}){
       notes=L.warn.map(w=>`<p class="w">${esc(w)}</p>`).join("")}
     const d=new Date().toLocaleDateString("cs-CZ");
     const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${esc(M.t)} – ${esc(st.clientName||st.name||"Koncept")} – ${d}</title><style>
-      @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#111111;margin:0;padding:24px}
+      @page{size:A4;margin:14mm}body{font:13px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,Arial,sans-serif;color:#1A1A1A;margin:0;padding:24px}
       .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #E8571A;padding-bottom:12px;margin-bottom:18px}
-      .hd h1{font-size:20px;margin:0}.hd small{color:#6b7280}
-      .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#f0f2f5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px}.t .v{font-size:17px;font-weight:700}
-      table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}tr.c td{color:#E8571A}
-      h2{font-size:16px;margin:18px 0 8px}.leg{display:flex;gap:22px;font-size:12px;color:#6b7280;margin-top:6px}.leg i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-      .w{border:1px solid #E8571A;border-radius:6px;padding:8px 10px;margin:8px 0}.ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}
+      .hd h1{font-size:20px;margin:0}.hd small{color:#5C5C60}
+      .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#F4F4F5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px;color:#5C5C60}.t .v{font-size:17px;font-weight:700}
+      table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #E6E6E8}td:last-child{text-align:right;font-weight:600}tr.c td{color:#C2410C}
+      h2{font-size:16px;margin:18px 0 8px}.leg{display:flex;gap:22px;font-size:12px;color:#5C5C60;margin-top:6px}.leg i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+      .w{border:1px solid #E8571A;border-radius:8px;padding:8px 10px;margin:8px 0}.ft{margin-top:18px;font-size:11px;color:#5C5C60;border-top:1px solid #E6E6E8;padding-top:8px}
       @media print{body{padding:0}}</style></head><body>
       <div class="hd"><div><h1>Finanční matematika – ${esc(M.t)}</h1><small>${esc(st.clientName||st.name||"Koncept")} · ${d}</small></div><svg width="133" height="74" viewBox="0 0 ${LOGO_W} ${LOGO_H}">${zfpLogo()}</svg></div>
       <div class="tiles">${M.tiles(v).map(([k,x])=>`<div class="t"><div class="k">${esc(k)}</div><div class="v">${esc(x)}</div></div>`).join("")}</div>
       <h2>Parametry</h2><table>${params.map(([k,x,isC])=>`<tr${isC?' class="c"':""}><td>${esc(k)}${isC?" (dopočteno)":""}</td><td>${esc(x)}</td></tr>`).join("")}</table>
       ${notes}<h2>${esc(st.titles[st.mode]||M.chart)}</h2>${ch.svg}
-      <div class="leg"><span><i style="background:#E8571A"></i>${esc(M.sa)}</span><span><i style="background:#d9dce0"></i>${esc(M.sb)}</span></div>
+      <div class="leg"><span><i style="background:#E8571A"></i>${esc(M.sa)}</span><span><i style="background:#E6E6E8"></i>${esc(M.sb)}</span></div>
       <div class="ft">Výpočet je orientační a slouží pouze pro informaci. ${st.mode==="loan"?"Skutečné splátky závisí na podmínkách věřitele; potřebný příjem je odhad podle zadaných limitů DSTI/DTI, každá banka posuzuje bonitu vlastní metodikou.":"Výnosy nejsou zaručeny, hodnota investice může kolísat."} Vklady, splátky a výplaty se počítají na konci každého měsíce. © ZFP Consulting</div>
       <script>onload=()=>setTimeout(()=>print(),300)<\/script></body></html>`;
     const w=window.open("","_blank");if(!w){toast("Prohlížeč zablokoval nové okno – povol vyskakovací okna");return}

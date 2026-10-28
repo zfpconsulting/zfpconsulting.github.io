@@ -128,55 +128,49 @@ const staYr=R=>R.sta.pr.year>=FIRST?String(R.sta.pr.year):String(FIRST);
 const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 
 /* ================= vzhled ================= */
+/* jen rozvržení – tlačítka, pole, dlaždice, nadpisy sekcí a seznamy jsou globální komponenty z index.html */
 const CSS=`
-.dk{font-family:var(--font,-apple-system,system-ui,sans-serif);color:var(--ink);background:var(--surface);border-radius:16px;box-shadow:var(--card-shadow);overflow:hidden;margin-bottom:22px;padding:16px 18px 20px}
-.dk h3{margin:0 0 10px;font-size:17px;font-weight:700}
-.dk .dk-top{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
-.dk .dk-top .dk-f{flex:1 1 240px}
-.dk .dk-cs{position:relative}
-.dk .dk-cl{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
-.dk .dk-cl button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:44px;text-align:left;border:0;background:none;color:var(--ink);font:inherit;font-size:16px;padding:9px 10px;border-radius:7px;cursor:pointer}
-.dk .dk-cl button.on,.dk .dk-cl button:hover{background:var(--fill,rgba(120,120,128,.14))}
-.dk .dk-cl .dk-none{color:var(--ink-2)}.dk .dk-cl .dk-ok{color:var(--accent-text);font-weight:700}
-.dk .dk-cl .dk-empty{padding:10px;color:var(--ink-2);font-size:14px}
-.dk .dk-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.dk .dk-more{position:relative;margin-left:auto}
-.dk .dk-dots{min-width:44px;padding:0 10px;font-size:20px;line-height:1}
-.dk .dk-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:190px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
-.dk .dk-menu button{display:block;width:100%;min-height:44px;text-align:left;border:0;background:none;color:var(--ink);font:inherit;font-size:15px;padding:0 12px;border-radius:7px;cursor:pointer}
-.dk .dk-menu button:hover{background:var(--fill,rgba(120,120,128,.14))}
-.dk .dk-tile .est{display:inline-block;margin-left:4px;color:var(--accent-text);font-weight:600}
-.dk .dk-btn{height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;white-space:nowrap}
-.dk .dk-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
-.dk .dk-btn.danger{color:var(--accent-text);border-color:var(--accent)}
-.dk .dk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:6px}
-.dk .dk-f label{display:block;font-size:13px;color:var(--ink-2);margin-bottom:5px;line-height:1.25}
-.dk .dk-f input,.dk .dk-f select{width:100%;box-sizing:border-box;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-size:16px;padding:0 12px;appearance:auto}
-.dk .dk-f input:focus,.dk .dk-f select:focus{outline:2px solid var(--accent);outline-offset:-1px}
-.dk .dk-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.dk .dk-hint{font-size:12.5px;color:var(--ink-2);line-height:1.4;margin:4px 0 0}
-.dk .dk-sec{margin:20px 0 10px;font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink-2);text-transform:uppercase}
-.dk .dk-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px;margin:6px 0 4px}
-.dk .dk-tile{background:var(--canvas);border-radius:12px;padding:12px 14px;min-width:0}
-.dk .dk-tile .k{font-size:13px;color:var(--ink-2);margin-bottom:4px;line-height:1.25}
-.dk .dk-tile .v{font-size:21px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
-.dk .dk-tile .s{font-size:12px;color:var(--ink-2);margin-top:3px;line-height:1.3}
-.dk .dk-tile.big{outline:2px solid var(--accent-soft)}
-.dk .dk-tile .min{display:inline-block;margin-left:4px;color:var(--accent-text);font-weight:600}
-.dk table{border-collapse:collapse;width:100%;font-size:14px}
-.dk td{padding:7px 4px;border-bottom:1px solid var(--line)}
-.dk td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
-.dk .dk-warn{background:var(--accent-soft);border-radius:10px;padding:9px 12px;font-size:13.5px;line-height:1.4;margin:10px 0}
-.dk .dk-note{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin:14px 0 0}
-.dk .dk-note li{margin:3px 0}
-.dk .dk-saved{display:grid;gap:8px}
-.dk .dk-row{display:flex;align-items:center;gap:10px;background:var(--canvas);border-radius:10px;padding:10px 12px}
-.dk .dk-row .main{flex:1;min-width:0}
-.dk .dk-row .main b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dk .dk-row .main span{font-size:12.5px;color:var(--ink-2)}
-/* mobil: Uložit + Import + ⋯ v jedné řadě, menu se otevírá doprava pod ⋯ */
-@media (max-width:520px){.dk .dk-acts{width:100%;flex-wrap:nowrap}.dk .dk-acts>.dk-btn{flex:1 1 auto;min-width:0;padding:0 10px}.dk .dk-more{margin-left:0}}
+.dk{padding:var(--sp-4);margin-bottom:var(--sp-5);font-variant-numeric:tabular-nums}
+.dk-top{display:flex;flex-wrap:wrap;gap:var(--sp-3);align-items:flex-end;margin-bottom:var(--sp-2)}
+.dk-top .dk-cs{flex:1 1 260px;max-width:440px}
+.dk-cs{position:relative}
+.dk-lbl{display:block;font-size:var(--fs-s);color:var(--ink-2);margin:0 0 var(--sp-1);line-height:1.25}
+.dk-pop{position:absolute;z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);box-shadow:var(--shadow-pop);overflow:auto}
+.dk-cl{left:0;right:0;top:calc(100% + 4px);max-height:320px}
+.dk-cl .row-btn.on{background:var(--fill)}
+.dk-cl .row .end{font-size:var(--fs-s);color:var(--accent-text);font-weight:600}
+.dk-acts{display:flex;gap:var(--sp-2);align-items:center;margin-left:auto}
+.dk-more{position:relative}
+.dk-menu{right:0;top:calc(100% + 4px);min-width:220px}
+.dk .section-head{margin:var(--sp-5) 0 var(--sp-2)}
+.dk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--sp-3);margin-bottom:var(--sp-2)}
+.dk-f .hint{margin-top:var(--sp-1)}
+.dk-pair{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2)}
+.dk .tiles{margin-bottom:var(--sp-3)}
+.dk .tile .v{font-size:var(--fs-xl)}
+.dk-tile.dk-big{border-color:var(--accent)}
+.dk-tile .est,.dk-tile .min{margin-left:4px;color:var(--accent-text);font-weight:600}
+.dk-tab{border-collapse:collapse;width:100%;font-size:var(--fs-s)}
+.dk-tab td{padding:var(--sp-2) var(--sp-3);border-bottom:1px solid var(--line)}
+.dk-tab tr:last-child td{border-bottom:0}
+.dk-tab td:last-child{text-align:right;font-weight:600}
+.dk-warn{background:var(--accent-soft);border-radius:var(--r-m);padding:var(--sp-2) var(--sp-3);font-size:var(--fs-s);line-height:1.4;margin:var(--sp-2) 0}
+.dk details.more{margin-top:var(--sp-3)}
+.dk details.more ul{margin:var(--sp-1) 0 0;padding-left:18px;font-size:var(--fs-s);color:var(--ink-2);line-height:1.5}
+.dk details.more li{margin:3px 0}
+.dk-row .s{white-space:normal}
+.dk-row .end{display:flex;gap:var(--sp-1)}
+@media (max-width:640px){
+  .dk-acts{width:100%;margin:0}.dk-acts>.btn{flex:1 1 auto;min-width:0;padding:0 var(--sp-2)}
+  .dk .tiles .tile{width:auto;min-width:150px}
+  .dk-row{flex-wrap:wrap}.dk-row .end{width:100%;justify-content:flex-end}
+}
 `;
+/* liniové ikony appky (ICON z index.html); záloha pro samostatné testy modulu */
+const ICL={more:'<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>'};
+const ico=n=>'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">'+((typeof ICON==="object"&&ICON&&ICON[n])||ICL[n]||"")+'</svg>';
+/* jediné potvrzení appky (confirmSheet z index.html); v samostatných testech modulu záloha přes window.confirm */
+const ask_=(t,o)=>typeof window.confirmSheet==="function"?window.confirmSheet(t,o):Promise.resolve(window.confirm(t));
 
 function mount(root,opts={}){
   if(!document.getElementById("dkCss")){const st=document.createElement("style");st.id="dkCss";st.textContent=CSS;document.head.append(st)}
@@ -198,8 +192,8 @@ function mount(root,opts={}){
   const nameOf=id=>{const e=entries().find(x=>hasKey(x,id));return e?e.name:(saved.find(s=>s.id===id)||{}).name||"klient"};
 
   const val=k=>st[k]===""||st[k]==null?"":String(st[k]);
-  const fld=(k,label,{type="text",ph="",hint="",step}={})=>`<div class="dk-f"><label for="dk_${k}">${esc(label)}</label><input id="dk_${k}" data-k="${k}" type="${type}" ${type==="text"?'inputmode="numeric" autocomplete="off"':""} ${step?`step="${step}"`:""} placeholder="${esc(ph)}" value="${esc(val(k))}">${hint?`<p class="dk-hint">${hint}</p>`:""}</div>`;
-  const pair=(k1,k2,label,ph1,ph2)=>`<div class="dk-f"><label>${esc(label)}</label><div class="dk-pair"><input data-k="${k1}" type="text" inputmode="numeric" autocomplete="off" aria-label="${esc(label)} – roky" placeholder="${ph1}" value="${esc(val(k1))}"><input data-k="${k2}" type="text" inputmode="numeric" autocomplete="off" aria-label="${esc(label)} – dny" placeholder="${ph2}" value="${esc(val(k2))}"></div></div>`;
+  const fld=(k,label,{type="text",ph="",hint="",step}={})=>`<div class="dk-f"><label class="dk-lbl" for="dk_${k}">${esc(label)}</label><input class="field" id="dk_${k}" data-k="${k}" type="${type}" ${type==="text"?'inputmode="numeric" autocomplete="off"':""} ${step?`step="${step}"`:""} placeholder="${esc(ph)}" value="${esc(val(k))}">${hint?`<p class="hint">${hint}</p>`:""}</div>`;
+  const pair=(k1,k2,label,ph1,ph2)=>`<div class="dk-f"><span class="dk-lbl">${esc(label)}</span><div class="dk-pair"><input class="field" data-k="${k1}" type="text" inputmode="numeric" autocomplete="off" aria-label="${esc(label)} – roky" placeholder="${ph1}" value="${esc(val(k1))}"><input class="field" data-k="${k2}" type="text" inputmode="numeric" autocomplete="off" aria-label="${esc(label)} – dny" placeholder="${ph2}" value="${esc(val(k2))}"></div></div>`;
 
   /* výběr klienta: vyhledávání (bez diakritiky, po slovech) místo dlouhého rozbalovacího seznamu */
   const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
@@ -213,21 +207,21 @@ function mount(root,opts={}){
     const inp=root.querySelector("#dk_cq"),box=root.querySelector("#dk_cl");if(!inp||!box)return;
     const q=inp.value,cur=st.cid?nameOf(st.cid):"",its=csItems(q===cur?"":q);
     csHi=Math.min(csHi,its.length);
-    box.innerHTML=`<button type="button" data-a="pick" data-id="" class="dk-none${csHi===0?" on":""}">— bez klienta (jen výpočet) —</button>`+
-      (its.length?its.map((e,i)=>{const k=keyOf(e),sv=saved.find(x=>keysOf(e).includes(x.id)),has=!!sv;return `<button type="button" data-a="pick" data-id="${esc(sv?sv.id:k)}"${csHi===i+1?' class="on"':""}><span>${esc(e.name||"Bez jména")}${e.leadOnly&&e.prospect?` <small class="dk-none">· ${esc(e.prospect)}</small>`:""}</span>${has?'<span class="dk-ok">✓ uloženo</span>':""}</button>`}).join("")
-        :`<div class="dk-empty">Žádný klient neodpovídá „${esc(q)}“</div>`);
+    box.innerHTML=`<button type="button" role="option" data-a="pick" data-id="" class="row row-btn${csHi===0?" on":""}"><span class="main s">Bez klienta (jen výpočet)</span></button>`+
+      (its.length?its.map((e,i)=>{const k=keyOf(e),sv=saved.find(x=>keysOf(e).includes(x.id)),has=!!sv;return `<button type="button" role="option" data-a="pick" data-id="${esc(sv?sv.id:k)}" class="row row-btn${csHi===i+1?" on":""}"><span class="main"><span class="t">${esc(e.name||"Bez jména")}</span>${e.leadOnly&&e.prospect?`<span class="s">${esc(e.prospect)}</span>`:""}</span>${has?'<span class="end">uloženo</span>':""}</button>`}).join("")
+        :`<p class="empty">Žádný klient neodpovídá „${esc(q)}“</p>`);
     box.hidden=false;
   }
   function csClose(){const box=root.querySelector("#dk_cl");if(box)box.hidden=true;const inp=root.querySelector("#dk_cq");if(inp&&document.activeElement!==inp)inp.value=st.cid?nameOf(st.cid):""}
   function pick(id){csClose();if(!id){st.cid="";persist();draw();return}load(id)}
   function draw(){
-    root.innerHTML=`<div class="dk">
+    root.innerHTML=`<div class="card dk">
       <div class="dk-top">
-        <div class="dk-f dk-cs"><label for="dk_cq">Klient</label><input id="dk_cq" type="search" role="combobox" aria-autocomplete="list" aria-controls="dk_cl" autocomplete="off" spellcheck="false" placeholder="Hledat klienta…" value="${esc(st.cid?nameOf(st.cid):"")}"><div id="dk_cl" class="dk-cl" role="listbox" hidden></div></div>
-        <div class="dk-acts"><button type="button" class="dk-btn pri" data-a="save">Uložit ke klientovi</button><button type="button" class="dk-btn" data-a="import">Import IOLDP</button><input type="file" id="dkFile" accept=".pdf,application/pdf,.txt,text/plain" hidden>
-          <div class="dk-more"><button type="button" class="dk-btn dk-dots" data-a="more" aria-haspopup="menu" aria-expanded="${moreOpen}" aria-label="Další akce" title="Další akce">⋯</button>${moreOpen?`<div class="dk-menu" role="menu"><button type="button" role="menuitem" data-a="pdf">Tisk / PDF</button><button type="button" role="menuitem" data-a="new">Nová kalkulace</button></div>`:""}</div></div>
+        <div class="dk-f dk-cs"><label class="dk-lbl" for="dk_cq">Klient</label><label class="field field--search">${ico("search")}<input id="dk_cq" type="search" role="combobox" aria-autocomplete="list" aria-controls="dk_cl" autocomplete="off" spellcheck="false" placeholder="Hledat klienta…" value="${esc(st.cid?nameOf(st.cid):"")}"></label><div id="dk_cl" class="dk-pop dk-cl" role="listbox" hidden></div></div>
+        <div class="dk-acts"><button type="button" class="btn btn--primary" data-a="save">Uložit ke klientovi</button><button type="button" class="btn btn--secondary" data-a="import">Import IOLDP</button><input type="file" id="dkFile" accept=".pdf,application/pdf,.txt,text/plain" hidden>
+          <div class="dk-more"><button type="button" class="icon-btn" data-a="more" aria-haspopup="menu" aria-expanded="${moreOpen}" aria-label="Další akce" title="Další akce">${ico("more")}</button>${moreOpen?`<div class="dk-pop dk-menu group" role="menu"><button type="button" class="row row-btn" role="menuitem" data-a="pdf"><span class="main t">Tisk / PDF</span></button><button type="button" class="row row-btn" role="menuitem" data-a="new"><span class="main t">Nová kalkulace</span></button></div>`:""}</div></div>
       </div>
-      <div class="dk-sec">Údaje z IOLDP</div>
+      <h3 class="section-head">Údaje z IOLDP</h3>
       <div id="dkImp">${impMsg}</div>
       <div class="dk-grid">
         ${fld("ovz","Osobní vyměřovací základ (Kč měsíčně)",{ph:"např. 52 300"})}
@@ -238,8 +232,8 @@ function mount(root,opts={}){
         ${fld("ret","Dosažení důchodového věku",{type:"date",hint:"Datum z IOLDP – od něj se počítá dopočtená doba."})}
         ${fld("ioldp","IOLDP ze dne",{type:"date"})}
       </div>
-      <p class="dk-hint">Náhradní doby se do výpočtu započítají jen z 80 %. Dny se počítají v 365denních letech, do procentní výměry jdou jen celé roky.</p>
-      <div class="dk-sec">Situace</div>
+      <p class="hint">Náhradní doby se do výpočtu započítají jen z 80 %. Dny se počítají v 365denních letech, do procentní výměry jdou jen celé roky.</p>
+      <h3 class="section-head">Situace</h3>
       <div class="dk-grid">
         ${fld("evt","Vznik nároku (invalidita / úmrtí)",{type:"date",hint:"Určuje rok parametrů (redukce, sazba za rok pojištění, minima) a délku dopočtené doby."})}
         ${fld("dopPct","Dopočtená doba v % (výchozí 100)",{ph:"100",hint:"Zkrať jen když ČSSZ dopočtenou dobu krátí (§ 41 odst. 5 písm. b)."})}
@@ -252,9 +246,9 @@ function mount(root,opts={}){
     drawRes();drawSaved();
   }
 
-  function tile(k,r,sub,big){return `<div class="dk-tile${big?" big":""}"><div class="k">${esc(k)}</div><div class="v">${kc(r.total)}</div><div class="s">ZV ${kc(r.zv)} + PV ${kc(r.pv)}${r.minUsed?`<span class="min" title="Procentní výměra by vyšla pod zákonným minimem">min.</span>`:""}${sub?"<br>"+sub:""}</div></div>`}
+  function tile(k,r,sub,big){return `<div class="tile dk-tile${big?" dk-big":""}"><div class="k">${esc(k)}</div><div class="v">${kc(r.total)}</div><div class="h">ZV ${kc(r.zv)} + PV ${kc(r.pv)}${r.minUsed?`<span class="min" title="Procentní výměra by vyšla pod zákonným minimem">min.</span>`:""}${sub?"<br>"+sub:""}</div></div>`}
   function resHTML(R){
-    if(!R.ok)return `<div class="dk-sec">Výsledek</div><p class="dk-hint">Vyplň osobní vyměřovací základ (nebo výpočtový základ) a dobu pojištění z IOLDP – částky se spočítají samy.</p>`;
+    if(!R.ok)return `<h3 class="section-head">Výsledek</h3><p class="hint">Vyplň osobní vyměřovací základ (nebo výpočtový základ) a dobu pojištění z IOLDP – částky se spočítají samy.</p>`;
     const w=[];
     if(R.pr.warn)w.push(R.pr.year>LAST?`Pro rok ${R.pr.year} ještě nejsou vyhlášené redukční hranice, základní výměra a minima – počítá se s hodnotami ${R.pr.use} (odhad). Zápočet ${R.p.zap} % do 1. RH a sazba ${pctTxt(R.p.saz)} za rok jsou podle zákona pro rok ${R.pr.year}.`:`Parametry pro rok ${R.pr.year} tu nejsou – počítá se s hodnotami ${R.pr.use}.`);
     if(!st.ret)w.push("Chybí datum dosažení důchodového věku – dopočtená doba se nezapočetla, invalidní důchody i odvozené vdovský a sirotčí vyjdou nižší.");
@@ -272,33 +266,33 @@ function mount(root,opts={}){
       ["Sazba za rok pojištění I. / II. / III. st.",`${pctTxt(R.p.saz/3)} / ${pctTxt(R.p.saz/2)} / ${pctTxt(R.p.saz)}`],
       [R.ownBase?"Procentní výměra zemřelého (zadáno)":"Procentní výměra zemřelého (invalidní III. st.)",kc(R.base)]
     ];
-    return `<div class="dk-sec">Měsíční výše důchodu · parametry ${R.pr.use}</div>
+    return `<h3 class="section-head">Měsíční výše důchodu · parametry ${R.pr.use}</h3>
       ${w.map(x=>`<div class="dk-warn">${esc(x)}</div>`).join("")}
-      <div class="dk-tiles">
+      <div class="tiles dk-tiles">
         ${tile("Starobní důchod",R.sta,R.sta.fromIoldp?`odhad z IOLDP · vlastní přepočet ${kc(R.sta.own)}`:`vlastní odhad do důchodového věku (${R.sta.years} let pojištění, parametry ${staYr(R)})${R.sta.pr.est?`<span class="est" title="Redukční hranice a základní výměra roku odchodu ještě nejsou vyhlášené – použity poslední známé (${R.sta.pr.use})">odhad</span>`:""}`)}${tile("Invalidní I. stupně",R.i1)}${tile("Invalidní II. stupně",R.i2)}${tile("Invalidní III. stupně",R.i3,"",true)}
         ${tile("Vdovský / vdovecký",R.wid,"50 % procentní výměry zemřelého")}
         ${tile("Sirotčí (na 1 dítě)",R.orp,R.orp.kids>1?`${R.orp.kids} děti celkem ${kc(R.orp.family)}`:"40 % procentní výměry zemřelého")}
       </div>
-      <div class="dk-sec">Rozpis výpočtu</div>
-      <table>${rows.map(([a,b])=>`<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`).join("")}</table>
-      <ul class="dk-note">
+      <h3 class="section-head">Rozpis výpočtu</h3>
+      <div class="group"><table class="dk-tab">${rows.map(([a,b])=>`<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`).join("")}</table></div>
+      <details class="more"><summary>Jak se důchody počítají</summary><div><ul>
         <li>Důchod = základní výměra (10 % průměrné mzdy) + procentní výměra. Invalidní III. stupně: sazba roku vzniku nároku za každý celý rok doby pojištění včetně dopočtené doby (1,495 % v 2026, každý rok o 0,005 méně až 1,45 % od 2035; § 34 a § 41); II. stupeň polovina, I. stupeň třetina této sazby. Vdovský 50 % a sirotčí 40 % procentní výměry důchodu zemřelého. „min.“ = zákonné minimum procentní výměry.</li>
         <li>Výpočtový základ: do 1. redukční hranice 99 % osobního vyměřovacího základu (2026; každý rok o 1 bod méně až 90 % od 2035, § 15), 26 % mezi hranicemi, nad 2. hranicí nic.</li>
         <li>Starobní důchod (vlastní odhad) se počítá s parametry roku dosažení důchodového věku. Redukční hranice a základní výměru budoucích let zatím nikdo nezná – použijí se poslední vyhlášené, výsledek je proto jen odhad (v dnešních cenách).</li>
         <li>Je to orientační výpočet z údajů IOLDP. ČSSZ při přiznání bere rozhodné období do roku před vznikem nároku, takže skutečná částka se může mírně lišit.</li>
         <li>Vdovský a vdovecký důchod se vyplácí 1 rok od úmrtí, déle jen např. při péči o dítě, u invalidity III. stupně nebo když je pozůstalému aspoň o 4 roky méně než důchodový věk (§ 50). Sirotčí náleží každému nezaopatřenému dítěti zvlášť.</li>
         <li>Nárok na invalidní důchod předpokládá potřebnou dobu pojištění (§ 40). Zvláštní případy (invalidita před 18. rokem, § 42) kalkulačka nepočítá.</li>
-      </ul>`;
+      </ul></div></details>`;
   }
   function drawRes(){const el=root.querySelector("#dkRes");if(el)el.innerHTML=resHTML(calc(st))}
 
   function savedRow(s){
     const e=entries().find(x=>hasKey(x,s.id)),nm=e?e.name:s.name||"klient",r=s.res||{};
-    return `<div class="dk-row"><div class="main"><b>${esc(nm)}</b><span>${s.ioldp?"IOLDP "+esc(fmtDate(s.ioldp))+" · ":""}${r.sta?"starobní "+kc(r.sta)+" · ":""}inv. III. ${kc(r.i3)} · vdovský ${kc(r.wid)} · sirotčí ${kc(r.orp)}</span></div><button type="button" class="dk-btn" data-a="open" data-id="${esc(s.id)}">Otevřít</button><button type="button" class="dk-btn danger" data-a="del" data-id="${esc(s.id)}">Smazat</button></div>`;
+    return `<div class="row dk-row"><div class="main"><div class="t">${esc(nm)}</div><div class="s">${s.ioldp?"IOLDP "+esc(fmtDate(s.ioldp))+" · ":""}${r.sta?"starobní "+kc(r.sta)+" · ":""}inv. III. ${kc(r.i3)} · vdovský ${kc(r.wid)} · sirotčí ${kc(r.orp)}</div></div><div class="end"><button type="button" class="btn btn--secondary btn--s" data-a="open" data-id="${esc(s.id)}">Otevřít</button><button type="button" class="btn btn--danger btn--s" data-a="del" data-id="${esc(s.id)}">Smazat</button></div></div>`;
   }
   function drawSaved(){
     const el=root.querySelector("#dkSaved");if(!el)return;
-    el.innerHTML=saved.length?`<div class="dk-sec">Uložené u klientů · ${saved.length}</div><div class="dk-saved">${saved.map(savedRow).join("")}</div>`:"";
+    el.innerHTML=saved.length?`<h3 class="section-head">Uložené u klientů · ${saved.length}</h3><div class="group">${saved.map(savedRow).join("")}</div>`:"";
     csClose();
   }
 
@@ -332,11 +326,11 @@ function mount(root,opts={}){
     const nm=st.cid?nameOf(st.cid):"",d=new Date().toLocaleDateString("cs-CZ");
     const row=(a,b)=>`<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`;
     const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Důchodová kalkulace – ${esc(nm||"Koncept")} – ${d}</title><style>
-      @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#111111;margin:0;padding:24px}
-      .hd{border-bottom:2px solid #E8571A;padding-bottom:12px;margin-bottom:18px}.hd h1{font-size:20px;margin:0}.hd small{color:#6b7280}
-      .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#f0f2f5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px}.t .v{font-size:17px;font-weight:700}.t .s{font-size:11px;color:#6b7280}
-      table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}
-      h2{font-size:16px;margin:18px 0 8px}.ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}@media print{body{padding:0}}</style></head><body>
+      @page{size:A4;margin:14mm}body{font:13px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,Arial,sans-serif;color:#1A1A1A;margin:0;padding:24px}
+      .hd{border-bottom:2px solid #E8571A;padding-bottom:12px;margin-bottom:18px}.hd h1{font-size:20px;margin:0}.hd small{color:#5C5C60}
+      .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#F4F4F5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px;color:#5C5C60}.t .v{font-size:17px;font-weight:700}.t .s{font-size:11px;color:#5C5C60}
+      table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #E6E6E8}td:last-child{text-align:right;font-weight:600}
+      h2{font-size:16px;margin:18px 0 8px}.ft{margin-top:18px;font-size:11px;color:#5C5C60;border-top:1px solid #E6E6E8;padding-top:8px}@media print{body{padding:0}}</style></head><body>
       <div class="hd"><h1>Důchodová kalkulace – dávky při invaliditě a úmrtí</h1><small>${esc(nm||"Koncept")} · ${d}${st.ioldp?" · IOLDP ze dne "+esc(fmtDate(st.ioldp)):""}</small></div>
       <div class="tiles">${[["Starobní důchod"+(R.sta.fromIoldp?" (odhad z IOLDP)":" (vlastní odhad, parametry "+staYr(R)+")"),R.sta],["Invalidní I. stupně",R.i1],["Invalidní II. stupně",R.i2],["Invalidní III. stupně",R.i3],["Vdovský / vdovecký",R.wid],["Sirotčí (na 1 dítě)",R.orp]].map(([k,r])=>`<div class="t"><div class="k">${esc(k)}</div><div class="v">${kc(r.total)}</div><div class="s">ZV ${kc(r.zv)} + PV ${kc(r.pv)}</div></div>`).join("")}</div>
       <h2>Vstupní údaje</h2><table>${row("Osobní vyměřovací základ",kc(R.ovz))}${row("Výpočtový základ po redukci",kc(R.vz))}${row("Doba pojištění z IOLDP",ryTxt(R.d.tot))}${row("Dopočtená doba",R.dop?ryTxt(R.dop):"0")}${row("Celé roky pro procentní výměru",String(R.years))}${row("Parametry roku "+R.pr.use,R.p.src)}${row("Zápočet do 1. RH · sazba za rok",R.p.zap+" % · "+pctTxt(R.p.saz))}</table>
@@ -393,7 +387,8 @@ function mount(root,opts={}){
     else if(a==="new"){st=fresh();impMsg="";persist();draw()}
     else if(a==="open"){load(b.dataset.id);root.scrollIntoView({behavior:"smooth",block:"start"})}
     else if(a==="del"){
-      if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="Opravdu smazat?";return}
+      const s=saved.find(x=>x.id===b.dataset.id);
+      if(!await ask_("Smazat důchodovou kalkulaci"+(s&&s.name?" „"+s.name+"“":"")+"?",{okLabel:"Smazat",danger:true}))return;
       try{await store.doc("duchod/"+b.dataset.id).delete();if(st.cid===b.dataset.id){st.cid="";persist()}toast("Smazáno")}catch(err){toast("Nepodařilo se smazat")}
     }
   });

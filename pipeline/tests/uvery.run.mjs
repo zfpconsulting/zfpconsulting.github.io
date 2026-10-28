@@ -1,5 +1,6 @@
 // Testy záložky Úvěry (uvery.js) v Chromiu – nepotřebují PP_KEY. Použití: node tests/uvery.run.mjs [--shots] [filtr]
-import { loadPlaywright, startServer, assert, eq } from "./helpers.mjs";
+import { loadPlaywright, startServer, assert, eq, appCss, smallTargets } from "./helpers.mjs";
+const APPCSS = await appCss();
 
 const SHOTS = process.argv.includes("--shots");
 const FILTER = process.argv.slice(2).filter(a => !a.startsWith("--"))[0] || "";
@@ -16,9 +17,7 @@ async function open({ width = 1300, height = 900, dark = false, docs = {} } = {}
   page.on("pageerror", e => errors.push(e.message));
   await page.route(base + "sazby.json*", r => r.fulfill({ contentType: "application/json", body: JSON.stringify({ source: "Swiss Life Hypoindex", period: "2026-09", index: 5.51, fix: { 1: { a: 5.29, b: 5.58 }, 3: { a: 5.27, b: 5.58 }, 5: { a: 5.51, b: 5.82 }, 10: { a: 5.99, b: 6.24 } } }) }));
   await page.route(base + "harness.html", r => r.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>:root{--bg:#F2F2F7;--bg2:#fff;--label:#000;--label2:rgba(60,60,67,.6);--label3:rgba(60,60,67,.3);--sep:rgba(60,60,67,.18);--fill:rgba(120,120,128,.12);--zfp:#F37520;--zfp-soft:rgba(243,117,32,.12);--card-shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04)}
-    @media (prefers-color-scheme: dark){:root{--bg:#000;--bg2:#1C1C1E;--label:#fff;--label2:rgba(235,235,245,.6);--label3:rgba(235,235,245,.3);--sep:rgba(84,84,88,.6);--fill:rgba(120,120,128,.24);--card-shadow:none}}
-    body{background:var(--bg);color:var(--label);margin:0;padding:16px;font-family:-apple-system,system-ui,sans-serif}</style>
+    <style>${APPCSS}</style><style>body{margin:0;padding:16px}</style>
     </head><body><div id="box"></div><script src="uvery.js"></script><script>
     const docs=${JSON.stringify(docs)},subs=new Set(),emit=()=>subs.forEach(f=>f());let n=0;
     const store={collection:name=>({onSnapshot(cb){const f=()=>cb({docs:Object.entries(docs).filter(([k])=>k.startsWith(name+"/")).map(([k,v])=>({id:k.split("/")[1],data:()=>JSON.parse(JSON.stringify(v))}))});subs.add(f);f()},
@@ -271,7 +270,7 @@ const tests = {
     await click(page, '.uv-bank [data-a="kprof"][data-v="rb"]');
     await page.waitForSelector("#kb-rb[open]");
     await click(page, '[data-a="kback"]');
-    await page.waitForSelector('.uv-tabs [data-v="banky"].on');
+    await page.waitForSelector('.uv-tabs [data-v="banky"][aria-selected="true"]');
     await click(page, '.uv-m [data-a="kpojem"][data-v="DSTI"]');
     assert((await page.textContent(".uv-gl")).includes("Debt Service to Income"), "vysvětlivka DSTI z ukazatele");
     await click(page, '[data-a="kback"]');
@@ -362,9 +361,26 @@ const tests = {
       await click(page, `[data-a="tab"][data-v="${t}"]`); await page.waitForTimeout(40);
       const small = await page.$$eval(".uv input, .uv select, .uv textarea", els => els.filter(e => e.offsetParent && e.type !== "checkbox" && parseFloat(getComputedStyle(e).fontSize) < 16).length);
       eq(small, 0, "pole min. 16 px: " + t);
-      const tiny = await page.$$eval(".uv button, .uv input:not([type=checkbox]), .uv select", els => els.filter(e => e.offsetParent && e.getBoundingClientRect().height < 40 && !e.closest(".uv-doc") && !e.classList.contains("uv-help")).map(e => (e.dataset.a || e.dataset.k || e.tagName) + ":" + Math.round(e.getBoundingClientRect().height)));
-      eq(tiny, [], "dotykové cíle min. 40 px: " + t);
+      const tiny0 = await smallTargets(page, ".uv button:not(.uv-doc button), .uv input:not([type=checkbox]), .uv select");
+      eq(tiny0, [], "dotykové cíle (40 px, malé komponenty 32 px + plocha 44): " + t);
     }
+    /* design systém: globální komponenty, bez vlastní palety (--uv-*), vlastních tlačítek a inline stylů */
+    await click(page, '[data-a="back"]');
+    eq(await page.evaluate(() => (document.getElementById("uvCss").textContent.match(/--uv-[a-z0-9]+|\.uv \.btn|\.uv-seg|\.uv-chip|#[0-9a-fA-F]{6}\b|rgba?\(/g) || [])), [], "bez vlastní palety a tlačítek v CSS modulu");
+    assert(await page.$(".uv .tiles .tile") && await page.$(".uv-bar .seg") && await page.$(".uv-bar .field--search"), "dlaždice .tile, filtr .seg, hledání .field--search");
+    eq(await page.$$eval(".uv [style]", els => els.map(e => e.getAttribute("style")).filter(s => /color|background|font|margin|width/.test(s))), [], "bez inline stylů");
+    eq(errors, [], "bez chyb");
+    await ctx.close();
+  },
+  async "smazání případu přes potvrzení (confirmSheet, záloha confirm)"() {
+    const { ctx, page, errors } = await open({ docs: { "uvery/x1": CASE } });
+    await click(page, '.uv-card[data-id="x1"]'); await click(page, '[data-a="tab"][data-v="prubeh"]');
+    page.once("dialog", d => d.dismiss()); await click(page, '[data-a="delcase"]'); await page.waitForTimeout(50);
+    assert(await page.evaluate(() => !!docs["uvery/x1"]), "zrušené potvrzení nic nesmaže");
+    await page.evaluate(() => { window.cfmAsked = []; window.confirmSheet = (t, o) => { cfmAsked.push([t, o && o.danger]); return Promise.resolve(true); }; });
+    await click(page, '[data-a="delcase"]'); await page.waitForFunction(() => !docs["uvery/x1"]);
+    assert(await page.evaluate(() => cfmAsked.length === 1 && cfmAsked[0][1] === true), "mazání přes confirmSheet (danger)");
+    await page.waitForSelector(".uv-bar");
     eq(errors, [], "bez chyb");
     await ctx.close();
   },
