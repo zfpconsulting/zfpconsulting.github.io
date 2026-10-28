@@ -8,30 +8,60 @@ const browser = await chromium.launch(process.env.PW_EXECUTABLE ? { executablePa
 const { srv, url } = await startServer();
 const FP = url.replace(/index\.html$/, "fp.html");
 
+/* fp.html běží jen uvnitř Pipeline (iframe #host). Test podvrhne stránku Pipeline: na fp:ready pošle fp:init s plánem
+   uloženým v localStorage (stejně jako ho Pipeline drží ve Firestore), fp:save plán uloží, fp:prodDef uloží výchozí produkty. */
+const HOSTURL = url.replace(/index\.html$/, "__fphost.html");
+const DEFAULT_PLAN = {"klient": {"titul": "", "jmeno": "Ukázkový Klient", "narozen": "1990-05-01", "duchod": "", "zam": 45000, "podnik": 0, "pasiv": 0, "pronajem": 0, "bonus": 0, "vydaje_osobni": 30800, "inv1": 7500, "inv2": 9000, "inv3": 15000, "vdovsky": 9000, "sirotci": 8000, "hruba": "", "bez_partnera": false}, "partner": {"zapnuto": false}, "deti": [{"jmeno": "Ema", "narozen": "2020-03-01"}], "motivace": "Chci, aby rodina měla jistotu, a jednou vlastní byt bez velké hypotéky.", "docasne": [], "majetek": [{"nazev": "Běžný účet", "typ": "Běžný účet", "hodnota": 80000, "vklad": 0}, {"nazev": "Spořicí účet", "typ": "Spořicí účet", "hodnota": 400000, "vklad": 0}, {"nazev": "Stavební spoření", "typ": "Stavební spoření", "hodnota": 120000, "vklad": 1700}], "nefin": [{"nazev": "Auto", "typ": "Auto", "hodnota": 250000}], "uvery": [], "cile": [{"nazev": "Byt – vlastní zdroje", "castka": 1200000, "za_let": 7}], "renta": {"mesicne": 40000, "od_veku": ""}, "pojisteni": {"zivotni": {"stav": 1200, "navrh": 1600}}, "realokace": {"rucne": false, "polozky": []}};
+const HOSTPAGE = `<!doctype html><meta charset="utf-8"><body style="margin:0"><script>
+const PK="fp_test_plan",DK="fp_test_proddef",DEF=${JSON.stringify(DEFAULT_PLAN)};
+const get=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
+window.__fpSave=p=>localStorage.setItem(PK,JSON.stringify(p));
+const fr=document.createElement("iframe");fr.src="fp.html#host";fr.style.cssText="border:0;width:100vw;height:100vh;display:block";document.body.append(fr);
+addEventListener("message",e=>{const d=e.data||{};if(e.source!==fr.contentWindow)return;
+  if(d.type==="fp:ready")fr.contentWindow.postMessage({type:"fp:init",plan:localStorage.getItem("fp_test_new")?null:get(PK)||JSON.parse(JSON.stringify(DEF)),prodDef:get(DK)},location.origin);
+  else if(d.type==="fp:save"&&d.plan)__fpSave(d.plan);
+  else if(d.type==="fp:prodDef")localStorage.setItem(DK,JSON.stringify(d.prodDef))});
+<\/script>`;
+const READY = () => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true && typeof FR !== "undefined" && FR.length > 0 && !!document.querySelector("#stage .sl");
+async function fpFrame(pg) {
+  const fh = await pg.waitForSelector("iframe"); const fr = await fh.contentFrame();
+  await fr.waitForFunction(READY, null, { timeout: 30000 }); return fr;
+}
+/* „page“ v testech: funkce stránky (evaluate, click, locator…) jdou do rámu s plánem, navigace a události do skutečné stránky */
+function wrap(pg) {
+  let tgt = pg, host = false;
+  const own = {
+    async goto(u, o) { if (u === FP) { host = true; await pg.goto(HOSTURL); tgt = await fpFrame(pg); } else { host = false; await pg.goto(u, o); tgt = pg; } },
+    /* reload jako zavření a znovuotevření plánu v Pipeline: rozpracované změny se nejdřív uloží */
+    async reload(o) { if (host) await tgt.evaluate(() => parent.__fpSave(JSON.parse(JSON.stringify(inp())))); await own.rawReload(o); },
+    async rawReload(o) { await pg.reload(o); if (host) tgt = await fpFrame(pg); },
+    waitForEvent: (...a) => pg.waitForEvent(...a), on: (...a) => pg.on(...a), context: () => pg.context(),
+  };
+  return new Proxy({}, { get(_, k) { if (k in own) return own[k]; const v = tgt[k]; return typeof v === "function" ? v.bind(tgt) : v; } });
+}
 async function open() {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   /* přístupový kód v zařízení – stejně jako ho tam uloží Pipeline */
   await ctx.addInitScript(k => { try { if (!localStorage.getItem("pp_key")) localStorage.setItem("pp_key", k); } catch (e) {} }, process.env.PP_KEY);
-  const page = await ctx.newPage();
+  await ctx.route(HOSTURL, r => r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: HOSTPAGE }));
+  const pg = await ctx.newPage();
   const errors = [];
-  page.on("pageerror", e => errors.push(e.message));
+  pg.on("pageerror", e => errors.push(e.message));
+  const page = wrap(pg);
   await page.goto(FP);
-  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
   return { ctx, page, errors };
 }
-/* uloží plán klienta do localStorage a načte stránku znovu */
+/* uloží plán klienta (jako Pipeline) a otevře ho znovu */
 async function setPlan(page, patch) {
-  await page.evaluate(p => { const d = JSON.parse(JSON.stringify(DB)), c = d.clients[d.cur]; Object.assign(c, p); localStorage.setItem(LS, JSON.stringify(d)); }, patch);
-  await page.reload();
-  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
+  await page.evaluate(p => { const c = JSON.parse(JSON.stringify(inp())); Object.assign(c, p); parent.__fpSave(c); }, patch);
+  await page.rawReload();
 }
 const pvAnn = (m, n, r) => { const q = Math.pow(1 + r, 1 / 12) - 1; return n > 0 && m > 0 ? m * (1 - Math.pow(1 + q, -n)) / q : 0; };
 
 const tests = {
   async "shrnutí mailem: oslovení podle titulu, následné kroky (zřízení + trvalý příkaz, ŽP), termín podpisu z kalendáře"() {
     const { ctx, page, errors } = await open();
-    await page.evaluate(() => { const d = JSON.parse(JSON.stringify(DB)), c = d.clients[d.cur]; c.klient.titul = "Ing."; c.klient.jmeno = "Petr Novák"; c.kontakt = { email: "novak@example.cz" }; localStorage.setItem(LS, JSON.stringify(d)); });
-    await page.reload(); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
+    await setPlan(page, { klient: Object.assign({}, await page.evaluate(() => inp().klient), { titul: "Ing.", jmeno: "Petr Novák" }), kontakt: { email: "novak@example.cz" } });
     await page.click("#bMail"); await page.waitForSelector("#mTxt");
     let t = await page.$eval("#mTxt", e => e.value);
     assert(t.startsWith("Dobrý den, pane inženýre,\n\nposílám shrnutí finančního plánu"), "úvod: " + t.slice(0, 80));
@@ -683,15 +713,16 @@ tests["pojistné za osobu: SOCKO, modelace i realizace jen za danou osobu; hlavn
 };
 tests["produkty v automatickém návrhu: poslední změna = výchozí pro další nové plány"] = async function () {
   const { ctx, page, errors } = await open();
-  await page.evaluate(() => { localStorage.removeItem(PDK); goStep(5); });
+  await page.evaluate(() => { localStorage.removeItem("fp_test_proddef"); goStep(5); });
   await page.selectOption('[data-p="nastaveni.dip_prod"]', { index: 1 });
   const zvoleno = await page.$eval('[data-p="nastaveni.dip_prod"]', s => s.value);
   await page.click('[data-add="nastaveni.mixA"]');
-  const def = await page.evaluate(() => JSON.parse(localStorage.getItem(PDK)));
-  eq(def.dip_prod, zvoleno, "uložený výchozí DIP"); eq(def.mixA.length, 2, "uložená akciová složka (2 řádky)");
-  await page.click("#bNew");
-  const nove = await page.evaluate(() => ({ dip: inp().nastaveni.dip_prod, a: inp().nastaveni.mixA.length }));
-  eq(nove, { dip: zvoleno, a: 2 }, "nový plán převzal výchozí produkty");
+  const def = await page.evaluate(() => JSON.parse(localStorage.getItem("fp_test_proddef")));
+  eq(def.dip_prod, zvoleno, "uložený výchozí DIP (poslaný do Pipeline)"); eq(def.mixA.length, 2, "uložená akciová složka (2 řádky)");
+  /* nový plán pro dalšího klienta: Pipeline pošle prázdný plán a uložené výchozí produkty */
+  await page.evaluate(() => localStorage.setItem("fp_test_new", "1")); await page.rawReload();
+  const nove = await page.evaluate(() => ({ dip: inp().nastaveni.dip_prod, a: inp().nastaveni.mixA.length, jm: inp().klient.jmeno }));
+  eq(nove, { dip: zvoleno, a: 2, jm: "" }, "nový plán převzal výchozí produkty");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 tests["rezervace: živá kontrola kalendáře skryje obsazené časy, termín se při rezervaci zablokuje (obsazený → vybrat jiný), blokace jde v šifrované zprávě"] = async function () {
@@ -759,8 +790,10 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   eq(bad, "nejde", "cizím klíčem nejde přečíst");
   eq(await page.evaluate(() => localStorage.getItem("fp_dotaznik_draft_v1")), null, "po odeslání se koncept smaže");
   await page.goto(FP); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
-  const r = await page.evaluate(D => { const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; mergeDz(I, D); I.pojisteni = Object.assign({}, I.pojisteni, { pojistovna: "nn" }); const N = FPE.compute(I, new Date()).nn; return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ, sp: I.klient.sporty.length, rs: N && N.osoby[0].rs };
-  }, x.plan);
+  /* dotazník do plánu slučuje Pipeline (index.html dzMerge) – stejná funkce, jaká běží při příjmu dotazníku */
+  const src = await (await fetch(url)).text(), dzm = "function dzMerge" + src.split("function dzMerge")[1].split("\nasync function dzImport")[0];
+  const r = await page.evaluate(([D, dzm]) => { eval(dzm + ";window.__dzMerge=dzMerge"); const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; __dzMerge(I, D); I.pojisteni = Object.assign({}, I.pojisteni, { pojistovna: "nn" }); const N = FPE.compute(I, new Date()).nn; return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ, sp: I.klient.sporty.length, rs: N && N.osoby[0].rs };
+  }, [x.plan, dzm]);
   eq([r.j, r.zam, r.inv3, r.bez, r.doc, r.sp, r.rs], ["Petr Malý", 48000, 20000, true, "rodicovska", 1, 2], "sloučení s plánem (IOLDP z plánu zůstává; registrovaný fotbal = RS 2 automaticky)");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
