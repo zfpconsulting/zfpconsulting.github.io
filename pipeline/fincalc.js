@@ -199,7 +199,7 @@ const ICON={
 };
 /* logo ZFP Consulting (vodoznak i hlavička) – proporce podle oficiálního loga: „ZFP“ tmavě šedé, vlajka s vykrojenou
    špičkou vyšší než písmena, „CONSULTING“ světleji šedé přes celou šířku; textLength drží přesné šířky v každém písmu */
-function zfpLogo({x=0,y=0,s=1,gray="#4f5052",gray2="#7d8183",orange="#F37520",op=1}={}){
+function zfpLogo({x=0,y=0,s=1,gray="#4f5052",gray2="#7d8183",orange="#E8571A",op=1}={}){
   return `<g transform="translate(${x} ${y}) scale(${s})" opacity="${op}">
   <text x="0" y="79" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="80" textLength="152" lengthAdjust="spacingAndGlyphs" style="fill:${gray}">ZFP</text>
   <path d="M165 0H222V94L193.5 64L165 94Z" style="fill:${orange}"/>
@@ -251,18 +251,18 @@ function chartSVG(pts,{w=900,h=440,c,labelA,labelB,wm=true}){
 
 /* ================= CSS ================= */
 const CSS=`
-.fc{--fc-navy:#111111;--fc-orange:#F37520;--fc-green:#F37520;--fc-area:#e4e6e9;--fc-tile:#f0f2f5;--fc-line:#d5d9df;--fc-calc:#e3e8ef;--fc-flagc:#F37520;--fc-txt:#6b7280;--fc-grid:#e9ebee;--fc-logo1:#4f5052;--fc-logo2:#7d8183;
-  font-family:Roboto,var(--font,-apple-system,system-ui,sans-serif);color:var(--fc-navy);background:var(--bg2,#fff);border-radius:16px;box-shadow:var(--card-shadow);overflow:hidden;margin-bottom:28px;letter-spacing:0}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#F37520;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}}
-:root[data-theme="dark"] .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#F37520;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}
+.fc{--fc-navy:#111111;--fc-orange:#E8571A;--fc-green:#E8571A;--fc-area:#e4e6e9;--fc-tile:#f0f2f5;--fc-line:#d5d9df;--fc-calc:#e3e8ef;--fc-flagc:#E8571A;--fc-txt:#6b7280;--fc-grid:#e9ebee;--fc-logo1:#4f5052;--fc-logo2:#7d8183;
+  font-family:Roboto,var(--font,-apple-system,system-ui,sans-serif);color:var(--fc-navy);background:var(--surface);border-radius:16px;box-shadow:var(--card-shadow);overflow:hidden;margin-bottom:28px;letter-spacing:0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#E8571A;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}}
+:root[data-theme="dark"] .fc{--fc-navy:#f2f4f7;--fc-area:#3a3d42;--fc-tile:#2c2c2e;--fc-line:#48484a;--fc-calc:#2a3442;--fc-txt:#a1a1aa;--fc-grid:#3a3a3c;--fc-green:#E8571A;--fc-logo1:#e5e5e7;--fc-logo2:#a1a1a6}
 :where(.fc) button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
 /* horní lišta: výběr klienta (klienti + leady z pipeline) a akce v jedné řadě; titulek dává appka */
 .fc-top{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 12px;padding:12px 18px;border-bottom:1px solid var(--fc-line);container-type:inline-size}
 .fc-cs{position:relative;flex:1 1 260px;min-width:0;max-width:440px}
 .fc-cs label{display:block;font-size:13px;color:var(--fc-txt);margin-bottom:5px}
-.fc-cs input{width:100%;box-sizing:border-box;height:44px;border:1px solid var(--fc-line);border-radius:8px;background:var(--bg2,#fff);color:var(--fc-navy);font:inherit;font-size:16px;padding:0 12px}
+.fc-cs input{width:100%;box-sizing:border-box;height:44px;border:1px solid var(--fc-line);border-radius:8px;background:var(--surface);color:var(--fc-navy);font:inherit;font-size:16px;padding:0 12px}
 .fc-cs input:focus{outline:2px solid var(--fc-orange);outline-offset:-1px}
-.fc-cl{position:absolute;left:0;right:0;top:72px;z-index:30;max-height:320px;overflow:auto;background:var(--bg2,#fff);border:1px solid var(--fc-line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
+.fc-cl{position:absolute;left:0;right:0;top:72px;z-index:30;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--fc-line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
 .fc-cl button{display:flex!important;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:44px;text-align:left;font-size:16px!important;padding:9px 10px!important;border-radius:7px}
 .fc-cl button.on,.fc-cl button:hover{background:var(--fc-tile)}
 .fc-cl .none,.fc-cl small{color:var(--fc-txt)}
@@ -274,15 +274,15 @@ const CSS=`
 .fc-btn{height:44px;padding:0 14px;border-radius:8px;border:1.5px solid var(--fc-navy);font-size:15px;font-weight:500;white-space:nowrap}
 .fc-btn.pri{background:var(--fc-orange);border-color:var(--fc-orange);color:#fff}
 .fc-ico{width:44px;height:44px;display:grid;place-items:center;border-radius:8px;padding:0!important;font-size:22px!important;line-height:1}
-.fc-ask{position:absolute;right:14px;top:calc(100% - 6px);z-index:25;background:var(--bg2,#fff);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.25);padding:12px 14px;max-width:calc(100vw - 32px);width:340px;box-sizing:border-box}
+.fc-ask{position:absolute;right:14px;top:calc(100% - 6px);z-index:25;background:var(--surface);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.25);padding:12px 14px;max-width:calc(100vw - 32px);width:340px;box-sizing:border-box}
 .fc-ask p{margin:0 0 10px;font-size:14.5px;line-height:1.4}
 .fc-ask div{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .fc-ask .fc-btn{height:40px;padding:0 12px;font-size:14.5px}
 .fc-body{display:flex;min-height:560px}
 .fc-tabs{display:flex;flex-direction:column;background:var(--fc-tile);flex:none;width:54px}
 .fc-tabs button{writing-mode:vertical-rl;transform:rotate(180deg);padding:30px 0;width:54px;font-size:15px;color:var(--fc-navy);border-left:2px solid transparent}
-.fc-tabs button[aria-selected="true"]{background:var(--bg2,#fff);font-weight:700;border-left-color:var(--fc-orange)}
-.fc-par{flex:none;width:320px;padding:16px 16px 24px;box-shadow:4px 0 10px -6px rgba(0,0,0,.18);position:relative;z-index:1;background:var(--bg2,#fff)}
+.fc-tabs button[aria-selected="true"]{background:var(--surface);font-weight:700;border-left-color:var(--fc-orange)}
+.fc-par{flex:none;width:320px;padding:16px 16px 24px;box-shadow:4px 0 10px -6px rgba(0,0,0,.18);position:relative;z-index:1;background:var(--surface)}
 .fc-par.min{width:52px;padding-inline:8px}
 .fc-par.min .fc-pin{display:none}
 .fc-ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -295,15 +295,15 @@ const CSS=`
 .fc-flag{color:var(--fc-navy);display:grid;place-items:center;width:40px;height:40px;margin:-9px;flex:none;border-radius:4px}
 .fc-f.calc .fc-flag{color:var(--fc-flagc)}
 .fc-q{color:var(--fc-navy);display:inline-grid;place-items:center;width:40px;height:40px;margin:-10px}
-.fc-hp{position:absolute;left:28px;top:100%;margin-top:4px;z-index:5;background:var(--fc-navy);color:var(--bg2,#fff);font-size:13px;line-height:1.4;padding:8px 10px;border-radius:8px;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
-.fc-in{display:flex;align-items:center;height:50px;border:1px solid var(--fc-line);border-radius:6px;background:var(--bg2,#fff)}
+.fc-hp{position:absolute;left:28px;top:100%;margin-top:4px;z-index:5;background:var(--fc-navy);color:var(--surface);font-size:13px;line-height:1.4;padding:8px 10px;border-radius:8px;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.fc-in{display:flex;align-items:center;height:50px;border:1px solid var(--fc-line);border-radius:6px;background:var(--surface)}
 .fc-in button{width:44px;height:100%;font-size:22px;line-height:1;color:var(--fc-navy);flex:none}
 .fc-in input{flex:1;min-width:0;border:none;background:transparent;text-align:center;font:inherit;font-size:16px;color:var(--fc-navy);outline:none;height:100%}
 .fc-f.calc .fc-in{background:var(--fc-calc);border-color:var(--fc-calc)}
 .fc-f.calc .fc-in button{color:var(--fc-txt);opacity:.6;cursor:default}
-.fc-f.err .fc-in{border-color:var(--red,#F37520)}
-.fc-sel{width:100%;height:50px;border:1px solid var(--fc-line);border-radius:6px;background:var(--bg2,#fff);color:var(--fc-navy);font:inherit;font-size:16px;padding:0 14px;appearance:auto}
-.fc-errm{color:var(--red,#F37520);font-size:13.5px;line-height:1.4;margin:4px 0 0}
+.fc-f.err .fc-in{border-color:var(--accent)}
+.fc-sel{width:100%;height:50px;border:1px solid var(--fc-line);border-radius:6px;background:var(--surface);color:var(--fc-navy);font:inherit;font-size:16px;padding:0 14px;appearance:auto}
+.fc-errm{color:var(--accent-text);font-size:13.5px;line-height:1.4;margin:4px 0 0}
 .fc-f.lock .fc-in{background:var(--fc-calc);border-color:var(--fc-calc)}
 .fc-f.lock .fc-in button{opacity:.4;cursor:default}
 .fc-flag[disabled]{opacity:.35;cursor:default}
@@ -314,7 +314,7 @@ const CSS=`
 .fc-sub{font-size:15px;margin:20px 0 10px;padding-top:12px;border-top:1px solid var(--fc-line)}
 .fc-zm{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;align-items:end;margin-bottom:8px}
 .fc-zm label{display:grid;gap:4px;font-size:12.5px;color:var(--fc-txt)}
-.fc-zm input{height:44px;border:1px solid var(--fc-line);border-radius:8px;padding:0 10px;font:inherit;font-size:16px;background:var(--bg2,#fff);color:var(--fc-navy);min-width:0}
+.fc-zm input{height:44px;border:1px solid var(--fc-line);border-radius:8px;padding:0 10px;font:inherit;font-size:16px;background:var(--surface);color:var(--fc-navy);min-width:0}
 .fc-zdel{width:40px;height:44px;border-radius:8px;font-size:20px!important;color:var(--fc-txt)}
 .fc-zdel:hover{background:var(--fc-tile)}
 .fc-zadd{color:var(--fc-orange);font-weight:600;font-size:14.5px!important;padding:8px 0!important;min-height:40px}
@@ -333,33 +333,33 @@ const CSS=`
 .fc-ch button{color:var(--fc-navy);width:40px;height:40px;margin:-7px -6px;display:grid;place-items:center}
 .fc-ch .fc-hp{left:0}
 .fc-chart{position:relative}
-.fc-tip{position:absolute;pointer-events:none;background:var(--bg2,#fff);color:var(--fc-navy);font-size:13px;padding:8px 11px;border-radius:8px;white-space:nowrap;box-shadow:0 6px 22px rgba(0,0,0,.18);transform:translate(-50%,calc(-100% - 12px));font-variant-numeric:tabular-nums;line-height:1.5;z-index:3}
+.fc-tip{position:absolute;pointer-events:none;background:var(--surface);color:var(--fc-navy);font-size:13px;padding:8px 11px;border-radius:8px;white-space:nowrap;box-shadow:0 6px 22px rgba(0,0,0,.18);transform:translate(-50%,calc(-100% - 12px));font-variant-numeric:tabular-nums;line-height:1.5;z-index:3}
 .fc-tip i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
 .fc-leg{display:flex;gap:26px;justify-content:flex-start;padding-left:40px;margin-top:12px;font-size:13px;color:var(--fc-txt)}
 .fc-leg span{display:flex;align-items:center;gap:6px}
 .fc-leg i{width:13px;height:13px;border-radius:50%;display:inline-block}
 .fc-empty{display:grid;place-items:center;height:300px;color:var(--fc-txt);font-size:15px;text-align:center;padding:20px}
-.fc-menu{position:absolute;right:14px;top:calc(100% - 6px);z-index:20;background:var(--bg2,#fff);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.25);min-width:280px;max-width:calc(100vw - 32px);max-height:60vh;overflow:auto;padding:6px 0}
+.fc-menu{position:absolute;right:14px;top:calc(100% - 6px);z-index:20;background:var(--surface);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.25);min-width:280px;max-width:calc(100vw - 32px);max-height:60vh;overflow:auto;padding:6px 0}
 .fc-menu h4{margin:6px 14px 6px;font-size:12px;color:var(--fc-txt);text-transform:uppercase;letter-spacing:.03em;font-weight:500}
 .fc-mi{display:flex;align-items:center;gap:10px;padding:9px 14px}
 .fc-mi .t{flex:1;min-width:0}
 .fc-mi .t b{display:block;font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fc-mi .t small{color:var(--fc-txt);font-size:12.5px}
 .fc-mi .t{min-height:40px}
-.fc-mi .del{color:var(--red,#F37520);font-size:13px;min-height:40px;padding:0 4px!important}
+.fc-mi .del{color:var(--accent-text);font-size:13px;min-height:40px;padding:0 4px!important}
 .fc-mi.cur b{color:var(--fc-orange)}
 .fc-wm{padding:2px 14px 12px;display:grid;gap:10px;border-top:1px solid var(--fc-line);margin-top:6px}
 .fc-wm h4{margin:10px 0 0!important}
 .fc-wseg{display:grid;grid-template-columns:repeat(4,1fr);background:var(--fc-tile);border-radius:8px;padding:2px}
 .fc-wseg button{font-size:13px!important;padding:6px 4px!important;border-radius:6px;min-height:40px}
-.fc-wseg button[aria-pressed="true"]{background:var(--bg2,#fff);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.fc-wseg button[aria-pressed="true"]{background:var(--surface);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.15)}
 .fc-wrow{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--fc-txt)}
 .fc-wrow span{width:92px;flex:none}
 .fc-wrow input[type=range]{flex:1;min-width:0}
-.fc-wrow input[type=text]{flex:1;min-width:0;height:44px;border:1px solid var(--fc-line);border-radius:6px;padding:0 10px;font:inherit;font-size:16px;background:var(--bg2,#fff);color:var(--fc-navy)}
+.fc-wrow input[type=text]{flex:1;min-width:0;height:44px;border:1px solid var(--fc-line);border-radius:6px;padding:0 10px;font:inherit;font-size:16px;background:var(--surface);color:var(--fc-navy)}
 .fc-wimg{display:flex;align-items:center;gap:10px}
 .fc-wimg img{width:56px;height:40px;object-fit:contain;background:var(--fc-tile);border-radius:6px}
-.fc-wimg button{color:var(--tint,#F37520);font-size:14px!important;font-weight:500;min-height:40px}
+.fc-wimg button{color:var(--accent-text);font-size:14px!important;font-weight:500;min-height:40px}
 .fc-wnote{font-size:12px;color:var(--fc-txt);margin:0}
 .fc-wrapH{position:relative}
 /* úzká lišta (mobil): klient přes celou šířku, akce pod ním v jedné řadě s krátkými popisky – nic se neusekne */
@@ -549,7 +549,7 @@ function mount(root,opts={}){
     const zn=root.querySelector(".fc-zn");if(zn)zn.innerHTML=zmNotes();
     drawChart();
   }
-  const scrColors=()=>({a:"var(--fc-green)",b:"var(--fc-area)",grid:"var(--fc-grid)",txt:"var(--fc-txt)",ring:"var(--bg2,#fff)",wmGray:"var(--fc-logo1)",wmGray2:"var(--fc-logo2)",wmOrange:"#F37520",wmOp:.3});
+  const scrColors=()=>({a:"var(--fc-green)",b:"var(--fc-area)",grid:"var(--fc-grid)",txt:"var(--fc-txt)",ring:"var(--surface)",wmGray:"var(--fc-logo1)",wmGray2:"var(--fc-logo2)",wmOrange:"#E8571A",wmOp:.3});
   let anim=0,lastSig="";
   function drawChart(){
     const box=root.querySelector("#fcChart");if(!box)return;
@@ -725,7 +725,7 @@ function mount(root,opts={}){
     const res=lastRes;if(!res.ok){toast("Nejdřív oprav zadání – "+res.err);return}
     const M=MODES[st.mode],v=res.v,c=cur();
     const pts=series(st.mode,v);
-    const ch=chartSVG(pts,{w:900,h:430,c:{a:"#F37520",b:"#e4e6e9",grid:"#e9ebee",txt:"#6b7280",ring:"#fff",wmGray:"#4f5052",wmGray2:"#7d8183",wmOrange:"#F37520",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
+    const ch=chartSVG(pts,{w:900,h:430,c:{a:"#E8571A",b:"#e4e6e9",grid:"#e9ebee",txt:"#6b7280",ring:"#fff",wmGray:"#4f5052",wmGray2:"#7d8183",wmOrange:"#E8571A",wmOp:.3},labelA:M.sa,labelB:M.sb,wm});
     const params=FIELDS[st.mode].map(k=>[M.f[k].l.replace(/ \((CZK|%|počet let)\)/,""),k==="rate"?fmtPct(v[k]):k==="years"?yrsTxt(v[k]):fmtKc(v[k]),k===c.calc]);
     if(st.mode!=="loan")params.push(["Frekvence připisování úroku",(FREQ.find(f=>f[0]===v.freq)||FREQ[0])[1],false]);
     if(st.mode==="inv"&&v.feeOn){const t=totals("inv",v);params.push(["Vstupní poplatek",`${fmtPct(+v.fee||0)} z každého vkladu = ${fmtKc(t.fee)}`,false])}
@@ -742,18 +742,18 @@ function mount(root,opts={}){
     const d=new Date().toLocaleDateString("cs-CZ");
     const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${esc(M.t)} – ${esc(st.clientName||st.name||"Koncept")} – ${d}</title><style>
       @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#111111;margin:0;padding:24px}
-      .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #F37520;padding-bottom:12px;margin-bottom:18px}
+      .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #E8571A;padding-bottom:12px;margin-bottom:18px}
       .hd h1{font-size:20px;margin:0}.hd small{color:#6b7280}
       .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#f0f2f5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px}.t .v{font-size:17px;font-weight:700}
-      table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}tr.c td{color:#F37520}
+      table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}tr.c td{color:#E8571A}
       h2{font-size:16px;margin:18px 0 8px}.leg{display:flex;gap:22px;font-size:12px;color:#6b7280;margin-top:6px}.leg i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-      .w{border:1px solid #F37520;border-radius:6px;padding:8px 10px;margin:8px 0}.ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}
+      .w{border:1px solid #E8571A;border-radius:6px;padding:8px 10px;margin:8px 0}.ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}
       @media print{body{padding:0}}</style></head><body>
       <div class="hd"><div><h1>Finanční matematika – ${esc(M.t)}</h1><small>${esc(st.clientName||st.name||"Koncept")} · ${d}</small></div><svg width="133" height="74" viewBox="0 0 ${LOGO_W} ${LOGO_H}">${zfpLogo()}</svg></div>
       <div class="tiles">${M.tiles(v).map(([k,x])=>`<div class="t"><div class="k">${esc(k)}</div><div class="v">${esc(x)}</div></div>`).join("")}</div>
       <h2>Parametry</h2><table>${params.map(([k,x,isC])=>`<tr${isC?' class="c"':""}><td>${esc(k)}${isC?" (dopočteno)":""}</td><td>${esc(x)}</td></tr>`).join("")}</table>
       ${notes}<h2>${esc(st.titles[st.mode]||M.chart)}</h2>${ch.svg}
-      <div class="leg"><span><i style="background:#F37520"></i>${esc(M.sa)}</span><span><i style="background:#d9dce0"></i>${esc(M.sb)}</span></div>
+      <div class="leg"><span><i style="background:#E8571A"></i>${esc(M.sa)}</span><span><i style="background:#d9dce0"></i>${esc(M.sb)}</span></div>
       <div class="ft">Výpočet je orientační a slouží pouze pro informaci. ${st.mode==="loan"?"Skutečné splátky závisí na podmínkách věřitele; potřebný příjem je odhad podle zadaných limitů DSTI/DTI, každá banka posuzuje bonitu vlastní metodikou.":"Výnosy nejsou zaručeny, hodnota investice může kolísat."} Vklady, splátky a výplaty se počítají na konci každého měsíce. © ZFP Consulting</div>
       <script>onload=()=>setTimeout(()=>print(),300)<\/script></body></html>`;
     const w=window.open("","_blank");if(!w){toast("Prohlížeč zablokoval nové okno – povol vyskakovací okna");return}

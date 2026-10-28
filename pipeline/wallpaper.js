@@ -12,10 +12,10 @@ const bst=document.createElement("style");
 bst.textContent=`html.wpb body{background:transparent!important}
 #wpB{position:absolute;left:0;right:0;top:0;height:calc(220px + env(safe-area-inset-top,0px));z-index:-1;pointer-events:none;overflow:hidden}
 #wpB i{position:absolute;inset:0;background:url(image.jpg) center 36%/cover no-repeat;filter:saturate(.5)}
-#wpB b{position:absolute;inset:0;background:var(--bg);-webkit-mask-image:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.7) 45%,#000 96%);mask-image:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,.7) 45%,#000 96%)}`;
-/* pás končí kousek pod nadpisem záložky (na počítači je nad ním vyšší lišta záložek) */
+#wpB b{position:absolute;inset:0;background:var(--canvas);-webkit-mask-image:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.84) 42%,rgba(0,0,0,.9) 80%,#000);mask-image:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.84) 42%,rgba(0,0,0,.9) 80%,#000)}`;
+/* pás končí hned pod nadpisem záložky – podtitulek leží na silném závoji (kontrast ≥ 4,5), sekce, vysvětlivky a obsah už na čistém pozadí */
 let ro=null;
-const fit=()=>{const L=document.querySelector(".wrap .large");if(band&&L){const b=L.getBoundingClientRect().bottom+scrollY;if(b>40)band.style.height=Math.round(Math.min(420,b+28))+"px"}};
+const fit=()=>{const L=document.querySelector(".wrap .large");if(band&&L){const b=L.getBoundingClientRect().bottom+scrollY;if(b>40)band.style.height=Math.round(Math.min(420,b+12))+"px"}};
 function setBand(on){
   if(on&&!band){document.head.append(bst);band=document.createElement("div");band.id="wpB";band.setAttribute("aria-hidden","true");band.innerHTML="<i></i><b></b>";document.body.prepend(band);document.documentElement.classList.add("wpb");
     fit();try{ro=new ResizeObserver(fit);ro.observe(document.body)}catch(e){}}
@@ -38,7 +38,7 @@ const NIGHT=m=>m===10||m===11;
 const st=document.createElement("style");
 st.textContent=`html.wp,html.wp body{background:transparent!important}html.wp{background:#111!important}
 #wpC{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:-2;pointer-events:none;display:block}
-#wpS{position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--bg);opacity:.3;transition:opacity 2s}
+#wpS{position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--canvas);opacity:.3;transition:opacity 2s}
 html.wp.wpn #wpS{opacity:.14}
 #wpM{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:3;pointer-events:none;font:600 13px/1 var(--font,system-ui);color:#fff;background:rgba(0,0,0,.38);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:7px 12px;border-radius:999px;opacity:0;transition:opacity .6s}
 #wpM.on{opacity:1}
@@ -73,9 +73,9 @@ const S=[
  {g:[["soft-light","#fcd2ad",.3],["screen","#fff3e8",.05]],sun:1,pollen:40,wind:.3},
  {g:[["soft-light","#f9ad6d",.45],["screen","#fff0e0",.08]],sun:1.3,pollen:60,birds:1,wind:.2,haze:1},
  {g:[["soft-light","#f58a42",.55],["multiply","#fbcfb0",.35],["multiply","#4a4a4a",.18]],dusk:1,fireflies:45,lamp:1,wind:.2},
- {g:[["soft-light","#f9ad6d",.35],["saturation","#808080",.08]],maple:34,mcol:["#f9b27c","#F37520","#d9621a","#bdbdbd","#e8935a"],ground:"leaves",gs:.35,wind:.7},
- {g:[["saturation","#808080",.15],["soft-light","#F37520",.5],["multiply","#fde2cc",.25]],maple:75,mcol:["#F37520","#d9621a","#f59a55","#c95515","#9a9a9a","#5a5a5a"],ground:"leaves",gs:1,wind:1.1,gust:1},
- {g:[["saturation","#808080",.6],["multiply","#1f1f1f",.8]],night:1,moon:1,fog:1,lamp:1,win:"#F37520",wind:.6},
+ {g:[["soft-light","#f9ad6d",.35],["saturation","#808080",.08]],maple:34,mcol:["#f9b27c","#E8571A","#d9621a","#bdbdbd","#e8935a"],ground:"leaves",gs:.35,wind:.7},
+ {g:[["saturation","#808080",.15],["soft-light","#E8571A",.5],["multiply","#fde2cc",.25]],maple:75,mcol:["#E8571A","#d9621a","#f59a55","#c95515","#9a9a9a","#5a5a5a"],ground:"leaves",gs:1,wind:1.1,gust:1},
+ {g:[["saturation","#808080",.6],["multiply","#1f1f1f",.8]],night:1,moon:1,fog:1,lamp:1,win:"#E8571A",wind:.6},
  {g:[["saturation","#808080",.6],["multiply","#161616",.84]],night:1,stars:1,snow:150,ground:"snow",gs:.85,roof:1,lights:1,lamp:1,win:"#f9a25a",wind:.4},
 ];
 function grade(g,s){s.g.forEach(([op,col,a])=>{g.globalCompositeOperation=op;g.globalAlpha=a;g.fillStyle=col;g.fillRect(0,0,W,H)});g.globalCompositeOperation="source-over";g.globalAlpha=1}
@@ -86,7 +86,7 @@ function drawBase(m){
   if(!img.complete||!img.naturalWidth){g.fillStyle=s.night?"#111":"#8a8a8a";g.fillRect(0,0,W,H);return cv}
   g.drawImage(img,OX,OY,IW*K,IH*K);grade(g,s);
   if(s.night){g.save();skyClip(g);g.clip();const gr=g.createLinearGradient(0,0,0,P(0,700)[1]);gr.addColorStop(0,"rgba(10,10,10,.72)");gr.addColorStop(1,"rgba(0,0,0,0)");g.fillStyle=gr;g.fillRect(0,0,W,H);g.restore()}
-  if(s.dusk){g.save();skyClip(g);g.clip();const gr=g.createLinearGradient(0,0,0,P(0,800)[1]);gr.addColorStop(0,"rgba(40,40,40,.45)");gr.addColorStop(.6,"rgba(243,117,32,.32)");gr.addColorStop(1,"rgba(249,178,124,.3)");g.fillStyle=gr;g.fillRect(0,0,W,H);g.restore()}
+  if(s.dusk){g.save();skyClip(g);g.clip();const gr=g.createLinearGradient(0,0,0,P(0,800)[1]);gr.addColorStop(0,"rgba(40,40,40,.45)");gr.addColorStop(.6,"rgba(232,87,26,.32)");gr.addColorStop(1,"rgba(249,178,124,.3)");g.fillStyle=gr;g.fillRect(0,0,W,H);g.restore()}
   if(s.ground==="snow"||s.ground==="melt"){const a=s.gs;
     const y0=P(0,1110)[1],gr=g.createLinearGradient(0,y0,0,P(0,1440)[1]);gr.addColorStop(0,`rgba(245,245,245,0)`);gr.addColorStop(.12,`rgba(245,245,245,${.7*a})`);gr.addColorStop(1,`rgba(248,248,248,${.8*a})`);
     g.fillStyle=gr;g.fillRect(0,y0,W,H-y0);
@@ -109,7 +109,7 @@ function bird(b,t){const f=Math.sin(t*8+b.p)*b.s*.45;x.strokeStyle="rgba(30,30,3
 function glowWin(col,a){x.globalCompositeOperation="screen";WIN.forEach(([x0,y0,x1,y1])=>{const[a0,b0]=P(x0,y0),[a1,b1]=P(x1,y1);x.fillStyle=col;x.globalAlpha=a;x.fillRect(a0,b0,a1-a0,b1-b0)});x.globalCompositeOperation="source-over";x.globalAlpha=1}
 function lampGlow(t,a){const[lx,ly]=P(...LAMP),r=260*K;x.globalCompositeOperation="screen";let g=x.createRadialGradient(lx,ly,0,lx,ly,r);g.addColorStop(0,`rgba(255,220,150,${.9*a})`);g.addColorStop(.12,`rgba(255,200,120,${.45*a})`);g.addColorStop(1,"rgba(255,190,110,0)");x.fillStyle=g;x.fillRect(lx-r,ly-r,r*2,r*2);
   const[gx,gy]=P(LAMP[0]-60,1180);g=x.createRadialGradient(gx,gy,0,gx,gy,r*1.3);g.addColorStop(0,`rgba(255,200,120,${.3*a})`);g.addColorStop(1,"rgba(255,200,120,0)");x.save();x.scale(1,.35);x.fillStyle=g;x.fillRect(gx-r*1.3,gy/.35-r*1.3,r*2.6,r*2.6);x.restore();x.globalCompositeOperation="source-over"}
-function lights(t){const cols=["#F37520","#ffffff","#f9b27c","#ffffff","#d9621a"];let k=0;
+function lights(t){const cols=["#E8571A","#ffffff","#f9b27c","#ffffff","#d9621a"];let k=0;
   for(let s=0;s<ROOF.length-1;s++){const[a,b]=ROOF[s],[c2,d]=ROOF[s+1];const L=Math.hypot(c2-a,d-b),n=Math.floor(L/26);
     for(let i=0;i<=n;i++){const u=i/n,sag=Math.sin((i%4)/4*Math.PI)*6;const[px,py]=P(a+(c2-a)*u,b+(d-b)*u+8+sag);const on=.3+.7*(.5+.5*Math.sin(t*3+k*1.7));const col=cols[k%5],rr=Math.max(5,16*K);
       const g=x.createRadialGradient(px,py,0,px,py,rr);g.addColorStop(0,col);g.addColorStop(1,"rgba(0,0,0,0)");x.globalAlpha=on;x.fillStyle=g;x.fillRect(px-rr,py-rr,rr*2,rr*2);x.globalAlpha=1;x.fillStyle=col;x.beginPath();x.arc(px,py,Math.max(1.3,3*K),0,TAU);x.fill();k++}}}
