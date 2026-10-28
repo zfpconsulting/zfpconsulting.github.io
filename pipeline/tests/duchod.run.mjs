@@ -34,13 +34,37 @@ const tiles = page => page.$$eval(".dk-tile", ts => ts.map(t => [t.querySelector
 const fill = async (page, k, v) => { await page.fill(`[data-k="${k}"]`, String(v)); };
 
 const tests = {
-  async "redukce: 100 % / 26 % / 0 % podle redukčních hranic 2026"() {
+  async "redukce: 99 % / 26 % / 0 % podle redukčních hranic 2026 (reforma § 15 odst. 3)"() {
     const { ctx, page } = await open();
     const r = await page.evaluate(() => {
       const { reduce, PAR } = DuchodCalc.math, p = PAR[2026];
       return { low: reduce(15000, p), mid: reduce(30000, p), hi: reduce(300000, p), zero: reduce(0, p) };
     });
-    eq(r, { low: 15000, mid: 23745, hi: 66870, zero: 0 }, "výpočtový základ");
+    /* 15 000·0,99 = 14 850; 21 546·0,99 + 8 454·0,26 = 21 330,54 + 2 198,04 = 23 528,58 → 23 529; 21 330,54 + 174 322·0,26 = 66 654,26 → 66 655 */
+    eq(r, { low: 14850, mid: 23529, hi: 66655, zero: 0 }, "výpočtový základ");
+    await ctx.close();
+  },
+  async "reforma 2026: % zápočtu do 1. RH a sazba procentní výměry podle roku (§ 15, § 34, § 41)"() {
+    const { ctx, page } = await open();
+    const r = await page.evaluate(() => {
+      const { zapPct, sazba, paramsFor } = DuchodCalc.math;
+      return { z: [2026, 2027, 2030, 2035, 2045].map(zapPct), s: [2026, 2027, 2030, 2035, 2045].map(sazba), p: paramsFor("2031-06-01") };
+    });
+    eq(r.z, [99, 98, 95, 90, 90], "zápočet do 1. RH");
+    eq(r.s, [1495, 1490, 1475, 1450, 1450], "sazba v tisícinách %");
+    eq([r.p.use, r.p.est, r.p.p.zap, r.p.p.saz, r.p.p.rh1], [2027, true, 94, 1470, 22732], "rok bez NV: RH z 2027, zákonné parametry roku 2031");
+    await ctx.close();
+  },
+  async "ukázkový IOLDP (OVZ 52 300, nárok 28. 10. 2026): výp. základ 29 327, inv. III 24 192, II 14 546, I 11 331, vdovský 14 546, sirotčí 12 617"() {
+    const { ctx, page } = await open();
+    const r = await page.evaluate(() => {
+      const c = DuchodCalc.math.calc({ ovz: 52300, tY: 22, tD: 120, nY: 2, nD: 30, evt: "2026-10-28", ret: "2049-05-01", dopPct: 100, kids: 1 });
+      return { vz: c.vz, years: c.years, i1: c.i1.total, i2: c.i2.total, i3: c.i3.total, wid: c.wid.total, orp: c.orp.total, sta: c.sta.total, stY: c.sta.pr.year, est: c.sta.pr.est };
+    });
+    /* VZ 21 546·0,99 + 30 754·0,26 = 29 326,58 → 29 327; doba 7 998 + 8 221 dní = 44 let; PV III 29 327·1,495 %·44 = 19 291,3 → 19 292;
+       II 9 646, I 6 431; vdovský 50 % = 9 646, sirotčí 40 % = 7 717 (+ ZV 4 900).
+       Starobní s parametry 2049: RH 2027 (odhad), 90 % → 22 732·0,9 + 29 568·0,26 = 28 146,48 → 28 147; ·1,45 %·44 = 17 958 + ZV 5 170 */
+    eq(r, { vz: 29327, years: 44, i1: 11331, i2: 14546, i3: 24192, wid: 14546, orp: 12617, sta: 23128, stY: 2049, est: true }, "částky");
     await ctx.close();
   },
   async "invalidní, vdovský a sirotčí: ručně spočítaný případ (OVZ 30 000, 25 let, dopočtená doba 9 131 dní)"() {
@@ -49,8 +73,9 @@ const tests = {
       const c = DuchodCalc.math.calc({ ovz: 30000, tY: 25, tD: 0, nY: 0, nD: 0, evt: "2026-10-10", ret: "2051-10-10", dopPct: 100, kids: 2 });
       return { vz: c.vz, dop: c.dop, years: c.years, sta: c.sta.total, i1: c.i1.total, i2: c.i2.total, i3: c.i3.total, wid: c.wid.total, orp: c.orp.total, fam: c.orp.family };
     });
-    /* VZ 23 745; 9 125 + 9 131 dní = 18 256 → 50 celých roků; PV III. 23 745·1,5 %·50 = 17 808,75 → 17 809 */
-    eq(r, { vz: 23745, dop: 9131, years: 50, sta: 22709, i1: 10837, i2: 13805, i3: 22709, wid: 13805, orp: 12024, fam: 24048 }, "částky");
+    /* VZ 23 529; 9 125 + 9 131 dní = 18 256 → 50 celých roků; PV III. 23 529·1,495 %·50 = 17 587,9 → 17 588; II. 8 794, I. 5 863;
+       starobní s parametry 2051 (90 %, 1,45 %, RH 2027): VZ 20 458,8 + 1 893,2 = 22 349; ·1,45 %·50 = 16 204 + ZV 5 170 */
+    eq(r, { vz: 23529, dop: 9131, years: 50, sta: 21374, i1: 10763, i2: 13694, i3: 22488, wid: 13694, orp: 11936, fam: 23872 }, "částky");
     await ctx.close();
   },
   async "zákonná minima procentní výměry (2026) a rok 2027"() {
@@ -89,8 +114,9 @@ const tests = {
     await page.fill('[data-k="evt"]', "2026-10-10"); await page.fill('[data-k="ret"]', "2051-10-10");
     const t = await tiles(page);
     eq(t.map(x => x[0]), ["Starobní důchod", "Invalidní I. stupně", "Invalidní II. stupně", "Invalidní III. stupně", "Vdovský / vdovecký", "Sirotčí (na 1 dítě)"], "dlaždice");
-    eq(t[3][1], "22 709 Kč", "invalidní III.");
-    eq(t[0][1], "22 709 Kč", "starobní z 25 let");
+    eq(t[3][1], "22 488 Kč", "invalidní III.");
+    eq(t[0][1], "21 374 Kč", "starobní s parametry roku odchodu");
+    assert((await page.textContent(".dk-tile")).includes("odhad"), "starobní pro budoucí rok označen jako odhad");
     /* bez klienta nejde uložit */
     await page.click('[data-a="save"]'); assert((await page.evaluate(() => toasts)).some(m => /vyber klienta/i.test(m)), "výzva k výběru klienta");
     /* virtuální klient se při uložení založí přes ensure() a data se uloží pod jeho id */
@@ -105,7 +131,7 @@ const tests = {
     const d = await page.evaluate(() => ({ keys: Object.keys(docs), ens: ensured, doc: docs[Object.keys(docs)[0]] }));
     eq(d.ens, ["l:b"], "ensure");
     eq(d.keys, ["duchod/newb"], "klíč dokumentu");
-    eq([d.doc.name, d.doc.ioldp, d.doc.res.i3, d.doc.res.wid, d.doc.in.ovz], ["Dvořáková Jana", "2026-10-09", 22709, 13805, 30000], "uložený dokument");
+    eq([d.doc.name, d.doc.ioldp, d.doc.res.i3, d.doc.res.wid, d.doc.in.ovz], ["Dvořáková Jana", "2026-10-09", 22488, 13694, 30000], "uložený dokument");
     /* druhý klient s existující kartou, pak návrat k prvnímu */
     await page.click("#dk_cq"); await page.click('#dk_cl button[data-id="a"]'); await fill(page, "ovz", 45000);
     await page.click('[data-a="save"]'); await page.waitForFunction(() => Object.keys(docs).length === 2);
@@ -129,7 +155,7 @@ const tests = {
     const d = await page.evaluate(() => ({ keys: Object.keys(docs), ens: ensured }));
     eq(d.ens, [], "klient se nezakládá");
     eq(d.keys, ["duchod/lead_c"], "klíč dokumentu");
-    await page.click('[data-a="new"]'); await page.fill("#dk_cq", "svobod"); await page.click('#dk_cl button[data-id="lead_c"]');
+    await page.click('[data-a="more"]'); await page.click('[data-a="new"]'); await page.fill("#dk_cq", "svobod"); await page.click('#dk_cl button[data-id="lead_c"]');
     eq(await page.inputValue('[data-k="ovz"]'), "30000", "načtená data leadu");
     assert(!errors.length, "chyby: " + errors.join(" | "));
     await ctx.close();
@@ -167,6 +193,23 @@ const tests = {
       assert(!errors.length, "chyby: " + errors.join(" | "));
       await ctx.close();
     }
+  },
+  async "UI: nahoře jen Uložit + Import IOLDP, Tisk a Nová kalkulace v menu ⋯ (Escape a klik mimo zavře)"() {
+    const { ctx, page, errors } = await open({ width: 390, height: 844 });
+    assert(await page.isVisible('.dk-acts > [data-a="save"]') && await page.isVisible('.dk-acts > [data-a="import"]'), "hlavní akce viditelné");
+    assert(!(await page.$('[data-a="pdf"]')) && !(await page.$('[data-a="new"]')), "Tisk a Nová kalkulace schované");
+    await page.click('[data-a="more"]');
+    assert(await page.isVisible('.dk-menu [data-a="pdf"]') && await page.isVisible('.dk-menu [data-a="new"]'), "menu otevřené");
+    await page.keyboard.press("Escape"); assert(!(await page.$(".dk-menu")), "Escape zavře");
+    await page.click('[data-a="more"]'); await page.mouse.click(200, 700); assert(!(await page.$(".dk-menu")), "klik mimo zavře");
+    await fill(page, "ovz", 30000); await page.click('[data-a="more"]'); await page.click('.dk-menu [data-a="new"]');
+    eq(await page.inputValue('[data-k="ovz"]'), "", "nová kalkulace vyčistí formulář");
+    const small = await page.$$eval(".dk input, .dk select", els => els.filter(e => e.offsetParent && parseFloat(getComputedStyle(e).fontSize) < 16).length);
+    eq(small, 0, "pole mají min. 16 px");
+    const tiny = await page.$$eval(".dk button, .dk input, .dk select", els => els.filter(e => e.offsetParent && e.getBoundingClientRect().height < 40).map(e => e.dataset.a || e.id || e.tagName));
+    eq(tiny, [], "dotykové cíle min. 40 px");
+    assert(!errors.length, "chyby: " + errors.join(" | "));
+    await ctx.close();
   },
   async "UI: chybějící údaje a chybějící datum důchodového věku mají upozornění"() {
     const { ctx, page } = await open();

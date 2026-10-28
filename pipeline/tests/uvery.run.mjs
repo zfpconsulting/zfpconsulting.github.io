@@ -342,6 +342,40 @@ const tests = {
     eq(errors, [], "bez chyb");
     await ctx.close();
   },
+  async "mobil: Orientačně sbalené pod otázkami, statistiky v jednom pásu, pole 16 px a dotykové cíle 40 px"() {
+    const { ctx, page, errors } = await open({ width: 390, height: 844, docs: { "uvery/x1": CASE } });
+    const tops = await page.$$eval(".uv-tile", ts => [...new Set(ts.map(t => Math.round(t.getBoundingClientRect().top)))]);
+    eq(tops.length, 1, "dlaždice v jedné řadě");
+    assert(await page.$eval(".uv-tiles", t => t.getBoundingClientRect().height < 110), "pás statistik je nízký");
+    eq(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0, "pás nepřetéká stránku");
+    await click(page, '.uv-card[data-id="x1"]');
+    await page.waitForSelector(".uv-wiz");
+    assert(!(await page.$eval(".uv-lv", d => d.open)), "Orientačně sbalené");
+    const [qTop, lvTop] = await page.evaluate(() => [document.querySelector(".uv-wsteps").getBoundingClientRect().top, document.querySelector(".uv-lv").getBoundingClientRect().top]);
+    assert(qTop < lvTop, "otázky jsou nad panelem Orientačně");
+    assert(/4\s?100\s?000 Kč/.test((await page.textContent(".uv-lvs")).replace(/ /g, " ")), "souhrn ve sbaleném panelu: " + await page.textContent(".uv-lvs"));
+    await click(page, ".uv-lv > summary");
+    assert(await page.$eval(".uv-lv", d => d.open), "rozbalí se");
+    await click(page, '[data-a="step"][data-v="1"]');
+    assert(await page.$eval(".uv-lv", d => d.open), "zůstane rozbalené po překreslení");
+    for (const t of ["dotaznik", "podklady", "nabidky", "prubeh"]) {
+      await click(page, `[data-a="tab"][data-v="${t}"]`); await page.waitForTimeout(40);
+      const small = await page.$$eval(".uv input, .uv select, .uv textarea", els => els.filter(e => e.offsetParent && e.type !== "checkbox" && parseFloat(getComputedStyle(e).fontSize) < 16).length);
+      eq(small, 0, "pole min. 16 px: " + t);
+      const tiny = await page.$$eval(".uv button, .uv input:not([type=checkbox]), .uv select", els => els.filter(e => e.offsetParent && e.getBoundingClientRect().height < 40 && !e.closest(".uv-doc") && !e.classList.contains("uv-help")).map(e => (e.dataset.a || e.dataset.k || e.tagName) + ":" + Math.round(e.getBoundingClientRect().height)));
+      eq(tiny, [], "dotykové cíle min. 40 px: " + t);
+    }
+    eq(errors, [], "bez chyb");
+    await ctx.close();
+  },
+  async "počítač: Orientačně vždy otevřené vpravo"() {
+    const { ctx, page } = await open({ docs: { "uvery/x1": CASE } });
+    await click(page, '.uv-card[data-id="x1"]'); await page.waitForSelector(".uv-wiz");
+    assert(await page.$eval(".uv-lv", d => d.open), "otevřené");
+    const [a, b] = await page.evaluate(() => [document.querySelector(".uv-wsteps").getBoundingClientRect(), document.querySelector(".uv-lv").getBoundingClientRect()].map(r => r.left));
+    assert(b > a + 200, "panel vpravo");
+    await ctx.close();
+  },
   async "UI: mobil a tmavý režim bez chyb a bez vodorovného přetečení stránky"() {
     for (const dark of [false, true]) {
       const { ctx, page, errors } = await open({ width: 390, height: 844, dark, docs: { "uvery/x1": CASE } });

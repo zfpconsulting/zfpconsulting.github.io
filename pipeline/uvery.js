@@ -618,6 +618,9 @@ const CSS=`
 .uv-subh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 10px;font-weight:600}
 .uv-wnav{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
 .uv-live{position:sticky;top:10px;display:flex;flex-direction:column;gap:8px}
+.uv-lv>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:default;margin:0 0 8px}
+.uv-lv>summary::-webkit-details-marker{display:none}
+.uv-lvs{display:none}
 .uv-kv{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:5px 0;border-bottom:1px solid var(--uv-sep)}
 .uv-kv:last-child{border-bottom:0}
 .uv-kv span{color:var(--uv-l2)}
@@ -742,15 +745,37 @@ const CSS=`
 .uv-cmp th:first-child,.uv-cmp td:first-child{position:sticky;left:0;z-index:1;background:var(--uv-card);color:var(--uv-l2);font-weight:600;min-width:128px;max-width:150px}
 .uv-help{display:inline-block;border:0;background:var(--uv-fill);color:var(--uv-l2);min-width:18px;height:18px;border-radius:9px;font-size:11px;font-weight:700;line-height:18px;padding:0 5px;margin-left:4px;vertical-align:1px;cursor:pointer}
 @media (max-width:760px){
-  .uv-wiz{grid-template-columns:1fr}
-  .uv-live{position:static;order:-1}
+  .uv-wiz{grid-template-columns:minmax(0,1fr)}
+  .uv-live{position:static}
+  .uv-lv>summary{cursor:pointer;min-height:44px;margin:-14px -16px;padding:0 16px}
+  .uv-lv[open]>summary{margin-bottom:6px}
+  .uv-lv>summary::after{content:"›";margin-left:auto;color:var(--uv-l2);font-size:20px;transition:transform .15s}
+  .uv-lv[open]>summary::after{transform:rotate(90deg)}
+  .uv-lvs{display:block;flex:1;min-width:0;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+  .uv-lv[open] .uv-lvs{display:none}
+  /* statistiky v jednom vodorovném pásu */
+  .uv-tiles{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;margin:0 -16px 12px;padding:2px 16px 4px;scrollbar-width:none}
+  .uv-tiles::-webkit-scrollbar{display:none}
+  .uv-tile{flex:0 0 auto;min-width:118px;max-width:46%;padding:8px 11px;scroll-snap-align:start}
+  .uv-tile .v{font-size:17px;margin-top:1px}
+  .uv-tile .h{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* iOS: pole min. 16 px (jinak se stránka při psaní přiblíží), dotykové cíle min. 40 px */
+  .uv input,.uv select,.uv textarea{font-size:16px;min-height:44px}
+  .uv input[type=checkbox]{min-height:0;width:22px;height:22px}
+  .uv .btn,.uv .btn.sm,.uv-seg button,.uv-chip,.uv-wsteps button,.uv-tabs button,.uv-add,.uv-pl button,.uv-doc .na-b{min-height:40px}
+  .uv .btn.sm{font-size:14px}
+  .uv-doc .ck{position:relative}
+  .uv-doc .ck::after{content:"";position:absolute;inset:-9px}
+  .uv-help{min-width:28px;height:28px;line-height:28px;border-radius:14px;font-size:12px;position:relative}
+  .uv-help::after{content:"";position:absolute;inset:-6px}
+  .uv-tab td input,.uv-tab td select{min-height:40px}
   .uv-grid,.uv-grid.g3{grid-template-columns:1fr}
   .uv-next{grid-template-columns:1fr 1fr}
   .uv-next .btn{grid-column:1/-1}
   .uv-board{grid-auto-columns:82%}
   .uv-ch h2{font-size:19px}
-  .uv-ch .btn{padding:6px 10px;font-size:13.5px}
-  .uv-ch select{padding:6px 8px;font-size:13.5px}
+  .uv-ch .btn{padding:6px 10px;font-size:14px}
+  .uv-ch select{padding:6px 8px}
   .uv-bh .nums{gap:8px 12px}
 }
 @media print{.uv-bar,.uv-tabs,.uv-next{display:none}}
@@ -976,7 +1001,9 @@ function mount(root,opts={}){
     const q=cur.q,M=metrics(q,RATES),t=q.typ||"hypo",miss=missing(q);
     const row=(k,v,bad)=>`<div class="uv-kv"><span>${k}</span><b class="${bad?"bad":""}">${v}</b></div>`;
     const ages=M.ages.length?(isFinite(M.ageEnd)?M.oldest+" → "+M.ageEnd+" let":"–"):"–";
-    return `<div class="uv-box" style="margin:0"><div class="uv-h3" style="margin-top:0">Orientačně</div>
+    /* na mobilu sbalitelné (výchozí sbalené, pod formulářem) – v souhrnu jen úvěr, LTV a splátka; na počítači vždy otevřené vpravo */
+    const sum=[M.loan?kc(M.loan):"",isHypoLike(t)&&isFinite(M.ltv)?"LTV "+pct(M.ltv,1):"",M.pay?kc(M.pay)+"/měs.":""].filter(Boolean).join(" · ");
+    return `<details class="uv-box uv-lv" style="margin:0"${liveOpen()?" open":""}><summary><span class="uv-h3" style="margin:0">Orientačně</span><span class="uv-lvs">${esc(sum||(miss.length?"chybí údaje":""))}</span></summary>
       ${row("Úvěr",M.loan?kc(M.loan):"–")}
       ${isHypoLike(t)?row("Zajištění",M.coll?kc(M.coll):"–")+row("LTV / limit",isFinite(M.ltv)?pct(M.ltv,1)+" / "+M.ltvLimit+" %":"–",M.ltv>M.ltvLimit+0.05):""}
       ${row("Splátka",M.pay?kc(M.pay):"–")}
@@ -988,9 +1015,14 @@ function mount(root,opts={}){
       ${M.income?row("Zbude po splátkách",kc(M.reserve),M.reserve<0):""}
       ${M.invest?`<div class="uv-note" style="margin:8px 0 0">Investiční nemovitost – od 1. 4. 2026 LTV max. 70 % a DTI max. 7.</div>`:""}
       ${miss.length?`<div class="uv-note gray" style="margin:8px 0 0"><b>Chybí:</b> ${esc(miss.join(", "))}</div>`:`<div class="uv-note" style="margin:8px 0 0">Dotazník je kompletní – <button type="button" class="btn ghost sm" data-a="tab" data-v="banky">pořadí bank ›</button></div>`}
-      </div>`;
+      </details>`;
   }
+  /* stav panelu Orientačně: na počítači vždy otevřený, na mobilu podle posledního rozbalení (výchozí sbalený) */
+  let lvOpen=false;
+  const narrow=()=>typeof matchMedia==="function"&&matchMedia("(max-width:760px)").matches;
+  const liveOpen=()=>!narrow()||lvOpen;
   function drawLive(){const b=root.querySelector("#uvLive");if(b)b.innerHTML=liveHTML()}
+  root.addEventListener("toggle",e=>{const d=e.target;if(d&&d.classList&&d.classList.contains("uv-lv")){if(!narrow()&&!d.open){d.open=true;return}if(narrow())lvOpen=d.open}},true);
 
   function step0(){const q=cur.q,t=q.typ||"hypo",hypo=isHypoLike(t);
     const cenaHint=hypo?"":"";
