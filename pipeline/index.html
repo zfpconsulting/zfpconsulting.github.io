@@ -139,7 +139,7 @@ body{touch-action:manipulation}
 .card .name{font-weight:600;font-size:15px;overflow-wrap:anywhere}
 .card .pts{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--tint);white-space:nowrap}
 .card .tel{font-size:13px;color:var(--label2);display:flex;gap:8px;align-items:center;font-variant-numeric:tabular-nums}
-.card .tel button{color:var(--tint);font-size:13px}
+.card .tel a{color:inherit;text-decoration:none}.card .tel a:hover{color:var(--tint)}
 .tags{display:flex;flex-wrap:wrap;gap:5px}
 .tag{font-size:12px;padding:2px 8px;border-radius:6px;background:var(--fill2);color:var(--label2);font-weight:500;white-space:nowrap}
 .tag.blue{background:var(--tint-soft);color:var(--tint)}
@@ -401,6 +401,12 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 .quick{display:flex;gap:8px;flex-wrap:wrap;margin:8px 16px 0}
 .quick button{font-size:13px;color:var(--tint);background:var(--tint-soft);border-radius:999px;padding:5px 11px;font-weight:500}
 .danger-row{color:var(--red);width:100%;text-align:center;padding:12px;font-size:17px}
+/* dotaz na neuložené změny (Esc / Zrušit v okně s formulářem) */
+.unsv{position:absolute;inset:0;z-index:30;display:grid;place-items:center;background:rgba(0,0,0,.35);padding:16px}
+.unsv-box{width:min(340px,100%);background:var(--bg2);color:var(--label);border-radius:16px;padding:18px 18px 12px;display:grid;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center}
+.unsv-box b{font-size:17px}.unsv-box p{margin:0;color:var(--label2);font-size:14px}
+.unsv-b{display:flex;gap:8px;margin-top:4px}.unsv-b button{flex:1;padding:12px 0;border-radius:12px;font-size:16px;font-weight:600;background:var(--fill);color:var(--label)}
+.unsv-b .sv{background:var(--zfp,var(--tint));color:#fff}.unsv-k{padding:8px 0;color:var(--label2);font-size:14px;background:none}
 .confirm{display:grid;gap:0}
 .confirm .q{padding:12px 16px;text-align:center;font-size:13px;color:var(--label2)}
 .confirm button{padding:12px;font-size:17px;border-top:.5px solid var(--sep)}
@@ -408,6 +414,7 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 .confirm .no{color:var(--tint)}
 .err{color:var(--red);font-size:14px;text-align:center}
 
+.toast .tundo{margin-left:14px;padding:0;border:0;background:none;color:var(--tint);font:inherit;font-weight:700;cursor:pointer}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--bg2);color:var(--label);padding:11px 18px;border-radius:999px;font-size:14px;font-weight:500;z-index:20;box-shadow:0 10px 30px rgba(0,0,0,.2)}
 .noans{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;background:var(--bg2);color:var(--label);padding:10px 12px 10px 18px;border-radius:999px;font-size:14px;font-weight:500;z-index:2147483000;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100vw - 24px)}
 .noans.indlg{position:absolute;bottom:20px}
@@ -447,8 +454,11 @@ html.applocked body>*:not(#lockDlg){visibility:hidden!important}
 .histbtn{padding:0 9px!important;display:inline-flex;align-items:center;justify-content:center}.histbtn:disabled{opacity:.3}
 @media (max-width:520px){.bar-in{gap:6px 6px}.bar .syncbtn{padding:0 10px}.bar .histbtn{padding:0 7px!important}}
 .syncbtn{height:34px;padding:0 13px;border-radius:999px;background:var(--fill);color:var(--label);font-size:14px;font-weight:500;white-space:nowrap;flex:none}
-.syncbtn[data-s="out"],.syncbtn[data-s="expired"]{background:var(--tint);color:#fff}
-.syncbtn[data-s="error"]{background:var(--red-soft);color:var(--red)}
+#uvBox .uv-bar [data-a="new"],#uvBox .uv-add[data-a="new"]{display:none}
+#syncBtn{position:relative;min-width:34px;padding:0 7px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+#syncBtn .sdot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--zfp,var(--tint));box-shadow:0 0 0 2px var(--bar-bg,#fff)}
+#syncBtn .slbl{font-size:13px}
+.dlogin{display:grid;gap:8px;padding:14px;border-radius:14px;background:var(--fill)}.dlogin p{margin:0}
 .syncbtn[data-s="offline"]{color:var(--label2)}
 .syncbtn:active{opacity:.7}
 .dbody{padding:20px 16px 28px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
@@ -497,6 +507,7 @@ tr.click{cursor:pointer} tr.click:active td{background:var(--fill2)}
 .tag.storno{background:var(--red-soft);color:var(--red)}
 .tag.paid{background:var(--teal-soft);color:var(--teal)}
 .taskhint{font-size:12px;color:var(--label2);margin:6px 16px 0}
+.linkbtn{padding:0;border:0;background:none;color:var(--tint);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
 /* ===== v3 ===== */
 .careerbar input.cpts{font-size:15px;font-weight:600;color:var(--label);background:var(--fill);border:none;border-radius:8px;padding:6px 10px;width:100px;text-align:right;font-variant-numeric:tabular-nums}
 .careerbar .cnext{font-size:12px;color:var(--label2);white-space:nowrap}
@@ -846,6 +857,7 @@ html.locked body{overflow:hidden}
 .akvq{width:100%;font:inherit;font-size:15px;color:var(--label);background:var(--bg2);box-shadow:var(--card-shadow);border:none;border-radius:10px;padding:9px 12px;margin:0 0 8px}
 .akvgrid .sh-actions .chipbtn{white-space:nowrap}
 .akvgrid .sechead-row .sechead{min-width:0}
+.akvlink{text-decoration:none;color:inherit}.akvlink .lnk-ic{width:28px;height:28px;border-radius:7px;background:var(--fill);color:var(--label);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none;margin-right:10px}.akvlink .end{color:var(--label2);font-size:16px}
 .akvfilt{margin:0 0 10px}.akvfilt .chipbtn{padding:5px 11px;font-size:13px}
 .akvtags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .akvben{font-size:11px;padding:1px 7px}
@@ -1018,7 +1030,7 @@ html.locked body{overflow:hidden}
     <div class="perbar" id="perBar"></div>
     <div class="tiles" id="tiles"></div>
     <div class="section" id="todaySec">
-      <div class="sechead-row"><h3 class="sechead">Úkoly</h3><span class="sh-actions"><button type="button" class="chipbtn" id="cbBtn">📞 Volací blok</button><button class="plus" id="addTask" type="button" aria-label="Nový úkol" title="Nový úkol"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></button></span></div>
+      <div class="sechead-row"><h3 class="sechead">Dnes udělat</h3><span class="sh-actions"><button type="button" class="chipbtn" id="cbBtn">📞 Začít volat</button><button type="button" class="chipbtn" id="addTask" aria-label="Nový úkol" title="Nový úkol">+ Úkol</button></span></div>
       <div class="group" id="todayList"></div>
     </div>
     <div class="section" id="calSec">
@@ -1106,7 +1118,7 @@ html.locked body{overflow:hidden}
         <h3 class="sechead">Klienti a jejich smlouvy</h3>
         <div class="cli-tools">
           <label class="search cli-search"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><input id="cliSearch" type="search" placeholder="Hledat klienta" aria-label="Hledat klienta"></label>
-          <button type="button" class="plus" id="addClient" aria-label="Nový klient" title="Nový klient"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+          
         </div>
         <div class="seg fseg" id="cFilter" role="tablist" aria-label="Filtr klientů"></div>
         <div class="group" id="cliList"></div>
@@ -1151,7 +1163,7 @@ html.locked body{overflow:hidden}
     <div class="tiles" id="akvTiles"></div>
     <div class="xgrid akvgrid">
       <div>
-        <div class="sechead-row"><h3 class="sechead">Firmy s příspěvky</h3><div class="sh-actions"><button type="button" class="chipbtn" id="akvImpBtn">Import</button><button type="button" class="chipbtn" id="akvAddF">+ Firma</button></div></div>
+        <div class="sechead-row"><h3 class="sechead">Firmy s příspěvky</h3><div class="sh-actions"><button type="button" class="chipbtn" id="akvImpBtn">Import</button></div></div>
         <input type="file" id="akvImp" accept=".json,.csv,application/json,text/csv" hidden>
         <input type="search" class="akvq" id="akvFq" placeholder="Hledat firmu, obec, kontakt…" autocomplete="off">
         <div class="chips akvfilt" id="akvFBen"></div>
@@ -1165,14 +1177,14 @@ html.locked body{overflow:hidden}
         <div class="chips akvfilt" id="akvPType"></div>
         <div class="group" id="akvPList"></div>
         <h3 class="sechead">Hledat na LinkedInu</h3>
-        <div class="chips" id="akvLi"></div>
+        <div class="group" id="akvLi"></div>
         <p class="secfoot">„Registr ČNB“ = vázaní zástupci pro spotřebitelské úvěry se sídlem v Brně a okolí (PSČ 600–649, 664–667), zapsaní za posledních 12 měsíců – tedy nováčci v oboru. Obnovíš je tak, že stáhneš <a href="https://jerrs.cnb.cz/apljerrsdad/JERRS.OPENDATA.STAHUJ?p_seznam=4" target="_blank" rel="noopener">CSV z otevřených dat ČNB</a> a dáš Import ČNB – noví přibudou, nikdo se nezdvojí. Registr neříká, pod jakou síť patří; to uvidíš na LinkedInu (tlačítko v kartě). Lidi z bank v registru nejsou – na ty jsou tlačítka „in · …“. Při prvním oslovení řekni, odkud kontakt máš (GDPR).</p>
       </div>
     </div>
   </section>
   <section id="view_net" hidden>
     <div class="tiles" id="nTiles"></div>
-    <div class="sechead-row"><h3 class="sechead">Nábor – kandidáti</h3><button type="button" class="chipbtn" id="addRecruit">+ Kandidát</button></div>
+    <div class="sechead-row"><h3 class="sechead">Nábor – kandidáti</h3></div>
     <div class="rboard" id="rBoard"></div>
     <p class="secfoot" id="rFoot"></p>
     <div class="sechead-row" style="margin-top:18px"><h3 class="sechead">Tým a meziprovize</h3><button type="button" class="chipbtn" id="addMember3">+ Člen přímo pode mnou</button></div>
@@ -1309,9 +1321,9 @@ html.locked body{overflow:hidden}
         <div class="group logl">
           <div class="frow"><label for="f_logAt">Kdy</label><input id="f_logAt" type="datetime-local"><button type="button" id="logNow" style="color:var(--tint);font-size:14px;flex:none">Teď</button></div>
           <div class="calls">
-            <button type="button" id="callNo">Volal · nezvedl</button>
-            <button type="button" id="callYes">Volal · hovor proběhl</button>
-            <button type="button" id="msgBtn">✉︎ Potvrzení / zpráva</button>
+            <button type="button" id="callNo">Nezvedl</button>
+            <button type="button" id="callYes">Hovor proběhl</button>
+            <button type="button" id="msgBtn">Zpráva</button>
           </div>
           <div id="logList"></div>
           <div class="frow logadd"><input id="f_log" placeholder="Co proběhlo? (nebral, schůzka…)" aria-label="Zápis kontaktu"><button type="button" id="logBtn">Zapsat</button></div>
@@ -1337,8 +1349,9 @@ html.locked body{overflow:hidden}
 
 <dialog id="dataDlg">
   <div class="sheet">
-    <div class="sbar"><span></span><h2>Data a synchronizace</h2><button type="button" class="r" id="dataClose">Hotovo</button></div>
+    <div class="sbar"><span></span><h2>Nastavení</h2><button type="button" class="r" id="dataClose">Hotovo</button></div>
     <div class="dbody">
+      <div class="dlogin" id="dLoginAsk" hidden><p><b>Nejsi přihlášený ke Googlu.</b> Bez přihlášení se data nesynchronizují mezi zařízeními a nenačte se kalendář – appka jinak funguje dál v tomto zařízení.</p><button type="button" class="dbtn" id="dLoginGo" style="background:var(--zfp,var(--tint));color:#fff">Přihlásit Googlem</button></div>
       <p id="dataInfo"></p>
       <div class="dcfg" id="lockCfg">
         <label>Zámek aplikace <span class="hint" style="font-weight:400">· jen toto zařízení</span></label>
@@ -1371,7 +1384,7 @@ html.locked body{overflow:hidden}
       <div class="dcfg">
         <label>Kalendář se schůzkami<select id="dCal"><option>Načítám…</option></select></label>
         <label>Začátek názvu schůzky <input id="dPrefix" placeholder="např. VK:" autocomplete="off"></label>
-        <p class="hint">Do CRM se berou jen události, jejichž název začíná tímto textem (např. „VK: Novák“). Porady, tréninky a ostatní události se ignorují. Bez vyplnění se z kalendáře nic nenačte.</p>
+        <p class="hint">Do CRM se berou jen události, jejichž název začíná tímto textem (např. „VK: Jan Novák“). Porady, tréninky a ostatní události se ignorují. Bez vyplnění se z kalendáře nic nenačte.</p>
         <button type="button" class="dbtn" id="dTasks" hidden>Povolit zápis úkolů do kalendáře</button>
         <label>Rezervace – živá kontrola kalendáře <input id="dBk" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" inputmode="url"></label>
         <p class="hint">Adresa tvého skriptu (tools/rezervace.gs). S ní stránka rezervace ukazuje jen časy, které jsou v kalendáři opravdu volné, a vybraný termín hned zablokuje – nikdo si nevybere obsazený čas, ani když Pipeline nemáš otevřenou. Zrušenou schůzku v kalendáři skript pozná hned a termín se v rezervaci znovu nabídne. Schůzky kolegů ve společném kalendáři tě neblokují: osobní schůzka kolegy v kanceláři ti nechá jen online, jeho online schůzka nic nemění. Po aktualizaci tools/rezervace.gs ho nasaď znovu (Nasadit → Spravovat nasazení → Nová verze).</p>
@@ -1406,7 +1419,7 @@ html.locked body{overflow:hidden}
   <div id="lockPinBox" hidden><input id="lockPin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" maxlength="12"></div>
   <button type="button" class="lockforgot" id="lockForgot">Nemůžu odemknout</button>
 </div></dialog>
-<dialog id="edDlg"><div class="sheet"><div class="sbar"><span></span><h2 id="edTitle"></h2><button type="button" class="r" id="edClose">Hotovo</button></div><div class="ebody" id="edBody"></div></div></dialog>
+<dialog id="edDlg"><div class="sheet"><div class="sbar"><button type="button" class="l" id="edCancel" style="visibility:hidden">Zrušit</button><h2 id="edTitle"></h2><button type="button" class="r" id="edClose">Hotovo</button></div><div class="ebody" id="edBody"></div></div></dialog>
 <nav class="tabbar" id="tabBottom" aria-label="Sekce"><div class="tabbar-in" role="tablist" id="tabBottomIn"></div></nav>
 <dialog id="moreDlg"><div class="sheet"><div class="sbar"><span></span><h2>Další záložky</h2><button type="button" class="r" id="moreClose">Hotovo</button></div><div class="dbody"><div class="group morelist" id="moreList"></div></div></div></dialog>
 <div class="toast" id="toast" hidden></div>
@@ -1764,10 +1777,14 @@ const GSync=(()=>{
       busy:["Synchronizuji…","Synchronizuji s Google Diskem"],
       ok:["✓ "+hm,"Synchronizováno s Google Diskem v "+hm],
       error:["Chyba","Synchronizace selhala: "+(msg||"")],
-      demo:CLEAN?["Čistý režim","Čistý režim – prázdná appka na zkoušení, nic se nesynchronizuje. Vypneš v okně Data a synchronizace."]:["Prezentace","Prezentační režim – fiktivní data, nic se nesynchronizuje. Vypneš v tomto okně nahoře."],
+      demo:CLEAN?["Čistý režim","Čistý režim – prázdná appka na zkoušení, nic se nesynchronizuje. Vypneš v Nastavení."]:["Prezentace","Prezentační režim – fiktivní data, nic se nesynchronizuje. Vypneš v tomto okně nahoře."],
       idle:["…",""]
     };
-    const[t,title]=map[s]||map.idle;b.textContent=t;b.title=title;b.dataset.s=s;
+    /* v hlavičce jen ikona stavu (tečka = je potřeba se přihlásit / chyba); text je v title a v Nastavení */
+    const[t,title]=map[s]||map.idle;b.title=title||"Nastavení";b.setAttribute("aria-label","Nastavení"+(title?" – "+title:""));b.dataset.s=s;
+    b.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.6 9.1 4.75 4.75 0 0 0 7 18.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>'+(s==="ok"?'<path d="m9.2 13.6 2 2 3.8-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>':s==="busy"?'<path d="M12 11v4.5m-2-2 2 2 2-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>':"")+'</svg>'+(["out","expired","error"].includes(s)?'<i class="sdot"></i>':"")+(s==="demo"?'<span class="slbl">'+t+'</span>':"");
+    const ask=document.getElementById("dLoginAsk");if(ask)ask.hidden=!(s==="out"||s==="expired");
+    const ds=document.getElementById("dSync");if(ds)ds.textContent=s==="out"?"Přihlásit Googlem":s==="expired"?"Obnovit přihlášení":"Synchronizovat teď";
     const d=document.getElementById("dataInfo");if(d)d.textContent=title;
   }
   return{run,soon,status,get state(){return state}};
@@ -1975,9 +1992,14 @@ function quarterRow(qk){const p=quarterPoints(qk),tot=quarterTotal(qk),ri=quarte
 function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==undefined&&v!==null&&v!==false)e.setAttribute(k,v)}for(const k of kids.flat(3)){if(k==null||k===false)continue;e.append(k.nodeType?k:document.createTextNode(String(k)))}return e}
 const SVG_CHEV='<svg class="chev" width="8" height="13" viewBox="0 0 8 13" aria-hidden="true"><path d="M1.5 1.5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function chev(){const s=document.createElement("span");s.innerHTML=SVG_CHEV;return s.firstChild}
-function toast(msg){const t=$("toast");clearTimeout(toast._t);clearTimeout(toast._t2);t.textContent=msg;t.hidden=false;t.classList.remove("out");void t.offsetWidth;t.classList.add("in");
-  toast._t=setTimeout(()=>{t.classList.remove("in");t.classList.add("out")},1900);
-  toast._t2=setTimeout(()=>{t.hidden=true;t.classList.remove("out")},2200)}
+/* opt.undo: na mobilu (tlačítka zpět/vpřed v hlavičce tam nejsou) přidá do toastu „Vrátit“ = krok zpět */
+const isPhone=()=>matchMedia("(max-width:759px)").matches;
+function openSettings(){const b=$("syncBtn");if(b)b.click()}
+function toast(msg,opt){const t=$("toast");clearTimeout(toast._t);clearTimeout(toast._t2);t.textContent=msg;t.hidden=false;t.classList.remove("out");void t.offsetWidth;t.classList.add("in");
+  const und=!!(opt&&opt.undo&&isPhone()&&LStore.canUndo());
+  if(und){const b=el("button",{type:"button",class:"tundo"},"Vrátit");b.onclick=()=>{const l=LStore.undo();t.classList.remove("in");t.classList.add("out");setTimeout(()=>{t.hidden=true;t.classList.remove("out")},300);if(l)setTimeout(()=>toast("↶ Vráceno: "+l),320)};t.append(b)}
+  toast._t=setTimeout(()=>{t.classList.remove("in");t.classList.add("out")},und?4500:1900);
+  toast._t2=setTimeout(()=>{t.hidden=true;t.classList.remove("out")},und?4800:2200)}
 function sliderFill(r){const p=(r.value-r.min)/(r.max-r.min)*100;r.style.setProperty("--p",p+"%")}
 /* posuvník s hodnotou (Obrat → srovnání výdělku); omylem smazaný 16. 10. spolu s „Moje cíle“ → Obrat se nevykreslil */
 function numSliderRow(label,val,min,max,step,fmtFn,on){
@@ -2186,7 +2208,7 @@ async function dzImport(x){
   if(files.length&&window.Docs)try{await Docs.add(docOwnerLead(cur),files)}catch(e){console.warn("soubory",e)}
   dzNotify({ic:"dz",t:"Nový vyplněný dotazník",s:name+" – lead, finanční plán"+(files.length?" a IOLDP":"")+" jsou připravené",lead:l.id,plan:1});
 }
-/* klient si po odeslání dotazníku zarezervoval 2. konzultaci → schůzka do kalendáře „VK: Jméno (online)“ + lead ve fázi Schůzka */
+/* klient si po odeslání dotazníku zarezervoval 2. konzultaci → schůzka do kalendáře „VK: Jméno Příjmení (online)“ + lead ve fázi Schůzka */
 async function dzBooking(x){
   const name=String(x.name||"").trim()||"Klient z dotazníku",start=new Date(x.start),online=!!x.online,now=new Date().toISOString();
   if(isNaN(start))throw new Error("termín");
@@ -2535,7 +2557,7 @@ function afterMeetSheet(o){
     when||target?el("p",{class:"hint"},[when,target?"poznámka se uloží "+target+" s nadpisem „Schůzka "+meetDateTxt(W.start)+"“":"klient nenalezen – uloží se jen úkoly"].filter(Boolean).join(" · ")):null,
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámky"),notes)),
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkoly"),tasks),el("div",{class:"frow"},el("label",{},"Deadline"),due)),
-    el("div",{class:"chips"},save,sm,W.l?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setTimeout(()=>openEdit(leads.find(x=>x.id===W.l.id)||W.l),340)}},"Otevřít lead"):null)]);
+    el("div",{class:"chips"},sm,W.l?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setTimeout(()=>openEdit(leads.find(x=>x.id===W.l.id)||W.l),340)}},"Otevřít lead"):null)],{save:()=>save.onclick()});
   setTimeout(()=>{try{notes.focus()}catch(e){}},350)}
 /* klepnutí na notifikaci → rovnou na správné místo */
 function pushOpen(u){try{const q=new URL(u||location.href,location.href).searchParams,k=q.get("push");if(!k)return;
@@ -2951,11 +2973,17 @@ function colCards(st,items,i,cur){
   return [...items.slice(0,shown).map(l=>card(l,i,cur)),
     el("button",{class:"addcard",type:"button",onclick:()=>{window.__colShown[st.k]=shown+COL_PAGE*2;render()}},"Zobrazit dalších "+Math.min(rest,COL_PAGE*2)+" z "+rest)];
 }
+/* hledání v pipeline: bez diakritiky a velikosti písmen (jméno, e-mail, zdroj, doporučitel), telefon bez mezer a předvolby */
+function leadHit(l,qq){const w=String(qq||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().split(/\s+/).filter(Boolean);if(!w.length)return true;
+  const txt=[l.name,l.email,l.source,l.referredBy].map(x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()).join(" ");
+  const tel=String(l.phone||"").replace(/\D/g,""),qd=String(qq).replace(/[\s+()-]/g,"");
+  if(/^\d{3,}$/.test(qd)&&(tel.includes(qd)||tel.replace(/^420/,"").includes(qd.replace(/^420/,""))))return true;
+  return w.every(x=>txt.includes(x))}
 function renderPipe(cur){
   renderPerBar();
   const past=!!pper&&!q;
   $("todaySec").hidden=past;$("calSec").hidden=past;
-  const list=leads.filter(l=>q?((l.name||"").toLowerCase().includes(q)||(l.phone||"").replace(/\s/g,"").includes(q.replace(/\s/g,""))):inPer(l));
+  const list=leads.filter(l=>q?leadHit(l,q):inPer(l));
   if(past){
     const paid=list.filter(l=>l.stage==="vyplaceno"), lost=list.filter(l=>l.stage==="lost"), pp=paid.reduce((s,l)=>s+(+l.points||0),0);
     const money=paid.reduce((s,l)=>s+(+l.points||0)*quarterRow(qOf(l.signedAt||l.paidAt||todayStr())).rate,0);
@@ -2967,34 +2995,26 @@ function renderPipe(cur){
     if(!list.length)$("cols").replaceChildren(el("p",{class:"empty",style:"padding:12px 4px"},"V období "+pmLabel(pper).toLowerCase()+" nic není."));
     return;
   }
-  const active=leads.filter(l=>ACTIVE(l.stage));
+  const base=q?list:leads;   /* při hledání počítají dlaždice jen z nalezených */
+  const active=base.filter(l=>ACTIVE(l.stage));
   const late=active.filter(l=>["late","none"].includes(dueState(l))).length;
   const pts=active.reduce((s,l)=>s+(+l.points||0),0);
   const T=[
     ["Rozjednané",active.length,plural(active.length,"lead","leady","leadů"),ST("kontaktovan").c],
-    ["Schůzky",leads.filter(l=>l.stage==="schuzka").length,"domluvené",ST("schuzka").c],
+    ["Schůzky",base.filter(l=>l.stage==="schuzka").length,"domluvené",ST("schuzka").c],
     ["Body v jednání",fmt1(pts),"≈ "+kc(pts*cur.rate),ST("nabidka").c],
-    ["Podepsáno "+qLabel(cur.qk),fmt1(cur.signed)+" b","≈ "+kc(cur.signed*cur.rate),ST("podpis").c],
+    q?["Nalezeno",list.length,plural(list.length,"lead","leady","leadů"),ST("podpis").c]:["Podepsáno "+qLabel(cur.qk),fmt1(cur.signed)+" b","≈ "+kc(cur.signed*cur.rate),ST("podpis").c],
     ["Po termínu",late,late?"nebo bez dalšího kroku":"vše naplánováno",ST("zamrzly").c,late>0]
   ];
   $("tiles").replaceChildren(...T.map(([k,v,h,c,a])=>el("div",{class:"tile"+(a?" alert":"")},el("div",{class:"k"},el("i",{style:"background:"+c}),k),el("div",{class:"v"},String(v)),h?el("div",{class:"h"},h):null)));
 
-  const hot=active.filter(l=>["late","today","none"].includes(dueState(l))||isCold(l)||String(l.nextStep||"").trim()).sort((a,b)=>(a.nextDate||"0").localeCompare(b.nextDate||"0"));
-  const showAll=window.__todayAll, shown=showAll?hot:hot.slice(0,6);
-  const tkNodes=typeof asPipeNodes==="function"?asPipeNodes():[];
-  const callNodes=(hot.length?[...shown.map(l=>{
-    const s=dueState(l);
-    const stp=String(l.nextStep||"").trim(), dd=l.nextDate?dDiff(l.nextDate,todayStr()):null;
-    const why=s==="none"?(stp?"Bez termínu · "+stp:"Chybí další krok"):s==="late"?"Po termínu od "+fmtDate(l.nextDate)+(stp?" · "+stp:""):s==="today"?"Dnes"+(stp?" · "+stp:""):stp&&dd!=null&&dd>0?(dd===1?"Zítra":"Za "+dd+" "+plural(dd,"den","dny","dní"))+" · "+stp:daysSince(lastTouch(l))+" dní bez kontaktu";
-    return el("button",{class:"row row-btn",type:"button",onclick:()=>openEdit(l)},
-      el("span",{class:"avatar",style:"background:"+ST(l.stage).c},initials(l.name)),
-      el("span",{class:"main"},el("div",{class:"t"},l.name),el("div",{class:"s"+(s==="today"||(s===""&&stp&&dd!=null&&dd>0)?"":" bad")},why)),
-      el("span",{class:"end"},l.phone?fmtPhone(l.phone):ST(l.stage).t),chev());
-  }),hot.length>6?el("button",{class:"row row-btn",type:"button",style:"color:var(--tint);font-weight:500;justify-content:center",onclick:()=>{window.__todayAll=!showAll;render()}},showAll?"Zobrazit méně":"Zobrazit všech "+hot.length):null].filter(Boolean):[el("div",{class:"row"},el("span",{class:"empty"},"Nic nehoří. Každý rozjednaný lead má naplánovaný další krok."))]);
-  /* úkoly vlevo, komu zavolat vpravo (na úzkém displeji pod sebou) */
-  const TL=$("todayList");
-  if(tkNodes.length){TL.className="todaygrid";TL.replaceChildren(el("div",{class:"group tdcol"},el("div",{class:"tksub"},"Moje úkoly"),...tkNodes),el("div",{class:"group tdcol"},el("div",{class:"tksub"},"Komu zavolat"),...callNodes))}
-  else{TL.className="group";TL.replaceChildren(...callNodes)}
+  /* „Dnes udělat“: úkoly a leady k řešení v jednom seznamu – lead, který už má otevřený úkol (i auto_<id> z dalšího kroku), se neopakuje */
+  const D=dnesItems(), showAll=window.__todayAll, LIM=8, shown=showAll?D:D.slice(0,LIM);
+  const inv=typeof dealInvNodes==="function"?dealInvNodes():[];
+  const TL=$("todayList");TL.className="group";
+  {const cb=$("cbBtn"),n=callBlockIds().length;cb.textContent="📞 Začít volat"+(n?" ("+n+")":"");cb.hidden=!n}
+  TL.replaceChildren(...inv,...(D.length?[...shown.map(x=>x.row()),D.length>LIM?el("button",{class:"row row-btn",type:"button",style:"color:var(--tint);font-weight:500;justify-content:center",onclick:()=>{window.__todayAll=!showAll;render()}},showAll?"Zobrazit méně":"Zobrazit všech "+D.length):null].filter(Boolean)
+    :inv.length?[]:[el("div",{class:"row"},el("span",{class:"empty"},"Nic nehoří. Každý rozjednaný lead má naplánovaný další krok."))]));
 
   renderCal();
   $("cols").replaceChildren(...STAGES.map((st,i)=>{
@@ -3006,7 +3026,7 @@ function renderPipe(cur){
       el("div",{class:"colhead"},el("span",{class:"t"},el("i",{style:"background:"+st.c}),st.t),el("span",{class:"n"},String(items.length))),
       meta?el("div",{class:"colmeta"},meta):null,
       ...colCards(st,items,i,cur),
-      st.k==="novy"?el("button",{class:"addcard",type:"button",onclick:()=>openEdit(null)},"Přidat lead"):null);
+      null);
     col.addEventListener("dragover",e=>{if(window.Docs&&Docs.isFileDrag(e))return;e.preventDefault();col.classList.add("drop")});
     col.addEventListener("dragleave",()=>col.classList.remove("drop"));
     col.addEventListener("drop",e=>{if(window.Docs&&Docs.isFileDrag(e))return;e.preventDefault();col.classList.remove("drop");const l=leads.find(x=>x.id===e.dataTransfer.getData("text/plain"));if(l&&l.stage!==st.k)moveTo(l,st.k)});
@@ -3025,7 +3045,7 @@ function card(l,i,cur){
   const rateUsed=signed&&l.signedAt?quarterRow(qOf(l.signedAt)).rate:cur.rate;
   const c=el("article",{class:"card",draggable:"true",tabindex:"0","data-id":l.id},
     el("div",{class:"top"},el("span",{class:"name"},l.name||"Bez jména"),l.points?el("span",{class:"pts"},fmt1(l.points)+" b"):null),
-    l.phone?el("div",{class:"tel"},el("span",{},fmtPhone(l.phone)),el("button",{type:"button",onclick:e=>{e.stopPropagation();(navigator.clipboard?.writeText(l.phone)||Promise.reject()).then(()=>toast("Číslo zkopírováno"),()=>toast(l.phone))}},"Kopírovat")):null,
+    l.phone?el("div",{class:"tel"},el("a",{href:"tel:"+String(l.phone).replace(/[^\d+]/g,""),title:"Zavolat (číslo zkopíruješ dlouhým stiskem nebo v detailu)",onclick:e=>e.stopPropagation()},fmtPhone(l.phone))):null,
     el("div",{class:"tags"},
       l.example?el("span",{class:"tag ex"},"ukázka"):null,
       ...(typeof dealTags==="function"?dealTags(l):[]),
@@ -3038,14 +3058,13 @@ function card(l,i,cur){
     l.points?el("div",{class:"money"},signed?[l.signedAt?"Podepsáno "+fmtDate(l.signedAt)+" · ":"",el("b",{},"+"+kc(l.points*rateUsed))]:"≈ "+kc(l.points*rateUsed)+" při podpisu"):null,
     (()=>{const m=nextMeeting(l);if(m)return el("div",{class:"meet"},calIcon(),(m.podpis?"Podpis ":"Schůzka ")+fmtMeet(m.start)+(m.online?" · online":""));const lm=lastMeeting(l);return lm&&l.stage==="probehla"?el("div",{class:"meet past"},calIcon(),"Byla "+fmtMeet(lm.start)):null})(),
     ACTIVE(l.stage)?el("div",{class:"next "+s},s==="none"?"Chybí další krok":[el("span",{class:"d"},s==="late"?"Po termínu "+fmtDate(l.nextDate):s==="today"?"Dnes":fmtDate(l.nextDate)),l.nextStep?el("span",{},l.nextStep):null]):null,
+    /* patička: jen Nezvedl + Zpráva + posun o fázi dál (zpět jen v detailu); otevření = klik kamkoli na kartu */
     el("div",{class:"foot"},
-      el("span",{},el("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openEdit(l)}},"Otevřít"),
-        ACTIVE(l.stage)&&l.phone?el("button",{class:"open",type:"button",style:"color:var(--red);margin-left:6px",title:"Zapsat: volal, nezvedl",onclick:e=>{e.stopPropagation();quickNo(l)}},"Nezvedl"):null,
-        !l.shared&&!SIGNED(l.stage)&&!(l.items||[]).length&&clientOfLead(l)?el("button",{class:"open",type:"button",style:"color:var(--label2);margin-left:6px",title:"Výroční schůzka bez novinek – vrátit do Klientů",onclick:e=>{e.stopPropagation();leadToClients(l)}},"Do klientů"):null,
-        l.phone?el("button",{class:"open",type:"button",style:"color:var(--green);margin-left:6px",title:"Potvrzení schůzky / zpráva",onclick:e=>{e.stopPropagation();openMsg(leadMsgCtx(l),null,r=>logLeadMsg(l,r))}},"Zpráva"):null),
+      el("span",{},
+        ACTIVE(l.stage)&&l.phone?el("button",{class:"open",type:"button",title:"Zapsat: volal, nezvedl",onclick:e=>{e.stopPropagation();quickNo(l)}},"Nezvedl"):null,
+        l.phone||l.email?el("button",{class:"open",type:"button",title:"Potvrzení schůzky / zpráva",onclick:e=>{e.stopPropagation();openMsg(leadMsgCtx(l),null,r=>logLeadMsg(l,r))}},"Zpráva"):null),
       el("div",{class:"stepper"},
         DEAD(l.stage)?el("button",{type:"button",class:"txt",onclick:e=>{e.stopPropagation();moveTo(l,"kontaktovan")}},"Oživit"):null,
-        i>0&&!DEAD(l.stage)?el("button",{type:"button","aria-label":"O fázi zpět",title:"O fázi zpět",onclick:e=>{e.stopPropagation();moveTo(l,STAGES[i-1].k)}},"‹"):null,
         i<STAGES.findIndex(s=>s.k==="vyplaceno")?el("button",{type:"button","aria-label":"Posunout dál",title:"Posunout dál",onclick:e=>{e.stopPropagation();moveTo(l,STAGES[i+1].k)}},"›"):null)));
   if(l.shared){c.draggable=false;const sp=c.querySelector(".stepper");if(sp)sp.remove()}
   if(window.Docs)try{const ow=docOwnerLead(l);Docs.dropTarget(c,ow);const b=Docs.badge(ow),tg=c.querySelector(".tags");if(b&&tg)tg.append(b)}catch(err){console.warn("soubory",err)}
@@ -3576,8 +3595,7 @@ function otherIncomeItemSheet(it,idx,list){
   const del=()=>{saveOtherIncomes(list.filter((_,i)=>i!==idx));$("edDlg").close()};
   openSheet(isNew?"Nový příjem":"Upravit příjem",[wrap,
     el("p",{class:"hint"},"Nepočítá se do statistik ani historie viditelné nadřízenému."),
-    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"),
-      isNew?null:el("button",{type:"button",class:"chipbtn no",onclick:del},"Smazat"))]);
+    isNew?null:el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn no",onclick:del},"Smazat"))],{save});
 }
 function renderOtherIncomes(){
   const box=$("mOstEdit");if(!box)return;
@@ -4010,7 +4028,7 @@ function srvCard(e){
     el("div",{class:"sc-meta"},e.last?"Poslední schůzka "+fmtDate(e.last)+" "+e.last.slice(0,4):"Bez schůzky v kalendáři",e.products.length?" · "+e.active.length+" "+plural(e.active.length,"smlouva","smlouvy","smluv"):"",e.snooze?" · odloženo do "+fmtDate(e.snooze):"",lastLog?" · "+lastLog.t+" "+fmtDate(lastLog.d.slice(0,10)):""),
     el("div",{class:"srvbtns"},
       el("button",{type:"button",class:"ok",onclick:()=>srvCall(e,true)},"Dovolal"),
-      el("button",{type:"button",class:"no",onclick:()=>srvCall(e,false)},"Nedovolal"),
+      el("button",{type:"button",class:"no",onclick:()=>srvCall(e,false)},"Nezvedl"),
       el("span",{class:"sep"}),el("span",{class:"lbl"},"Odložit"),pp("w","týden"),pp("m","měsíc"),pp("q","kvartál"),pp("y","rok"))));
 }
 /* ===== Štafle: klienti po měsících podle poslední schůzky; měsíc jde u každého ručně přehodit (pole stafleM u klienta) ===== */
@@ -4120,7 +4138,7 @@ async function srvCall(e,ok){
   try{const rec=await ensureClient(e);const now=new Date().toISOString(), n=(rec.log||[]).filter(x=>x.call==="no").length+1;
     const log=[...(rec.log||[]),{d:now,t:ok?"Hovor proběhl":"Nezvedl"+(n>1?" ("+n+". pokus)":""),call:ok?"yes":"no"}].slice(-100);
     const patch={log,lastContact:now};if(!ok)patch.servisNext=addWorkDays(1);
-    await db.doc("clients/"+rec.id).update(patch);toast(ok?"Zapsáno – domluv schůzku „"+(calCfg().prefix||"VK:")+" "+surnameOfDisplay(e.name)+"“":"Nezvedl · zkusíš "+fmtDate(patch.servisNext));
+    await db.doc("clients/"+rec.id).update(patch);toast(ok?"Zapsáno – domluv schůzku „"+meetTitle(e.name,false,calCfg().prefix||"VK:")+"“":"Nezvedl · zkusíš "+fmtDate(patch.servisNext));
     if(!ok)offerNoAnswerSms({name:e.name,phone:e.phone||rec.phone||""},log,async r=>{try{const l2=[...log,{d:new Date().toISOString(),t:"Poslána zpráva ("+r.ch+"): "+r.tpl,msg:r.ch}].slice(-100);await db.doc("clients/"+rec.id).update({log:l2});rec.log=l2}catch(x){}})}catch(err){toast("Nepodařilo se uložit")}
 }
 /* ručně přidaní klienti do dnešního volacího bloku: settings.callQ={d:den,ids:[id záznamu v clients]} – platí jen pro daný den */
@@ -4226,7 +4244,7 @@ async function syncStornoToLead(p){
   const items=(l.items||[]).map((it,i)=>{if(i!==p.src.idx)return it;const o={...it};if(p.status==="ended"&&p.to){o.storno=true;o.zal=p.from||l.signedAt;o.zan=p.to}else{delete o.storno;delete o.zal;delete o.zan}return o});
   try{await db.doc("leads/"+l.id).update({items,updatedAt:new Date().toISOString()});toast(p.status==="ended"?"Storno zapsáno do výdělku":"Storno zrušeno")}catch(err){}
 }
-$("addClient").onclick=async()=>{try{const r=await db.collection("clients").add({name:"Nový klient",phone:"",email:"",note:"",products:[],log:[],createdAt:new Date().toISOString()});setTimeout(()=>{const e=clientEntries().find(x=>x.rec?.id===r.id);if(e)openClient(e)},50)}catch(err){toast("Nepodařilo se uložit")}};
+async function addClientRec(){try{const r=await db.collection("clients").add({name:"Nový klient",phone:"",email:"",note:"",products:[],log:[],createdAt:new Date().toISOString()});setTimeout(()=>{const e=clientEntries().find(x=>x.rec?.id===r.id);if(e)openClient(e)},50)}catch(err){toast("Nepodařilo se uložit")}}
 $("cliSearch").addEventListener("input",ev=>{cliQ=ev.target.value.trim();cliShow=10;renderClients()});
 /* historie kalendáře – všechny schůzky s prefixem za celou dobu */
 let histBusy=false;
@@ -4355,7 +4373,6 @@ function openToday(preserve){
   if(blockIds.length)btns.push(el("button",{type:"button",onclick:()=>openCallBlock(callBlockIds())},"📞 Začít volat ("+blockIds.length+")"));
   if(dow===5||dow===6||dow===0)btns.push(el("button",{type:"button",class:"sec",onclick:weekReportPDF},"📄 PDF týdne pro nadřízeného"));
   if(btns.length)nodes.push(el("div",{class:"tdbtns"},btns));
-  if(typeof asTodayNodes==="function")nodes.push(...asTodayNodes());
   nodes.push(...tdSection("Dnešní schůzky",D.meets.map(ev=>{const row=tdRow(ev.name||ev.title||"Schůzka",fmtMeet(ev.start)+(ev.online?" · online":""),new Date(ev.start)<new Date()?"proběhla":"dnes","green",()=>{const l=leads.find(l=>(l.meetings||[]).some(m=>m.id===ev.id))||leads.find(l=>evMatches(ev,l));if(l){$("edDlg").close();openEdit(l)}});
     if(!ev.online)return row;row.style.flex="1";row.style.minWidth="0";
     return el("div",{style:"display:flex;align-items:center;gap:8px;padding-right:10px"},row,el("button",{type:"button",class:"chipbtn",style:"background:var(--tint);color:#fff;white-space:nowrap",onclick:()=>joinMeet(ev.id)},"📹 Připojit"))}),calState==="ok"?"Dnes nemáš žádnou schůzku.":"Kalendář se ještě načítá nebo není připojený."));
@@ -4385,9 +4402,9 @@ function openToday(preserve){
     return tdTask(k,false,l.name||"Bez jména","Poslat shrnutí schůzky na mail · chybí e-mail","doplnit e-mail ›","orange",()=>{$("edDlg").close();openEdit(l)});
   }),""));
   {const qe=callQEntries();if(qe.length)nodes.push(...tdTasks("Přidáno do volacího bloku",qe.map(e=>tdTask("qcall:"+e.rec.id,true,e.name,daysTxt(e)+(e.phone?" · "+fmtPhone(e.phone):""),"ze servisu","orange",()=>{$("edDlg").close();openClient(e)},async()=>{await callQSet(callQIds().filter(x=>x!==e.rec.id))})),""))}
-  nodes.push(...tdTasks("Komu zavolat",D.calls.slice(0,tdCallShow).map(l=>{const s=dueState(l);return tdTask("call:"+l.id,true,l.name||"Bez jména",(l.nextStep||ST(l.stage).t)+(l.phone?" · "+fmtPhone(l.phone):""),s==="late"?"po termínu "+fmtDate(l.nextDate):s==="today"?"dnes":"bez kroku",s==="late"?"red":s==="today"?"orange":"",()=>{$("edDlg").close();openEdit(l)},
-    async()=>{const now=new Date().toISOString();try{await db.doc("leads/"+l.id).update({nextDate:addDaysFrom(todayStr(),1),nextStep:l.nextStep||"Zavolat",updatedAt:now})}catch(e){}})}),"Všechno máš naplánované."));
-  if(D.calls.length>tdCallShow)nodes.push(moreBtn(D.calls.length-tdCallShow,()=>{tdCallShow+=5;const st=$("edBody").scrollTop;openToday(true);$("edBody").scrollTop=st}));
+  {const L=dnesItems({today:true});
+    nodes.push(el("h3",{class:"sechead"},"Dnes udělat"+(L.length?" · "+L.length:"")),L.length?el("div",{class:"group"},L.slice(0,tdCallShow).map(x=>x.row(true)).filter(Boolean)):el("div",{class:"tdempty"},"Všechno máš naplánované."));
+    if(L.length>tdCallShow)nodes.push(moreBtn(L.length-tdCallShow,()=>{tdCallShow+=5;const st=$("edBody").scrollTop;openToday(true);$("edBody").scrollTop=st}))}
   {const U=uvDueCases();if(U.length)nodes.push(...tdTasks("Úvěry – další kroky",U.map(c=>tdTask("uv:"+c.id+":"+c.nextDate,false,c.name||"Úvěr",(c.nextStep||"Další krok")+(c.q&&c.q.typ==="hypo"?" · hypotéka":""),c.nextDate<t?"po termínu "+fmtDate(c.nextDate):"dnes",c.nextDate<t?"red":"orange",()=>{$("edDlg").close();openUvCase(c.id)})),""))}
   if(D.rec.length)nodes.push(...tdTasks("Nábor – ozvat se",D.rec.map(r=>tdTask("rec:"+r.id,true,r.name||"Kandidát",RS(r.stage).t+(r.next?" · "+r.next:"")+(r.phone?" · "+fmtPhone(r.phone):""),r.nextDate<t?"po termínu "+fmtDate(r.nextDate):"dnes",r.nextDate<t?"red":"orange",()=>{openRecruit(r)},async()=>recUpd(r,{nextDate:addDaysFrom(todayStr(),1)}))),""));
   nodes.push(...tdTasks("Konce fixací úvěrů",D.fix.map(x=>tdTask("fix:"+x.e.id+":"+pk(x.p)+":"+x.date,false,x.e.name,(x.p.type)+(x.p.company?" · "+x.p.company:"")+" · fixace "+x.p.fix+" let od "+fmtDate(x.p.from)+" "+x.p.from.slice(0,4),x.d<0?"skončila "+fmtDate(x.date):"za "+x.d+" "+plural(x.d,"den","dny","dní"),x.d<=60?"red":"orange",()=>{$("edDlg").close();openClient(x.e)})),"V příštích 4 měsících nekončí žádná fixace. (Fixaci zadáš u hypotéky/úvěru v kartě klienta.)"));
@@ -4400,15 +4417,17 @@ function openToday(preserve){
 /* volací blok */
 /* zápis schůzky do kalendáře (je-li to možné) a do leadu – společné pro formulář v leadu, Kalendář, nahrávky i rezervace.
    opt.moveStage:false = fázi nesahat (jinak se lead přesune do „Schůzka domluvena“) */
+/* název schůzky v kalendáři – všude stejně: „VK: Titul Jméno Příjmení“, online „… (online)“ */
+function meetTitle(name,online,prefix){const p=prefix==null?calCfg().prefix:prefix;return (p?p.replace(/:?\s*$/,"")+": ":"")+(String(name||"").trim()||"Schůzka")+(online?" (online)":"")}
 async function saveMeeting(l,start,online,opt={}){
   const cfg=calCfg(), canWrite=!!(GAuth.token()&&GAuth.hasScope("calendar.events")&&cfg.prefix), startISO=start.toISOString();
   let evId=null,evErr=null;
   if(canWrite){
     try{
-      const end=new Date(start.getTime()+45*60000);
-      const title=(cfg.prefix?cfg.prefix+" ":"")+(l.name||"Schůzka")+(online?" (online)":"");
+      const end=new Date(start.getTime()+DZS.len*60000);
+      const title=meetTitle(l.name,online,cfg.prefix);
       const base="https://www.googleapis.com/calendar/v3/calendars/"+encodeURIComponent(cfg.id)+"/events";
-      const body={summary:title,location:online?"":OFFICE_PLACE,start:{dateTime:startISO},end:{dateTime:end.toISOString()}};
+      const body={summary:title,location:online?"":(opt.place||OFFICE_PLACE),start:{dateTime:startISO},end:{dateTime:end.toISOString()}};
       /* termín už zablokovaný z webu (rezervace) → jen přejmenovat na klienta, nová událost se nezakládá */
       if(opt.holdId){const pj=JSON.stringify({...body,description:"",extendedProperties:{private:{zfpHold:"0"}}}),hdr={"Content-Type":"application/json"},hu=base+"/"+encodeURIComponent(opt.holdId);
         const tryPatch=async()=>{try{const r=await gfetch(hu,{method:"PATCH",headers:hdr,body:pj});const j=await r.json();return j&&j.id||null}catch(e){return null}};
@@ -4444,13 +4463,21 @@ async function leadPatch(l,patch){
 async function leadLogCall(l,res,text){
   const now=new Date().toISOString(), cur=leads.find(x=>x.id===l.id)||l, no=res==="no", extra=String(text||"").trim();
   const n=(cur.log||[]).filter(x=>x.call==="no").length+1;
-  const t=(no?"Volal, nezvedl"+(n>1?" ("+n+". pokus)":""):"Volal · hovor proběhl")+(extra?" – "+extra:"");
+  const t=(no?"Nezvedl"+(n>1?" ("+n+". pokus)":""):"Hovor proběhl")+(extra?" – "+extra:"");
   const log=[...(cur.log||[]),{d:now,t,call:no?"no":"yes"}].slice(-100);
   const patch={log,lastContact:now,updatedAt:now};
   if(no&&(!cur.nextDate||cur.nextDate<=todayStr())){patch.nextDate=addWorkDays(1);if(!cur.nextStep)patch.nextStep="Zavolat znovu"}
   await db.doc("leads/"+cur.id).update(patch);
   if(no)offerNoAnswerSms(leadMsgCtx(cur),log,r=>logLeadMsg(cur,r),cur);
 }
+/* po domluvení schůzky (z leadu i ze záložky Kalendář): potvrzení klientovi SMS nebo e-mailem */
+function meetDoneSheet(l,r,online,onDone){const cfg=calCfg(),{evId,startISO}=r;
+  const ctx={name:l.name,phone:l.phone,email:l.email,start:startISO,online,meetId:evId};
+  openSheet("Schůzka domluvena",[
+    el("div",{class:"tdh"},el("div",{class:"big"},"Hotovo ✓"),el("div",{class:"s"},l.name+" · "+fmtMeet(startISO)+(online?" · online":"")+(evId?" · zapsáno do kalendáře":cfg.prefix?" · kalendář nedostupný, uloženo aspoň do leadu":" · zápis do kalendáře čeká na nastavení předpony schůzek"))),
+    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>openMsg(ctx,"potvrzeni",x=>{logLeadMsg(l,x);if(onDone)onDone()})},"✉︎ Potvrdit SMS / e-mailem")),
+    onDone?el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>onDone()},"Pokračovat")):null
+  ])}
 function scheduleMeeting(l,onDone){
   const cfg=calCfg(), canWrite=!!(GAuth.token()&&GAuth.hasScope("calendar.events")&&cfg.prefix);
   const def=new Date();def.setDate(def.getDate()+1);def.setHours(10,0,0,0);
@@ -4461,19 +4488,13 @@ function scheduleMeeting(l,onDone){
   saveBtn.onclick=async()=>{
     if(!dt.value){toast("Vyber datum a čas");return}
     const start=new Date(dt.value), online=onl.checked;
-    const {evId,startISO}=await saveMeeting(l,start,online);
-    const ctx={name:l.name,phone:l.phone,email:l.email,start:startISO,online,meetId:evId};
-    openSheet("Schůzka domluvena",[
-      el("div",{class:"tdh"},el("div",{class:"big"},"Hotovo ✓"),el("div",{class:"s"},fmtMeet(startISO)+(online?" · online":"")+(evId?" · zapsáno do kalendáře":cfg.prefix?" · kalendář nedostupný, uloženo aspoň do leadu":" · zápis do kalendáře čeká na nastavení předpony schůzek"))),
-      el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>openMsg(ctx,"potvrzeni",r=>{logLeadMsg(l,r);if(onDone)onDone()})},"✉︎ Poslat potvrzení schůzky")),
-      el("div",{class:"chips"},el("button",{type:"button",onclick:()=>{if(onDone)onDone()}},"Hotovo, pokračovat"))
-    ]);
+    const r=await saveMeeting(l,start,online);
+    meetDoneSheet(l,r,online,onDone);
   };
   openSheet("Kdy je schůzka?",[
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Datum a čas"),dt),el("div",{class:"frow"},el("label",{},"Online"),onl)),
-    !canWrite?el("p",{class:"hint"},cfg.prefix?"Zápis do kalendáře čeká na povolení – klikni vpravo nahoře na ✓ a „Povolit zápis úkolů“.":"Do kalendáře se zapíše, až v nastavení synchronizace vyplníš začátek názvu schůzek."):null,
-    el("div",{class:"chips"},saveBtn)
-  ]);
+    !canWrite?calWriteHint(cfg):null
+  ],{save:()=>saveBtn.onclick()});
 }
 function openCallBlock(ids,i=0){
   const isCl=x=>typeof x.id==="string"&&/^[clk]:/.test(x.id);
@@ -4926,7 +4947,10 @@ const AKV_PTYPE=[["poradce","Finanční poradce"],["banka","Banka"],["pojistovna
 const AKV_LI=[["Finanční poradce","finanční poradce Brno"],["Hypoteční specialista","hypoteční specialista Brno"],["Bankéř","bankéř Brno"],["Investiční specialista","investiční specialista banka Brno"],["Pojišťovací poradce","pojišťovací poradce Brno"],["Úvěrový specialista","úvěrový specialista Brno"]];
 const akvSt=(L,k)=>L.find(x=>x.k===k)||L[0];
 const akvNorm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\b(a\.?\s?s\.?|s\.?\s?r\.?\s?o\.?|spol\.?|se|k\.?\s?s\.?|v\.?\s?o\.?\s?s\.?)\b/g,"").replace(/[^a-z0-9]/g,"");
-async function akvUpd(col,r,patch){Object.assign(r,patch);try{await db.doc(col+"/"+r.id).update({...patch,updatedAt:new Date().toISOString()})}catch(e){toast("Nepodařilo se uložit")}}
+/* nový záznam (firma / kolega) je jen koncept bez id – do úložiště se zapíše až s vyplněným názvem, prázdný se po zavření nikde neobjeví */
+async function akvUpd(col,r,patch){Object.assign(r,patch);
+  if(!r.id){if(!String(r.name||"").trim())return;const{id,...data}=r;try{const x=await db.collection(col).add({...data,createdAt:new Date().toISOString()});r.id=x.id}catch(e){toast("Nepodařilo se uložit")}return}
+  try{await db.doc(col+"/"+r.id).update({...patch,updatedAt:new Date().toISOString()})}catch(e){toast("Nepodařilo se uložit")}}
 function akvBenTags(b){return (b||[]).map(k=>el("span",{class:"tag akvben akv"+k},(AKV_BEN.find(x=>x[0]===k)||[k,k])[1]))}
 function akvDot(S){return el("span",{class:"akvst",style:"--c:"+S.c},S.t)}
 function akvSinceTxt(p){if(p.sinceDate){const d=new Date(p.sinceDate),n=new Date(),m=(n.getFullYear()-d.getFullYear())*12+n.getMonth()-d.getMonth();return "v registru od "+fmtDate(p.sinceDate)+" "+p.sinceDate.slice(0,4)+" ("+(m<1?"tento měsíc":m+" měs.")+")"}return akvYears(p.since)}
@@ -4972,17 +4996,20 @@ function renderAkv(){
   const pq=akvNorm(akvP.q);
   const pl=akvLidi.filter(p=>(!akvP.hideNo||p.stage!=="nezajem")&&(!akvP.type||(akvP.type==="cnb"?p.src==="cnb":p.type===akvP.type))&&(!pq||akvNorm([p.name,p.company,p.role,p.obec,p.note].join(" ")).includes(pq)))
     .sort((a,b)=>AKV_PST.findIndex(s=>s.k===(a.stage||"tip"))-AKV_PST.findIndex(s=>s.k===(b.stage||"tip"))||String(b.sinceDate||b.since||"").localeCompare(String(a.sinceDate||a.since||""))||(a.name||"").localeCompare(b.name||"","cs"));
-  $("akvPType").replaceChildren(...[["","Vše"],["cnb","Registr ČNB"],...AKV_PTYPE].map(([k,t])=>el("button",{type:"button",class:"chipbtn"+(akvP.type===k?" on":""),onclick:()=>{akvP.type=k;renderAkv()}},t)));
+  $("akvPType").replaceChildren(...[["","Vše"],["cnb","Registr ČNB"],...AKV_PTYPE].map(([k,t])=>el("button",{type:"button",class:"chipbtn"+(akvP.type===k?" on":""),onclick:()=>{akvP.type=k;renderAkv()}},t)),
+    el("button",{type:"button",class:"chipbtn"+(akvP.hideNo?"":" on"),onclick:()=>{akvP.hideNo=!akvP.hideNo;renderAkv()}},akvP.hideNo?"Ukázat i nezájem":"Skrýt nezájem"));
   $("akvPList").replaceChildren(...(pl.length?pl.map(p=>el("button",{type:"button",class:"row row-btn",onclick:()=>openAkvLide(p)},
       el("span",{class:"main"},el("div",{class:"t"},p.name||"Bez jména"),
         el("div",{class:"s"},[p.company||p.role,p.obec,akvSinceTxt(p)].filter(Boolean).join(" · "))),
       akvDot(akvSt(AKV_PST,p.stage)),chev()))
     :[el("div",{class:"row"},el("span",{class:"main"},el("div",{class:"s",style:"white-space:normal"},akvLidi.length?"Filtru nic neodpovídá.":"Zatím nikdo. Otevři si hledání na LinkedInu níž a zajímavé lidi sem přidávej tlačítkem + Kolega.")))]));
-  $("akvLi").replaceChildren(...AKV_LI.map(([t,kw])=>el("a",{class:"chipbtn",href:"https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(kw)+"&origin=GLOBAL_SEARCH_HEADER",target:"_blank",rel:"noopener",style:"text-decoration:none"},"in · "+t)));
+  /* odkazy ven – řádky s ikonou a šipkou, ať se nepletou s filtračními čipy */
+  $("akvLi").replaceChildren(...AKV_LI.map(([t,kw])=>el("a",{class:"row row-btn akvlink",href:"https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(kw)+"&origin=GLOBAL_SEARCH_HEADER",target:"_blank",rel:"noopener"},
+    el("span",{class:"lnk-ic","aria-hidden":"true"},"in"),el("span",{class:"main"},el("div",{class:"t"},t),el("div",{class:"s"},"Hledat na LinkedInu: „"+kw+"“")),el("span",{class:"end","aria-hidden":"true"},"↗"))));
 }
 
 function openAkvFirma(f0,isNew){
-  const f=akvFirmy.find(x=>x.id===f0.id)||f0, upd=p=>akvUpd("akvFirmy",f,p);
+  const f=f0.id&&akvFirmy.find(x=>x.id===f0.id)||f0, upd=p=>akvUpd("akvFirmy",f,p);
   const inp=(k,ph,type)=>{const i=el("input",{placeholder:ph,type:type||"text"});i.value=f[k]||"";i.addEventListener("change",()=>upd({[k]:i.value.trim()}));return i};
   const nm=inp("name","Název firmy");nm.addEventListener("change",()=>{$("edTitle").textContent=nm.value.trim()||"Firma"});
   const stg=el("select",{},AKV_FST.map(s=>el("option",{value:s.k},s.t)));stg.value=f.stage||"nova";stg.addEventListener("change",()=>upd({stage:stg.value,[stg.value+"At"]:new Date().toISOString()}).then(renderAkv));
@@ -5009,13 +5036,13 @@ function openAkvFirma(f0,isNew){
     el("div",{class:"chips"},tel?el("a",{class:"chipbtn",href:"tel:"+tel,style:"text-decoration:none"},"📞 Zavolat"):null,f.email?el("a",{class:"chipbtn",href:"mailto:"+f.email,style:"text-decoration:none"},"✉️ E-mail"):null,
       /^https?:\/\//.test(f.src||"")?el("a",{class:"chipbtn",href:f.src,target:"_blank",rel:"noopener",style:"text-decoration:none"},"Otevřít inzerát"):null),
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámka"),ta("note","výše příspěvku, co jste si řekli, další krok"))),
-    el("div",{class:"group"},del)]);
+    f.id?el("div",{class:"group"},del):el("p",{class:"hint"},"Firma se uloží, jakmile vyplníš název.")]);
   if(isNew)setTimeout(()=>nm.focus(),80);
 }
-async function addAkvFirma(){try{const now=new Date().toISOString();const r=await db.collection("akvFirmy").add({name:"",city:"",ben:[],stage:"nova",positions:"",cName:"",cRole:"",phone:"",email:"",src:"",note:"",createdAt:now});setTimeout(()=>{const x=akvFirmy.find(y=>y.id===r.id);if(x)openAkvFirma(x,true)},60)}catch(e){toast("Nepodařilo se uložit")}}
+function addAkvFirma(){openAkvFirma({name:"",city:"",ben:[],stage:"nova",positions:"",cName:"",cRole:"",phone:"",email:"",src:"",note:""},true)}
 
 function openAkvLide(p0,isNew){
-  const p=akvLidi.find(x=>x.id===p0.id)||p0, upd=x=>akvUpd("akvLidi",p,x);
+  const p=p0.id&&akvLidi.find(x=>x.id===p0.id)||p0, upd=x=>akvUpd("akvLidi",p,x);
   const inp=(k,ph,type)=>{const i=el("input",{placeholder:ph,type:type||"text"});i.value=p[k]||"";i.addEventListener("change",()=>upd({[k]:type==="number"?(+i.value||null):i.value.trim()}));return i};
   const nm=inp("name","Jméno a příjmení");nm.addEventListener("change",()=>{$("edTitle").textContent=nm.value.trim()||"Kolega"});
   const typ=el("select",{},el("option",{value:""},"—"),AKV_PTYPE.map(([k,t])=>el("option",{value:k},t)));typ.value=p.type||"";typ.addEventListener("change",()=>upd({type:typ.value}));
@@ -5039,11 +5066,11 @@ function openAkvLide(p0,isNew){
     el("div",{class:"chips"},tel?el("a",{class:"chipbtn",href:"tel:"+tel,style:"text-decoration:none"},"📞 Zavolat"):null,
       /^https?:\/\//.test(p.linkedin||"")?el("a",{class:"chipbtn",href:p.linkedin,target:"_blank",rel:"noopener",style:"text-decoration:none"},"Profil na LinkedInu"):(p.name?el("a",{class:"chipbtn",href:"https://www.linkedin.com/search/results/people/?keywords="+encodeURIComponent(p.name),target:"_blank",rel:"noopener",style:"text-decoration:none"},"in · Najít na LinkedInu"):null)),
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámka"),ta)),
-    el("div",{class:"chips"},toRec),
-    el("div",{class:"group"},del)]);
+    p.id?el("div",{class:"chips"},toRec):null,
+    p.id?el("div",{class:"group"},del):el("p",{class:"hint"},"Kolega se uloží, jakmile vyplníš jméno.")]);
   if(isNew)setTimeout(()=>nm.focus(),80);
 }
-async function addAkvLide(){try{const now=new Date().toISOString();const r=await db.collection("akvLidi").add({name:"",type:"",company:"",role:"",since:null,phone:"",email:"",linkedin:"",note:"",stage:"tip",createdAt:now});setTimeout(()=>{const x=akvLidi.find(y=>y.id===r.id);if(x)openAkvLide(x,true)},60)}catch(e){toast("Nepodařilo se uložit")}}
+function addAkvLide(){openAkvLide({name:"",type:"",company:"",role:"",since:null,phone:"",email:"",linkedin:"",note:"",stage:"tip"},true)}
 
 /* import seznamu firem – JSON pole nebo CSV (oddělovač ; nebo ,) se sloupci firma, obec, pozice, benefity, kontakt_jmeno, kontakt_role, telefon, email, zdroj, poznamka */
 function akvParseCsv(txt){
@@ -5077,7 +5104,7 @@ async function akvImport(file){
     toast("Přidáno "+add+" "+plural(add,"firma","firmy","firem")+(merged?", doplněno "+merged:""));
   }catch(e){toast("Soubor se nepodařilo načíst")}
 }
-$("akvAddF").onclick=addAkvFirma;$("akvAddP").onclick=addAkvLide;
+$("akvAddP").onclick=addAkvLide;
 $("akvCnbBtn").onclick=()=>$("akvCnb").click();
 $("akvCnb").addEventListener("change",e=>{const f=e.target.files[0];e.target.value="";if(f)akvImportCnb(f)});
 $("akvImpBtn").onclick=()=>$("akvImp").click();
@@ -5297,7 +5324,7 @@ function openMsg(ctx,tplId,onSent){
       tel?el("button",{type:"button",class:"sec",onclick:()=>{window.open("https://wa.me/"+wa+"?text="+encodeURIComponent(ta.value),"_blank");sent("WhatsApp")}},"WhatsApp"):null,
       !mailInp&&ctx.email?el("button",{type:"button",class:"sec",onclick:sendMail},"E-mail"):null,
       el("button",{type:"button",class:"sec",onclick:async()=>{try{await navigator.clipboard.writeText(ta.value);toast("Zkopírováno");sent("zkopírováno")}catch(e){ta.select();toast("Označeno – zkopíruj")}}},"Kopírovat")),
-    el("p",{class:"hint"},"Šablony a podpis upravíš v nastavení (tlačítko ✓ vpravo nahoře)."))]);
+    el("p",{class:"hint"},"Šablony a podpis upravíš v Nastavení."))]);
 }
 /* jednorázově: ve vzoru „Rezervace schůzky“ dát odkaz na konec – Zprávy na iPhonu ukážou náhled (logo, obrázek) jen u odkazu na konci */
 async function tplMigrate(){
@@ -5383,7 +5410,11 @@ async function weeklyDriveBackup(){try{
   for(const f of (r.files||[]).slice(8))await gfetch("https://www.googleapis.com/drive/v3/files/"+f.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})});
 }catch(e){console.warn("backup",e)}}
 let sheetEnter=false;
-function openSheet(title,nodes,opt){if(sheetEnter)$("edDlg").dataset.enter="close";else delete $("edDlg").dataset.enter;sheetEnter=false;$("edTitle").textContent=title;$("edBody").replaceChildren(...nodes.flat().filter(Boolean));const d=$("edDlg");d.classList.toggle("wide",!!(opt&&opt.wide));if(!d.open)d.showModal();$("edBody").scrollTop=0}
+/* opt.save = formulář: vlevo Zrušit (s dotazem na neuložené změny), vpravo Uložit; bez něj čistě zobrazovací okno jen s Hotovo */
+let sheetSave=null,sheetDirty=false;
+function openSheet(title,nodes,opt){if(sheetEnter)$("edDlg").dataset.enter="close";else delete $("edDlg").dataset.enter;sheetEnter=false;$("edTitle").textContent=title;
+  sheetSave=opt&&opt.save||null;sheetDirty=false;$("edDlg").querySelector(".unsv")?.remove();
+  $("edCancel").style.visibility=sheetSave?"visible":"hidden";$("edClose").textContent=sheetSave?(opt.saveLabel||"Uložit"):"Hotovo";$("edBody").replaceChildren(...nodes.flat().filter(Boolean));const d=$("edDlg");d.classList.toggle("wide",!!(opt&&opt.wide));if(!d.open)d.showModal();$("edBody").scrollTop=0}
 /* animované zavírání <dialog> – funguje pro všechna stávající .close() volání beze změny */
 (function(){
   ["edDlg","dlg","dataDlg"].forEach(id=>{
@@ -5397,11 +5428,22 @@ function openSheet(title,nodes,opt){if(sheetEnter)$("edDlg").dataset.enter="clos
       d.addEventListener("animationend",done,{once:true});
       setTimeout(done,340);
     };
-    d.addEventListener("cancel",e=>{if(!closing){e.preventDefault();d.close()}});
-    d.addEventListener("click",e=>{if(e.target===d)d.close()});
+    d.addEventListener("cancel",e=>{e.preventDefault();if(closing)return;const u=d.querySelector(".unsv");if(u){u.remove();return}tryClose(d)});
+    /* klik na pozadí zavře jen zobrazovací okna – detail leadu ani formulář tak nejde omylem zahodit */
+    d.addEventListener("click",e=>{if(e.target===d&&id!=="dlg"&&!(id==="edDlg"&&sheetSave))d.close()});
   });
 })();
-$("edClose").onclick=()=>$("edDlg").close();
+/* zavření okna s formulářem: když je v něm neuložená změna, zeptat se (vlastní okno v appce): Uložit / Zahodit / pokračovat */
+function isDirty(d){if(d.id==="dlg")return dlgDirty();if(d.id==="edDlg")return !!sheetSave&&sheetDirty;return false}
+function tryClose(d){if(!isDirty(d)){d.close();return}askUnsaved(d,()=>{if(d.id==="dlg")$("form").requestSubmit();else $("edClose").click()},()=>d.close())}
+function askUnsaved(d,onSave,onDiscard){d.querySelector(".unsv")?.remove();
+  const box=el("div",{class:"unsv",role:"alertdialog","aria-label":"Neuložené změny"},el("div",{class:"unsv-box"},el("b",{},"Neuložené změny"),el("p",{},"Chceš je uložit, nebo zahodit?"),
+    el("div",{class:"unsv-b"},el("button",{type:"button",onclick:()=>{box.remove();onDiscard()}},"Zahodit"),el("button",{type:"button",class:"sv",onclick:()=>{box.remove();onSave()}},"Uložit")),
+    el("button",{type:"button",class:"unsv-k",onclick:()=>box.remove()},"Pokračovat v úpravách")));
+  d.append(box);box.querySelector(".sv").focus()}
+["input","change"].forEach(ev=>$("edBody").addEventListener(ev,()=>{if(sheetSave)sheetDirty=true}));
+$("edCancel").onclick=()=>tryClose($("edDlg"));
+$("edClose").onclick=()=>{if(sheetSave){const f=sheetSave;Promise.resolve().then(()=>f()).catch(e=>console.warn(e))}else $("edDlg").close()};
 /* Enter v editačním okně = uložit a zavřít (textarea si nechává Enter pro nový řádek) */
 $("edDlg").addEventListener("keydown",e=>{
   if(e.key!=="Enter"||e.defaultPrevented||e.isComposing||e.shiftKey||e.ctrlKey||e.metaKey)return;
@@ -5409,7 +5451,7 @@ $("edDlg").addEventListener("keydown",e=>{
   const task=t.tagName==="TEXTAREA"&&t.getAttribute("aria-label")==="Text úkolu";/* úkol: Enter uloží, Shift+Enter = nový řádek */
   if(!task&&(!/^(INPUT|SELECT)$/.test(t.tagName)||/^(button|submit|checkbox|radio|file)$/.test(t.type||"")))return;
   const body=$("edBody");
-  const sv=[...body.querySelectorAll("button.chipbtn.ok,button.g")].find(b=>/^Uložit/.test(b.textContent.trim()));
+  const sv=sheetSave?$("edClose"):[...body.querySelectorAll("button.chipbtn.ok,button.g")].find(b=>/^Uložit/.test(b.textContent.trim()));
   if(!sv&&!task&&$("edDlg").dataset.enter!=="close")return;
   e.preventDefault();
   t.blur();/* spustí change → uložení pole */
@@ -5540,7 +5582,7 @@ async function moveTo(l,stage){
   if(!SIGNED(stage)&&l.signedAt)patch.signedAt=null;
   if(stage==="vyplaceno")patch.paidAt=todayStr();else if(l.paidAt)patch.paidAt=null;
   if(l.items?.length&&l.pointsManual==null){const pts=leadPointsFromItems(l.items,stage);if(pts!==l.points)patch.points=pts}
-  try{await db.doc("leads/"+l.id).update(patch);if(stage!=="vyplaceno")toast(stage==="podpis"?"Podepsáno"+(l.points?" · +"+kc((+l.points)*quarterRow(CURQ()).rate):""):ST(stage).t);afterStage(before,l.id,from,stage)}
+  try{await db.doc("leads/"+l.id).update(patch);if(stage!=="vyplaceno")toast(stage==="podpis"?"Podepsáno"+(l.points?" · +"+kc((+l.points)*quarterRow(CURQ()).rate):""):ST(stage).t,{undo:true});afterStage(before,l.id,from,stage)}
   catch(e){toast("Nepodařilo se uložit")}
 }
 
@@ -5566,7 +5608,7 @@ function parseEvent(e){
   const tt=(a,b)=>kept.slice(a,b).filter(isT).map(w=>TITLE_CANON[norm(w)]);
   const tPre=tt(0,firstIdx), tPost=tt(lastIdx+1);
   const name=[...tPre,...cap].join(" ")+(tPost.length?", "+tPost.join(" "):"");
-  return {id:e.id,start:e.start.dateTime,title:raw,name,keys:cap.map(norm),key:name?norm(cap[cap.length-1]):"",online:/online|teams|zoom|meet/i.test(raw+" "+(e.location||"")),podpis:/podpis/i.test(raw),link:e.htmlLink||"",place:(e.location||"").trim(),end:e.end&&e.end.dateTime||null,created:e.created||null};
+  return {id:e.id,start:e.start.dateTime,title:raw,name,keys:cap.map(norm),key:name?norm(cap[cap.length-1]):"",online:/\(\s*online\s*\)|\bonline\b/i.test(raw)||/\b(teams|zoom|meet)\b/i.test(raw+" "+(e.location||"")),podpis:/podpis/i.test(raw),link:e.htmlLink||"",place:(e.location||"").trim(),end:e.end&&e.end.dateTime||null,created:e.created||null};
 }
 function evMatches(ev,l){const sn=surnameOf(l.name);if(sn.length<3)return false;return ev.keys.some(k=>k===sn||k===sn+"ovi"||(k.length>4&&sn.length>4&&(k===sn+"a"||sn===k+"a")))}
 function fmtMeet(iso){const d=new Date(iso);const z=n=>String(n).padStart(2,"0");return ["ne","po","út","st","čt","pá","so"][d.getDay()]+" "+d.getDate()+". "+(d.getMonth()+1)+". "+z(d.getHours())+":"+z(d.getMinutes())}
@@ -5644,10 +5686,10 @@ async function addFromCal(name,evs){
   const data={name,phone:"",email:"",source:"",referredBy:"",stage,stageAt:now,items:[],share:null,pointsManual:null,points:null,signedAt,products:[],nextStep,nextDate,note:"",log:[],meetings,lastContact:past?past.start:now,createdAt:now,updatedAt:now};
   try{await db.collection("leads").add(data);toast(name+" přidán do fáze "+ST(stage).t)}catch(e){toast("Nepodařilo se uložit")}
 }
-function calFootText(){const c=calCfg();return c.prefix?"Schůzky „"+c.prefix+" Příjmení“ z kalendáře "+c.name+" za posledních 60 dní a nadcházející. Porady a jiné události se ignorují. Změníš v nastavení synchronizace (tlačítko ✓).":"Z kalendáře se nic nenačítá – v nastavení synchronizace (tlačítko ✓) vyplň začátek názvu schůzek, např. „VK:“."}
-function applyCalItems(items){try{$("calFoot").textContent=calFootText()}catch(e){}if(!calCfg().prefix){calEvents=null;calState="error";calMsg="Nastav začátek názvu schůzek (např. VK:) v nastavení synchronizace – tlačítko ✓ vpravo nahoře.";render();return}calEvents=items.map(parseEvent).filter(Boolean);calState="ok";calMsg="";render();scheduleSync();setTimeout(()=>pushSyncReminders().catch(()=>{}),3000)}
+function calFootText(){const c=calCfg();return c.prefix?"Schůzky „"+c.prefix+" Jméno Příjmení“ z kalendáře "+c.name+" za posledních 60 dní a nadcházející. Porady a jiné události se ignorují. Změníš v nastavení synchronizace (tlačítko ✓).":"Z kalendáře se nic nenačítá – v nastavení synchronizace (tlačítko ✓) vyplň začátek názvu schůzek, např. „VK:“."}
+function applyCalItems(items){try{$("calFoot").textContent=calFootText()}catch(e){}if(!calCfg().prefix){calEvents=null;calState="error";calMsg="Nastav začátek názvu schůzek (např. VK:) v Nastavení.";render();return}calEvents=items.map(parseEvent).filter(Boolean);calState="ok";calMsg="";render();scheduleSync();setTimeout(()=>pushSyncReminders().catch(()=>{}),3000)}
 async function refreshCalendar(){
-  if(!calCfg().prefix){calEvents=null;calState="error";calMsg="Nastav začátek názvu schůzek (např. VK:) v nastavení synchronizace – tlačítko ✓ vpravo nahoře.";try{$("calFoot").textContent=calFootText()}catch(e){}render();return}
+  if(!calCfg().prefix){calEvents=null;calState="error";calMsg="Nastav začátek názvu schůzek (např. VK:) v Nastavení.";try{$("calFoot").textContent=calFootText()}catch(e){}render();return}
   if(!GAuth.token()||!navigator.onLine)return;
   try{const items=await fetchCalendarItems(calCfg().id);lsSet("cal_cache",{at:Date.now(),items});applyCalItems(items)}
   catch(e){console.warn(e);if(!calEvents){calState="error";calMsg=e.code===401?"Přihlášení ke Googlu vypršelo – klepni nahoře na Obnovit.":"Kalendář se nenačetl ("+e.message+").";render()}}
@@ -5795,6 +5837,10 @@ function ctPeopleSearch(q){const n=t=>String(t||"").toLowerCase().normalize("NFD
   for(const l of (leads||[])){if(!l.name||!hit(l.name))continue;const k=n(l.name);if(seen.has(k))continue;seen.add(k);out.push({name:l.name,sub:"Pipeline · "+ST(l.stage).t+(l.phone?" · "+fmtPhone(l.phone):""),c:ST(l.stage).c,r:ACTIVE(l.stage)?0:1})}
   for(const c of (typeof clients!=="undefined"&&clients||[])){if(c.hidden||!c.name||!hit(c.name))continue;const k=n(c.name);if(seen.has(k))continue;seen.add(k);out.push({name:c.name,sub:"Klient"+(c.phone?" · "+fmtPhone(c.phone):""),c:"var(--gray)",r:2})}
   return out.sort((a,b)=>a.r-b.r||a.name.localeCompare(b.name,"cs")).slice(0,7)}
+/* lead podle jména v nové události: přesná shoda (bez diakritiky), jinak jediný aktivní lead se stejným jménem */
+function ctLeadFor(name){const n=norm(name);if(!n)return null;const L=leads.filter(l=>!l.shared);
+  const ex=L.filter(l=>norm(l.name)===n);if(ex.length)return ex.sort((a,b)=>ACTIVE(b.stage)-ACTIVE(a.stage))[0];
+  const sm=L.filter(l=>ACTIVE(l.stage)&&nameToks(l.name).length>1&&nameToks(name).length>1&&sameName(l.name,name));return sm.length===1?sm[0]:null}
 function ctEventSheet(ev,prefill){
   const isNew=!ev, re=prefixRe(), pfx=calCfg().prefix?calCfg().prefix.replace(/:?\s*$/,"")+": ":"";
   const draft={
@@ -5802,7 +5848,7 @@ function ctEventSheet(ev,prefill){
     date:isNew?(prefill?.date||todayStr()):ctDayKey(ev.start),
     allDay:isNew?false:!!ev.allDay,
     start:isNew?(prefill?.time||"09:00"):fmtHM(ev.start),
-    end:isNew?ctAddMin(prefill?.time||"09:00",prefill?.len||30):(ev.end?fmtHM(ev.end):ctAddMin(fmtHM(ev.start),30)),
+    end:isNew?ctAddMin(prefill?.time||"09:00",prefill?.len||DZS.len):(ev.end?fmtHM(ev.end):ctAddMin(fmtHM(ev.start),DZS.len)),
     place:isNew?OFFICE_PLACE:(ev.place||""), online:isNew?false:!!ev.online};
   const body=()=>{
     const nameInp=el("input",{type:"search",placeholder:"Hledat v pipeline nebo napsat jméno","aria-label":"Klient / název",autocomplete:"off",enterkeyhint:"search"});nameInp.value=draft.title;
@@ -5824,7 +5870,7 @@ function ctEventSheet(ev,prefill){
       el("div",{class:"frow"},el("label",{},"Celý den"),el("span",{style:"flex:1"}),adSw)];
     if(!draft.allDay){
       const stInp=el("input",{type:"time","aria-label":"Od"});stInp.value=draft.start;
-      stInp.addEventListener("change",()=>{draft.start=stInp.value;if(draft.end<=draft.start)draft.end=ctAddMin(draft.start,30)});
+      stInp.addEventListener("change",()=>{draft.start=stInp.value;if(draft.end<=draft.start)draft.end=ctAddMin(draft.start,DZS.len)});
       const enInp=el("input",{type:"time","aria-label":"Do"});enInp.value=draft.end;
       enInp.addEventListener("change",()=>draft.end=enInp.value);
       rows.push(el("div",{class:"frow"},el("label",{},"Od"),stInp),el("div",{class:"frow"},el("label",{},"Do"),enInp));
@@ -5842,7 +5888,12 @@ function ctEventSheet(ev,prefill){
   const refresh=()=>wrap.replaceChildren(...body());
   const save=async()=>{
     if(!draft.title.trim()){toast("Zadej jméno klienta");return}
-    const payload={summary:pfx+draft.title.trim()+(draft.online?" (online)":""),location:draft.online?"":(draft.place.trim()||OFFICE_PLACE)};
+    /* nová schůzka s člověkem z pipeline → stejně jako z leadu: zápis k leadu, fáze Schůzka domluvena a potvrzení klientovi */
+    const ld=isNew&&!draft.allDay?ctLeadFor(draft.title):null;
+    if(ld){const st=new Date(draft.date+"T"+draft.start+":00");if(isNaN(st)){toast("Zadej datum a čas");return}
+      try{const r=await saveMeeting(ld,st,draft.online,{place:draft.place.trim()});fetchCalTab(true);setTimeout(()=>dzPublishSlots(true),1200);meetDoneSheet(ld,r,draft.online)}catch(e){toast("Nepodařilo se uložit")}
+      return}
+    const payload={summary:meetTitle(draft.title.trim(),draft.online,pfx),location:draft.online?"":(draft.place.trim()||OFFICE_PLACE)};
     if(draft.allDay){payload.start={date:draft.date};payload.end={date:addDaysFrom(draft.date,1)}}
     else{const s=new Date(draft.date+"T"+draft.start+":00"),en=new Date(draft.date+"T"+draft.end+":00");payload.start={dateTime:s.toISOString()};payload.end={dateTime:en.toISOString()}}
     try{
@@ -5864,8 +5915,7 @@ function ctEventSheet(ev,prefill){
       toast("Smazáno");$("edDlg").close();fetchCalTab(true);setTimeout(()=>dzPublishSlots(true),1200)}catch(e){toast("Nepodařilo se smazat")}
   };
   openSheet(isNew?"Nová událost":"Upravit událost",[wrap,
-    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"),
-      isNew?null:el("button",{type:"button",class:"chipbtn no",onclick:del},"Smazat"))]);
+    isNew?null:el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn no",onclick:del},"Smazat"))],{save});
 }
 /* přetažení události myší/prstem v týdenním pohledu – mění čas (svisle) i den (vodorovně),
    po puštění zapíše nový start/konec do Google Kalendáře přes PATCH a znovu načte data.
@@ -6083,7 +6133,13 @@ async function syncTasks(force){
     lsSet("tasks_sig",sig);lsSet("tasks_at",Date.now());
   }finally{taskBusy=false}
 }
-function taskHintText(){if(!calCfg().prefix)return "Do kalendáře se zapíše, až v nastavení synchronizace vyplníš začátek názvu schůzek.";if(!GAuth.hasScope("calendar.events"))return "Zápis do kalendáře čeká na povolení – klikni vpravo nahoře na ✓ a „Povolit zápis úkolů“.";return "Zapíše se do kalendáře "+calCfg().name+" jako celodenní „"+taskTitle()+"“ na daný den."}
+function taskHintText(){if(!calCfg().prefix)return "";if(!GAuth.hasScope("calendar.events"))return "";return "Zapíše se do kalendáře "+calCfg().name+" jako celodenní „"+taskTitle()+"“ na daný den."}
+/* chybí oprávnění zápisu / předpona schůzek → místo návodu rovnou tlačítko, které to vyřeší */
+function calWriteHint(cfg){cfg=cfg||calCfg();
+  if(!cfg.prefix)return el("p",{class:"taskhint"},"Do kalendáře se zapíše, až v Nastavení vyplníš začátek názvu schůzek. ",el("button",{type:"button",class:"linkbtn",onclick:()=>openSettings()},"Otevřít Nastavení"));
+  if(!GAuth.hasScope("calendar.events"))return el("p",{class:"taskhint"},"Zápis do kalendáře zatím není povolený. ",el("button",{type:"button",class:"linkbtn",onclick:()=>GAuth.login(false)},GAuth.token()?"Povolit zápis do kalendáře":"Přihlásit a povolit zápis"));
+  return null}
+function renderTaskHint(){const h=$("taskHint"),w=calWriteHint();h.replaceChildren(...(w?w.childNodes.length?[...w.childNodes]:[]:[taskHintText()]))}
 
 /* hovor z Pipeline: klepnutí na číslo (tel:) → po návratu do appky se zeptá „Dovolal / Nezvedl“ a zapíše to leadu / klientovi.
    iPhone appce výpis hovorů nedá, proto zápis potvrzuješ jedním klepnutím; hovory vytočené mimo Pipeline appka nevidí. */
@@ -6158,7 +6214,7 @@ async function leadToClients(l0){
 }
 async function quickNo(l0){
   if(!db)return;const l=leads.find(x=>x.id===l0.id)||l0;const now=new Date().toISOString(), n=(l.log||[]).filter(x=>x.call==="no").length+1;
-  const log=[...(l.log||[]),{d:now,t:"Volal, nezvedl"+(n>1?" ("+n+". pokus)":""),call:"no"}].slice(-100);
+  const log=[...(l.log||[]),{d:now,t:"Nezvedl"+(n>1?" ("+n+". pokus)":""),call:"no"}].slice(-100);
   const patch={log,lastContact:now,updatedAt:now};
   if(!l.nextDate||l.nextDate<=todayStr()){patch.nextDate=addWorkDays(1);if(!l.nextStep)patch.nextStep="Zavolat znovu"}
   try{await db.doc("leads/"+l.id).update(patch);toast("Nezvedl · "+(patch.nextDate?"další pokus "+fmtDate(patch.nextDate):"zapsáno"));offerNoAnswerSms(leadMsgCtx(l),log,r=>logLeadMsg(l,r),l)}catch(e){toast("Nepodařilo se uložit")}
@@ -6369,14 +6425,20 @@ function openEdit(l){
   {const lc=l&&clientOfLead(l);if(lc){if(!l.phone&&lc.phone)$("f_phone").value=lc.phone;if(!l.email&&lc.email)$("f_email").value=lc.email;if(!l.address&&lc.address)$("f_address").value=lc.address;if(!l.note&&lc.note)$("f_note").value=lc.note}}$("f_log").value="";
   formItems=(l?.items||[]).map(it=>{const n=normItem(it);return {...n,var:n.var||PROD[n.p]?.def,share:n.share??l?.share??100,_k:++itemSeq}});
   $("f_points").value=l?.pointsManual??(l&&!l.items?.length&&l.points!=null?l.points:"");
-  $("taskHint").textContent=taskHintText();
+  renderTaskHint();
   $("f_logAt").value=localDT();$("delBox").hidden=!l;$("toCliBtn").hidden=!(l&&!l.shared&&!SIGNED(l.stage)&&!(l.items||[]).length);delete $("toCliBtn").dataset.arm;$("toCliBtn").textContent="↩︎ Bez novinek – zpět do Klientů";$("delBtn").hidden=false;$("delConfirm").hidden=true;$("fErr").hidden=true;$("logBox").hidden=!l;
   try{fpLeadBox(l)}catch(err){console.warn("finanční plán",err)}
   {const b=$("docsBox");b.hidden=!l;try{if(l&&window.Docs)Docs.mount(b,docOwnerLead(l));else b.replaceChildren()}catch(err){console.warn("soubory",err);b.hidden=true}}
   mapsLinkSet($("f_map"),$("f_address").value);syncSigned();renderItems();renderLog(l);
   if(typeof Deals!=="undefined")Deals.lockForm(l);
   $("dlg").showModal();$("dlg").querySelector(".sbody").scrollTop=0;if(!l)$("f_name").focus();
+  dlgBase=dlgSnap();
 }
+/* neuložené změny v detailu leadu = pole formuláře a produkty jinak než při otevření (zápis kontaktu, soubory, plán a sdílení se ukládají samy) */
+let dlgBase="";
+function dlgSnap(){const skip="#fpLeadBox,#docsBox,#logBox,#dealBox";
+  return JSON.stringify([[...$("form").querySelectorAll("input,select,textarea")].filter(e=>e.type!=="file"&&!e.closest(skip)).map(e=>e.type==="checkbox"||e.type==="radio"?e.checked:e.value),formItems.map(({_k,...x})=>x)])}
+function dlgDirty(){try{return $("dlg").open&&dlgSnap()!==dlgBase}catch(e){return false}}
 function localDT(d=new Date()){const z=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"T"+z(d.getHours())+":"+z(d.getMinutes())}
 function fmtDT(iso){const d=new Date(iso);if(isNaN(d))return"";const z=n=>String(n).padStart(2,"0");return d.getDate()+". "+(d.getMonth()+1)+". "+d.getFullYear()+" "+z(d.getHours())+":"+z(d.getMinutes())}
 $("f_address").addEventListener("input",()=>mapsLinkSet($("f_map"),$("f_address").value));
@@ -6391,20 +6453,30 @@ async function addLog(t,extra={}){
 $("logBtn").onclick=async()=>{if(await addLog($("f_log").value.trim()))$("f_log").value=""};
 $("callNo").onclick=async()=>{
   const n=(editing?.log||[]).filter(x=>x.call==="no").length+1;
-  if(await addLog("Volal, nezvedl"+(n>1?" ("+n+". pokus)":""),{call:"no"})&&!$("f_date").value){$("f_date").value=addWorkDays(1);toast("Zapsáno · další pokus zítra")}
+  if(await addLog("Nezvedl"+(n>1?" ("+n+". pokus)":""),{call:"no"})&&!$("f_date").value){$("f_date").value=addWorkDays(1);toast("Zapsáno · další pokus zítra")}
   if(editing){const l={...editing,name:$("f_name").value.trim()||editing.name,phone:$("f_phone").value.trim(),email:$("f_email").value.trim()};offerNoAnswerSms(leadMsgCtx(l),editing.log,r=>logLeadMsg(l,r),l)}
 };
-$("callYes").onclick=()=>addLog("Volal · hovor proběhl",{call:"yes"});
+$("callYes").onclick=()=>addLog("Hovor proběhl",{call:"yes"});
 $("msgBtn").onclick=()=>{if(!editing){toast("Nejdřív lead ulož");return}const l={...editing,name:$("f_name").value.trim()||editing.name,phone:$("f_phone").value.trim(),email:$("f_email").value.trim()};openMsg(leadMsgCtx(l),null,r=>{if(r.meetId)setTodo("conf:"+r.meetId,{s:"done",d:todayStr()});addLog("Poslána zpráva ("+r.ch+"): "+r.tpl+(r.start?" · schůzka "+fmtMeet(r.start):""),{msg:r.ch})})};
 $("form").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.defaultPrevented&&!e.isComposing&&e.target.tagName==="SELECT"){e.preventDefault();$("form").requestSubmit()}});
 $("f_log").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("logBtn").click()}});
-$("addBtn").onclick=()=>openEdit(null);
-$("cancelBtn").onclick=()=>$("dlg").close();
+/* „+“ v hlavičce podle záložky – jediné místo pro založení nového záznamu */
+const ADD_BY_VIEW={
+  pipe:["Nový lead",()=>openEdit(null)],
+  cli:["Nový klient",()=>addClientRec()],
+  uv:["Nový úvěrový případ",()=>renderUv(()=>{const b=$("uvBox").querySelector('.uv-bar [data-a="new"]');if(b)b.click()})],
+  fp:["Nový finanční plán",()=>{if(typeof fpOpenNew==="function")fpOpenNew();else{fpNew=true;fpNewQ="";renderFpTab()}}],
+  akv:["Nová firma",()=>addAkvFirma()],
+  net:["Nový kandidát",()=>addRecruit()],
+  pf:["Nová investice klienta",()=>pfInvEdit(null)]};
+function syncAddBtn(){const a=ADD_BY_VIEW[view],b=$("addBtn");b.hidden=!a;if(a){b.title=a[0];b.setAttribute("aria-label",a[0])}}
+$("addBtn").onclick=()=>{const a=ADD_BY_VIEW[view];if(a)a[1]()};
+$("cancelBtn").onclick=()=>tryClose($("dlg"));
 $("delBtn").onclick=()=>{$("delBtn").hidden=true;$("delConfirm").hidden=false};
 $("toCliBtn").onclick=async()=>{const b=$("toCliBtn");if(!b.dataset.arm){b.dataset.arm="1";b.textContent="Opravdu? Klepni znovu – lead zmizí z pipeline, historie jde ke klientovi";setTimeout(()=>{delete b.dataset.arm;b.textContent="↩︎ Bez novinek – zpět do Klientů"},5000);return}
   delete b.dataset.arm;b.textContent="↩︎ Bez novinek – zpět do Klientů";if(editing&&await leadToClients(editing))$("dlg").close()};
 $("delNo").onclick=()=>{$("delBtn").hidden=false;$("delConfirm").hidden=true};
-$("delYes").onclick=async()=>{try{if(editing.shared)await Deals.leave(editing.shared.id);else if(typeof Deals!=="undefined")Deals.afterSave(editing.id,editing.items||[],[]);await db.doc("leads/"+editing.id).delete();$("dlg").close();toast("Lead smazán")}catch(e){showErr(e)}};
+$("delYes").onclick=async()=>{try{if(editing.shared)await Deals.leave(editing.shared.id);else if(typeof Deals!=="undefined")Deals.afterSave(editing.id,editing.items||[],[]);await db.doc("leads/"+editing.id).delete();$("dlg").close();toast("Lead smazán",{undo:true})}catch(e){showErr(e)}};
 function showErr(e){$("fErr").textContent="Uložení se nepovedlo ("+(e.code||"chyba")+"). Zkus to znovu.";$("fErr").hidden=false}
 
 $("form").addEventListener("submit",async e=>{
@@ -6835,7 +6907,7 @@ function pfModelEdit(m){
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Rebalancování"),reb)),
     el("p",{class:"hint"},"Nástroje z nabídky ZFP nebo z odkazu nemusíš mít v seznamu fondů – appka si jejich data stáhne jen pro model. Graf modelu začíná prvním dnem, kdy mají data všechny vybrané nástroje."),
     el("p",{class:"hint"},"Rebalancování: nastavíš třeba 60 % akcie / 40 % dluhopisy. Když akcie za rok vyrostou, poměr se posune třeba na 70/30 a portfolio je rizikovější, než jsi chtěl. „Každý rok vrátit na poměr“ = k 1. lednu se část toho, co vyrostlo, přeleje do toho, co zaostalo, a poměr je zase 60/40. „Nechat volně růst“ = nic se nepřelévá. V reálu každé přelití může stát poplatek a u prodeje do 3 let držení i daň."),
-    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"),norm),del]);
+    el("div",{class:"chips"},norm),del],{save});
 }
 /* ---------- investice klientů: vklady (jednorázové i pravidelné), poplatky po fondech, vývoj hodnoty ---------- */
 /* dokument pfinv: {name, client (id z clients), tgt:"f:slug"|"m:modelId", dip, dep:[{d,a}], reg:{a,freq:m|q|y,from,to}|null,
@@ -7378,7 +7450,7 @@ function pfInvEdit(x,preset,back){
     empBox,
     el("h3",{class:"sechead"},"Poplatky po fondech"),feeBox,modeBox,
     el("p",{class:"hint"},"Předvyplněné z modelu nebo z výchozích poplatků. ZFP Investments a ZFP WI: jen vstupní (standard 3 %, u ZFPI jde zvolit mimořádný snížený). Conseq: vstupní + správa a success fee, které se strhávají každé 3 měsíce od každého vkladu (poprvé po 3 měsících); success fee se počítá ze zisku nad posledním maximem. ZFP Finance je bez poplatků, u penzijních fondů jsou poplatky už v ceně jednotky. Předplacený (Conseq) = vstupní poplatek z cílové částky se strhává z prvních pravidelných plateb, max. 75 % z každé platby; jednorázové vklady platí běžný vstupní poplatek. ZFPI: vstupní poplatek z investované částky – z platby se strhne i/(1+i), při 3 % tedy 2,913 %."),
-    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"),back?el("button",{type:"button",class:"chipbtn",onclick:back},"Zpět"):null),del]);
+    back?el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:back},"Zpět")):null,del],{save});
 }
 /* ---------- vlastní nástroje: ruční ceny (penzijní fondy, ZFP Gold, AUVESTA, SICAV…) a projekty ZFP Finance ---------- */
 function pfManualEdit(f){
@@ -7414,7 +7486,7 @@ function pfManualEdit(f){
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Název"),nameI),el("div",{class:"frow"},el("label",{},"Správce"),mgrI,dl),el("div",{class:"frow"},el("label",{},"Měna"),curSel)),
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Zadávám"),el("span",{style:"flex:1"}),modeSeg)),box,hint,
     f&&f.url?el("div",{class:"chips"},el("a",{class:"chipbtn",href:f.url,target:"_blank",rel:"noopener"},"Zdroj – web společnosti ↗")):null,
-    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"))]);
+    ],{save});
 }
 function pfZfpfEdit(f){
   const isNew=!f;const o=f||{name:"",rate:"",freq:"m",mat:""};
@@ -7429,7 +7501,7 @@ function pfZfpfEdit(f){
     el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Projekt"),nameI),el("div",{class:"frow"},el("label",{},"Úrok"),rateI,el("span",{class:"pfmeta"},"% p. a.")),
       el("div",{class:"frow"},el("label",{},"Výplata úroků"),frq),el("div",{class:"frow"},el("label",{},"Splatnost"),mat)),
     el("p",{class:"hint"},"ZFP Finance nemá složené úročení: jistina zůstává stejná a úroky z ní se klientovi vyplácejí. Appka počítá úrok od data každého vkladu a vyplácí ho podle zvolené frekvence; ke dni splatnosti vrátí jistinu. Klientovi pak přiřadíš investici do tohoto projektu."),
-    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"))]);
+    ],{save});
 }
 function pfZfpfCard(f){
   const u=pfInv.filter(x=>pfItems(x).some(i=>i.tgt==="f:"+f.slug));
@@ -7461,7 +7533,7 @@ function pfFeesEdit(){
     el("div",{class:"group"},...rows,el("div",{class:"frow pffee"},el("span",{class:"pfmeta",style:"flex:1"},"Conseq – přirážka ke kurzu při nákupu fondu v cizí měně"),fxI,el("span",{class:"pfmeta"},"%")),
       el("div",{class:"frow pffee"},el("span",{class:"pfmeta",style:"flex:1"},"Conseq – nákup fondů po připsání vkladu"),lagI,el("span",{class:"pfmeta"},"prac. dní"))),
     el("p",{class:"hint"},"Použijí se u nových modelů a investic (u existujících zůstanou uložené poplatky). DIP varianta ZFP WI se použije, když u investice zapneš „DIP“. ZFP Finance je vždy bez poplatků, penzijní fondy mají poplatky v ceně jednotky. Conseq převádí měnu spotovým kurzem Saxo Bank – appka bere denní kurz ECB, rozdíl (přirážku) můžeš doplnit výše."),
-    el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:save},"Uložit"))]);
+    ],{save});
 }
 /* dřívější „Datum nákupu / Investováno“ u fondu → převod na investici (jednorázově) */
 let pfMig=false;
@@ -7495,7 +7567,6 @@ function renderPf(){
     return;
   }
   const quick=el("div",{class:"chips pfquick"},
-    el("button",{type:"button",class:"chipbtn",onclick:()=>pfInvEdit(null)},"+ Investice klienta"),
     el("button",{type:"button",class:"chipbtn",onclick:()=>pfModelEdit(null)},"+ Modelové portfolio"),
     el("button",{type:"button",class:"chipbtn",onclick:()=>{pfMode="funds";renderPf()}},"Fondy ("+funds.filter(f=>!f.hidden).length+")"));
   const cname=id=>clients.find(c=>c.id===id)?.name||"";
@@ -7513,7 +7584,7 @@ function renderPf(){
     ...(models.length?[el("h3",{class:"sechead"},"Modelová portfolia"),...models.map(pfModelCard)]:[]),
     ...(fq.length?fundSections(fq):[]),
     nothing?el("p",{class:"hint pfempty"},"Nic nenalezeno pro „"+pfSearch+"“."):null,
-    !q&&!cids.length&&!loose.length&&!models.length?el("p",{class:"hint pfempty"},"Začni tlačítkem „+ Investice klienta“ nebo si slož modelové portfolio. Jednotlivé fondy (ZFP WI, ZFP Investments, penzijní fondy, Conseq, ZFP Finance…) najdeš pod „Fondy“."):null);
+    !q&&!cids.length&&!loose.length&&!models.length?el("p",{class:"hint pfempty"},"Začni tlačítkem + nahoře (investice klienta) nebo si slož modelové portfolio. Jednotlivé fondy (ZFP WI, ZFP Investments, penzijní fondy, Conseq, ZFP Finance…) najdeš pod „Fondy“."):null);
 }
 $("pfSearchI")?.addEventListener("input",e=>{pfSearch=e.target.value.trim();renderPf()});
 /* uložená důchodová kalkulace (invalidní, vdovský, sirotčí z IOLDP) v kartě klienta */
@@ -7541,7 +7612,10 @@ function fpHero(e,rec){return fpHeroBtn(fpPlanOf(rec),()=>openFP(e,rec))}
 function fpLeadTarget(l){const c=clientOfLead(l);if(c){const e=clientEntries().find(x=>x.rec&&x.rec.id===c.id)||{id:"c:"+c.id,rec:c,name:c.name};return {e,rec:c}}
   return {e:{id:"l:"+l.id,lead:l,name:l.name,key:surnameOf(l.name),phone:l.phone||"",products:[],virtual:true},rec:{id:"lead_"+l.id,name:l.name,birth:"",leadId:l.id,pseudo:true}}}
 function fpLeadBox(l){const b=$("fpLeadBox");if(!b)return;if(!l){b.hidden=true;b.replaceChildren();return}
-  const t=fpLeadTarget(l);b.hidden=false;b.replaceChildren(fpHeroBtn(fpPlanOf(t.rec),()=>openFP(t.e,t.rec)))}
+  /* banner „Vytvořit finanční plán“ až od fáze Schůzka; dřív jen když plán už existuje */
+  const t=fpLeadTarget(l),pl=fpPlanOf(t.rec),early=STAGES.findIndex(x=>x.k===l.stage)<STAGES.findIndex(x=>x.k==="schuzka");
+  if(early&&!pl){b.hidden=true;b.replaceChildren();return}
+  b.hidden=false;b.replaceChildren(fpHeroBtn(pl,()=>openFP(t.e,t.rec)))}
 let fpSearch="",fpNew=false,fpNewQ="";
 function renderFpTab(){
   const box=$("fpBox");if(!box)return;
@@ -7786,10 +7860,10 @@ function demoBuild(real){
     ["Ivana Kolářová","nabidka","Placený lead",[["ŽP",2100,{yrs:10,g:"F"}],["Neživotní pojištění",9800,{}]],"Čeká na lékařskou prohlídku",4],
     ["Stanislav Pešek","zamrzly","Cold call",[["Úvěr",350000,{}]],"Ozvat se po Novém roce",60]];
   LEADS.forEach(([name,stage,source,its,next,nd],i)=>{const items=its.map(([p,a,x])=>mkIt(p,a,x)).filter(Boolean), pts=r1(items.reduce((s,x)=>s+(x.pts||0),0)), c=new Date(+now-RI(5,40)*DAY).toISOString();
-    const meet=stage==="schuzka"?[{id:"demo-m"+i,start:new Date(+now+RI(1,6)*DAY).toISOString().slice(0,10)+"T"+pick(["09","11","14","16"])+":00:00",title:"VK: "+name.split(" ").pop()}]:[];
+    const meet=stage==="schuzka"?[{id:"demo-m"+i,start:new Date(+now+RI(1,6)*DAY).toISOString().slice(0,10)+"T"+pick(["09","11","14","16"])+":00:00",title:meetTitle(name,false,"VK:")}]:[];
     put("leads/demol"+i,{name,phone:tel(),email:"",source,referredBy:source==="Doporučení"?pick(["Karel Novák","Eva Dušková"]):"",stage,items,share:null,pointsManual:null,points:items.length?pts:null,
       signedAt:null,paidAt:null,products:[...new Set(items.map(x=>x.p))],nextStep:next,nextDate:dIn(nd),note:"",meetings:meet,stageAt:c,createdAt:c,lastContact:c,updatedAt:c,
-      log:[{d:c,t:"Lead založen"},...(stage!=="novy"?[{d:new Date(+new Date(c)+DAY).toISOString(),t:"Volal · hovor proběhl",call:"yes"}]:[])]})});
+      log:[{d:c,t:"Lead založen"},...(stage!=="novy"?[{d:new Date(+new Date(c)+DAY).toISOString(),t:"Hovor proběhl",call:"yes"}]:[])]})});
   const soon=(()=>{const d=new Date(Y-5,now.getMonth()+2,RI(1,28));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")})();
   /* klientela: 10 plně vyplněných karet (kontakty, narození, poznámka, smlouvy, servis) */
   const CL=[["Jan Novák",1978,"Ženatý, 2 děti (8 a 12). Cíl: renta od 60 let, studium dětí. Při výročce zkontrolovat krytí invalidity.",[["Hypotéka","Česká spořitelna",3900000,"Kč",2022,{fix:5}],["ŽP","NN Orange",1850,"Kč/měs",2021],["Pravidelná investice","ZFP World Index",3000,"Kč/měs",2022]],400],
@@ -8024,7 +8098,7 @@ function setView(v){
   view=v;TABS.concat([["db","Databáze"],["users","Uživatelé"]]).forEach(([k])=>{const e=$("view_"+k);if(!e)return;const show=k===v;e.hidden=!show;
     if(show){e.classList.remove("vIn");void e.offsetWidth;e.classList.add("vIn")}
     const tb=$("tab_"+k);if(tb)tb.setAttribute("aria-selected",String(k===v))});
-  $("searchBox").hidden=v!=="pipe";
+  $("searchBox").hidden=v!=="pipe";try{syncAddBtn()}catch(e){}
   try{renderBottomTabs()}catch(e){}
   if(v==="cli")fetchCalHistory();
   if(v==="cal")fetchCalTab();
@@ -8090,7 +8164,7 @@ function setView(v){
   window.addEventListener("touchend",()=>{tx0=null},{passive:true});
 })();
 let rsz;window.addEventListener("resize",()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(view==="money")render()},150)});
-$("q").addEventListener("input",e=>{q=e.target.value.trim().toLowerCase();render()});
+$("q").addEventListener("input",e=>{q=e.target.value.trim();render()});
 $("clearEx").onclick=async()=>{for(const l of leads.filter(l=>l.example)){try{await db.doc("leads/"+l.id).delete()}catch(e){}}toast("Ukázky smazány")};
 
 renderTabBar();
@@ -8131,12 +8205,14 @@ async function updateEurRate(){
   db.collection("akvLidi").onSnapshot(snap=>{akvLidi=snap.docs.map(d=>({id:d.id,...d.data()}));if(view==="akv")render()});
   db.doc("settings/main").onSnapshot(d=>{settings=d.exists?{manual:{},...d.data()}:{manual:{}};clLoaded.settings=true;setTimeout(clMigrate,0);setTimeout(tplMigrate,0);applyAppName();renderTabBar();if(!visibleTabs().includes(view))setView(visibleTabs()[0]);else render();scheduleTasks()});
   $("todayBtn").onclick=openToday;maybeOpenToday();
-  $("addRecruit").onclick=addRecruit;$("addMember2").onclick=()=>addMember(null);$("addMember3").onclick=()=>addMember(null);
+  $("addMember2").onclick=()=>addMember(null);$("addMember3").onclick=()=>addMember(null);
   $("cbBtn").onclick=()=>openCallBlock(callBlockIds());
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")maybeOpenToday()});
   startCalendar();
   const sb=$("syncBtn"),dd=$("dataDlg");
-  sb.onclick=()=>{const st=GSync.state;if(st==="out"||st==="expired"){GAuth.login(false);return}dd.showModal()};
+  /* ikona stavu synchronizace → vždy Nastavení (i odhlášeně); přihlášení je tam jako výzva nahoře */
+  sb.onclick=()=>{if(!dd.open)dd.showModal()};
+  $("dLoginGo").onclick=()=>GAuth.login(false);
   $("dataClose").onclick=()=>dd.close();
   $("dSync").onclick=()=>{GAuth.token()?GSync.run().then(refreshCalendar):GAuth.login(false)};
   $("dExport").onclick=exportBackup;$("dCsvC").onclick=exportCsvClients;$("dCsvL").onclick=exportCsvLeads;$("dPdf").onclick=exportPdf;
@@ -8707,11 +8783,29 @@ async function leadFromTask(t,patch){const id=t.leadId||(String(t.rid).startsWit
   if(patch.done){lp.nextStep="";lp.nextDate=null}
   const key=("nextStep" in lp?lp.nextStep:String(l.nextStep||"").trim())+"|"+(("nextDate" in lp?lp.nextDate:l.nextDate)||"");
   try{if(!patch.done)await db.doc("mytasks/"+t.rid).update({key});await db.doc("leads/"+id).update(lp)}catch(e){}}
+/* položky seznamu „Dnes udělat“ (pipeline i okno Dnes): úkoly + leady k řešení bez otevřeného úkolu, bez duplicit.
+   Řazení: po termínu → dnes → bez termínu → později; hotové (dnes odškrtnuté) na konci. opt.today = jen to, co je na dnešek (okno Dnes). */
+function dnesItems(opt){opt=opt||{};const t=todayStr(),rank=k=>({late:0,today:1,none:2,later:3,done:4})[k];
+  const T=asPipeTasks().filter(x=>!opt.today||(x.st!=="hotovo"&&(!x.due||x.due<=t)));
+  const open=T.filter(x=>x.st!=="hotovo");
+  const hasTask=l=>open.some(x=>x.leadId===l.id||x.rid==="auto_"+l.id||(!x.leadId&&x.client&&sameName(x.client,l.name)));
+  const L=opt.today?todayData().calls:leads.filter(l=>ACTIVE(l.stage)&&(["late","today","none"].includes(dueState(l))||isCold(l)));
+  const out=[...T.map(x=>({k:x.st==="hotovo"?"done":!x.due?"none":asDue(x)==="late"?"late":x.due===t?"today":"later",d:x.due||"",row:()=>asTaskRow(x)})),
+    ...L.filter(l=>!hasTask(l)).map(l=>{const s=dueState(l);return {k:s==="late"?"late":s==="today"?"today":s==="none"?"none":"later",d:l.nextDate||"",row:inSheet=>dnesLeadRow(l,inSheet)}})];
+  return out.sort((a,b)=>rank(a.k)-rank(b.k)||a.d.localeCompare(b.d))}
+function dnesLeadRow(l,inSheet){const s=dueState(l),stp=String(l.nextStep||"").trim();
+  /* v okně Dnes s odškrtnutím „✓ Hotovo“ / „Zítra“ jako dřív v „Komu zavolat“ */
+  if(inSheet)return tdTask("call:"+l.id,true,l.name||"Bez jména",(stp||ST(l.stage).t)+(l.phone?" · "+fmtPhone(l.phone):""),s==="late"?"po termínu "+fmtDate(l.nextDate):s==="today"?"dnes":"bez kroku",s==="late"?"red":s==="today"?"orange":"",()=>{$("edDlg").close();openEdit(l)},
+    async()=>{try{await db.doc("leads/"+l.id).update({nextDate:addDaysFrom(todayStr(),1),nextStep:l.nextStep||"Zavolat",updatedAt:new Date().toISOString()})}catch(e){}});
+  const why=s==="none"?(stp?"Bez termínu · "+stp:"Chybí další krok"):s==="late"?"Po termínu od "+fmtDate(l.nextDate)+(stp?" · "+stp:""):s==="today"?"Dnes"+(stp?" · "+stp:""):daysSince(lastTouch(l))+" dní bez kontaktu";
+  return el("button",{class:"row row-btn",type:"button",onclick:()=>{if(inSheet)$("edDlg").close();openEdit(l)}},
+    el("span",{class:"avatar",style:"background:"+ST(l.stage).c},initials(l.name)),
+    el("span",{class:"main"},el("div",{class:"t"},l.name||"Bez jména"),el("div",{class:"s"+(s==="today"?"":" bad")},why)),
+    el("span",{class:"end"},l.phone?fmtPhone(l.phone):ST(l.stage).t),chev())}
 function asPipeTasks(){ /* otevřené + čerstvě hotové (1 den), seřazené podle termínu */
   const L=asAllTasks().filter(t=>t.st!=="hotovo"||(t.done&&Date.parse(t.done)>=Date.now()-864e5));
   return L.sort((a,b)=>(a.st==="hotovo")-(b.st==="hotovo")||asSortT(a,b));
 }
-let asPipeShow=5;
 function asTaskRow(t){
   const tag=t.st==="hotovo"?null:asDueTag(t);
   const sub=t.client||"";
@@ -8719,12 +8813,6 @@ function asTaskRow(t){
   return el("button",{type:"button",class:"row row-btn tkrow"+(t.st==="hotovo"?" done":""),onclick:()=>asOpenMine(t)},
     lead,el("span",{class:"main"},el("div",{class:"t"},t.text),sub?el("div",{class:"s"},sub):null),
     tag?el("span",{class:"tdtag "+(tag.cls||"")},tag.txt):null,chev());
-}
-function asPipeNodes(){
-  const L=asPipeTasks(),inv=typeof dealInvNodes==="function"?dealInvNodes():[];if(!L.length&&!inv.length)return[];
-  const shown=L.slice(0,asPipeShow);
-  return [...inv,...shown.map(asTaskRow),
-    L.length>asPipeShow?el("button",{type:"button",class:"row row-btn",style:"color:var(--tint);font-weight:500;justify-content:center",onclick:()=>{asPipeShow+=5;render()}},"Další úkoly ("+(L.length-asPipeShow)+")"):null].filter(Boolean);
 }
 async function asMyDone(t){try{const done=t.st!=="hotovo";await db.doc("mytasks/"+t.rid).update({done:done?new Date().toISOString():""});if(done)await leadFromTask(t,{done:true})}catch(e){toast("Nepodařilo se uložit")}}
 
@@ -8741,15 +8829,16 @@ function asNewTask(preset){
   const rmSel=el("select",{"aria-label":"Upozornění"},TASK_REMS.map(([v,l])=>el("option",{value:String(v)},l)));
   let client=preset.client?{n:preset.client}:null;
   const pk=asClientPicker(asAdvisorClients(),preset.client||"",c=>{client=c});
-  const save=el("button",{type:"button",class:"g"},"Uložit");
-  save.onclick=async()=>{
-    const tx=text.value.trim();if(!tx){toast("Napiš, co je potřeba udělat");text.focus();return}
-    save.disabled=true;
-    try{await addClientTask({text:tx,client:client?client.n:"",due:due.value||"",dueTime:due.value&&tm.value?tm.value:"",remind:due.value&&tm.value?+rmSel.value:0});$("edDlg").close();toast(due.value&&tm.value?"Úkol uložen · upozorním "+(+rmSel.value?rmSel.options[rmSel.selectedIndex].text.toLowerCase():"v "+tm.value):"Úkol uložen");try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}}catch(e){toast("Nepodařilo se uložit");save.disabled=false}
+  let busy=false;
+  /* Uložit v hlavičce: s textem úkol uloží, bez textu okno jen zavře (není co ukládat) */
+  const save=async()=>{
+    const tx=text.value.trim();if(!tx){$("edDlg").close();return}
+    if(busy)return;busy=true;
+    try{await addClientTask({text:tx,client:client?client.n:"",due:due.value||"",dueTime:due.value&&tm.value?tm.value:"",remind:due.value&&tm.value?+rmSel.value:0});$("edDlg").close();toast(due.value&&tm.value?"Úkol uložen · upozorním "+(+rmSel.value?rmSel.options[rmSel.selectedIndex].text.toLowerCase():"v "+tm.value):"Úkol uložen");try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}}catch(e){toast("Nepodařilo se uložit")}finally{busy=false}
   };
   openSheet("Nový úkol",[
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),text),el("div",{class:"frow"},el("label",{},"Deadline"),due),el("div",{class:"frow"},el("label",{},"Čas"),tm),el("div",{class:"frow"},el("label",{},"Upozornit"),rmSel)),
-    el("h3",{class:"sechead"},"Klient"),pk.node,el("div",{class:"chips"},save)]);
+    el("h3",{class:"sechead"},"Klient"),pk.node],{save});
 }
 function asOpenMine(t){
   const tx=el("textarea",{rows:"1","aria-label":"Text úkolu"});tx.value=t.text;autoH(tx);tx.onchange=async()=>{try{const v=tx.value.trim()||t.text;await db.doc("mytasks/"+t.rid).update({text:v});await leadFromTask(t,{text:v});toast("Uloženo")}catch(e){toast("Nepodařilo se uložit")}};
@@ -8767,12 +8856,6 @@ function asOpenMine(t){
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:async()=>{await asMyDone(t);$("edDlg").close()}},t.st==="hotovo"?"Znovu otevřít":"Označit jako hotové"),
       t.client?el("button",{type:"button",class:"chipbtn",style:"background:var(--tint);color:#fff",onclick:()=>{$("edDlg").close();setTimeout(()=>afterMeetSheet({name:t.client,leadId:cl&&cl.id,tasks:t.st==="hotovo"?"":t.text,due:t.due||""}),340)}},"Poslat shrnutí e-mailem"):null),
     el("div",{class:"group"},del)]);
-}
-/* úkoly po termínu a na dnes v okně „Co tě dneska čeká“ */
-function asTodayNodes(){
-  const t=todayStr();const L=asAllTasks().filter(x=>x.st!=="hotovo"&&x.due&&x.due<=t).sort(asSortT);
-  if(!L.length)return[];
-  return [el("h3",{class:"sechead"},"Úkoly · "+L.length),el("div",{class:"group"},L.slice(0,8).map(asTaskRow))];
 }
 
 /* ---------- upozornění v aplikaci (jako na iPhonu) + cinknutí ---------- */

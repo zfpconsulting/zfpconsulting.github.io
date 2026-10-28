@@ -134,7 +134,8 @@ export default {
   },
 
   async "krok zpět a vpřed"(env) {
-    const { ctx, page } = await openApp(env, { store: STORE });
+    /* desktop: tlačítka zpět/vpřed v hlavičce */
+    const { ctx, page } = await openApp(env, { store: STORE, width: 1200 });
     const act = async f => { await page.mouse.click(200, 500); await page.evaluate(f); await page.waitForTimeout(250); };
     await act(async () => { await db.collection("leads").add({ name: "Undo", stage: "novy", items: [] }) });
     await act(async () => { const l = leads.find(x => x.name === "Undo"); await db.doc("leads/" + l.id).update({ stage: "schuzka" }) });
@@ -145,6 +146,136 @@ export default {
     await page.click("#undoBtn"); await page.waitForTimeout(200); eq(await st(), "novy", "zpět 2");
     await page.click("#redoBtn"); await page.waitForTimeout(200); eq(await st(), "schuzka", "vpřed");
     await page.keyboard.press("Control+z"); await page.waitForTimeout(200); eq(await st(), "novy", "Ctrl+Z");
+    await ctx.close();
+    /* iPhone: tlačítka v hlavičce nejsou, smazání i přesun leadu vrátí „Vrátit“ v toastu */
+    const m = await openApp(env, { store: { ...STORE, "leads/u1": { name: "Mobil Undo", stage: "kontaktovan", phone: "777000111", items: [], _u: 1 } }, width: 390, height: 844 });
+    const mst = () => m.page.evaluate(() => leads.find(x => x.name === "Mobil Undo")?.stage || null);
+    assert(!(await m.page.isVisible("#undoBtn")), "na mobilu je zpět v hlavičce skryté");
+    await m.page.mouse.click(200, 500);
+    await m.page.evaluate(() => moveTo(leads.find(x => x.name === "Mobil Undo"), "schuzka")); await m.page.waitForTimeout(300);
+    eq(await mst(), "schuzka", "přesunuto");
+    await m.page.click("#toast .tundo"); await m.page.waitForTimeout(300); eq(await mst(), "kontaktovan", "Vrátit v toastu po přesunu");
+    await m.page.waitForTimeout(500);
+    await m.page.evaluate(() => openEdit(leads.find(x => x.name === "Mobil Undo"))); await m.page.waitForTimeout(400); await m.page.evaluate(() => { $("delBtn").click(); $("delYes").click() }); await m.page.waitForTimeout(500);
+    eq(await mst(), null, "smazáno");
+    await m.page.click("#toast .tundo"); await m.page.waitForTimeout(300); eq(await mst(), "kontaktovan", "Vrátit v toastu po smazání");
+    eq(m.errors, [], "bez chyb");
+    await m.ctx.close();
+  },
+
+  async "detail leadu: Esc / Zrušit se změnou se zeptá (Uložit / Zahodit), klik na pozadí nezavře; nový úkol uloží Uložit v hlavičce"(env) {
+    const { ctx, page, errors } = await openApp(env, { store: { ...STORE, "leads/d1": { name: "Dana Testová", stage: "kontaktovan", phone: "777000222", items: [], _u: 1 } }, width: 390, height: 844 });
+    const open = () => page.evaluate(() => openEdit(leads.find(l => l.name === "Dana Testová")));
+    await open(); await page.waitForTimeout(400);
+    /* beze změny: Esc zavře rovnou */
+    await page.keyboard.press("Escape"); await page.waitForTimeout(500);
+    assert(!(await page.evaluate(() => $("dlg").open)), "beze změny Esc zavře");
+    /* klik na pozadí nic nezahodí */
+    await open(); await page.waitForTimeout(400);
+    await page.fill("#f_note", "Zahodit tohle"); await page.mouse.click(5, 5); await page.waitForTimeout(400);
+    assert(await page.evaluate(() => $("dlg").open), "klik na pozadí detail nezavře");
+    /* Zrušit → dotaz → Zahodit */
+    await page.click("#cancelBtn"); await page.waitForSelector("#dlg .unsv");
+    await page.click("#dlg .unsv button:not(.sv):not(.unsv-k)"); await page.waitForTimeout(500);
+    eq(await page.evaluate(() => [$("dlg").open, leads.find(l => l.name === "Dana Testová").note || ""]), [false, ""], "zahozeno");
+    /* Esc → dotaz → Uložit */
+    await open(); await page.waitForTimeout(400);
+    await page.fill("#f_note", "Uložit tohle"); await page.keyboard.press("Escape"); await page.waitForSelector("#dlg .unsv");
+    await page.click("#dlg .unsv .sv"); await page.waitForTimeout(600);
+    eq(await page.evaluate(() => [$("dlg").open, leads.find(l => l.name === "Dana Testová").note]), [false, "Uložit tohle"], "uloženo");
+    /* nový úkol: vlevo Zrušit, vpravo Uložit, dole žádné druhé Uložit */
+    await page.evaluate(() => asNewTask()); await page.waitForTimeout(400);
+    eq(await page.evaluate(() => [getComputedStyle($("edCancel")).visibility, $("edClose").textContent, [...$("edBody").querySelectorAll("button")].some(b => /^Uložit/.test(b.textContent.trim()))]), ["visible", "Uložit", false], "hlavička nového úkolu");
+    await page.fill('#edBody textarea[aria-label="Text úkolu"]', "Zavolat Daně"); await page.click("#edClose"); await page.waitForTimeout(500);
+    assert(await page.evaluate(() => !$("edDlg").open && myTasks.some(t => t.text === "Zavolat Daně")), "úkol uložen z hlavičky");
+    /* zobrazovací okno: jen Hotovo */
+    await page.evaluate(() => openToday()); await page.waitForTimeout(400);
+    eq(await page.evaluate(() => [getComputedStyle($("edCancel")).visibility, $("edClose").textContent]), ["hidden", "Hotovo"], "okno Dnes jen Hotovo");
+    eq(errors, [], "bez chyb");
+    await ctx.close();
+  },
+
+  async "pipeline: hledání bez diakritiky / e-mail / telefon, Dnes udělat bez duplicit, karta bez Otevřít"(env) {
+    const tmr = new Date(Date.now() + 864e5).toISOString().slice(0, 10), yst = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);
+    const store = { ...STORE,
+      "leads/a": { name: "Petra Černá", stage: "kontaktovan", phone: "777 101 201", email: "petra@firma.cz", nextStep: "Zavolat kvůli schůzce", nextDate: yst, items: [], _u: 1 },
+      "leads/b": { name: "Karel Dvořák", stage: "novy", phone: "777 102 202", email: "karel@example.com", items: [], _u: 1 },
+      "leads/c": { name: "Ivo Bez", stage: "kontaktovan", phone: "", nextStep: "Poslat nabídku", nextDate: tmr, items: [], _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store, width: 1200 });
+    await page.waitForTimeout(2500);   /* auto-úkol z dalšího kroku */
+    const names = () => page.evaluate(() => [...document.querySelectorAll("#cols .card .name")].map(x => x.textContent).sort());
+    await page.fill("#q", "cerna"); await page.waitForTimeout(300); eq(await names(), ["Petra Černá"], "bez diakritiky");
+    eq(await page.evaluate(() => document.querySelector("#tiles .tile .v").textContent), "1", "dlaždice z výsledků");
+    await page.fill("#q", "firma.cz"); await page.waitForTimeout(300); eq(await names(), ["Petra Černá"], "e-mail");
+    await page.fill("#q", "777102202"); await page.waitForTimeout(300); eq(await names(), ["Karel Dvořák"], "telefon bez mezer");
+    await page.fill("#q", "+420 777 102"); await page.waitForTimeout(300); eq(await names(), ["Karel Dvořák"], "telefon s předvolbou");
+    await page.fill("#q", ""); await page.waitForTimeout(300);
+    /* Dnes udělat: Petra jen jednou (úkol z dalšího kroku), Karel bez kroku jako lead; po termínu první */
+    const rows = await page.evaluate(() => [...document.querySelectorAll("#todayList .row")].map(r => r.innerText));
+    eq(rows.filter(r => r.includes("Petra Černá")).length, 1, "Petra bez duplicity: " + rows.join(" | "));
+    assert(rows[0].includes("Petra Černá") && rows.some(r => r.includes("Karel Dvořák")), "řazení po termínu → bez termínu: " + rows.join(" | "));
+    eq(await page.evaluate(() => [...document.querySelectorAll("#todaySec button")].filter(b => /Volací blok/.test(b.textContent)).length), 0, "jen Začít volat");
+    /* karta: bez Otevřít a Kopírovat, telefon jako tel:, šipka zpět jen v detailu, klik na kartu otevře */
+    const card = await page.evaluate(() => { const c = [...document.querySelectorAll("#cols .card")].find(c => c.textContent.includes("Petra Černá"));
+      return { txt: c.querySelector(".foot").innerText, tel: c.querySelector(".tel a")?.getAttribute("href"), back: !!c.querySelector('[aria-label="O fázi zpět"]') }; });
+    assert(!/Otevřít|Kopírovat/.test(card.txt) && /Nezvedl/.test(card.txt) && /Zpráva/.test(card.txt), "patička karty: " + card.txt);
+    eq([card.tel, card.back], ["tel:777101201", false], "tel: a bez ‹");
+    await page.evaluate(() => [...document.querySelectorAll("#cols .card")].find(c => c.textContent.includes("Karel Dvořák")).querySelector(".tags").click()); await page.waitForTimeout(400);
+    eq(await page.evaluate(() => [$("dlg").open, $("f_name").value, $("callNo").textContent, $("msgBtn").textContent, $("fpLeadBox").hidden]), [true, "Karel Dvořák", "Nezvedl", "Zpráva", true], "klik na kartu otevře detail; FP banner skrytý u nového leadu");
+    eq(errors, [], "bez chyb");
+    await ctx.close();
+  },
+
+  async "hlavička: + podle záložky, ikona synchronizace otevře Nastavení i odhlášeně, hledání jen v Pipeline; Akvizice"(env) {
+    const { ctx, page, errors } = await openApp(env, { store: STORE, width: 1200 });
+    const st = () => page.evaluate(() => [$("addBtn").hidden ? "" : $("addBtn").title, $("searchBox").hidden]);
+    eq(await st(), ["Nový lead", false], "pipeline");
+    for (const [v, t] of [["cli", "Nový klient"], ["uv", "Nový úvěrový případ"], ["fp", "Nový finanční plán"], ["akv", "Nová firma"], ["net", "Nový kandidát"], ["pf", "Nová investice klienta"], ["money", ""], ["cal", ""]]) {
+      await page.evaluate(v => setView(v), v); await page.waitForTimeout(200); eq(await st(), [t, true], v); }
+    assert(!(await page.$("#addClient")) && !(await page.$("#akvAddF")) && !(await page.$("#addRecruit")), "lokální + tlačítka pryč");
+    /* odhlášeně: ikona s tečkou, klik → Nastavení s výzvou, žádný redirect na Google */
+    await page.evaluate(() => GSync.status("out")); await page.click("#syncBtn"); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => [!!document.querySelector("#syncBtn .sdot"), $("dataDlg").open, !$("dLoginAsk").hidden, location.host.includes("localhost")]), [true, true, true, true], "Nastavení odhlášeně");
+    await page.evaluate(() => { $("dataDlg").close(); GSync.status("ok") });
+    assert(!(await page.$("#syncBtn .sdot")), "přihlášeně bez tečky");
+    /* Akvizice: + firma založí záznam až s názvem; chip „Ukázat i nezájem“ u kolegů */
+    await page.evaluate(() => setView("akv")); await page.click("#addBtn"); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => akvFirmy.length), 0, "prázdná firma se nezaloží");
+    await page.evaluate(() => $("edDlg").close()); await page.waitForTimeout(400);
+    eq(await page.evaluate(() => akvFirmy.length), 0, "po zavření nic");
+    await page.click("#addBtn"); await page.waitForTimeout(300);
+    await page.fill('#edBody input[placeholder="Název firmy"]', "Test s.r.o."); await page.press('#edBody input[placeholder="Název firmy"]', "Tab"); await page.waitForTimeout(400);
+    eq(await page.evaluate(() => akvFirmy.map(f => f.name)), ["Test s.r.o."], "firma s názvem uložena");
+    await page.evaluate(() => $("edDlg").close()); await page.waitForTimeout(400);
+    assert(await page.evaluate(() => [...$("akvPType").querySelectorAll("button")].some(b => /nezájem/.test(b.textContent))), "chip nezájem u kolegů");
+    assert(await page.evaluate(() => !$("akvLi").querySelector(".chipbtn") && $("akvLi").querySelectorAll("a.row").length > 0), "LinkedIn jako řádky");
+    eq(errors, [], "bez chyb");
+    await ctx.close();
+  },
+
+  async "kalendář: nová událost se jménem leadu jde přes saveMeeting (fáze, potvrzení), 45 min, titulek s celým jménem"(env) {
+    const store = { ...STORE, "settings/main": { ...STORE["settings/main"], calPrefix: "VK:" },
+      "leads/k1": { name: "Ing. Jana Kalendářová", stage: "kontaktovan", phone: "777000333", items: [], meetings: [], _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store, width: 1200 });
+    const posts = [];
+    const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" };
+    await ctx.route(/googleapis\.com\/calendar/, r => { const q = r.request(); if (q.method() === "OPTIONS") return r.fulfill({ status: 204, headers: cors });
+      if (q.method() === "POST") { posts.push(JSON.parse(q.postData())); return r.fulfill({ status: 200, headers: cors, contentType: "application/json", body: '{"id":"ev1"}' }) }
+      return r.fulfill({ status: 200, headers: cors, contentType: "application/json", body: '{"items":[]}' }) });
+    await page.evaluate(() => lsSet("g_tok", { at: "test-token-123456789012345", exp: Date.now() + 36e5, scope: "calendar.events" }));
+    const r0 = await page.evaluate(() => [meetTitle("Ing. Jana Kalendářová", true, "VK:"), meetTitle("Jan Novák", false, "VK")]);
+    eq(r0, ["VK: Ing. Jana Kalendářová (online)", "VK: Jan Novák"], "formát titulku");
+    eq(await page.evaluate(() => [parseEvent({ id: "1", summary: "VK: Jan Novák (online)", start: { dateTime: "2026-11-02T10:00:00+01:00" } }).online, parseEvent({ id: "2", summary: "VK: Jan Novák", location: "Teams", start: { dateTime: "2026-11-02T10:00:00+01:00" } }).online, parseEvent({ id: "3", summary: "VK: Jan Novák", location: "Trnitá", start: { dateTime: "2026-11-02T10:00:00+01:00" } }).online]), [true, true, false], "online podle (online), fallback teams");
+    await page.evaluate(() => ctEventSheet(null, { date: "2026-11-20", time: "10:00" })); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => [...$("edBody").querySelectorAll('input[type=time]')].map(i => i.value)), ["10:00", "10:45"], "výchozí délka 45 min");
+    await page.fill('#edBody input[aria-label="Klient / název"]', "Ing. Jana Kalendářová");
+    await page.evaluate(() => { const sw = [...$("edBody").querySelectorAll("input.switch")].pop(); sw.click() });
+    await page.click("#edClose"); await page.waitForTimeout(1200);
+    eq(posts.map(p => p.summary), ["VK: Ing. Jana Kalendářová (online)"], "zápis do kalendáře");
+    const l = await page.evaluate(() => { const l = leads.find(x => x.id === "k1"); return { st: l.stage, m: (l.meetings || []).map(m => m.id) } });
+    eq(l, { st: "schuzka", m: ["ev1"] }, "schůzka u leadu a fáze");
+    eq(await page.evaluate(() => [$("edTitle").textContent, [...$("edBody").querySelectorAll("button")].some(b => /Potvrdit SMS/.test(b.textContent))]), ["Schůzka domluvena", true], "nabídka potvrzení");
+    eq(errors, [], "bez chyb");
     await ctx.close();
   },
 
