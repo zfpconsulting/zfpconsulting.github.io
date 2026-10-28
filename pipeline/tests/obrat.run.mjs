@@ -129,7 +129,7 @@ const tests = {
     await page.evaluate(() => setView("cli")); await page.waitForTimeout(300);
     const r = await page.evaluate(() => ({ q3: quarterRate("2026-Q3"), q4: quarterRate("2026-Q4") }));
     assert(r.q3 !== r.q4, "tarify kvartálů se liší");
-    const rows = await page.$$eval("#stGrid .panel:nth-child(3) tr", tr => tr.slice(1).map(x => [...x.children].map(td => td.textContent.replace(/ /g, " "))));
+    const rows = await page.$$eval("#stGrid .card:nth-child(3) tbody tr", tr => tr.map(x => [...x.children].map(td => td.textContent.replace(/ /g, " "))));
     const kc = n => Math.round(n).toLocaleString("cs-CZ").replace(/ /g, " ") + " Kč";
     eq(rows.find(x => x[0] === "Jan Novák")[3], kc(100 * r.q3), "Q3 tarifem Q3");
     eq(rows.find(x => x[0] === "Eva Malá")[3], kc(100 * r.q4), "Q4 tarifem Q4");
@@ -143,7 +143,7 @@ const tests = {
     eq(await page.locator("text=+ Člen týmu").count(), 1, "jedno tlačítko + Člen týmu");
     eq(await page.locator("[id^=mBenchRow]").count(), 0, "posuvníky nejsou nad grafy");
     await page.evaluate(() => setView("money")); await page.waitForTimeout(300);
-    eq(await page.locator("#view_money .sechead", { hasText: "Pasivní příjem" }).count(), 1, "jedna sekce pasivního příjmu");
+    eq(await page.locator("#view_money .section-head", { hasText: "Pasivní příjem" }).count(), 1, "jedna sekce pasivního příjmu");
     const tiles = await page.$$eval("#pTiles .tile .v", v => v.map(x => x.textContent));
     assert(tiles.length === 4 && tiles.every(t => /\/měs$/.test(t)), "všechny pasivní dlaždice měsíčně: " + tiles);
     await page.click("#mBenchBtn"); await page.waitForTimeout(200);
@@ -154,6 +154,33 @@ const tests = {
     assert(await page.locator("#teamTree .onode").count() >= 2, "strom týmu v Síti");
     eq(errors, [], "chyby");
     await ctx.close();
+  },
+
+  async "design systém: jedna třída tabulek, období jako .seg, KPI v .tiles, žádné emoji ani cizí barvy v Obratu/Klientech/Daních/Sazebníku"() {
+    const store = { "settings/main": S({ sjetiny: { "2026-09/1": 100 } }), "leads/a": L("Jan Novák", "podpis", "2026-10-05T10:00:00Z", 120, { referredBy: "Eva Malá" }),
+      "clients/k1": { name: "Ing. Petr Svoboda", phone: "777 123 456", products: [{ type: "ŽP", amt: 1500, unit: "Kč/měs" }, { amt: 3000 }], log: [], lastMeet: "2025-06-01", _u: 1 } };
+    for (const width of [390, 1440]) {
+      const { ctx, page, errors } = await at("2026-10-28", store, { width, height: 844 });
+      const r = {};
+      for (const v of ["money", "cli", "tax", "pp"]) {
+        await page.evaluate(v => setView(v), v); await page.waitForTimeout(300);
+        r[v] = await page.evaluate(v => { const sec = $("view_" + v);
+          const tables = [...sec.querySelectorAll("table")];
+          const txt = [...sec.querySelectorAll("button,a,summary")].map(b => b.textContent).join(" ");
+          /* 3D přechody koláče (shade() z ZFP odstínů) se nepočítají */ const svg = [...sec.querySelectorAll("svg [fill],svg [stroke],svg stop:not(.mixdonut stop)")].flatMap(n => [n.getAttribute("fill"), n.getAttribute("stroke"), n.getAttribute("stop-color")]).filter(c => c && /^#/.test(c));
+          return { bad: tables.filter(t => !t.classList.contains("dtable")).length, old: sec.querySelectorAll(".chipbtn,.panel,.sttab,.xcmp,.functl,.fseg,.mini-seg,.careerbar,.tag,.pchip,.sechead,.scard[style],.srvbtns").length,
+            emoji: /[\u{1F300}-\u{1FAFF}\u2600-\u27BF\u21A9\u21BA\u25B2\u25BC]/u.test(txt), svg: [...new Set(svg)].filter(c => !/^#(E8571A|FFB27A|C94F0C|5C5C60|8A8A8E|fff|FFFFFF|000)$/i.test(c)),
+            overflow: document.documentElement.scrollWidth > innerWidth + 1, segs: sec.querySelectorAll(".seg").length, tiles: sec.querySelectorAll(".tiles .tile").length } }, v);
+      }
+      for (const [v, x] of Object.entries(r)) {
+        eq([x.bad, x.old, x.emoji, x.svg, x.overflow], [0, 0, false, [], false], width + " " + v + ": tabulky .dtable, bez starých tříd, emoji a cizích barev");
+      }
+      assert(r.money.segs >= 3 && r.money.tiles >= 8 && r.cli.segs >= 3 && r.tax.segs >= 2 && r.tax.tiles === 4, "seg/tiles: " + JSON.stringify(r));
+      await page.evaluate(() => setView("cli")); await page.waitForTimeout(200);
+      eq(await page.$$eval("#cliList .chip--tag", c => c.map(x => x.textContent)).then(a => a.filter(t => /undefined/.test(t))), [], "produkt bez typu není „undefined“");
+      eq(errors, [], "chyby");
+      await ctx.close();
+    }
   },
 
   async "sazebník na iPhonu: název vždy viditelný, bez „bez ohledu na dobu“, DPS ze struktury"() {
