@@ -9,19 +9,19 @@ const CSS=`
 .pe{display:grid;gap:16px;justify-items:center}
 .pe-view{position:relative;width:min(${V}px,100%);aspect-ratio:1;overflow:hidden;border-radius:16px;background:#111;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .pe-view:active{cursor:grabbing}
-.pe-view:focus-visible{outline:3px solid var(--tint-soft,rgba(243,117,32,.3));outline-offset:2px}
+.pe-view:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
 .pe-img{position:absolute;left:50%;top:50%;max-width:none;pointer-events:none;-webkit-user-drag:none}
 .pe-mask{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);pointer-events:none;border:2px solid rgba(255,255,255,.85)}
 .pe-zoom{display:flex;align-items:center;gap:10px;width:min(${V}px,100%)}
-.pe-zoom span{font-size:20px;line-height:1;color:var(--label2,#888);width:18px;text-align:center}
+.pe-zoom span{font-size:20px;line-height:1;color:var(--ink-2);width:18px;text-align:center}
 .pe-zoom input{flex:1}
-.pe-hint{font-size:13px;color:var(--label2,#888);text-align:center;margin:-6px 0 0}
+.pe-hint{font-size:13px;color:var(--ink-2);text-align:center;margin:-6px 0 0}
 .pe-tools{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.pe-tools button{background:var(--bg2,#fff);border-radius:999px;padding:7px 13px;font-size:14px;color:var(--tint,#007aff);font-weight:500;box-shadow:var(--card-shadow)}
-.pe-tools .pe-del{color:var(--red,#ff3b30)}
+.pe-tools button{background:var(--surface);border-radius:999px;padding:7px 13px;font-size:14px;color:var(--accent-text);font-weight:500;box-shadow:var(--card-shadow)}
+.pe-tools .pe-del{color:var(--accent-text)}
 .pe-foot{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(${V+40}px,100%)}
-.pe-foot button{height:46px;border-radius:12px;font-size:16px;font-weight:600;background:var(--fill,rgba(120,120,128,.12));color:var(--label,#000)}
-.pe-foot .pe-ok{background:var(--tint,#007aff);color:#fff}`;
+.pe-foot button{height:46px;border-radius:12px;font-size:16px;font-weight:600;background:var(--fill,rgba(120,120,128,.12));color:var(--ink)}
+.pe-foot .pe-ok{background:var(--accent);color:#fff}`;
 function css(){if(document.getElementById("peCss"))return;const s=document.createElement("style");s.id="peCss";s.textContent=CSS;document.head.append(s)}
 const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
 async function shrink(dataUrl,max=SRC_MAX){

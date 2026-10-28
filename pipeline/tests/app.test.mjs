@@ -180,12 +180,12 @@ export default {
     const m = await openApp(env, { store: { ...STORE, "leads/u1": { name: "Mobil Undo", stage: "kontaktovan", phone: "777000111", items: [], _u: 1 } }, width: 390, height: 844 });
     const mst = () => m.page.evaluate(() => leads.find(x => x.name === "Mobil Undo")?.stage || null);
     assert(!(await m.page.isVisible("#undoBtn")), "na mobilu je zpět v hlavičce skryté");
-    await m.page.mouse.click(200, 500);
+    await m.page.click("#bigTitle");   /* klik do prázdna (uživatelská akce pro krok zpět) */
     await m.page.evaluate(() => moveTo(leads.find(x => x.name === "Mobil Undo"), "schuzka")); await m.page.waitForTimeout(300);
     eq(await mst(), "schuzka", "přesunuto");
     await m.page.click("#toast .tundo"); await m.page.waitForTimeout(300); eq(await mst(), "kontaktovan", "Vrátit v toastu po přesunu");
     await m.page.waitForTimeout(500);
-    await m.page.evaluate(() => openEdit(leads.find(x => x.name === "Mobil Undo"))); await m.page.waitForTimeout(400); await m.page.evaluate(() => { $("delBtn").click(); $("delYes").click() }); await m.page.waitForTimeout(500);
+    await m.page.evaluate(() => openEdit(leads.find(x => x.name === "Mobil Undo"))); await m.page.waitForTimeout(400); await m.page.evaluate(() => $("delBtn").click()); await m.page.click("dialog.cfm .btn--danger"); await m.page.waitForTimeout(500);
     eq(await mst(), null, "smazáno");
     await m.page.click("#toast .tundo"); await m.page.waitForTimeout(300); eq(await mst(), "kontaktovan", "Vrátit v toastu po smazání");
     eq(m.errors, [], "bez chyb");
@@ -636,7 +636,7 @@ export default {
     const { ctx, page, errors } = await openApp(env, { store, width: 390, height: 844 });
     await page.evaluate(() => setView("fp")); await page.waitForTimeout(300);
     const rows = () => page.$$eval("#fpBox .row .main", r => r.map(x => x.firstChild.textContent.trim()));
-    eq(await page.$$eval("#view_fp .pfsearch > *", e => e.map(x => x.id || x.className)), ["fpSearchI", "fplink", "fpNewBtn"], "jedno pole + Odkaz pro klienta + Nový plán");
+    eq(await page.$$eval("#view_fp .pfsearch > *", e => e.map(x => x.id || x.className)), ["fpSearchI", "fplink"], "jedno pole + Odkaz pro klienta (nový plán = + v hlavičce)");
     await page.fill("#fpSearchI", "nov");
     let r = await rows();
     eq(r.filter(x => /Novák/.test(x)), ["Vytvořit pro Jan Novák"], "aktivní lead nabídnutý jen jednou");
@@ -646,7 +646,7 @@ export default {
     await page.fill("#fpSearchI", "Eva Klientová");
     r = await rows(); eq(r, ["Eva Klientová"], "přesné jméno existujícího plánu nenabízí založení duplicitního klienta");
     await page.fill("#fpSearchI", "");
-    await page.click("#fpNewBtn"); r = await rows();
+    await page.click("#addBtn"); r = await rows();
     eq([r.filter(x => /Novák/.test(x)).length, r.some(x => /Podepsaný/.test(x)), r.some(x => /Ztracený/.test(x)), r.some(x => /Vytvořit pro Eva/.test(x))], [1, true, false, false], "Nový plán: každý jednou, lost ne, kdo má plán ne");
     eq(await page.evaluate(() => document.activeElement.id), "fpSearchI", "kurzor v poli");
     /* vytvoření pro lead → plán k leadu, opakované vytvoření už se nenabízí */
@@ -657,6 +657,45 @@ export default {
     await page.click("#fpLinkBtn");
     eq(await page.$$eval("#fpLinkMenu button:not([hidden])", b => b.filter(x => x.offsetParent).map(x => x.querySelector("b").textContent)), ["Dotazník", "Rezervace"], "obě volby v menu");
     await page.click("#fpSearchI"); assert(await page.$eval("#fpLinkMenu", m => m.hidden), "klik mimo menu zavře");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
+  async "design systém: sloučené záložky (Kalkulačky, Síť) se starými klíči, Další na iPhonu, potvrzení confirmSheet, Nastavení s podstránkami"(env) {
+    /* staré uložené pořadí s „duch“ a „akv“ a skrytá Akvizice → skupiny Kalkulačky / Síť, Akvizice skrytá jen jako podzáložka */
+    const store = { ...STORE, "settings/main": { ...STORE["settings/main"], tabOrder: ["pipe", "duch", "money", "cli", "calc", "akv", "cal", "fp", "uv", "net", "tax", "pf", "pp"], tabHidden: ["pp", "akv"] } };
+    const { ctx, page, errors } = await openApp(env, { store, width: 390, height: 844, extra: { pipe_view: "duch" } });
+    let r = await page.evaluate(() => ({ view, order: tabOrder(), vis: visibleTabs(), views: visibleViews(), sub: [...$("subNav").querySelectorAll("button")].map(b => b.textContent + ":" + b.getAttribute("aria-selected")) }));
+    eq(r.view, "duch", "pipe_view duch se otevře (jako podzáložka Kalkulaček)");
+    eq(r.order.slice(0, 4), ["pipe", "calc", "money", "cli"], "duch → calc na svém místě v pořadí, bez duplicity");
+    assert(r.vis.includes("net") && !r.views.includes("akv") && r.views.includes("net"), "Akvizice skrytá, Síť viditelná: " + JSON.stringify(r.views));
+    eq(r.sub, ["Finanční:false", "Důchodová:true"], "segment Kalkulaček");
+    /* klik na podzáložku */
+    await page.click("#subNav button:first-child"); await page.waitForTimeout(200);
+    eq(await page.evaluate(() => [view, $("bigTitle").textContent]), ["calc", "Kalkulačky"], "Finanční");
+    /* skrytá Síť → odkaz #akvizice/akv skončí na první viditelné záložce, ne na prázdné obrazovce */
+    await page.evaluate(() => setView("akv")); eq(await page.evaluate(() => view), "net", "skrytá Akvizice → Tým a nábor");
+    /* spodní lišta: „Další“ zůstává a zvýrazní se, když je otevřená záložka z Další */
+    await page.evaluate(() => setView("tax")); await page.waitForTimeout(200);
+    r = await page.evaluate(() => [...$("tabBottomIn").querySelectorAll("button")].map(b => b.getAttribute("aria-label") + ":" + b.getAttribute("aria-selected")));
+    eq(r.length, 5, "5 tlačítek"); eq(r[4], "Další:true", "Další zvýrazněné, nenahrazené: " + r);
+    /* confirmSheet: Zrušit = false, potvrzení = true, Esc = false */
+    let p = page.evaluate(() => confirmSheet("Smazat?", { okLabel: "Smazat", danger: true }));
+    await page.click("dialog.cfm .btn--secondary"); eq(await p, false, "Zrušit");
+    p = page.evaluate(() => confirmSheet("Smazat?", { okLabel: "Smazat", danger: true }));
+    await page.click("dialog.cfm .btn--danger"); eq(await p, true, "potvrzeno");
+    p = page.evaluate(() => confirmSheet("Pokračovat?"));
+    await page.waitForSelector("dialog.cfm[open]"); await page.keyboard.press("Escape"); eq(await p, false, "Esc");
+    eq(await page.evaluate(() => document.querySelectorAll("dialog.cfm").length), 0, "potvrzení po sobě uklidí");
+    /* Nastavení: hlavní stránka se skupinami, podstránka Záložky s „Zpět“, staré ID polí zachovaná */
+    await page.evaluate(() => openSettings()); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => [$("setTitle").textContent, getComputedStyle($("setBack")).visibility]), ["Nastavení", "hidden"], "kořen");
+    await page.click('#dataDlg [data-go="tabs"]'); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => [$("setTitle").textContent, getComputedStyle($("setBack")).visibility, $("tabsCfg").querySelectorAll("input.switch").length > 10]), ["Záložky", "visible", true], "podstránka Záložky");
+    await page.click("#setBack"); await page.waitForTimeout(300);
+    eq(await page.evaluate(() => $("setTitle").textContent), "Nastavení", "Zpět");
+    eq(await page.evaluate(() => ["dCal", "dPrefix", "dBk", "dAdvName", "dFF", "dWpMode", "dWp", "dSign", "tplList", "mailConfList", "tabsCfg", "dAppName", "lockCfgBody", "pushCfg", "dExport", "dImport", "dFile", "dCsvC", "dCsvL", "dPdf", "dSync", "dLogout", "dTasks", "dDemo", "dClean", "dDemoNew", "dLoginAsk", "dLoginGo", "dataInfo", "bkInfo", "dataClose"].filter(id => !document.getElementById(id))), [], "všechna původní ID v Nastavení");
+    /* žádné confirm() v appce */
+    eq(await page.evaluate(() => [...document.scripts].filter(s => /(^|[^.\w])confirm\(/.test(s.textContent)).length), 0, "bez confirm()");
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },

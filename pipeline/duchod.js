@@ -129,51 +129,51 @@ const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMo
 
 /* ================= vzhled ================= */
 const CSS=`
-.dk{font-family:var(--font,-apple-system,system-ui,sans-serif);color:var(--label);background:var(--bg2,#fff);border-radius:16px;box-shadow:var(--card-shadow);overflow:hidden;margin-bottom:22px;padding:16px 18px 20px}
+.dk{font-family:var(--font,-apple-system,system-ui,sans-serif);color:var(--ink);background:var(--surface);border-radius:16px;box-shadow:var(--card-shadow);overflow:hidden;margin-bottom:22px;padding:16px 18px 20px}
 .dk h3{margin:0 0 10px;font-size:17px;font-weight:700}
 .dk .dk-top{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
 .dk .dk-top .dk-f{flex:1 1 240px}
 .dk .dk-cs{position:relative}
-.dk .dk-cl{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:320px;overflow:auto;background:var(--bg2,#fff);border:1px solid var(--sep);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
-.dk .dk-cl button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:44px;text-align:left;border:0;background:none;color:var(--label);font:inherit;font-size:16px;padding:9px 10px;border-radius:7px;cursor:pointer}
+.dk .dk-cl{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:320px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
+.dk .dk-cl button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:44px;text-align:left;border:0;background:none;color:var(--ink);font:inherit;font-size:16px;padding:9px 10px;border-radius:7px;cursor:pointer}
 .dk .dk-cl button.on,.dk .dk-cl button:hover{background:var(--fill,rgba(120,120,128,.14))}
-.dk .dk-cl .dk-none{color:var(--label2)}.dk .dk-cl .dk-ok{color:var(--green,#F37520);font-weight:700}
-.dk .dk-cl .dk-empty{padding:10px;color:var(--label2);font-size:14px}
+.dk .dk-cl .dk-none{color:var(--ink-2)}.dk .dk-cl .dk-ok{color:var(--accent-text);font-weight:700}
+.dk .dk-cl .dk-empty{padding:10px;color:var(--ink-2);font-size:14px}
 .dk .dk-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .dk .dk-more{position:relative;margin-left:auto}
 .dk .dk-dots{min-width:44px;padding:0 10px;font-size:20px;line-height:1}
-.dk .dk-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:190px;background:var(--bg2,#fff);border:1px solid var(--sep);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
-.dk .dk-menu button{display:block;width:100%;min-height:44px;text-align:left;border:0;background:none;color:var(--label);font:inherit;font-size:15px;padding:0 12px;border-radius:7px;cursor:pointer}
+.dk .dk-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:190px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px}
+.dk .dk-menu button{display:block;width:100%;min-height:44px;text-align:left;border:0;background:none;color:var(--ink);font:inherit;font-size:15px;padding:0 12px;border-radius:7px;cursor:pointer}
 .dk .dk-menu button:hover{background:var(--fill,rgba(120,120,128,.14))}
-.dk .dk-tile .est{display:inline-block;margin-left:4px;color:var(--orange);font-weight:600}
-.dk .dk-btn{height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--sep);background:var(--bg2,#fff);color:var(--label);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;white-space:nowrap}
-.dk .dk-btn.pri{background:var(--orange);border-color:var(--orange);color:#fff}
-.dk .dk-btn.danger{color:var(--red);border-color:var(--red)}
+.dk .dk-tile .est{display:inline-block;margin-left:4px;color:var(--accent-text);font-weight:600}
+.dk .dk-btn{height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;white-space:nowrap}
+.dk .dk-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.dk .dk-btn.danger{color:var(--accent-text);border-color:var(--accent)}
 .dk .dk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:6px}
-.dk .dk-f label{display:block;font-size:13px;color:var(--label2);margin-bottom:5px;line-height:1.25}
-.dk .dk-f input,.dk .dk-f select{width:100%;box-sizing:border-box;height:44px;border:1px solid var(--sep);border-radius:8px;background:var(--bg2,#fff);color:var(--label);font:inherit;font-size:16px;padding:0 12px;appearance:auto}
-.dk .dk-f input:focus,.dk .dk-f select:focus{outline:2px solid var(--tint);outline-offset:-1px}
+.dk .dk-f label{display:block;font-size:13px;color:var(--ink-2);margin-bottom:5px;line-height:1.25}
+.dk .dk-f input,.dk .dk-f select{width:100%;box-sizing:border-box;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-size:16px;padding:0 12px;appearance:auto}
+.dk .dk-f input:focus,.dk .dk-f select:focus{outline:2px solid var(--accent);outline-offset:-1px}
 .dk .dk-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.dk .dk-hint{font-size:12.5px;color:var(--label2);line-height:1.4;margin:4px 0 0}
-.dk .dk-sec{margin:20px 0 10px;font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--label2);text-transform:uppercase}
+.dk .dk-hint{font-size:12.5px;color:var(--ink-2);line-height:1.4;margin:4px 0 0}
+.dk .dk-sec{margin:20px 0 10px;font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--ink-2);text-transform:uppercase}
 .dk .dk-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px;margin:6px 0 4px}
-.dk .dk-tile{background:var(--bg,#f2f2f7);border-radius:12px;padding:12px 14px;min-width:0}
-.dk .dk-tile .k{font-size:13px;color:var(--label2);margin-bottom:4px;line-height:1.25}
+.dk .dk-tile{background:var(--canvas);border-radius:12px;padding:12px 14px;min-width:0}
+.dk .dk-tile .k{font-size:13px;color:var(--ink-2);margin-bottom:4px;line-height:1.25}
 .dk .dk-tile .v{font-size:21px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
-.dk .dk-tile .s{font-size:12px;color:var(--label2);margin-top:3px;line-height:1.3}
-.dk .dk-tile.big{outline:2px solid var(--orange-soft,rgba(243,117,32,.2))}
-.dk .dk-tile .min{display:inline-block;margin-left:4px;color:var(--orange);font-weight:600}
+.dk .dk-tile .s{font-size:12px;color:var(--ink-2);margin-top:3px;line-height:1.3}
+.dk .dk-tile.big{outline:2px solid var(--accent-soft)}
+.dk .dk-tile .min{display:inline-block;margin-left:4px;color:var(--accent-text);font-weight:600}
 .dk table{border-collapse:collapse;width:100%;font-size:14px}
-.dk td{padding:7px 4px;border-bottom:1px solid var(--sep)}
+.dk td{padding:7px 4px;border-bottom:1px solid var(--line)}
 .dk td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
-.dk .dk-warn{background:var(--orange-soft);border-radius:10px;padding:9px 12px;font-size:13.5px;line-height:1.4;margin:10px 0}
-.dk .dk-note{font-size:12.5px;color:var(--label2);line-height:1.5;margin:14px 0 0}
+.dk .dk-warn{background:var(--accent-soft);border-radius:10px;padding:9px 12px;font-size:13.5px;line-height:1.4;margin:10px 0}
+.dk .dk-note{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin:14px 0 0}
 .dk .dk-note li{margin:3px 0}
 .dk .dk-saved{display:grid;gap:8px}
-.dk .dk-row{display:flex;align-items:center;gap:10px;background:var(--bg,#f2f2f7);border-radius:10px;padding:10px 12px}
+.dk .dk-row{display:flex;align-items:center;gap:10px;background:var(--canvas);border-radius:10px;padding:10px 12px}
 .dk .dk-row .main{flex:1;min-width:0}
 .dk .dk-row .main b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dk .dk-row .main span{font-size:12.5px;color:var(--label2)}
+.dk .dk-row .main span{font-size:12.5px;color:var(--ink-2)}
 /* mobil: Uložit + Import + ⋯ v jedné řadě, menu se otevírá doprava pod ⋯ */
 @media (max-width:520px){.dk .dk-acts{width:100%;flex-wrap:nowrap}.dk .dk-acts>.dk-btn{flex:1 1 auto;min-width:0;padding:0 10px}.dk .dk-more{margin-left:0}}
 `;
@@ -333,7 +333,7 @@ function mount(root,opts={}){
     const row=(a,b)=>`<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`;
     const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Důchodová kalkulace – ${esc(nm||"Koncept")} – ${d}</title><style>
       @page{size:A4;margin:14mm}body{font:13px/1.45 Roboto,Arial,Helvetica,sans-serif;color:#111111;margin:0;padding:24px}
-      .hd{border-bottom:2px solid #F37520;padding-bottom:12px;margin-bottom:18px}.hd h1{font-size:20px;margin:0}.hd small{color:#6b7280}
+      .hd{border-bottom:2px solid #E8571A;padding-bottom:12px;margin-bottom:18px}.hd h1{font-size:20px;margin:0}.hd small{color:#6b7280}
       .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 20px}.t{background:#f0f2f5;border-radius:8px;padding:10px 14px}.t .k{font-size:12px}.t .v{font-size:17px;font-weight:700}.t .s{font-size:11px;color:#6b7280}
       table{border-collapse:collapse;width:100%;margin-bottom:6px}td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:last-child{text-align:right;font-weight:600}
       h2{font-size:16px;margin:18px 0 8px}.ft{margin-top:18px;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px}@media print{body{padding:0}}</style></head><body>
