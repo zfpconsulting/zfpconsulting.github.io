@@ -2491,7 +2491,7 @@ function renderCalc(){
   const go=()=>{calcLoading=false;if(!window.FinCalc){$("calcBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}calcUI=FinCalc.mount($("calcBox"),{store:db,toast,fpProd:()=>(settings&&settings.fpProd)||null,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>duchEntries(),ensure:ensureClient})};
   if(calcUI){calcUI.refreshClients&&calcUI.refreshClients();return}
   if(window.FinCalc)return go();
-  calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=12";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  calcLoading=true;const sc=document.createElement("script");sc.src="fincalc.js?v=13";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* záložka Důchodová kalkulačka – modul duchod.js se načte až při prvním otevření */
 let duchUI=null,duchLoading=false,duchPending=null;
@@ -2510,7 +2510,7 @@ function renderDuch(then){
   const go=()=>{duchLoading=false;if(!window.DuchodCalc){$("duchBox").textContent="Kalkulačku se nepodařilo načíst – zkontroluj připojení.";return}
     duchUI=DuchodCalc.mount($("duchBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>duchEntries(),ensure:ensureClient});fire()};
   if(window.DuchodCalc)return go();
-  duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=10";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  duchLoading=true;const sc=document.createElement("script");sc.src="duchod.js?v=11";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* záložka Úvěry – modul uvery.js se načte až při prvním otevření; případy v kolekci „uvery“, vlastní pravidla bank v „uvcfg“ */
 let uvUI=null,uvLoading=false,uvPending=null;
@@ -2525,7 +2525,7 @@ function renderUv(then){
       openLead:(e,c)=>{const l=e&&e.lead&&leads.find(x=>x.id===e.lead.id);if(l){openEdit(l);toast("Přidej k leadu produkt Hypotéka / Úvěr – body se spočítají podle provizní přílohy");return}
         openEdit(null);$("f_name").value=c.name||"";$("f_phone").value=c.phone||"";$("f_email").value=c.email||"";toast("Nový lead – přidej produkt Hypotéka / Úvěr, body se spočítají samy")}});fire()};
   if(window.Uvery)return go();
-  uvLoading=true;const sc=document.createElement("script");sc.src="uvery.js?v=4";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  uvLoading=true;const sc=document.createElement("script");sc.src="uvery.js?v=5";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* úvěr z načerpaného případu → produkt v kartě klienta (hlídání konce fixace v „Co tě dneska čeká“); stejný případ se jen aktualizuje */
 async function uvSaveProduct(e,p){
@@ -2550,7 +2550,7 @@ function renderDb(){
       findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
         const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=11";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=12";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* Databáze → pipeline: nový lead (fáze Nový lead, zdroj „Databáze“) s telefonem a e-mailem ze smlouvy a PDF v dokumentech; poznámky se nepíšou.
    Stejný člověk už v pipeline → PDF se přidá k němu (poznámky ani zdroj se nemění). */
@@ -9162,9 +9162,9 @@ const PP_ENC="v1.gl_MkFRAFqTjO4sq2hdS6w.ghGopD2PoO01XO38.MCDGRGTPkxSu6a6nh09Q2r4
     dec(code).then(pp=>{save(code);run(pp)},()=>ask("Přístupový kód se změnil nebo nesedí – zadej aktuální kód od správce."))})();
 })();
 </script>
-<script src="photoedit.js?v=3" defer></script>
+<script src="photoedit.js?v=4" defer></script>
 <script src="dmy.js?v=1" defer></script>
-<script src="docs.js?v=5" defer></script>
+<script src="docs.js?v=6" defer></script>
 <script>
 /* ===== Síťová vrstva (Firestore) pro sdílené obchody s kolegy + vlastní úkoly, upozornění a pomocné funkce pro jména =====
    Režim asistentky (propojení s asistentkou, úkoly pro ni, odesílání klientů) byl 19. 10. 2026 z appky úplně odstraněn. */

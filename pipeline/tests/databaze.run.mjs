@@ -1,6 +1,7 @@
 // Testy záložky Databáze (databaze.js) v Chromiu – nepotřebují PP_KEY. Použití: node tests/databaze.run.mjs [--shots]
 // PDF s detailem smlouvy ze Stely se tu generují z fiktivních dat (stejné rozložení tabulky jako na portálu) – žádná skutečná data klientů.
-import { loadPlaywright, startServer, assert, eq } from "./helpers.mjs";
+import { loadPlaywright, startServer, assert, eq, appCss, smallTargets } from "./helpers.mjs";
+const APPCSS = await appCss();
 
 const SHOTS = process.argv.includes("--shots");
 const { chromium } = await loadPlaywright();
@@ -47,8 +48,7 @@ async function open({ width = 1100, height = 800, dark = false, pre = null } = {
   page.on("pageerror", e => errors.push(e.message));
   page.on("dialog", d => { dialogs.push(d.message()); d.accept(); });
   await page.route(base + "harness.html", r => r.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="cs"><head><meta charset="utf-8">
-    <style>:root{--bg:#F2F2F7;--bg2:#fff;--label:#000;--label2:rgba(60,60,67,.6);--sep:rgba(60,60,67,.18);--orange:#FF9500;--orange-soft:rgba(255,149,0,.14);--red:#FF3B30;--tint:#007AFF;--card-shadow:0 1px 2px rgba(0,0,0,.04)}
-    @media (prefers-color-scheme: dark){:root{--bg:#000;--bg2:#1C1C1E;--label:#fff;--label2:rgba(235,235,245,.6);--sep:rgba(84,84,88,.6)}}body{background:var(--bg);margin:0;padding:16px;font-family:-apple-system,system-ui,sans-serif}</style>
+    <style>${APPCSS}</style><style>body{margin:0;padding:16px}</style>
     </head><body><div id="box"></div><script src="databaze.js"></script><script>
     window.toasts=[];window.ui=Databaze.mount(document.getElementById("box"),{toast:m=>toasts.push(m)});
     </script></body></html>` }));
@@ -169,16 +169,21 @@ const tests = {
     await page.reload(); await page.waitForFunction(() => window.ui);
     eq((await table(page)).length, 2, "po reloadu");
     /* hledání bez diakritiky */
-    await page.fill(".db-search", "cermak");
+    await page.fill(".db-search input", "cermak");
     eq((await table(page)).map(r => r[0]), ["Zdeněk Čermák"], "hledání");
-    await page.fill(".db-search", "");
+    await page.fill(".db-search input", "");
     /* řazení podle odkupného sestupně = dvakrát klik */
     await page.click("th:has-text('Odkupné')"); await page.click("th:has-text('Odkupné')");
     eq((await table(page)).map(r => r[0]), ["Zdeněk Čermák", "Alena Dvořáková"], "řazení sestupně");
     /* smazání řádku a pak všeho */
     await page.locator("td.x button").first().click();
     eq((await stored(page)).length, 1, "po smazání řádku");
-    await page.click("text=Smazat vše");
+    /* Smazat vše a Export CSV jsou v menu ⋯; potvrzení přes confirmSheet (tady záloha confirm()) */
+    assert(!(await page.isVisible("text=Smazat vše")), "Smazat vše schované v menu");
+    await page.click('.db-top [aria-label="Další akce"]');
+    assert(await page.isVisible(".db-menu >> text=Export CSV"), "Export CSV v menu");
+    await page.click(".db-menu >> text=Smazat vše");
+    await page.waitForFunction(() => !JSON.parse(localStorage.getItem("db_rows_v1") || "[]").length).catch(() => {});
     eq((await stored(page)).length, 0, "po smazání všeho");
     await ctx.close();
   },
@@ -203,7 +208,7 @@ const tests = {
     eq(await page.$$eval("tbody tr", t => t.length), 60, "řádků v tabulce");
     const w = page.workers().length;
     assert(w <= 1, "po dávce zůstalo " + w + " workerů");
-    assert(await page.$eval(".db-btn.pri", b => !b.disabled && b.textContent === "Nahrát PDF ze Stely"), "tlačítko po dávce");
+    assert(await page.$eval(".db-top .btn--primary", b => !b.disabled && b.textContent === "Nahrát PDF ze Stely"), "tlačítko po dávce");
     const t = await page.textContent(".dbx");
     assert(t.includes("U 60 smluv chybí údaje (jméno u 30, datum technického počátku u 60)"), "souhrn: " + t.slice(0, 260));
     assert(!errors.length, "chyby: " + errors.join(" | "));
@@ -227,7 +232,7 @@ const tests = {
     eq(await page.evaluate(() => calls[0].files), ["c.pdf"], "PDF smlouvy jde k leadu");
     await page.check("thead th.c input");
     assert((await page.textContent(".db-top")).includes("Do pipeline (2)"), "výběr všech zbývajících");
-    await page.click("text=＋ Do pipeline (2)");
+    await page.click("text=Do pipeline (2)");
     await page.waitForFunction(() => calls.length === 2);
     const c = await page.evaluate(() => calls[1]);
     eq([c.name, c.n, c.files.sort()], ["Jana Nováková", 2, ["a.pdf", "b.pdf"]], "dvě smlouvy jedné osoby = jeden lead");
@@ -286,6 +291,12 @@ const tests = {
       const over = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
       assert(over <= 0, "vodorovné přetečení stránky o " + over + " px");
       if (SHOTS) await page.screenshot({ path: `/tmp/db-${o.width}${o.dark ? "-dark" : ""}.png`, fullPage: true });
+      /* design systém: bez vlastního nadpisu „Databáze“ (dává ho appka), jediné primární tlačítko, vysvětlivky sbalené */
+      assert(!(await page.$(".dbx h3")) && !/^Databáze/.test(await page.textContent(".db-top")), "bez duplicitního nadpisu");
+      eq((await page.$$(".dbx .btn--primary")).length, 1, "jedno primární tlačítko");
+      assert(await page.$("details.more.db-foot") && !(await page.isVisible(".db-foot p")), "vysvětlivky v details.more");
+      eq(await page.evaluate(() => (document.getElementById("dbxCss").textContent.match(/\.db-btn|#[0-9a-fA-F]{6}\b|rgba?\(/g) || [])), [], "bez vlastních tlačítek a barev v CSS modulu");
+      if (o.width < 500) eq(await smallTargets(page, ".dbx button, .dbx input, .dbx select"), [], "dotykové cíle");
       assert(!errors.length, "chyby: " + errors.join(" | "));
       await ctx.close();
     }

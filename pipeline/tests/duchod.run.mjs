@@ -1,6 +1,7 @@
 // Testy důchodové kalkulačky (duchod.js) v Chromiu – nepotřebují PP_KEY. Použití: node tests/duchod.run.mjs [--shots]
 import { readFileSync } from "node:fs";
-import { loadPlaywright, startServer, assert, eq } from "./helpers.mjs";
+import { loadPlaywright, startServer, assert, eq, appCss, smallTargets } from "./helpers.mjs";
+const APPCSS = await appCss();
 
 const SHOTS = process.argv.includes("--shots");
 const { chromium } = await loadPlaywright();
@@ -15,8 +16,7 @@ async function open({ width = 1300, height = 900, dark = false } = {}) {
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   await page.route(base + "harness.html", r => r.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="cs"><head><meta charset="utf-8">
-    <style>:root{--bg:#F2F2F7;--bg2:#fff;--label:#000;--label2:rgba(60,60,67,.6);--sep:rgba(60,60,67,.18);--orange:#FF9500;--orange-soft:rgba(255,149,0,.14);--red:#FF3B30;--tint:#007AFF;--card-shadow:0 1px 2px rgba(0,0,0,.04)}
-    @media (prefers-color-scheme: dark){:root{--bg:#000;--bg2:#1C1C1E;--label:#fff;--label2:rgba(235,235,245,.6);--sep:rgba(84,84,88,.6)}}body{background:var(--bg);margin:0;padding:16px;font-family:-apple-system,system-ui,sans-serif}</style>
+    <style>${APPCSS}</style><style>body{margin:0;padding:16px}</style>
     </head><body><div id="box"></div><script src="duchod.js"></script><script>
     const docs={},subs=new Set(),emit=()=>subs.forEach(f=>f());let n=0;
     const store={collection:name=>({onSnapshot(cb){const f=()=>cb({docs:Object.entries(docs).filter(([k])=>k.startsWith(name+"/")).map(([k,v])=>({id:k.split("/")[1],data:()=>v}))});subs.add(f);f()},
@@ -139,8 +139,14 @@ const tests = {
     eq(await page.inputValue('[data-k="ovz"]'), "30000", "načtená data prvního klienta");
     assert((await page.$$(".dk-row")).length === 2, "dva uložené záznamy");
     /* smazání vyžaduje potvrzení */
-    await page.click('[data-a="del"] >> nth=0'); assert((await page.evaluate(() => Object.keys(docs).length)) === 2, "první klik jen žádá potvrzení");
-    await page.click('[data-a="del"][data-sure="1"]'); await page.waitForFunction(() => Object.keys(docs).length === 1);
+    /* mimo appku (bez confirmSheet) záloha přes confirm(): Zrušit nic nesmaže, OK smaže */
+    page.once("dialog", d => d.dismiss()); await page.click('[data-a="del"] >> nth=0'); await page.waitForTimeout(50);
+    assert((await page.evaluate(() => Object.keys(docs).length)) === 2, "zrušené potvrzení nic nesmaže");
+    page.once("dialog", d => d.accept()); await page.click('[data-a="del"] >> nth=0'); await page.waitForFunction(() => Object.keys(docs).length === 1);
+    /* v appce: confirmSheet (window) má přednost před confirm() */
+    await page.evaluate(() => { window.cfmAsked = []; window.confirmSheet = (t, o) => { cfmAsked.push([t, o && o.danger]); return Promise.resolve(true); }; });
+    await page.click('[data-a="del"] >> nth=0'); await page.waitForFunction(() => Object.keys(docs).length === 0);
+    assert(await page.evaluate(() => cfmAsked.length === 1 && cfmAsked[0][1] === true && /Smazat/.test(cfmAsked[0][0])), "mazání přes confirmSheet");
     assert(!errors.length, "chyby: " + errors.join(" | "));
     await ctx.close();
   },
@@ -206,8 +212,10 @@ const tests = {
     eq(await page.inputValue('[data-k="ovz"]'), "", "nová kalkulace vyčistí formulář");
     const small = await page.$$eval(".dk input, .dk select", els => els.filter(e => e.offsetParent && parseFloat(getComputedStyle(e).fontSize) < 16).length);
     eq(small, 0, "pole mají min. 16 px");
-    const tiny = await page.$$eval(".dk button, .dk input, .dk select", els => els.filter(e => e.offsetParent && e.getBoundingClientRect().height < 40).map(e => e.dataset.a || e.id || e.tagName));
-    eq(tiny, [], "dotykové cíle min. 40 px");
+    eq(await smallTargets(page, ".dk button, .dk input, .dk select"), [], "dotykové cíle (40 px, malé komponenty 32 px + plocha 44)");
+    /* design systém: globální komponenty, bez vlastních tlačítek a barev modulu */
+    eq(await page.evaluate(() => (document.getElementById("dkCss").textContent.match(/\.dk-btn|#[0-9a-fA-F]{6}\b|rgba?\(/g) || [])), [], "bez vlastních tlačítek a barev v CSS modulu");
+    assert((await page.$$(".dk .btn--primary")).length === 1 && await page.$(".dk.card .field") && await page.$('.dk [data-a="more"].icon-btn'), "jedno primární tlačítko, .field, ⋯ = .icon-btn");
     assert(!errors.length, "chyby: " + errors.join(" | "));
     await ctx.close();
   },

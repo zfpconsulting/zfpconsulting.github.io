@@ -1,7 +1,8 @@
 // Testy souborů u klientů (docs.js) v Chromiu – nepotřebují PP_KEY. Použití: node tests/docs.run.mjs [filtr]
 // Harness = prázdná stránka s kartou jako v pipeline, paměťové úložiště se stejným API jako LStore.api a falešný Google Disk.
 import { readFileSync } from "node:fs";
-import { loadPlaywright, startServer, assert, eq } from "./helpers.mjs";
+import { loadPlaywright, startServer, assert, eq, appCss, smallTargets } from "./helpers.mjs";
+const APPCSS = await appCss();
 
 const filter = process.argv[2] || "";
 const { chromium } = await loadPlaywright();
@@ -16,12 +17,7 @@ async function open({ width = 1300, height = 900, token = null } = {}) {
   page.on("pageerror", e => errors.push(e.message));
   if (process.env.DEBUG) page.on("console", m => console.log("    [stránka]", m.type(), m.text().slice(0, 240)));
   await page.route(base + "harness.html", r => r.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="cs"><head><meta charset="utf-8">
-    <style>:root{--bg:#F2F2F7;--bg2:#fff;--fill:rgba(120,120,128,.12);--fill2:rgba(120,120,128,.08);--label:#000;--label2:rgba(60,60,67,.6);--sep:rgba(60,60,67,.18);--tint:#007AFF;--tint-soft:rgba(0,122,255,.12);--red:#FF3B30;--green:#34C759;--orange:#FF9500;--gray:#8E8E93;--r:12px;--card-shadow:0 1px 2px rgba(0,0,0,.04);--bar-bg:rgba(242,242,247,.8)}
-    body{background:var(--bg);margin:0;padding:16px;font-family:-apple-system,system-ui,sans-serif;color:var(--label)}
-    .group{background:var(--bg2);border-radius:12px;overflow:hidden}.row{display:flex;align-items:center;gap:12px;padding:11px 16px;position:relative;min-height:44px}.row .main{flex:1;min-width:0}
-    .sechead{font-size:13px;color:var(--label2);text-transform:uppercase;margin:0 16px 7px;font-weight:400}.chipbtn{background:var(--bg2);border-radius:999px;padding:7px 13px;font-size:14px;color:var(--tint)}
-    .card{background:var(--bg2);border-radius:12px;padding:12px 14px;width:260px;display:grid;gap:8px}.tags{display:flex;gap:4px;min-height:18px}.tag{font-size:12px;padding:2px 8px;border-radius:6px;background:var(--fill2)}
-    #col{padding:20px;background:#ddd;width:320px}button{font:inherit;background:none;border:0;cursor:pointer}</style></head>
+    <style>${APPCSS}</style><style>body{margin:0;padding:16px}</style></head>
     <body><section id="col"><article class="card" id="card" data-id="l1"><div class="name">Jan Novák</div><div class="tags"></div></article></section>
     <div id="detail" style="margin-top:24px;width:480px"></div>
     <script src="docs.js"></script>
@@ -126,12 +122,14 @@ const tests = {
     await waitFiles(page, 3);
     const names = await page.$$eval(".dc-row .t", ts => ts.map(t => t.textContent));
     eq(names.sort(), ["ukazka.csv", "ukazka.pdf", "z-leadu.txt"], "vidí soubory klienta i leadu, ne cizí");
-    assert(/Dokumenty · 3/.test(await page.locator(".dc-sec .sechead").textContent()), "nadpis s počtem");
-    await rowOf(page, "ukazka.csv").locator(".dc-x").click();
-    eq((await files(page)).length, 4, "první klepnutí jen ptá (nic nemaže)");
-    assert(/Opravdu/.test(await rowOf(page, "ukazka.csv").locator(".dc-x").textContent()), "ptá se");
+    assert(/Dokumenty · 3/.test(await page.locator(".dc-sec .section-head").textContent()), "nadpis s počtem");
+    /* smazání: potvrzení (v appce confirmSheet, tady záloha confirm()) – Zrušit nic nesmaže */
+    page.once("dialog", d => d.dismiss()); await rowOf(page, "ukazka.csv").locator(".dc-x").click(); await page.waitForTimeout(50);
+    eq((await files(page)).length, 4, "zrušené potvrzení nic nemaže");
     const id = (await files(page)).find(f => f.name === "ukazka.csv").id;
+    await page.evaluate(() => { window.cfmAsked = []; window.confirmSheet = (t, o) => { cfmAsked.push([t, o && o.danger]); return Promise.resolve(true); }; });
     await rowOf(page, "ukazka.csv").locator(".dc-x").click();
+    assert(await page.evaluate(() => cfmAsked.length === 1 && cfmAsked[0][1] === true && /ukazka\.csv/.test(cfmAsked[0][0])), "ptá se přes confirmSheet");
     await waitFiles(page, 2);
     eq(await page.evaluate(id => Docs._t.idb.get(id), id), null, "smazán i obsah v zařízení");
     await ctx.close();
@@ -205,7 +203,7 @@ const tests = {
     eq(await page.locator(".dv-bar h2").evaluate(h => h.firstChild.textContent), names[0], "šipky listují");
     await page.keyboard.press("Escape");
     await rowOf(page, "export.numbers").click();
-    await page.waitForSelector(".dv[open] .dv-msg .chipbtn");
+    await page.waitForSelector(".dv[open] .dv-msg .btn");
     assert(/Náhled tohoto typu/.test(await page.locator(".dv-msg").textContent()), "neznámý typ nabídne stažení");
     await ctx.close();
   },
@@ -234,7 +232,7 @@ const tests = {
     await page.waitForSelector(".dv[open] canvas.dv-pg[data-done='1']", { timeout: 20000 });
     assert(await page.evaluate(id => Docs._t.idb.get(id).then(b => !!b && b.size === 2571), id), "stažený soubor se uložil do zařízení");
     await page.keyboard.press("Escape");
-    await rowOf(page, "ukazka.pdf").locator(".dc-x").click(); await rowOf(page, "ukazka.pdf").locator(".dc-x").click();
+    page.once("dialog", d => d.accept()); await rowOf(page, "ukazka.pdf").locator(".dc-x").click();
     await page.waitForFunction(() => [...drive.files.values()][0]?.trashed === true, null, { timeout: 10000 });
     await ctx.close();
   },
@@ -350,7 +348,7 @@ const tests = {
       await rowOf(page, "ukazka.pdf").click(); await page.waitForSelector(".dv-pg[data-done='1']"); await page.waitForTimeout(300);
       await page.screenshot({ path: `${dir}/${tag}-2-pdf.png` });
       await page.keyboard.press("Escape"); await rowOf(page, "ukazka.xlsx").click(); await page.waitForSelector(".dv-tbl td"); await page.screenshot({ path: `${dir}/${tag}-3-xlsx.png` });
-      await page.keyboard.press("Escape"); await rowOf(page, "export.numbers").click(); await page.waitForSelector(".dv-msg .chipbtn"); await page.screenshot({ path: `${dir}/${tag}-4-numbers.png` });
+      await page.keyboard.press("Escape"); await rowOf(page, "export.numbers").click(); await page.waitForSelector(".dv-msg .btn"); await page.screenshot({ path: `${dir}/${tag}-4-numbers.png` });
       await ctx.close();
     }
   },

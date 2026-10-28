@@ -1,5 +1,6 @@
 // Testy kalkulačky (fincalc.js) v Chromiu – nepotřebují PP_KEY. Použití: node tests/fincalc.run.mjs [--shots]
-import { loadPlaywright, startServer, assert, eq } from "./helpers.mjs";
+import { loadPlaywright, startServer, assert, eq, appCss, smallTargets } from "./helpers.mjs";
+const APPCSS = await appCss();
 
 const SHOTS = process.argv.includes("--shots");
 const { chromium } = await loadPlaywright();
@@ -15,8 +16,7 @@ async function open({ width = 1300, height = 900, dark = false } = {}) {
   page.on("pageerror", e => errors.push(e.message));
   page.on("dialog", d => { errors.push("nečekaný dialog: " + d.type()); d.accept(); });
   await page.route(base + "harness.html", r => r.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="cs"><head><meta charset="utf-8">
-    <style>:root{--bg:#F2F2F7;--bg2:#fff;--label:#000;--red:#FF3B30;--card-shadow:0 1px 2px rgba(0,0,0,.04)}
-    @media (prefers-color-scheme: dark){:root{--bg:#000;--bg2:#1C1C1E;--label:#fff}}body{background:var(--bg);margin:0;padding:16px;font-family:-apple-system,system-ui,sans-serif}</style>
+    <style>${APPCSS}</style><style>body{margin:0;padding:16px}</style>
     </head><body><div id="box"></div><script src="fincalc.js"></script><script src="photoedit.js"></script><script>
     const docs={},subs=new Set(),emit=()=>subs.forEach(f=>f());let n=0;
     const store={collection:name=>({onSnapshot(cb){const f=()=>cb({docs:Object.entries(docs).filter(([k])=>k.startsWith(name+"/")).map(([k,v])=>({id:k.split("/")[1],data:()=>v}))});subs.add(f);f()},
@@ -28,7 +28,7 @@ async function open({ width = 1300, height = 900, dark = false } = {}) {
   await page.waitForFunction(() => window.ui);
   return { ctx, page, errors };
 }
-const tiles = page => page.$$eval(".fc-tile", ts => Object.fromEntries(ts.map(t => [t.querySelector(".k").textContent, t.querySelector(".v").textContent])));
+const tiles = page => page.$$eval(".fc-tiles .tile", ts => Object.fromEntries(ts.map(t => [t.querySelector(".k").textContent, t.querySelector(".v").textContent])));
 
 const tests = {
   async "výpočty: investice podle kalkulačky ZFP (100 000 + 5 000/měs., 6 %, 20 let)"() {
@@ -336,17 +336,21 @@ const tests = {
       const over = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
       assert(over <= 0, "vodorovné přetečení o " + over + " px");
       /* tlačítka v liště se nesmí useknout (text celý viditelný, nic nepřetéká kartu) */
-      const cut = await page.$$eval(".fc-acts .fc-btn", bs => bs.filter(b => b.scrollWidth > b.clientWidth + 1 || b.getBoundingClientRect().right > b.closest(".fc").getBoundingClientRect().right + 0.5).map(b => b.textContent));
+      const cut = await page.$$eval(".fc-acts .btn, .fc-acts .icon-btn", bs => bs.filter(b => (b.matches(".btn") && b.scrollWidth > b.clientWidth + 1) || b.getBoundingClientRect().right > b.closest(".fc").getBoundingClientRect().right + 0.5).map(b => b.textContent));
       eq(cut, [], "useknutá tlačítka");
-      eq(await page.$$eval(".fc-acts .fc-btn", bs => new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size), 1, "akce v jedné řadě");
+      eq(await page.$$eval(".fc-acts .btn, .fc-acts .icon-btn", bs => new Set(bs.map(b => Math.round((b.getBoundingClientRect().top + b.getBoundingClientRect().bottom) / 2))).size), 1, "akce v jedné řadě");
       assert(!(await page.$(".fc-head, .fc-logo")), "bez vlastní hlavičky s logem");
+      /* design systém: globální komponenty, žádná vlastní paleta ani vlastní tlačítka modulu */
+      eq(await page.evaluate(() => [...document.querySelectorAll("#fcCss")].map(s => (s.textContent.match(/--fc-[a-z0-9]+|\.fc-btn|\.fc-wseg|#[0-9a-fA-F]{6}\b/g) || [])).flat()), [], "bez vlastních barev a tlačítek v CSS modulu");
+      assert(await page.$(".fc.card .seg [data-a=mode]") && await page.$(".fc-acts .btn--primary") && (await page.$$(".fc .btn--primary")).length === 1, "taby = .seg, jediné primární tlačítko");
+      assert(await page.$(".fc-tiles.tiles .tile") && await page.$(".fc-in.field") && await page.$(".fc-flag.icon-btn--plain"), "dlaždice .tile, steppery .field, vlajky .icon-btn--plain");
       for (const m of ["loan", "inv", "renta"]) {
         await page.click(`[data-a="mode"][data-k="${m}"]`);
         const small = await page.$$eval(".fc input, .fc select", els => els.filter(e => e.offsetParent && e.type !== "checkbox" && e.type !== "range" && parseFloat(getComputedStyle(e).fontSize) < 16).length);
         eq(small, 0, "pole min. 16 px: " + m);
         if (o.width < 500) {
-          const tiny = await page.$$eval(".fc button, .fc input:not([type=checkbox]), .fc select", els => els.filter(e => e.offsetParent && (e.getBoundingClientRect().height < 40 || e.getBoundingClientRect().width < 40)).map(e => (e.dataset.a || e.dataset.k || e.tagName) + ":" + Math.round(e.getBoundingClientRect().width) + "x" + Math.round(e.getBoundingClientRect().height)));
-          eq(tiny, [], "dotykové cíle min. 40 px: " + m);
+          /* běžné prvky min. 40 px, ikonová tlačítka a segmenty min. 32 px (dotyková plocha 44 px přes ::after) */
+          eq(await smallTargets(page, ".fc button, .fc input, .fc select", { width: true }), [], "dotykové cíle: " + m);
         }
       }
       if (SHOTS) { await page.waitForTimeout(1100); await page.screenshot({ path: `/tmp/fc-${o.width}${o.dark ? "-dark" : ""}.png`, fullPage: true }); }
