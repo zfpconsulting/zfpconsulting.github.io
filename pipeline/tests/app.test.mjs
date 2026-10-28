@@ -699,4 +699,44 @@ export default {
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
+  async "design 2b: Kalendář Den|Týden|Měsíc|Volno (iPhone začíná Dnem), nábor na iPhonu jako seznam, Portfolia segment, stavy bez cizích barev"(env) {
+    const d = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+    const store = { ...STORE, "settings/main": { ...STORE["settings/main"], calPrefix: "VK:", calTabIds: ["cal1"] },
+      "recruits/r1": { name: "Karel Nový", stage: "osloven", nextDate: d(-1), _u: 1 }, "recruits/r2": { name: "Lucie Dlouhá", stage: "pohovor", _u: 1 },
+      "akvFirmy/f1": { name: "Firma a.s.", ben: ["PS"], stage: "schuzka", _u: 1 } };
+    const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" };
+    for (const [w, h, mode0] of [[390, 844, "day"], [1440, 900, "week"]]) {
+      const { ctx, page, errors } = await openApp(env, { store, width: w, height: h });
+      await ctx.route(/googleapis\.com\/calendar/, r => r.request().method() === "OPTIONS" ? r.fulfill({ status: 204, headers: cors }) : r.fulfill({ status: 200, headers: cors, contentType: "application/json", body: '{"items":[]}' }));
+      await page.evaluate(() => { localStorage.removeItem("ct_free_only"); lsSet("g_tok", { at: "test-token-123456789012345", exp: Date.now() + 36e5, scope: "calendar.events" }) });
+      await page.evaluate(() => setView("cal")); await page.waitForTimeout(600);
+      eq(await page.evaluate(() => [ctMode, [...$("ctModeSeg").children].map(b => b.textContent), !$("ctPickBtn"), !$("ctFreeBtn")]), [mode0, ["Den", "Týden", "Měsíc", "Volno"], true, true], "výchozí pohled " + w);
+      eq(await page.evaluate(() => $("ctTodayBtn").getAttribute("aria-label")), "Přejít na dnešek v kalendáři", "‹ Dnes › nekoliduje s globálním Dnes");
+      await page.evaluate(() => [...$("ctModeSeg").children][3].click()); await page.waitForTimeout(500);
+      eq(await page.evaluate(() => [ctMode, JSON.parse(localStorage.getItem("ct_free_only")), $("ctWeekWrap").hidden]), ["free", true, true], "Volno si pamatuje (stejně jako přepínač v Nastavení)");
+      await page.evaluate(() => ctStep(1)); await page.waitForTimeout(300);
+      eq(await page.evaluate(() => ctFreeA), d(14), "šipka ve Volnu posune o 14 dní");
+      await page.evaluate(() => [...$("ctModeSeg").children][0].click()); await page.waitForTimeout(300);
+      await page.evaluate(() => ctStep(-1)); await page.waitForTimeout(300);
+      eq(await page.evaluate(() => [ctMode, ctSel, $("cwGrid").children.length, JSON.parse(localStorage.getItem("ct_free_only"))]), ["day", d(-1), 1, false], "Den = jeden sloupec, šipka o den");
+      /* barvy událostí jen třídami v odstínech ZFP (žádné inline background) */
+      assert(await page.evaluate(() => !document.querySelector("#view_cal [style*=background]")), "bez inline barev");
+      /* Síť: iPhone seznam podle fáze, počítač kanban */
+      await page.evaluate(() => setView("net")); await page.waitForTimeout(300);
+      eq(await page.evaluate(() => [getComputedStyle($("rBoard")).display === "none", getComputedStyle($("rList")).display === "none"]), w < 760 ? [true, false] : [false, true], "nábor " + w);
+      eq(await page.evaluate(() => [...$("rList").querySelectorAll(".rlist-h .stdot")].map(x => x.textContent)), ["Oslovený", "Pohovor"], "skupiny podle fáze");
+      await page.evaluate(() => $("rList").querySelector(".row .icon-btn").click()); await page.waitForTimeout(400);
+      eq(await page.evaluate(() => recruits.find(r => r.name === "Karel Nový").stage), "pohovor", "šipka posune do další fáze");
+      /* Akvizice: filtry jako .chip, stav jako štítek s odstínem, vysvětlivka v details.more */
+      await page.evaluate(() => setView("akv")); await page.waitForTimeout(300);
+      eq(await page.evaluate(() => [$("akvFBen").querySelectorAll(".chip").length, !!$("akvFList").querySelector(".stdot.sh-acc"), !!document.querySelector("#view_akv details.more"), document.querySelectorAll("#view_akv .chipbtn").length]), [5, true, true, 0], "Akvizice");
+      /* Portfolia: segment místo „Fondy“ + „← Zpět“ */
+      await page.evaluate(() => setView("pf")); await page.waitForTimeout(500);
+      eq(await page.evaluate(() => [...document.querySelectorAll("#pfBox .pfmode button")].map(b => b.textContent.replace(/ · \d+/, ""))), ["Klienti", "Modely", "Fondy"], "segment");
+      await page.evaluate(() => [...document.querySelectorAll("#pfBox .pfmode button")][2].click()); await page.waitForTimeout(300);
+      eq(await page.evaluate(() => [pfMode, !!$("pfUrl"), /← Zpět/.test($("pfBox").textContent), !!$("pfBox").querySelector(".card .empty")]), ["funds", true, false, true], "Fondy bez Zpět, prázdný stav v kartě");
+      eq(errors, [], "chyby " + w);
+      await ctx.close();
+    }
+  },
 };

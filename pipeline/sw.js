@@ -1,5 +1,5 @@
 /* CACHE a CORE needitovat ručně – srovná je `node tools/bump.mjs` podle ?v= v index.html (kontrola v CI: --check) */
-const CACHE="pipeline-v179", RCACHE="pipeline-rt-v1", VCACHE="pipeline-vendor-v1";
+const CACHE="pipeline-v180", RCACHE="pipeline-rt-v1", VCACHE="pipeline-vendor-v1";
 const CORE=["./","./index.html","./manifest.webmanifest","./favicon-48.png?v=2","./icon-192.png?v=2","./apple-touch-icon.png?v=2","./fincalc.js?v=12","./duchod.js?v=10","./uvery.js?v=4","./databaze.js?v=11","./dzcrypto.js?v=2","./advimg.js?v=1","./pushcrypto.js?v=1","./photoedit.js?v=3","./dmy.js?v=1","./docs.js?v=5","./wallpaper.js?v=7","./icon-512.png?v=2"];
 /* CORE (appka) se stáhne při instalaci. Ostatní se ukládá až při prvním použití:
    RCACHE = finanční plán (fp.html), dotazník, tapeta, sazby… – přežije vydání nové verze, staré verze téhož souboru se při uložení nové smažou;
