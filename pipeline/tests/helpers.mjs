@@ -13,7 +13,7 @@ export async function loadPlaywright() {
   catch { return await import(process.env.PLAYWRIGHT_MODULE || "/opt/node22/lib/node_modules/playwright/index.mjs"); }
 }
 
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".css": "text/css; charset=utf-8" };
 export function startServer() {
   return new Promise(res => {
     const srv = createServer(async (req, rsp) => {
@@ -30,10 +30,10 @@ export function startServer() {
   });
 }
 
-/* CSS design systému z index.html (tokeny + globální komponenty) – moduly ho v appce dědí, tak ho dostanou i samostatné testy */
+/* CSS design systému (sdílené ui.css s tokeny a komponentami + <style> z index.html) – moduly ho v appce dědí, tak ho dostanou i samostatné testy */
 let _css = null;
 export async function appCss() {
-  if (_css == null) { const s = await readFile(join(ROOT, "index.html"), "utf8"), m = /<style>([\s\S]*?)<\/style>/.exec(s); _css = m ? m[1] : ""; }
+  if (_css == null) { const s = await readFile(join(ROOT, "index.html"), "utf8"), m = /<style>([\s\S]*?)<\/style>/.exec(s); _css = (await readFile(join(ROOT, "ui.css"), "utf8")) + "\n" + (m ? m[1] : ""); }
   return _css.replace(/<\/style/gi, "<\\/style");
 }
 /* dotykové cíle: běžné prvky min. 40 px; malé komponenty (.btn--s, .chip, .icon-btn, tlačítka v .seg) min. 32 px – plochu do 44 px jim rozšiřuje ::after */
