@@ -626,4 +626,38 @@ export default {
     eq(await c.page.evaluate(() => [__wp.mode, __wp.running, __wp.rm]), ["anim", false, true], "omezit pohyb = nehybná");
     eq(c.errors, [], "chyby (omezit pohyb)"); await c.ctx.close();
   },
+  async "finanční plán – záložka: jedno pole (plány nahoře, pod nimi Vytvořit pro… / Nový klient), aktivní lead jen jednou, odkaz pro klienta v menu"(env) {
+    const store = { ...STORE,
+      "leads/f1": { name: "Jan Novák", phone: "777 111 222", stage: "novy", items: [], meetings: [], log: [], _u: 1 },
+      "leads/f2": { name: "Petr Podepsaný", stage: "podpis", items: [], meetings: [], log: [], _u: 1 },
+      "leads/f3": { name: "Karel Ztracený", stage: "lost", items: [], meetings: [], log: [], _u: 1 },
+      "clients/c1": { name: "Eva Klientová", phone: "", products: [], log: [], _u: 1 },
+      "fplan/c1": { clientId: "c1", name: "Eva Klientová", plan: { klient: { jmeno: "Eva Klientová" } }, updatedAt: Date.now(), _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store, width: 390, height: 844 });
+    await page.evaluate(() => setView("fp")); await page.waitForTimeout(300);
+    const rows = () => page.$$eval("#fpBox .row .main", r => r.map(x => x.firstChild.textContent.trim()));
+    eq(await page.$$eval("#view_fp .pfsearch > *", e => e.map(x => x.id || x.className)), ["fpSearchI", "fplink", "fpNewBtn"], "jedno pole + Odkaz pro klienta + Nový plán");
+    await page.fill("#fpSearchI", "nov");
+    let r = await rows();
+    eq(r.filter(x => /Novák/.test(x)), ["Vytvořit pro Jan Novák"], "aktivní lead nabídnutý jen jednou");
+    assert(r.includes("Nový klient „nov“"), "pod nabídkou založení nového klienta");
+    await page.fill("#fpSearchI", "eva");
+    r = await rows(); eq(r, ["Eva Klientová", "Nový klient „eva“"], "existující plán nahoře, klient s plánem se znovu nenabízí");
+    await page.fill("#fpSearchI", "Eva Klientová");
+    r = await rows(); eq(r, ["Eva Klientová"], "přesné jméno existujícího plánu nenabízí založení duplicitního klienta");
+    await page.fill("#fpSearchI", "");
+    await page.click("#fpNewBtn"); r = await rows();
+    eq([r.filter(x => /Novák/.test(x)).length, r.some(x => /Podepsaný/.test(x)), r.some(x => /Ztracený/.test(x)), r.some(x => /Vytvořit pro Eva/.test(x))], [1, true, false, false], "Nový plán: každý jednou, lost ne, kdo má plán ne");
+    eq(await page.evaluate(() => document.activeElement.id), "fpSearchI", "kurzor v poli");
+    /* vytvoření pro lead → plán k leadu, opakované vytvoření už se nenabízí */
+    await page.evaluate(() => { fplans.push({ id: "lead_f1", name: "Jan Novák", plan: {}, updatedAt: Date.now() }); renderFpTab(); });
+    r = await rows(); eq(r.filter(x => /Novák/.test(x)), ["Jan Novák"], "lead s plánem už jen jako existující plán");
+    /* odkaz pro klienta: jedno tlačítko, rozbalí dotazník i rezervaci */
+    assert(await page.$eval("#fpLinkMenu", m => m.hidden), "menu zavřené");
+    await page.click("#fpLinkBtn");
+    eq(await page.$$eval("#fpLinkMenu button:not([hidden])", b => b.filter(x => x.offsetParent).map(x => x.querySelector("b").textContent)), ["Dotazník", "Rezervace"], "obě volby v menu");
+    await page.click("#fpSearchI"); assert(await page.$eval("#fpLinkMenu", m => m.hidden), "klik mimo menu zavře");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
 };

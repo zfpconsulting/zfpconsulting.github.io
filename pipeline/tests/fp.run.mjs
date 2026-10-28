@@ -8,30 +8,60 @@ const browser = await chromium.launch(process.env.PW_EXECUTABLE ? { executablePa
 const { srv, url } = await startServer();
 const FP = url.replace(/index\.html$/, "fp.html");
 
+/* fp.html běží jen uvnitř Pipeline (iframe #host). Test podvrhne stránku Pipeline: na fp:ready pošle fp:init s plánem
+   uloženým v localStorage (stejně jako ho Pipeline drží ve Firestore), fp:save plán uloží, fp:prodDef uloží výchozí produkty. */
+const HOSTURL = url.replace(/index\.html$/, "__fphost.html");
+const DEFAULT_PLAN = {"klient": {"titul": "", "jmeno": "Ukázkový Klient", "narozen": "1990-05-01", "duchod": "", "zam": 45000, "podnik": 0, "pasiv": 0, "pronajem": 0, "bonus": 0, "vydaje_osobni": 30800, "inv1": 7500, "inv2": 9000, "inv3": 15000, "vdovsky": 9000, "sirotci": 8000, "hruba": "", "bez_partnera": false}, "partner": {"zapnuto": false}, "deti": [{"jmeno": "Ema", "narozen": "2020-03-01"}], "motivace": "Chci, aby rodina měla jistotu, a jednou vlastní byt bez velké hypotéky.", "docasne": [], "majetek": [{"nazev": "Běžný účet", "typ": "Běžný účet", "hodnota": 80000, "vklad": 0}, {"nazev": "Spořicí účet", "typ": "Spořicí účet", "hodnota": 400000, "vklad": 0}, {"nazev": "Stavební spoření", "typ": "Stavební spoření", "hodnota": 120000, "vklad": 1700}], "nefin": [{"nazev": "Auto", "typ": "Auto", "hodnota": 250000}], "uvery": [], "cile": [{"nazev": "Byt – vlastní zdroje", "castka": 1200000, "za_let": 7}], "renta": {"mesicne": 40000, "od_veku": ""}, "pojisteni": {"zivotni": {"stav": 1200, "navrh": 1600}}, "realokace": {"rucne": false, "polozky": []}};
+const HOSTPAGE = `<!doctype html><meta charset="utf-8"><body style="margin:0"><script>
+const PK="fp_test_plan",DK="fp_test_proddef",DEF=${JSON.stringify(DEFAULT_PLAN)};
+const get=k=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
+window.__fpSave=p=>localStorage.setItem(PK,JSON.stringify(p));
+const fr=document.createElement("iframe");fr.src="fp.html#host";fr.style.cssText="border:0;width:100vw;height:100vh;display:block";document.body.append(fr);
+addEventListener("message",e=>{const d=e.data||{};if(e.source!==fr.contentWindow)return;
+  if(d.type==="fp:ready")fr.contentWindow.postMessage({type:"fp:init",plan:localStorage.getItem("fp_test_new")?null:get(PK)||JSON.parse(JSON.stringify(DEF)),prodDef:get(DK)},location.origin);
+  else if(d.type==="fp:save"&&d.plan)__fpSave(d.plan);
+  else if(d.type==="fp:prodDef")localStorage.setItem(DK,JSON.stringify(d.prodDef))});
+<\/script>`;
+const READY = () => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true && typeof FR !== "undefined" && FR.length > 0 && !!document.querySelector("#stage .sl");
+async function fpFrame(pg) {
+  const fh = await pg.waitForSelector("iframe"); const fr = await fh.contentFrame();
+  await fr.waitForFunction(READY, null, { timeout: 30000 }); return fr;
+}
+/* „page“ v testech: funkce stránky (evaluate, click, locator…) jdou do rámu s plánem, navigace a události do skutečné stránky */
+function wrap(pg) {
+  let tgt = pg, host = false;
+  const own = {
+    async goto(u, o) { if (u === FP) { host = true; await pg.goto(HOSTURL); tgt = await fpFrame(pg); } else { host = false; await pg.goto(u, o); tgt = pg; } },
+    /* reload jako zavření a znovuotevření plánu v Pipeline: rozpracované změny se nejdřív uloží */
+    async reload(o) { if (host) await tgt.evaluate(() => parent.__fpSave(JSON.parse(JSON.stringify(inp())))); await own.rawReload(o); },
+    async rawReload(o) { await pg.reload(o); if (host) tgt = await fpFrame(pg); },
+    waitForEvent: (...a) => pg.waitForEvent(...a), on: (...a) => pg.on(...a), context: () => pg.context(), setViewportSize: v => pg.setViewportSize(v),
+  };
+  return new Proxy({}, { get(_, k) { if (k in own) return own[k]; const v = tgt[k]; return typeof v === "function" ? v.bind(tgt) : v; } });
+}
 async function open() {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   /* přístupový kód v zařízení – stejně jako ho tam uloží Pipeline */
   await ctx.addInitScript(k => { try { if (!localStorage.getItem("pp_key")) localStorage.setItem("pp_key", k); } catch (e) {} }, process.env.PP_KEY);
-  const page = await ctx.newPage();
+  await ctx.route(HOSTURL, r => r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: HOSTPAGE }));
+  const pg = await ctx.newPage();
   const errors = [];
-  page.on("pageerror", e => errors.push(e.message));
+  pg.on("pageerror", e => errors.push(e.message));
+  const page = wrap(pg);
   await page.goto(FP);
-  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
   return { ctx, page, errors };
 }
-/* uloží plán klienta do localStorage a načte stránku znovu */
+/* uloží plán klienta (jako Pipeline) a otevře ho znovu */
 async function setPlan(page, patch) {
-  await page.evaluate(p => { const d = JSON.parse(JSON.stringify(DB)), c = d.clients[d.cur]; Object.assign(c, p); localStorage.setItem(LS, JSON.stringify(d)); }, patch);
-  await page.reload();
-  await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
+  await page.evaluate(p => { const c = JSON.parse(JSON.stringify(inp())); Object.assign(c, p); parent.__fpSave(c); }, patch);
+  await page.rawReload();
 }
 const pvAnn = (m, n, r) => { const q = Math.pow(1 + r, 1 / 12) - 1; return n > 0 && m > 0 ? m * (1 - Math.pow(1 + q, -n)) / q : 0; };
 
 const tests = {
   async "shrnutí mailem: oslovení podle titulu, následné kroky (zřízení + trvalý příkaz, ŽP), termín podpisu z kalendáře"() {
     const { ctx, page, errors } = await open();
-    await page.evaluate(() => { const d = JSON.parse(JSON.stringify(DB)), c = d.clients[d.cur]; c.klient.titul = "Ing."; c.klient.jmeno = "Petr Novák"; c.kontakt = { email: "novak@example.cz" }; localStorage.setItem(LS, JSON.stringify(d)); });
-    await page.reload(); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
+    await setPlan(page, { klient: Object.assign({}, await page.evaluate(() => inp().klient), { titul: "Ing.", jmeno: "Petr Novák" }), kontakt: { email: "novak@example.cz" } });
     await page.click("#bMail"); await page.waitForSelector("#mTxt");
     let t = await page.$eval("#mTxt", e => e.value);
     assert(t.startsWith("Dobrý den, pane inženýre,\n\nposílám shrnutí finančního plánu"), "úvod: " + t.slice(0, 80));
@@ -264,7 +294,7 @@ tests["demo plány: spočítají se, jsou kompletní, splnitelné a sedí s kart
         r.cf = R.cf; r.nesplnene = (R.cile || []).filter(c => c.splneni < 0.9).map(c => c.nazev);
         r.rentaKracena = !!(R.renta && R.renta.kraceno); r.nedostatek = R.flags.filter(f => /nestačí/.test(f));
         r.cile = (R.cile || []).length; r.nan = JSON.stringify(R.cile.map(c => [c.vklad, c.pmt, c.splneni])).includes("null");
-        r.frames = (() => { try { const d = JSON.parse(JSON.stringify(DB)); d.clients[d.cur] = plan; DB = d; compute(); return FR.length; } catch (e) { return "ERR " + e.message; } })();
+        r.frames = (() => { try { PLAN = JSON.parse(JSON.stringify(plan)); compute(); return FR.length; } catch (e) { return "ERR " + e.message; } })();
       } catch (e) { r.err = String(e && e.message || e); }
       out.push(r);
     }
@@ -683,15 +713,16 @@ tests["pojistné za osobu: SOCKO, modelace i realizace jen za danou osobu; hlavn
 };
 tests["produkty v automatickém návrhu: poslední změna = výchozí pro další nové plány"] = async function () {
   const { ctx, page, errors } = await open();
-  await page.evaluate(() => { localStorage.removeItem(PDK); goStep(5); });
+  await page.evaluate(() => { localStorage.removeItem("fp_test_proddef"); goStep(5); });
   await page.selectOption('[data-p="nastaveni.dip_prod"]', { index: 1 });
   const zvoleno = await page.$eval('[data-p="nastaveni.dip_prod"]', s => s.value);
   await page.click('[data-add="nastaveni.mixA"]');
-  const def = await page.evaluate(() => JSON.parse(localStorage.getItem(PDK)));
-  eq(def.dip_prod, zvoleno, "uložený výchozí DIP"); eq(def.mixA.length, 2, "uložená akciová složka (2 řádky)");
-  await page.click("#bNew");
-  const nove = await page.evaluate(() => ({ dip: inp().nastaveni.dip_prod, a: inp().nastaveni.mixA.length }));
-  eq(nove, { dip: zvoleno, a: 2 }, "nový plán převzal výchozí produkty");
+  const def = await page.evaluate(() => JSON.parse(localStorage.getItem("fp_test_proddef")));
+  eq(def.dip_prod, zvoleno, "uložený výchozí DIP (poslaný do Pipeline)"); eq(def.mixA.length, 2, "uložená akciová složka (2 řádky)");
+  /* nový plán pro dalšího klienta: Pipeline pošle prázdný plán a uložené výchozí produkty */
+  await page.evaluate(() => localStorage.setItem("fp_test_new", "1")); await page.rawReload();
+  const nove = await page.evaluate(() => ({ dip: inp().nastaveni.dip_prod, a: inp().nastaveni.mixA.length, jm: inp().klient.jmeno }));
+  eq(nove, { dip: zvoleno, a: 2, jm: "" }, "nový plán převzal výchozí produkty");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 tests["rezervace: živá kontrola kalendáře skryje obsazené časy, termín se při rezervaci zablokuje (obsazený → vybrat jiný), blokace jde v šifrované zprávě"] = async function () {
@@ -759,8 +790,10 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   eq(bad, "nejde", "cizím klíčem nejde přečíst");
   eq(await page.evaluate(() => localStorage.getItem("fp_dotaznik_draft_v1")), null, "po odeslání se koncept smaže");
   await page.goto(FP); await page.waitForFunction(() => typeof FPE !== "undefined" && typeof donut === "function" && window.FP_SAZBY_OK === true);
-  const r = await page.evaluate(D => { const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; mergeDz(I, D); I.pojisteni = Object.assign({}, I.pojisteni, { pojistovna: "nn" }); const N = FPE.compute(I, new Date()).nn; return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ, sp: I.klient.sporty.length, rs: N && N.osoby[0].rs };
-  }, x.plan);
+  /* dotazník do plánu slučuje Pipeline (index.html dzMerge) – stejná funkce, jaká běží při příjmu dotazníku */
+  const src = await (await fetch(url)).text(), dzm = "function dzMerge" + src.split("function dzMerge")[1].split("\nasync function dzImport")[0];
+  const r = await page.evaluate(([D, dzm]) => { eval(dzm + ";window.__dzMerge=dzMerge"); const I = JSON.parse(JSON.stringify(inp())); I.klient.inv3 = 20000; __dzMerge(I, D); I.pojisteni = Object.assign({}, I.pojisteni, { pojistovna: "nn" }); const N = FPE.compute(I, new Date()).nn; return { j: I.klient.jmeno, zam: I.klient.zam, inv3: I.klient.inv3, bez: I.klient.bez_partnera, doc: I.docasne[0].typ, sp: I.klient.sporty.length, rs: N && N.osoby[0].rs };
+  }, [x.plan, dzm]);
   eq([r.j, r.zam, r.inv3, r.bez, r.doc, r.sp, r.rs], ["Petr Malý", 48000, 20000, true, "rodicovska", 1, 2], "sloučení s plánem (IOLDP z plánu zůstává; registrovaný fotbal = RS 2 automaticky)");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
@@ -1314,6 +1347,120 @@ tests["invalidita: volba bude / nebude pracovat a vlastní % výdělku u osoby"]
   assert(r.ne[0][2] > r.def[0][2] && r.ne[1][2] > r.def[1][2], "bez práce vyšší pojistná částka I. a II. st.");
   eq(r.ne[2], r.def[2], "III. st. beze změny");
   eq(r.vlastni.map(x => x[0]), [0.8, 0.3, 0], "vlastní % u I. st., prázdné II. = nastavení");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+/* ---------- audit 10/2026 ---------- */
+const PLNY = { klient: { titul: "", jmeno: "Pavel Plný", narozen: "1988-03-01", zam: 62000, vydaje_osobni: 35000, inv1: 9000, inv2: 12000, inv3: 20000, starobni: 21000, hruba: 85000 },
+  partner: { zapnuto: true, jmeno: "Jana Plná", narozen: "1991-06-01", zam: 38000, vydaje_osobni: 0, inv1: 7000, inv2: 9000, inv3: 15000, starobni: 17000 }, deti: [], motivace: "x",
+  majetek: [{ typ: "Spořicí účet", nazev: "Účet", hodnota: 250000 }, { typ: "Stavební spoření", nazev: "SS", hodnota: 90000, vklad: 1700 }, { typ: "Doplňkové penzijní spoření", nazev: "DPS", hodnota: 60000, vklad: 1000 }],
+  uvery: [{ typ: "Hypotéka", nazev: "KB", zustatek: 2800000, splatka: 17000, fixace_do: "2028-05", splatnost: "2049-05" }], cile: [{ nazev: "Auto", castka: 600000, za_let: 5 }], vydaje: { vcetne: true, domacnost: 55000 }, renta: {} };
+
+tests["výdaje: rezerva „6 × výdaje“ na slidu Plán počítá se stejnými zaokrouhlenými výdaji jako Cash flow v čase"] = async () => {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, PLNY);
+  const r = await page.evaluate(() => { const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/\s+/g, " "); };
+    const cf = t(FR.find(f => f.lbl === "Cash flow: Dnes").h), plan = t(FR.find(f => f.g === "p").h);
+    return { vyd: (cf.match(/Výdaje celkem ?([\d ]+) Kč/) || [])[1], rez: (plan.match(/6 měsíců výdajů: 6 × ([\d ]+) Kč/) || [])[1], cil: R.rez.cil, prijmy: R.prijmy, cfr: R.cf }; });
+  assert(r.vyd && r.rez, "obě čísla na slidech: " + JSON.stringify(r));
+  eq(r.rez, r.vyd, "stejné výdaje na obou slidech");
+  eq(r.cil, Math.ceil(6 * (r.prijmy - r.cfr) / 10000) * 10000, "rezerva = 6 × zaokrouhlené výdaje");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["prázdný nový plán nehlásí záporné cash flow, dokud nejsou vyplněné příjmy i výdaje; kontrola před prezentací sbalená s počtem"] = async () => {
+  const { ctx, page, errors } = await open();
+  await page.evaluate(() => localStorage.setItem("fp_test_new", "1")); await page.rawReload();
+  const a = await page.evaluate(() => ({ cfFlags: R.flags.filter(f => /cash flow/i.test(f)), zap: !!R.cfZaporne, det: [...document.querySelectorAll("#chkbox details")].map(d => [d.open, d.querySelector("summary").textContent.trim()]) }));
+  eq([a.cfFlags, a.zap], [[], false], "bez příjmů a výdajů žádné varování o cash flow");
+  assert(a.det.length >= 1 && a.det.every(d => d[0] === false) && /Před prezentací chybí \d+/.test(a.det[0][1]), "sbalené, v souhrnu jen počet: " + JSON.stringify(a.det));
+  await page.click("#chkbox summary"); await page.evaluate(() => { inp().klient.zam = 1000; update(); });
+  eq(await page.evaluate(() => document.querySelector('#chkbox details[data-ck="m"]').open), true, "rozbalení přežije přepočet");
+  /* vyplněné příjmy i výdaje, výdaje vyšší → varování je */
+  await page.evaluate(() => { Object.assign(inp().klient, { jmeno: "A B", narozen: "1990-01-01", zam: 20000, vydaje_osobni: 30000 }); inp().vydaje = { vcetne: false }; update(); });
+  assert(await page.evaluate(() => R.flags.some(f => /ZÁPORNÉ CASH FLOW|nestačí|nulové nebo záporné/.test(f))), "s vyplněnými příjmy i výdaji varování zůstává");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["Cash flow v čase: spodní osa jen u bodů a mimo karty i patičku (přehled a celý plán bez ní)"] = async () => {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, PLNY);
+  const r = await page.evaluate(() => { const host = document.createElement("div"); host.style.cssText = "position:fixed;left:-30000px;top:0;width:1600px;height:900px;overflow:hidden"; document.body.append(host);
+    const out = FR.filter(f => f.g === "cft").map(f => { host.innerHTML = `<div class="stage" style="transform:none"><div class="sl">${f.h}</div></div>`; const sl = host.querySelector(".sl"), b = sl.getBoundingClientRect();
+      const box = e => { const q = e.getBoundingClientRect(); return { t: q.top - b.top, bt: q.bottom - b.top, l: q.left - b.left, r: q.right - b.left } };
+      const vis = e => +getComputedStyle(e).opacity > 0.04 && (!e.parentElement.dataset.k || +getComputedStyle(e.parentElement).opacity > 0.04);
+      const axis = [...sl.querySelectorAll('[data-k^="cfo"]')].filter(vis).map(box);
+      const blocks = [...sl.querySelectorAll('.foot,[data-k="cfsum"],[data-k="cfcard"] > .card')].filter(vis).map(box);
+      const hit = axis.some(a => blocks.some(c => a.l < c.r && a.r > c.l && a.t < c.bt && a.bt > c.t));
+      return { lbl: f.lbl, axis: axis.length, hit }; });
+    host.remove(); return out; });
+  assert(r.length >= 3, "slidy cash flow");
+  eq(r.filter(x => x.hit).map(x => x.lbl), [], "osa nepřekrývá karty ani patičku");
+  eq([r[0].axis, r[r.length - 1].axis], [0, 0], "přehled a celý plán bez spodní osy");
+  assert(r.slice(1, -1).every(x => x.axis > 0), "u bodů osa je");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["výkon: změna vstupu nepřestaví všechny náhledy; logo jen jednou (sdílený zdroj), v PowerPointu logo je"] = async () => {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, PLNY);
+  const r = await page.evaluate(async () => {
+    const n = FR.length, big = FR.filter(f => f.h.includes("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDkgMTYz")).length;
+    const el = document.querySelector('[data-p="klient.zam"]'), t0 = performance.now();
+    for (let i = 0; i < 5; i++) { el.value = String(62001 + i); el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "1" })); }
+    const sync = performance.now() - t0; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const kb = document.querySelector("#thumbs").innerHTML.length / 1024;
+    await new Promise(r => setTimeout(r, 600));
+    const filled = [...document.querySelectorAll("#thumbs .mini")].filter(m => m.children.length).length;
+    return { n, big, sync, kb, filled, zam: inp().klient.zam, thumbs: document.querySelectorAll("#thumbs .th").length };
+  });
+  eq(r.big, 0, "slidy neobsahují 88 kB base64 loga");
+  assert(r.sync < 15, "vstup jen naplánuje přepočet (" + r.sync.toFixed(1) + " ms)");
+  eq([r.zam, r.thumbs], [62005, r.n], "přepočet proběhne, náhled u každého slidu");
+  assert(r.kb < 600, "náhledy hned po změně jen kostra (" + Math.round(r.kb) + " kB)");
+  assert(r.filled > 0 && r.filled < r.n, "po pauze se vykreslí jen viditelné náhledy (" + r.filled + " z " + r.n + ")");
+  /* PowerPoint: logo ZFP (šířka 110 px × 3) jako obrázek v archivu */
+  const w = await page.evaluate(async () => { const x = await makePptx(), b = new Uint8Array(await x.blob.arrayBuffer()), w = [];
+    for (let i = 0; i < b.length - 24; i++) if (b[i] === 0x89 && b[i + 1] === 0x50 && b[i + 2] === 0x4e && b[i + 3] === 0x47) w.push((b[i + 16] << 24) | (b[i + 17] << 16) | (b[i + 18] << 8) | b[i + 19]); return w; });
+  assert(w.includes(330), "logo ZFP je v PowerPointu jako obrázek (šířky PNG: " + w.join(",") + ")");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["barvy grafů a stavů jen ZFP (oranžová, černá, šedé) – žádná modrá, zelená, růžová ani červená"] = async () => {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, Object.assign({}, PLNY, { deti: [{ jmeno: "Ema", narozen: "2019-04-01" }], cile: [{ nazev: "Auto", castka: 600000, za_let: 5 }, { nazev: "Studium", castka: 800000, za_let: 15 }] }));
+  const bad = await page.evaluate(() => { const host = document.createElement("div"); host.style.cssText = "position:fixed;left:-30000px;top:0;width:1600px;height:900px;overflow:hidden"; document.body.append(host);
+    /* barva je „mimo ZFP“, když je výrazně sytá a odstínem mimo oranžovou (10–42°) */
+    const off = c => { const m = /rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)/.exec(c); if (!m) return false; const [r, g, b] = [+m[1], +m[2], +m[3]], a = m[4] == null ? 1 : +m[4]; if (a < 0.05) return false;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0; if (sat < 0.25 || mx < 60) return false;
+      let h = mx === r ? ((g - b) / (mx - mn)) * 60 : mx === g ? (2 + (b - r) / (mx - mn)) * 60 : (4 + (r - g) / (mx - mn)) * 60; if (h < 0) h += 360; return !(h >= 10 && h <= 42); };
+    const out = new Set();
+    FR.forEach(f => { host.innerHTML = `<div class="stage" style="transform:none"><div class="sl">${f.h}</div></div>`;
+      host.querySelectorAll(".sl *").forEach(e => { if (e.tagName === "IMG") return; const cs = getComputedStyle(e);
+        [cs.color, cs.backgroundColor, cs.borderTopColor, cs.borderLeftColor].forEach(c => { if (off(c)) out.add(f.lbl + ": " + c) });
+        (cs.backgroundImage.match(/rgba?\([^)]+\)/g) || []).forEach(c => { if (off(c)) out.add(f.lbl + ": " + c) }); }); });
+    host.remove(); return [...out]; });
+  eq(bad.slice(0, 10), [], "barvy mimo ZFP");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["mobil: přepínač Editor / Náhled, menu ⋯ (PDF, PowerPoint, Export), bez Importu; pole 16 px, dotykové cíle ≥ 40 px; nápovědy pojišťoven v rozbalení"] = async () => {
+  const { ctx, page, errors } = await open();
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
+  const r = await page.evaluate(() => ({ edVis: !!$("#ed").offsetParent, viewVis: !!document.querySelector(".view").offsetParent,
+    top: [...document.querySelectorAll(".top > button, .top .more > button")].filter(e => e.offsetParent).map(e => e.id),
+    imp: !!document.querySelector("#bImp,#fImp"), font: getComputedStyle(document.querySelector("label.f input")).fontSize,
+    small: [...document.querySelectorAll("#ed button,#ed input:not([type=checkbox]):not([type=file]),#ed select,.top button,.mtabs button")].filter(e => e.offsetParent && e.getBoundingClientRect().height < 40).map(e => e.id || e.dataset.p || e.className) }));
+  eq([r.edVis, r.viewVis], [true, false], "na mobilu nejdřív editor");
+  eq(r.top, ["bClose", "bMail", "bPres", "bMore"], "v hlavičce Zavřít, Poslat shrnutí, Prezentovat, ⋯");
+  eq([r.imp, r.font, r.small], [false, "16px", []], "bez Importu, 16 px, cíle ≥ 40 px");
+  await page.click('.mtabs [data-mt="view"]');
+  eq(await page.evaluate(() => [!!$("#ed").offsetParent, document.getElementById("box").getBoundingClientRect().top < 400]), [false, true], "náhled hned nahoře");
+  await page.click("#bMore");
+  eq(await page.$$eval("#moreMenu button", b => b.filter(x => x.offsetParent).map(x => x.id)), ["bDzM", "bPdf", "bPptx", "bExp"], "menu ⋯");
+  await page.click('.mtabs [data-mt="ed"]');
+  await page.evaluate(() => goStep(3));
+  eq(await page.evaluate(() => { const d = document.querySelector("#ed details.hintd"); return d ? [d.open, /Stela|KoopLife|UniPoint|Allfa|LISA|Zeus|SUS Plus/.test(d.textContent)] : null; }), [false, true], "dlouhé nápovědy pojišťoven sbalené");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 

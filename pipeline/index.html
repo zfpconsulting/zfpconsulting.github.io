@@ -814,11 +814,12 @@ html.locked body{overflow:hidden}
 .fpdzbtn{flex:none;border:1px solid var(--sep);border-radius:12px;background:var(--bg2);color:var(--label);font:inherit;font-size:15px;font-weight:600;padding:0 14px;cursor:pointer;margin-right:8px}
 .fpdzbtn:hover{border-color:var(--zfp,#F37520)}
 .fpnewbtn{flex:none;border:none;border-radius:12px;background:var(--orange);color:#fff;font:inherit;font-size:15px;font-weight:600;padding:0 16px;cursor:pointer;box-shadow:0 3px 10px rgba(243,117,32,.25)}
-.fpnew{background:var(--bg2);border-radius:14px;box-shadow:var(--card-shadow);padding:14px;margin:0 0 16px}
-.fpnew input{width:100%;box-sizing:border-box;border:1px solid var(--sep);border-radius:10px;background:var(--fill2,transparent);padding:11px 12px;font:inherit;font-size:16px;color:var(--label);outline:none}
-.fpnew .fpnew-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:700}
-.fpnew .fpnew-x{border:none;background:none;color:var(--label2);font-size:15px;cursor:pointer}
-.fpnew .group{margin-top:10px;max-height:320px;overflow:auto}
+.fplink{position:relative;display:flex;flex:none}
+.fplinkmenu{position:absolute;right:8px;top:calc(100% + 6px);z-index:30;min-width:260px;background:var(--bg2);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:4px;display:flex;flex-direction:column}
+.fplinkmenu[hidden]{display:none}
+.fplinkmenu button{border:none;background:none;text-align:left;padding:10px 12px;border-radius:9px;font:inherit;color:var(--label);cursor:pointer;display:flex;flex-direction:column;gap:2px;min-height:44px}
+.fplinkmenu button:hover{background:var(--fill2,rgba(127,127,127,.1))}.fplinkmenu small{color:var(--label2);font-size:13px}
+.fplist .row .fpgo{color:var(--orange);font-weight:600}
 .fpdel{border:none;background:none;color:var(--label2);font:inherit;font-size:14px;cursor:pointer;padding:4px 6px;border-radius:7px}
 .fpdel:hover{color:var(--red)}.fpdel.sure{color:#fff;background:var(--red);font-weight:600}
 .fplist .row{cursor:pointer}.fplist .row .main small{display:block;color:var(--label2);font-size:13px;margin-top:2px}
@@ -998,7 +999,8 @@ html.locked body{overflow:hidden}
   .mtop .seg{overflow-x:auto;max-width:100%;grid-auto-columns:max-content;min-width:0;scrollbar-width:none}
   .pfadd.pfsearch{flex-wrap:wrap}
   .pfadd.pfsearch input{flex:1 1 100%;min-height:42px}
-  .pfadd.pfsearch .fpdzbtn,.pfadd.pfsearch .fpnewbtn{flex:1 1 auto;margin-right:0;min-height:40px}
+  .pfadd.pfsearch .fplink,.pfadd.pfsearch .fpnewbtn{flex:1 1 auto;margin-right:0;min-height:40px}.pfadd.pfsearch .fplink .fpdzbtn{flex:1;min-height:40px;margin-right:0}
+  .fplinkmenu{left:0;right:auto}
   .cols{grid-auto-columns:86%;gap:10px}
   .col{scroll-snap-align:center}
 }
@@ -1228,7 +1230,7 @@ html.locked body{overflow:hidden}
     <p class="secfoot" id="ctFoot"></p>
   </section>
   <section id="view_fp" hidden>
-    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán…" autocomplete="off" aria-label="Hledat finanční plán"><button type="button" id="fpDzBtn" class="fpdzbtn" title="Odkaz na vstupní dotazník – klient ho vyplní a odešle, přijde ti zašifrovaný sem">Dotazník pro klienta</button><button type="button" id="fpBkBtn" class="fpdzbtn" title="Odkaz jen na rezervaci schůzky (bez dotazníku) – klient si vybere volný blok, osobně nebo online">Rezervace pro klienta</button><button type="button" id="fpNewBtn" class="fpnewbtn">+ Vytvořit nový</button></div>
+    <div class="pfadd pfsearch"><input id="fpSearchI" type="search" placeholder="Hledat plán nebo jméno klienta…" autocomplete="off" aria-label="Hledat finanční plán nebo klienta, pro kterého ho vytvořit"><span class="fplink"><button type="button" id="fpLinkBtn" class="fpdzbtn" aria-haspopup="true" aria-expanded="false">Odkaz pro klienta ▾</button><span class="fplinkmenu" id="fpLinkMenu" hidden role="menu"><button type="button" role="menuitem" id="fpDzBtn" title="Odkaz na vstupní dotazník – klient ho vyplní a odešle, přijde ti zašifrovaný sem"><b>Dotazník</b><small>klient vyplní podklady k plánu a vybere termín</small></button><button type="button" role="menuitem" id="fpBkBtn" title="Odkaz jen na rezervaci schůzky (bez dotazníku) – klient si vybere volný blok, osobně nebo online"><b>Rezervace</b><small>jen výběr termínu schůzky, bez dotazníku</small></button></span></span><button type="button" id="fpNewBtn" class="fpnewbtn">+ Nový plán</button></div>
     <div id="fpBox"></div>
     <p class="secfoot">Živý finanční plán: upravíš vstupy a prezentace se okamžitě přepočítá. Plán se ukládá ke klientovi (nebo k leadu z pipeline).</p>
   </section>
@@ -6515,7 +6517,7 @@ const ADD_BY_VIEW={
   pipe:["Nový lead",()=>openEdit(null)],
   cli:["Nový klient",()=>addClientRec()],
   uv:["Nový úvěrový případ",()=>renderUv(()=>{const b=$("uvBox").querySelector('.uv-bar [data-a="new"]');if(b)b.click()})],
-  fp:["Nový finanční plán",()=>{if(typeof fpOpenNew==="function")fpOpenNew();else{fpNew=true;fpNewQ="";renderFpTab()}}],
+  fp:["Nový finanční plán",()=>{fpNew=true;renderFpTab();const i=$("fpSearchI");if(i)i.focus()}],
   akv:["Nová firma",()=>addAkvFirma()],
   net:["Nový kandidát",()=>addRecruit()],
   pf:["Nová investice klienta",()=>pfInvEdit(null)]};
@@ -7666,7 +7668,19 @@ function fpLeadBox(l){const b=$("fpLeadBox");if(!b)return;if(!l){b.hidden=true;b
   const t=fpLeadTarget(l),pl=fpPlanOf(t.rec),early=STAGES.findIndex(x=>x.k===l.stage)<STAGES.findIndex(x=>x.k==="schuzka");
   if(early&&!pl){b.hidden=true;b.replaceChildren();return}
   b.hidden=false;b.replaceChildren(fpHeroBtn(pl,()=>openFP(t.e,t.rec)))}
-let fpSearch="",fpNew=false,fpNewQ="";
+let fpSearch="",fpNew=false;
+/* kandidáti na nový plán: klienti, podepsaní i aktivní leady (clientEntries už leady z pipeline obsahuje) – každý člověk jen jednou;
+   lead bez klienta → plán k leadu (lead_<id>, jako tlačítko v kartě leadu), klient se kvůli plánu nezakládá */
+function fpCandidates(hit){
+  const has=new Set(fplans.map(f=>f.id)),seen=new Set(),out=[];
+  const add=(t,lbl)=>{const k=t.rec&&t.rec.id;if(!k||seen.has(k))return;seen.add(k);
+    if(has.has(k)||(t.rec.leadId&&has.has("lead_"+t.rec.leadId)))return;out.push({...t,t:lbl})};
+  clientEntries().filter(e=>hit(e.name)).forEach(e=>{
+    if(e.rec){add({e,rec:e.rec},"klient");if(e.lead)seen.add("lead_"+e.lead.id);return}
+    if(e.lead){if(DEAD(e.lead.stage))return;const t=fpLeadTarget(e.lead);add(t,t.rec.pseudo?"lead · "+ST(e.lead.stage).t:"klient");return}
+    const k="k:"+e.id;if(seen.has(k))return;seen.add(k);out.push({e,rec:null,t:"z kalendáře"})});
+  leads.filter(l=>ACTIVE(l.stage)&&hit(l.name)&&!l._del).forEach(l=>{const t=fpLeadTarget(l);add(t,t.rec.pseudo?"lead · "+ST(l.stage).t:"klient")});
+  return out.sort((a,b)=>(a.e.name||"").localeCompare(b.e.name||"","cs"))}
 function renderFpTab(){
   const box=$("fpBox");if(!box)return;
   const fold=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""),words=fold(fpSearch).split(/\s+/).filter(Boolean),hit=n=>words.every(w=>fold(n).includes(w));
@@ -7679,34 +7693,26 @@ function renderFpTab(){
       try{await db.doc("fplan/"+f.id).delete();toast("Finanční plán smazán")}catch(err){toast("Nepodařilo se smazat")}}},"Smazat");return b};
   const prow=f=>{const go=()=>{const t=target(f);openFP(t.e,t.rec)};return el("div",{class:"row",onclick:go},el("span",{class:"main"},f.name||"Bez jména",el("small",{},"upraveno "+fmtDT(new Date(f.updatedAt||Date.now()).toISOString())+(f.id.startsWith("lead_")?" · lead z pipeline":""))),
     el("span",{class:"end",style:"display:flex;gap:12px;align-items:center"},delBtn(f),el("span",{style:"color:var(--tint)"},"Otevřít ›")))};
+  const creating=words.length>0||fpNew;
+  /* 1) existující plány */
   const out=[el("h3",{class:"sechead"},"Finanční plány · "+plans.length),plans.length?el("div",{class:"group fplist"},plans.slice(0,60).map(prow)):el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},fplans.length?"Žádný plán neodpovídá hledání.":"Zatím žádný plán. Napiš nahoře jméno klienta a vytvoř první.")))];
-  if(words.length){
-    const has=new Set(fplans.map(f=>f.id));
-    const cands=clientEntries().filter(e=>hit(e.name)&&!(e.rec&&(has.has(e.rec.id)||(e.rec.leadId&&has.has("lead_"+e.rec.leadId))))&&!(e.lead&&has.has("lead_"+e.lead.id))).map(e=>({e,rec:e.rec||null,t:"klient"}))
-      .concat(leads.filter(l=>ACTIVE(l.stage)&&hit(l.name)&&!clientOfLead(l)&&!has.has("lead_"+l.id)).map(l=>({...fpLeadTarget(l),t:"lead · "+ST(l.stage).t})));
-    out.push(el("h3",{class:"sechead"},"Nový plán pro"),cands.length?el("div",{class:"group fplist"},cands.slice(0,30).map(c=>el("div",{class:"row",onclick:()=>openFP(c.e,c.rec)},el("span",{class:"main"},c.e.name||"Bez jména",el("small",{},c.t)),el("span",{class:"end",style:"color:var(--orange);font-weight:600"},"+ Vytvořit")))):el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},"Žádný klient ani lead neodpovídá."))));
-  }
-  if(fpNew){ /* panel „Vytvořit nový“: vybrat klienta / lead bez plánu, nebo založit nového klienta jen se jménem */
-    const nf=fold(fpNewQ),nw=nf.split(/\s+/).filter(Boolean),nh=n=>nw.every(w=>fold(n).includes(w));
-    const has=new Set(fplans.map(f=>f.id));
-    const cands=clientEntries().filter(e=>nh(e.name)&&!(e.rec&&(has.has(e.rec.id)||(e.rec.leadId&&has.has("lead_"+e.rec.leadId))))&&!(e.lead&&has.has("lead_"+e.lead.id))).map(e=>({e,rec:e.rec||null,t:"klient"}))
-      .concat(leads.filter(l=>ACTIVE(l.stage)&&nh(l.name)&&!clientOfLead(l)&&!has.has("lead_"+l.id)).map(l=>({...fpLeadTarget(l),t:"lead · "+ST(l.stage).t})))
-      .sort((a,b)=>(a.e.name||"").localeCompare(b.e.name||"","cs"));
-    const inp=el("input",{id:"fpNewName",type:"search",placeholder:"Jméno klienta…",autocomplete:"off"});inp.value=fpNewQ;
-    inp.addEventListener("input",()=>{fpNewQ=inp.value;renderFpTab();const i2=$("fpNewName");if(i2){i2.focus();i2.setSelectionRange(i2.value.length,i2.value.length)}});
-    const nm=fpNewQ.trim();
-    const exact=cands.some(c=>fold(c.e.name)===fold(nm));
-    const rows=cands.slice(0,40).map(c=>el("div",{class:"row",onclick:()=>{fpNew=false;openFP(c.e,c.rec)}},el("span",{class:"main"},c.e.name||"Bez jména",el("small",{},c.t)),el("span",{class:"end",style:"color:var(--orange);font-weight:600"},"Vytvořit ›")));
-    if(nm&&!exact)rows.unshift(el("div",{class:"row",onclick:async()=>{fpNew=false;const e={id:"n:"+Date.now(),name:nm,key:surnameOf(nm),phone:"",products:[]};try{const rec=await ensureClient(e);openFP(e,rec)}catch(err){toast("Nepodařilo se založit klienta")}}},
-      el("span",{class:"main"},"Nový klient „"+nm+"“",el("small",{},"založí se v Klientech a otevře se prázdný plán")),el("span",{class:"end",style:"color:var(--orange);font-weight:700"},"+ Založit")));
-    out.unshift(el("div",{class:"fpnew"},el("div",{class:"fpnew-h"},el("span",{},"Nový finanční plán"),el("button",{type:"button",class:"fpnew-x",onclick:()=>{fpNew=false;fpNewQ="";renderFpTab()}},"Zavřít")),inp,
-      rows.length?el("div",{class:"group fplist"},rows):el("p",{class:"hint"},"Všichni klienti už plán mají – napiš jméno nového klienta.")));
-    setTimeout(()=>{const i2=$("fpNewName");if(i2&&document.activeElement!==i2&&!fpNewQ)i2.focus()},0);
+  /* 2) pod nimi: vytvořit pro klienta / lead bez plánu, nebo nového klienta jen se jménem */
+  if(creating){
+    const cands=fpCandidates(hit),nm=fpSearch.trim(),exact=nm&&(cands.some(c=>fold(c.e.name)===fold(nm))||plans.some(f=>fold(f.name)===fold(nm)));
+    const rows=cands.slice(0,40).map(c=>el("div",{class:"row",onclick:()=>{fpNew=false;openFP(c.e,c.rec)}},el("span",{class:"main"},"Vytvořit pro "+(c.e.name||"Bez jména"),el("small",{},c.t)),el("span",{class:"end fpgo"},"+ Vytvořit")));
+    if(nm&&!exact)rows.push(el("div",{class:"row",onclick:async()=>{fpNew=false;const e={id:"n:"+Date.now(),name:nm,key:surnameOf(nm),phone:"",products:[]};try{const rec=await ensureClient(e);openFP(e,rec)}catch(err){toast("Nepodařilo se založit klienta")}}},
+      el("span",{class:"main"},"Nový klient „"+nm+"“",el("small",{},"založí se v Klientech a otevře se prázdný plán")),el("span",{class:"end fpgo",style:"font-weight:700"},"+ Založit")));
+    out.push(el("h3",{class:"sechead"},"Nový plán"),rows.length?el("div",{class:"group fplist"},rows):el("div",{class:"group"},el("div",{class:"row"},el("span",{class:"empty"},nm?"Všichni odpovídající už plán mají.":"Všichni klienti už plán mají – napiš jméno nového klienta."))));
   }
   box.replaceChildren(...out);
 }
-$("fpNewBtn")?.addEventListener("click",()=>{fpNew=!fpNew;fpNewQ="";renderFpTab()});
+/* „+ Nový plán“ jen otevře nabídku pod polem a dá do něj kurzor (hledání a vytváření je jedno pole) */
+$("fpNewBtn")?.addEventListener("click",()=>{fpNew=!fpNew;renderFpTab();const i=$("fpSearchI");if(fpNew&&i)i.focus()});
 $("fpSearchI")?.addEventListener("input",e=>{fpSearch=e.target.value.trim();renderFpTab()});
+/* „Odkaz pro klienta ▾“: dotazník nebo jen rezervace */
+{const b=$("fpLinkBtn"),m=$("fpLinkMenu");if(b&&m){const tog=on=>{m.hidden=!on;b.setAttribute("aria-expanded",on)};
+  b.addEventListener("click",e=>{e.stopPropagation();tog(m.hidden)});m.addEventListener("click",()=>tog(false));
+  document.addEventListener("click",e=>{if(!m.hidden&&!e.target.closest(".fplink"))tog(false)});document.addEventListener("keydown",e=>{if(e.key==="Escape")tog(false)})}}
 /* data pro portfolio v plánu: modelová portfolia (denně aktualizovaná historie) a fondy ZFPI / ZFP WI – zmenšené na týdenní body */
 function fpMarket(){
   const thin=pts=>{if(!pts||pts.length<2)return null;const o=[];let last=-1e9;pts.forEach(p=>{if(p[0]-last>=7){o.push(p);last=p[0]}});const L=pts[pts.length-1];if(o[o.length-1]!==L)o.push(L);return o};
@@ -7739,7 +7745,7 @@ async function openFP(e,rec){
   /* kontakt z karty klienta → plán i dotazník (prázdná pole) */
   const kontakt={telefon:e.phone||rec.phone||e.lead?.phone||"",email:rec.email||e.rec?.email||e.lead?.email||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=82#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=83#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
