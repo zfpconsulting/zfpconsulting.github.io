@@ -254,6 +254,22 @@ const tests = {
     eq([st[0].narozen, st[0].info.narozen], ["1990-01-02", "1990-01-02"], "uloženo");
     await ctx.close();
   },
+  async "odhlášení (Databaze.wipe): smaže řádky i PDF smluv (IndexedDB pp_dbpdf), i když je databáze otevřená"() {
+    const { ctx, page, errors } = await open();
+    await upload(page, [file("detail.pdf", await stelaPdf())]);
+    const dbs = () => page.evaluate(async () => (await indexedDB.databases()).map(d => d.name));
+    assert((await dbs()).includes("pp_dbpdf"), "PDF je uložené v IndexedDB");
+    eq((await stored(page)).length, 1, "řádek uložený");
+    const t0 = Date.now();
+    await page.evaluate(() => Databaze.wipe());
+    assert(Date.now() - t0 < 1500, "mazání nečeká na zavření stránky (spojení se zavřelo)");
+    assert(!(await dbs()).includes("pp_dbpdf"), "databáze PDF smazaná: " + (await dbs()).join(", "));
+    eq(await page.evaluate(() => localStorage.getItem("db_rows_v1")), null, "řádky smazané");
+    await page.reload(); await page.waitForFunction(() => window.ui);
+    eq(await table(page), [], "po znovunačtení prázdná tabulka");
+    assert(!errors.length, "chyby: " + errors.join(" | "));
+    await ctx.close();
+  },
   async "CSV export: BOM, středník, desetinná čárka a ochrana před vzorcem"() {
     const { ctx, page } = await open();
     const csv = await page.evaluate(() => Databaze.math.toCsv([

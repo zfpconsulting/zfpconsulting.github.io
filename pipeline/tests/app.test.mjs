@@ -41,6 +41,36 @@ async function aiApp(env, { delay = 0, tpls = [TPL_ONLINE, TPL_MEET], leads = {}
   await page.evaluate(() => Assistant.refresh());
   return { ctx, page, errors, calls };
 }
+/* podvržený Firebase (app/auth/firestore z gstatic) – databáze v paměti stránky (window.__fb), žádná síť.
+   Zapisuje se čas importu (ať jde ověřit, že se Firebase nenačítá hned při startu). */
+const FB_FAKE = {
+  "firebase-app.js": `const F=globalThis.__fb||(globalThis.__fb={docs:{},subs:[],log:[],apps:[]});F.log.push(["app",performance.now()]);
+export const initializeApp=(c,n)=>{const a={name:n||"[DEFAULT]"};F.apps.push(a);return a};export const getApps=()=>F.apps;`,
+  "firebase-auth.js": `const F=globalThis.__fb;F.log.push(["auth",performance.now()]);
+export const getAuth=a=>a.auth||(a.auth={currentUser:null,authStateReady:async()=>{}});
+export const GoogleAuthProvider={credential:(i,t)=>({t})};
+export const signInWithCredential=async(au,c)=>{au.currentUser={email:F.me,displayName:"Test Poradce"};return{user:au.currentUser}};
+export const signOut=async au=>{au.currentUser=null;F.signedOut=true};`,
+  "firebase-firestore.js": `const F=globalThis.__fb;F.log.push(["fs",performance.now()]);
+export const initializeFirestore=a=>({a});export const getFirestore=a=>({a});export const persistentLocalCache=()=>({});export const persistentMultipleTabManager=()=>({});
+export const doc=(db,c,id)=>({c:c.c||c,id:id||(c.c?Math.random().toString(36).slice(2):undefined)});export const collection=(db,c)=>({c});
+export const where=(f,op,v)=>({f,op,v});export const query=(c,...w)=>({c:c.c,w});
+const snap=q=>{const docs=Object.entries(F.docs).filter(([k,d])=>k.startsWith(q.c+"/")&&q.w.every(w=>d[w.f]===w.v)).map(([k,d])=>({id:k.slice(q.c.length+1),data:()=>d}));return{docs,metadata:{fromCache:false}}};
+const fire=()=>F.subs.forEach(s=>{try{s.q.w?s.cb(snap(s.q)):s.cb({id:s.q.id,exists:()=>!!F.docs[s.q.c+"/"+s.q.id],data:()=>F.docs[s.q.c+"/"+s.q.id]})}catch(e){}});
+F.fire=fire;
+export const onSnapshot=(q,cb)=>{const s={q,cb};F.subs.push(s);F.listens=(F.listens||[]).concat(q.c);setTimeout(()=>fire(),0);return()=>{F.subs=F.subs.filter(x=>x!==s)}};
+export const setDoc=async(d,v)=>{F.docs[d.c+"/"+d.id]=v;fire()};export const updateDoc=async(d,v)=>{F.docs[d.c+"/"+d.id]={...F.docs[d.c+"/"+d.id],...v};fire()};
+export const deleteDoc=async d=>{delete F.docs[d.c+"/"+d.id];fire()};
+export const writeBatch=()=>{const o=[];return{set:(d,v)=>o.push(()=>setDoc(d,v)),update:(d,v)=>o.push(()=>updateDoc(d,v)),delete:d=>o.push(()=>deleteDoc(d)),commit:async()=>{for(const f of o)await f()}}};
+export const runTransaction=async(db,fn)=>fn({get:async d=>({exists:()=>!!F.docs[d.c+"/"+d.id]}),delete:d=>{delete F.docs[d.c+"/"+d.id]}});
+export const terminate=async()=>{F.terminated=true};export const clearIndexedDbPersistence=async()=>{F.cleared=true};`,
+};
+const fbFake = (docs = {}) => async (page, ctx) => {
+  await ctx.route(/gstatic\.com\/firebasejs\/[^/]+\/(firebase-[a-z]+\.js)/, r => r.fulfill({ status: 200, contentType: "text/javascript", headers: { "access-control-allow-origin": "*" }, body: FB_FAKE[/firebase-[a-z]+\.js/.exec(r.request().url())[0]] }));
+  await ctx.addInitScript(([docs, me]) => { if (!globalThis.__fb) globalThis.__fb = { docs, subs: [], log: [], apps: [], me }; }, [docs, "kudlicka.vojtech2002@gmail.com"]);
+};
+const TOK = JSON.stringify({ at: "test-token-123456789012345", exp: Date.now() + 36e5, scope: "calendar.events" });
+
 const aiSay = async (page, text) => { await page.evaluate(() => Assistant.open()); await page.waitForSelector("dialog[open] .aiIn textarea");
   await page.fill("dialog[open] .aiIn textarea", text); await page.click('dialog[open] .aiIn button[aria-label="Odeslat"]'); };
 const aiLead = (page, name) => page.evaluate(n => { const l = leads.find(x => x.name === n); return l ? JSON.parse(JSON.stringify(l)) : null }, name);
@@ -492,5 +522,82 @@ export default {
     assert(Math.abs(b.udr - (7000000 - 500000) * 24 / 1555200 / 12 - 500000 * 12 / 276360 / 12) < 1e-6, "udržovací body po přesunu: " + b.udr);
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
+  },
+
+  async "odhlášení smaže z přístroje data klientů: úložiště, koncepty, PDF z Databáze, soubory, mezipaměť Firebase"(env) {
+    const { ctx, page, errors } = await openApp(env, { store: STORE, pre: fbFake(), extra: { g_tok: TOK, dk_draft_v1: '{"jmeno":"Klient"}', uv_ui_v1: "{}", meet_links: '{"x":"https://meet"}', dz_failed: "[1]", "demo:crm_store_v1": "{}", deal_rc: "[]", lock: "null", wp: '"static"' } });
+    await page.waitForFunction(() => typeof AsNet !== "undefined" && AsNet.on, null, { timeout: 15000 });
+    await page.evaluate(() => setView("db")); await page.waitForFunction(() => window.Databaze);
+    await page.evaluate(() => Promise.all([["pp_dbpdf", "pdf"], ["pp_docs", "blobs"]].map(([n, s]) => new Promise(r => { const q = indexedDB.open(n, 1); q.onupgradeneeded = () => q.result.createObjectStore(s);
+      q.onsuccess = () => { const t = q.result.transaction(s, "readwrite"); t.objectStore(s).put(new Blob(["%PDF"]), "a"); t.oncomplete = () => { q.result.close(); r() } } }))));
+    /* modul Databáze má svoje spojení otevřené (jako po nahrání PDF) – mazání nesmí čekat na zavření stránky */
+    await page.evaluate(() => { localStorage.setItem("db_rows_v1", '[{"id":"x","name":"Jan"}]'); dbUI.refresh() });
+    const t0 = Date.now(); await page.evaluate(() => wipeLocal()); const ms = Date.now() - t0;
+    const r = await page.evaluate(async () => ({ dbs: (await indexedDB.databases()).map(d => d.name).sort(), ls: Object.keys(localStorage).sort(), fb: { out: !!__fb.signedOut, cleared: !!__fb.cleared }, leads: Object.keys(LStore.docs()).length,
+      docs: await new Promise(res => { const q = indexedDB.open("pp_docs"); q.onsuccess = () => { try { const c = q.result.transaction("blobs").objectStore("blobs").count(); c.onsuccess = () => { q.result.close(); res(c.result) } } catch (e) { q.result.close(); res(0) } } }) }));
+    assert(ms < 1600, "mazání trvalo " + ms + " ms");
+    eq(r.dbs.filter(n => /pp_dbpdf|firestore|firebase/.test(n)), [], "IndexedDB s daty klientů");
+    eq(r.docs, 0, "soubory u klientů (pp_docs) prázdné");
+    eq(r.ls.filter(k => !["acc", "g_owner", "g_tok", "lock", "pp_key", "today_seen", "wp", "pipe_view", "dev_id", "trk_pend", "t_init"].includes(k)), [], "zbylé klíče v localStorage");
+    eq(r.fb, { out: true, cleared: true }, "Firebase odhlášený a jeho mezipaměť smazaná");
+    eq(r.leads, 0, "úložiště appky prázdné");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
+
+  async "start: Firebase se nenačítá před prvním vykreslením; sdílený obchod a schránka dotazníku po odloženém načtení fungují"(env) {
+    const docs = { "deals/kolega@x.cz__kudlicka.vojtech2002@gmail.com__L1": { o: "kolega@x.cz", r: "kudlicka.vojtech2002@gmail.com", lid: "L1", st: "žádost", oName: "Petr Kolega", rName: "", at: "2026-10-01T10:00:00Z", ut: "2026-10-01T10:00:00Z", sh: false } };
+    const st = { ...STORE, "settings/main": { ...STORE["settings/main"], dzKey: { pub: "p", priv: "k" } } };
+    const { ctx, page, errors } = await openApp(env, { store: st, pre: fbFake(docs), extra: { g_tok: TOK, g_synced: "1" } });
+    const t = await page.evaluate(() => ({ fb: __fb.log.length, ready: performance.now() }));
+    eq(t.fb, 0, "Firebase se při startu nenačetl");
+    await page.waitForFunction(() => AsNet.on && AsNet.settled(), null, { timeout: 15000 });
+    const r = await page.evaluate(() => ({ first: Math.min(...__fb.log.map(x => x[1])), fcp: (performance.getEntriesByName("first-contentful-paint")[0] || {}).startTime || 0, imports: __fb.log.length, pend: Deals.pendingIn().map(d => d.oName) }));
+    assert(r.first > r.fcp && r.fcp > 0, `Firebase až po prvním vykreslení (${Math.round(r.first)} ms vs. FCP ${Math.round(r.fcp)} ms)`);
+    eq(r.imports, 3, "každý modul Firebase se stáhl jen jednou");
+    eq(r.pend, ["Petr Kolega"], "žádost o sdílený obchod dorazila");
+    /* přijetí žádosti se zapíše do databáze */
+    eq(await page.evaluate(async () => (await Deals.respond("kolega@x.cz__kudlicka.vojtech2002@gmail.com__L1", true)).status), "ok", "přijetí");
+    eq(await page.evaluate(() => __fb.docs["deals/kolega@x.cz__kudlicka.vojtech2002@gmail.com__L1"].st), "sdílí", "stav v databázi");
+    /* schránka dotazníku: dzStart (ten samý Firebase, druhá instance „dz“) poslouchá dzinbox a doručí zprávu do dzHandle */
+    await page.evaluate(() => { window.__dz = []; window.dzHandle = d => { __dz.push(...d.map(x => x.id)) }; });
+    await page.waitForFunction(() => DZI.on && DZI.fdb, null, { timeout: 15000 });
+    await page.evaluate(() => { __fb.docs["dzinbox/m1"] = { to: "kudlicka.vojtech2002@gmail.com", g: "g1", n: 1, i: 0 }; __fb.fire() });
+    await page.waitForFunction(() => window.__dz.includes("m1"), null, { timeout: 5000 });
+    eq(await page.evaluate(() => [__fb.log.length, __fb.apps.map(a => a.name).sort()]), [3, ["[DEFAULT]", "dz"]], "Firebase sdílený pro obchody i schránku");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
+
+  async "tapeta: výchozí statický pás bez animace, Animovaná / Vypnuto v nastavení, fotka jen se zapnutou tapetou"(env) {
+    const imgs = [];
+    const { ctx, page, errors } = await openApp(env, { store: STORE, pre: async (p) => p.on("request", r => { if (/image\.(jpg|png)/.test(r.url())) imgs.push(r.url()) }) });
+    await page.waitForTimeout(400);
+    let r = await page.evaluate(() => ({ mode: window.__wp && window.__wp.mode, band: !!document.getElementById("wpB"), canvas: !!document.getElementById("wpC"), h: document.getElementById("wpB").getBoundingClientRect().height, title: document.querySelector(".large").getBoundingClientRect().bottom }));
+    eq([r.mode, r.band, r.canvas], ["static", true, false], "výchozí = statická");
+    assert(r.h > r.title && r.h < r.title + 80, `pás končí pod nadpisem (pás ${r.h}, nadpis ${r.title})`);
+    eq(imgs.filter(u => /image\.png/.test(u)), [], "image.png se nestahuje");
+    /* Animovaná: plátno + běží; skrytí stránky ji zastaví */
+    await page.evaluate(() => { const s = document.getElementById("dWpMode"); s.value = "anim"; s.dispatchEvent(new Event("change")) });
+    await page.waitForTimeout(200);
+    r = await page.evaluate(() => ({ w: window.__wp, band: !!document.getElementById("wpB"), canvas: !!document.getElementById("wpC"), ls: localStorage.getItem("wp"), sceneHidden: document.getElementById("dWpM").hidden }));
+    eq([r.w.mode, r.w.running, r.band, r.canvas, r.ls, r.sceneHidden], ["anim", true, false, true, "anim", false], "animovaná");
+    await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true }); document.dispatchEvent(new Event("visibilitychange")) });
+    eq(await page.evaluate(() => __wp.running), false, "skrytá stránka = animace stojí");
+    await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true }); document.dispatchEvent(new Event("visibilitychange")) });
+    eq(await page.evaluate(() => __wp.running), true, "po návratu běží");
+    /* Vypnuto: nic */
+    await page.evaluate(() => { const s = document.getElementById("dWpMode"); s.value = "off"; s.dispatchEvent(new Event("change")) });
+    r = await page.evaluate(() => ({ m: __wp.mode, n: document.querySelectorAll("#wpB,#wpC,#wpS").length, cls: document.documentElement.className }));
+    eq([r.m, r.n, /\bwpb?\b/.test(r.cls)], ["off", 0, false], "vypnuto");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+    /* vypnutá tapeta → fotka se vůbec nestáhne; „omezit pohyb“ → animovaná stojí */
+    imgs.length = 0;
+    const b = await openApp(env, { store: STORE, extra: { wp: "off" }, pre: async (p) => p.on("request", r => { if (/image\.(jpg|png)/.test(r.url())) imgs.push(r.url()) }) });
+    await b.page.waitForTimeout(500); eq(imgs, [], "bez tapety se image.jpg nestahuje"); await b.ctx.close();
+    const c = await openApp(env, { store: STORE, extra: { wp: "anim" }, pre: async (p) => p.emulateMedia({ reducedMotion: "reduce" }) });
+    eq(await c.page.evaluate(() => [__wp.mode, __wp.running, __wp.rm]), ["anim", false, true], "omezit pohyb = nehybná");
+    eq(c.errors, [], "chyby (omezit pohyb)"); await c.ctx.close();
   },
 };

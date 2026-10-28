@@ -152,7 +152,9 @@ function leadNote(list){
 /* ================= PDF smluv jen v tomto zařízení (IndexedDB) ================= */
 const pdfStore=(()=>{let p=null;const open=()=>p||(p=new Promise(res=>{try{const r=indexedDB.open("pp_dbpdf",1);r.onupgradeneeded=()=>r.result.createObjectStore("pdf");r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);r.onblocked=()=>res(null)}catch(e){res(null)}}));
   const run=(mode,fn)=>open().then(db=>new Promise(res=>{if(!db)return res(null);try{const tx=db.transaction("pdf",mode),rq=fn(tx.objectStore("pdf"));let v=null;if(rq)rq.onsuccess=()=>{v=rq.result};tx.oncomplete=()=>res(v);tx.onerror=tx.onabort=()=>res(null)}catch(e){res(null)}}));
-  return{get:id=>run("readonly",s=>s.get(id)),put:(id,b)=>run("readwrite",s=>s.put(b,id)),del:id=>run("readwrite",s=>s.delete(id)),clear:()=>run("readwrite",s=>s.clear())}})();
+  /* smazání celé databáze (odhlášení): nejdřív zavřít vlastní spojení, jinak by mazání čekalo (blocked) až do zavření stránky */
+  const drop=()=>{const q=p;p=null;return Promise.resolve(q).then(db=>{try{db&&db.close()}catch(e){}return new Promise(res=>{try{const r=indexedDB.deleteDatabase("pp_dbpdf");r.onsuccess=r.onerror=r.onblocked=()=>res()}catch(e){res()}})})};
+  return{get:id=>run("readonly",s=>s.get(id)),put:(id,b)=>run("readwrite",s=>s.put(b,id)),del:id=>run("readwrite",s=>s.delete(id)),clear:()=>run("readwrite",s=>s.clear()),drop}})();
 
 /* text z PDF: řádky podle svislé polohy, uvnitř řádku podle vodorovné (nezávisí na pořadí v obsahu PDF) */
 /* jeden sdílený worker pro celé dávkové nahrání (dřív vznikal worker na každé PDF a zůstával naživu → u stovek PDF zasekla stránka) */
@@ -423,5 +425,8 @@ function mount(root,opts={}){
   return{refresh:()=>{if(busy)return;rows=load();draw()},importFiles,toPipeline,rows:()=>rows};
 }
 
-window.Databaze={mount,math:{parseStela,parseStelaFull,leadNote,niceName,parseNum,toCsv,czDate,kc},MAP};
+/* odhlášení / jiný účet / zapomenutý PIN: smaže řádky i PDF smluv z tohoto zařízení (slib – appka na něj počká před reloadem) */
+function wipe(){try{localStorage.removeItem(LS)}catch(e){}return pdfStore.drop()}
+
+window.Databaze={mount,wipe,math:{parseStela,parseStelaFull,leadNote,niceName,parseNum,toCsv,czDate,kc},MAP};
 })();
