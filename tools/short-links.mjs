@@ -43,10 +43,10 @@ for(const a of cfg){for(const kind of ["termin","dotaznik"]){
 <link rel="canonical" href="${url}">`;
   let s=src.replace(/<title>[^<]*<\/title>/,`<title>${esc(title)} | ZFP Consulting</title>`)
     .replace(/<!--og-->[\s\S]*?<!--\/og-->/,og)
-    .replace(/(src|srcset)="(zfp-(?:consulting-)?logo(?:-white)?\.svg|dzcrypto\.js[^"]*|nnrs\.js[^"]*|dmy\.js[^"]*)"/g,'$1="/pipeline/$2"')
+    .replace(/(src|srcset|href)="(zfp-(?:consulting-)?logo(?:-white)?\.svg|dzcrypto\.js[^"]*|nnrs\.js[^"]*|dmy\.js[^"]*|ui\.css[^"]*)"/g,'$1="/pipeline/$2"')
     .replace('<script src="/pipeline/dzcrypto.js',`<script>window.DZ_LINK=decodeURIComponent(escape(atob("${b64}")));</script>\n<script src="/pipeline/dzcrypto.js`);
   s="<!-- SESTAVENO z pipeline/dotaznik.html (node tools/short-links.mjs) – neupravovat ručně -->\n"+s;
-  if(!s.includes("window.DZ_LINK=")||!s.includes(`og:url" content="${url}"`))throw new Error("sestavení selhalo: "+dir);
+  if(!s.includes("window.DZ_LINK=")||!s.includes(`og:url" content="${url}"`)||!s.includes('href="/pipeline/ui.css'))throw new Error("sestavení selhalo: "+dir);
   const f=R+dir+"index.html";
   if(check){if(!existsSync(f)||readFileSync(f,"utf8")!==s){console.log("✗ neaktuální: "+dir);bad++}else console.log("✓ "+dir)}
   else{mkdirSync(R+dir,{recursive:true});writeFileSync(f,s);console.log("zapsáno "+dir)}
