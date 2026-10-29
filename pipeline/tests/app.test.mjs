@@ -739,4 +739,30 @@ export default {
       await ctx.close();
     }
   },
+  /* zvuky kliků: tři typy podle prvku, programový klik nehraje, psaní do pole nehraje, vypnutí v Nastavení */
+  async "zvuky kliků: bloop / pop / tick podle prvku, vypínač v Nastavení"(env) {
+    const { ctx, page, errors } = await openApp(env, { store: STORE, width: 1280, height: 900 });
+    const last = () => page.evaluate(() => Snd.last), reset = () => page.evaluate(() => { Snd.last = null; }), gap = () => page.waitForTimeout(70);
+    assert(await page.evaluate(() => typeof Snd === "object" && Snd.on === true), "zvuky jsou ve výchozím stavu zapnuté");
+    await reset(); await page.click("#addBtn"); eq(await last(), "bloop", "„+“ = bloop"); await page.keyboard.press("Escape"); await page.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
+    await reset(); await gap(); await page.click("#tabBar button:nth-child(2)"); eq(await last(), "pop", "záložka = pop");
+    await reset(); await gap(); await page.evaluate(() => document.querySelector("#tabBar button").click()); eq(await last(), null, "programový .click() nehraje");
+    /* kind pro jednotlivé prvky (bez klikání na všechno) */
+    eq(await page.evaluate(() => {
+      const mk = h => { const d = document.createElement("div"); d.innerHTML = h; document.body.append(d); const r = Snd.kindOf(d.querySelector('[data-t]') || d.firstElementChild); d.remove(); return r; };
+      return [mk('<button class="btn btn--primary">Uložit</button>'), mk('<button class="btn btn--secondary">Zrušit</button>'), mk('<button class="icon-btn">x</button>'),
+        mk('<div class="seg"><button data-t>A</button></div>'), mk('<input class="switch" type="checkbox">'), mk('<input type="text">'), mk('<textarea></textarea>'),
+        mk('<button class="btn btn--primary" disabled>x</button>'), mk('<button class="btn btn--primary" data-snd="off">x</button>'), mk('<span>text</span>')];
+    }), ["bloop", "tick", "tick", "pop", "tick", null, null, null, null, null], "typ zvuku podle prvku");
+    /* vypínač v Nastavení → Vzhled */
+    await page.evaluate(() => document.getElementById("syncBtn").click()); await page.waitForTimeout(400);
+    assert(await page.evaluate(() => document.getElementById("setSnd").checked), "přepínač je zapnutý");
+    await reset(); await gap(); await page.click("#setSnd"); eq(await last(), "tick", "přepínač = tick");
+    eq(await page.evaluate(() => [Snd.on, localStorage.getItem("snd")]), [false, "0"], "vypnuto a uloženo");
+    await reset(); await gap(); await page.click("[data-go=wp]"); eq(await last(), null, "po vypnutí se nehraje");
+    await page.click("#setBack"); await page.waitForTimeout(300); await gap();
+    await page.click("#setSnd"); eq(await page.evaluate(() => [Snd.on, localStorage.getItem("snd"), Snd.last]), [true, "1", "bloop"], "zapnutí potvrdí bloop");
+    eq(errors, [], "chyby");
+    await ctx.close();
+  },
 };

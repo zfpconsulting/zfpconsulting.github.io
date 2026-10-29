@@ -1,6 +1,6 @@
 /* CACHE a CORE needitovat ručně – srovná je `node tools/bump.mjs` podle ?v= v index.html (kontrola v CI: --check) */
-const CACHE="pipeline-v184", RCACHE="pipeline-rt-v1", VCACHE="pipeline-vendor-v1";
-const CORE=["./","./index.html","./manifest.webmanifest","./favicon-48.png?v=2","./icon-192.png?v=2","./apple-touch-icon.png?v=2","./ui.css?v=1","./fincalc.js?v=13","./duchod.js?v=11","./uvery.js?v=5","./databaze.js?v=12","./dzcrypto.js?v=2","./advimg.js?v=1","./pushcrypto.js?v=1","./photoedit.js?v=4","./dmy.js?v=1","./docs.js?v=6","./wallpaper.js?v=7","./icon-512.png?v=2"];
+const CACHE="pipeline-v186", RCACHE="pipeline-rt-v1", VCACHE="pipeline-vendor-v1";
+const CORE=["./","./index.html","./manifest.webmanifest","./favicon-48.png?v=2","./icon-192.png?v=2","./apple-touch-icon.png?v=2","./ui.css?v=1","./fincalc.js?v=13","./duchod.js?v=11","./uvery.js?v=5","./databaze.js?v=12","./dzcrypto.js?v=2","./advimg.js?v=1","./pushcrypto.js?v=1","./photoedit.js?v=4","./dmy.js?v=1","./docs.js?v=6","./wallpaper.js?v=7","./sound.js?v=1","./icon-512.png?v=2"];
 /* CORE (appka) se stáhne při instalaci. Ostatní se ukládá až při prvním použití:
    RCACHE = finanční plán (fp.html), dotazník, tapeta, sazby… – přežije vydání nové verze, staré verze téhož souboru se při uložení nové smažou;
    VCACHE = knihovny pro náhled souborů (PDF, Word, Excel, ~2,2 MB) – nemažou se ani nestahují znovu. */

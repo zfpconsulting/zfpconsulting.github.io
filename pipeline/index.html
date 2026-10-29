@@ -1402,6 +1402,7 @@ b.acc{color:var(--accent-text)}
           <button type="button" class="row row-btn" data-go="wp" data-ic="image"><span class="main"><span class="t">Tapeta</span></span><span class="end" data-v="wp"></span></button>
           <button type="button" class="row row-btn" data-go="tabs" data-ic="tabs"><span class="main"><span class="t">Záložky</span></span><span class="end" data-v="tabs"></span></button>
           <button type="button" class="row row-btn" data-go="name" data-ic="text"><span class="main"><span class="t">Název aplikace</span></span><span class="end" data-v="name"></span></button>
+          <div class="frow"><label for="setSnd">Zvuky kliků</label><input type="checkbox" class="switch" role="switch" id="setSnd"></div>
         </div></div>
         <div class="setgrp"><h3 class="section-head">Integrace</h3><div class="group">
           <button type="button" class="row row-btn" data-go="push" data-ic="bell"><span class="main"><span class="t">Notifikace</span></span><span class="end" data-v="push"></span></button>
@@ -8014,7 +8015,7 @@ async function openFP(e,rec){
   /* kontakt z karty klienta → plán i dotazník (prázdná pole) */
   const kontakt={telefon:e.phone||rec.phone||e.lead?.phone||"",email:rec.email||e.rec?.email||e.lead?.email||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});
-  const fr=el("iframe",{src:"fp.html?v=84#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
+  const fr=el("iframe",{src:"fp.html?v=85#host",title:"Finanční plán",style:"border:0;width:100%;height:100%;display:block"});
   ov.append(fr);document.body.append(ov);document.documentElement.style.overflow="hidden";
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
@@ -8619,13 +8620,14 @@ async function updateEurRate(){
     $("setBack").onclick=()=>setNav("root",-1);
     dd.addEventListener("keydown",e=>{if(e.key==="Escape"&&setPg!=="root"&&!dd.querySelector(".unsv")){e.preventDefault();e.stopPropagation();setNav("root",-1)}},true);
     $("setCalPick").onclick=()=>{dd.close();setTimeout(openCalTabPicker,280)};
+    $("setSnd").onchange=e=>{if(window.Snd)Snd.set(e.target.checked)};
     $("setFreeOnly").onchange=e=>{ctFreeOnly=e.target.checked;lsSet("ct_free_only",ctFreeOnly);if(view==="cal")renderCalTab();setFill()};
     $("dWipe").onclick=async()=>{if(!await confirmSheet("Smazat všechna data z tohoto zařízení? Na Google Disku zůstanou a po přihlášení se stáhnou zpět. Zámek, motiv a tapeta zůstanou nastavené.",{okLabel:"Smazat ze zařízení",danger:true}))return;
       let w;try{w=wipeLocal();["g_tok","g_ok"].forEach(k=>localStorage.removeItem(k))}catch(e){}reloadAfter(w)};
   }
   const saveCal=async patch=>{try{await db.doc("settings/main").set({...settings,...patch});lsSet("cal_cache",null);lsSet("cal_hist",null);calHist=null;calEvents=null;calState="loading";render();refreshCalendar().then(()=>fetchCalHistory(true))}catch(e){toast("Nepodařilo se uložit")}};
   sb.addEventListener("click",async()=>{
-    if(!dd.open)return;renderTpls();try{renderPushCfg()}catch(e){}{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dBk").value=settings.bkUrl||"";$("dAdvName").value=settings.advName||"";advHint();{const f=$("dFF");f.value="";if(GAuth.token())pushApi("/ff/state",{body:{}}).then(x=>{f.placeholder=x&&x.on?"klíč je uložený – nový přepíše starý":"vlož klíč z Fireflies → Settings → Developer"}).catch(()=>{})}$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
+    if(!dd.open)return;$("setSnd").checked=!!(window.Snd&&Snd.on);renderTpls();try{renderPushCfg()}catch(e){}{const b=lsGet("bk_last");$("bkInfo").textContent="Každý týden se navíc automaticky uloží samostatná záloha na tvůj Google Disk (posledních 8 týdnů)."+(b?" Poslední: "+fmtDate(b)+" "+b.slice(0,4)+".":"")}const c=calCfg(),sel=$("dCal");$("dPrefix").value=c.prefix;$("dBk").value=settings.bkUrl||"";$("dAdvName").value=settings.advName||"";advHint();{const f=$("dFF");f.value="";if(GAuth.token())pushApi("/ff/state",{body:{}}).then(x=>{f.placeholder=x&&x.on?"klíč je uložený – nový přepíše starý":"vlož klíč z Fireflies → Settings → Developer"}).catch(()=>{})}$("dTasks").hidden=!GAuth.token()||GAuth.hasScope("calendar.events");
     setFill();
     if(!GAuth.token()){sel.replaceChildren(new Option(c.name,c.id));return}
     try{const cals=await listCalendars();sel.replaceChildren(...cals.map(k=>new Option((k.primary?"★ ":"")+(k.summary||k.id),k.id)));sel.value=cals.some(k=>k.id===c.id)?c.id:(cals.find(k=>k.primary)?.id||"primary")}catch(e){sel.replaceChildren(new Option(c.name,c.id))}
@@ -9619,5 +9621,6 @@ const dealTags=l=>Deals.tags(l);
 
 </script>
 <script src="wallpaper.js?v=7" defer></script>
+<script src="sound.js?v=1" defer></script>
 </body>
 </html>
