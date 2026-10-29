@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://zfp-push.kudlicka-vojtech2002.workers.dev https://script.google.com https://script.googleusercontent.com; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://zfp-push.kudlicka-vojtech2002.workers.dev https://script.google.com https://script.googleusercontent.com; frame-src https://www.google.com https://maps.google.com; form-action 'none'; base-uri 'none'">
 <link rel="icon" type="image/png" sizes="48x48" href="/og/icon-48.png?v=3">
 <link rel="icon" type="image/png" sizes="192x192" href="/og/icon-192.png?v=3">
 <link rel="apple-touch-icon" sizes="180x180" href="/og/icon-180.png?v=3">
@@ -29,123 +29,122 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Podklady k finančnímu plánu – vyplnění zabere asi 15 minut, odpovědi se šifrují. ZFP Consulting">
 <link rel="canonical" href="https://zfpconsulting.github.io/dotaznik/vk/">
+<link rel="stylesheet" href="/pipeline/ui.css?v=1">
 <style>
 /* Vstupní dotazník k finančnímu plánu. Otázky odpovídají vstupům živé prezentace (fp.html) – co klient vyplní, jde 1:1 do plánu.
    Odkaz pro klienta: koncept se drží jen v tomto prohlížeči; „Odeslat poradci“ dotazník (+ IOLDP) zašifruje veřejným klíčem poradce
    z odkazu (dzcrypto.js) a uloží do schránky – přečte ho jen Pipeline poradce. Bez webových fontů a cizích skriptů (CSP výše).
-   V plánu (#fp): otevře se nad prezentací a každá změna se rovnou propíše do plánu klienta. */
-:root{--acc:#F37520;--acc-soft:rgba(243,117,32,.10);--bg:#fff;--panel:#fff;--line:#e6e6e6;--line2:#d2d2d2;--txt:#111;--mut:#6f6f6f;--inp:#fff;--chip:#f6f6f6}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000;--panel:#0f0f0f;--line:#262626;--line2:#3a3a3a;--txt:#f2f2f2;--mut:#9a9a9a;--inp:#000;--chip:#161616;--acc-soft:rgba(243,117,32,.16)}}
-:root[data-theme="dark"]{--bg:#000;--panel:#0f0f0f;--line:#262626;--line2:#3a3a3a;--txt:#f2f2f2;--mut:#9a9a9a;--inp:#000;--chip:#161616;--acc-soft:rgba(243,117,32,.16)}
-*{box-sizing:border-box}
+   V plánu (#fp): otevře se nad prezentací a každá změna se rovnou propíše do plánu klienta.
+   Tokeny a komponenty (btn, seg, switch, field, hint, toast) jsou ze sdíleného ui.css (stejné jako v Pipeline); tady jen rozvržení a ZFP branding. */
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
-button,input,select,textarea{font:inherit;color:inherit}
-.top{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px 0;padding-top:max(12px,env(safe-area-inset-top))}
-.top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px}
-.brand{display:flex;align-items:center;gap:12px;white-space:nowrap}.brand .logo{height:34px;width:auto;display:block}.brand .logo-d{display:none}
+body{margin:0;font-size:16px;line-height:1.5}
+/* klientská stránka je černá (data-theme=dark); plocha = černá, karty --surface */
+.top{position:sticky;top:0;z-index:10;background:var(--canvas);border-bottom:.5px solid var(--line);padding:var(--sp-3) var(--sp-4) 0;padding-top:max(12px,env(safe-area-inset-top))}
+.top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:var(--sp-3)}
+.brand{display:flex;align-items:center;gap:var(--sp-3);white-space:nowrap;min-width:0}.brand .logo{height:34px;width:auto;display:block}.brand .logo-d{display:none}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand .logo-l{display:none}:root:not([data-theme="light"]) .brand .logo-d{display:block}}
 :root[data-theme="dark"] .brand .logo-l{display:none}:root[data-theme="dark"] .brand .logo-d{display:block}
-.brand>span{color:var(--mut);font-weight:500;font-size:14px;border-left:1px solid var(--line2);padding-left:12px}
+.brand>span{color:var(--ink-2);font-weight:500;font-size:var(--fs-s);border-left:1px solid var(--line);padding-left:var(--sp-3);overflow:hidden;text-overflow:ellipsis}
 .top .sp{flex:1}
-.prog{height:2px;background:var(--line);max-width:720px;margin:12px auto 0}
-.prog i{display:block;height:100%;width:0;background:var(--acc);transition:width .3s}
-.btn{border:1px solid var(--line2);background:transparent;border-radius:8px;padding:10px 16px;cursor:pointer;white-space:nowrap;font-size:14.5px;font-weight:600}
-.btn:hover{border-color:var(--txt)}
-.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
-.btn.pri:hover{filter:brightness(1.05)}
-.btn.sm{padding:7px 12px;font-size:13px}
-.btn:disabled{opacity:.5;cursor:default}
-main{max-width:720px;margin:0 auto;padding:28px 16px 140px}
-.hero h1{font-size:30px;line-height:1.15;margin:0 0 8px;font-weight:800;letter-spacing:-.01em}
-.hero p{color:var(--mut);margin:0}
-.adv{display:flex;gap:12px;align-items:center;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0;margin:22px 0 6px;font-size:14px}
-.adv .av{width:40px;height:40px;border-radius:50%;background:var(--txt);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none;font-size:14px}
-.adv small{display:block;color:var(--mut)}
-.lock{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--mut);margin:14px 0 0}
+.prog{height:2px;background:var(--line);max-width:720px;margin:var(--sp-3) auto 0}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+main{max-width:720px;margin:0 auto;padding:28px var(--sp-4) 140px}
+.hero h1{font-size:var(--fs-2xl);line-height:1.15;margin:0 0 var(--sp-2);font-weight:700;letter-spacing:-.01em}
+.hero p{color:var(--ink-2);margin:0}
+.adv{display:flex;gap:var(--sp-3);align-items:center;border-top:.5px solid var(--line);border-bottom:.5px solid var(--line);padding:14px 0;margin:22px 0 6px;font-size:var(--fs-m)}
+.adv .av{width:40px;height:40px;border-radius:50%;background:var(--ink);color:var(--canvas);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none;font-size:var(--fs-s)}
+.adv small{display:block;color:var(--ink-2);font-size:var(--fs-s)}
+.lock{display:flex;gap:10px;align-items:flex-start;font-size:var(--fs-s);color:var(--ink-2);margin:14px 0 0}
 .lock svg{flex:none;margin-top:2px}
-section{border-bottom:1px solid var(--line);padding:30px 0 32px;scroll-margin-top:80px}
-section h2{display:flex;gap:12px;align-items:baseline;font-size:20px;margin:0 0 4px;font-weight:800;letter-spacing:-.01em}
-section h2 .n{color:var(--acc);font-size:15px;font-weight:800;min-width:22px;font-variant-numeric:tabular-nums}
-section h2 .dn{margin-left:auto;font-size:12px;color:var(--acc);font-weight:700;letter-spacing:.02em}
-.why{color:var(--mut);font-size:14px;margin:0 0 18px 34px}
+section{border-bottom:.5px solid var(--line);padding:30px 0 32px;scroll-margin-top:80px}
+section h2{display:flex;gap:var(--sp-3);align-items:baseline;font-size:var(--fs-xl);margin:0 0 var(--sp-1);font-weight:700;letter-spacing:-.01em}
+section h2 .n{color:var(--accent-text);font-size:var(--fs-m);font-weight:700;min-width:22px;font-variant-numeric:tabular-nums}
+section h2 .dn{margin-left:auto;font-size:var(--fs-s);color:var(--accent-text);font-weight:700}
+.why{color:var(--ink-2);font-size:var(--fs-m);margin:0 0 18px 34px}
 section>.body{margin-left:34px}
 @media (max-width:560px){.why,section>.body{margin-left:0}}
-h3{font-size:12px;margin:22px 0 10px;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
-.g{display:grid;grid-template-columns:1fr 1fr;gap:14px 14px}
+h3{font-size:var(--fs-s);margin:22px 0 10px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .g .full{grid-column:1/-1}
+.mt{margin-top:14px}
 @media (max-width:560px){.g{grid-template-columns:1fr}.btn .long{display:none}}
-label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--mut);min-width:0}
-label.f .q,.qq{color:var(--txt);font-weight:600;font-size:14.5px}
-label.f input,label.f select,label.f textarea{background:var(--inp);border:1px solid var(--line2);border-radius:8px;padding:11px 12px;width:100%;min-width:0;font-size:16px;color:var(--txt);-webkit-appearance:none;appearance:none}
-label.f select{background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
-label.f textarea{resize:vertical;min-height:96px}
-label.f input:focus,label.f select:focus,label.f textarea:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+/* pole = .field z ui.css (44 px, 16 px písmo) */
+label.f{display:flex;flex-direction:column;gap:6px;font-size:var(--fs-s);color:var(--ink-2);min-width:0}
+label.f .q,.qq{color:var(--ink);font-weight:600;font-size:var(--fs-m)}
+label.f input,label.f select,label.f textarea{display:block;width:100%;min-width:0;min-height:var(--h-m);padding:0 var(--sp-3);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);font-size:16px;color:var(--ink);outline:none;-webkit-appearance:none;appearance:none}
+label.f select{padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238A8A8E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+label.f textarea{padding:10px var(--sp-3);resize:vertical;min-height:96px;line-height:1.4}
+label.f input:focus,label.f select:focus,label.f textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+label.f input::placeholder,label.f textarea::placeholder{color:var(--ink-3)}
+label.f input[readonly]{background:var(--fill)}
 .money{position:relative}.money input{padding-right:64px!important;text-align:right;font-variant-numeric:tabular-nums}
-.money span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:13px;pointer-events:none}
-.hint{font-size:12.5px;color:var(--mut)}
-.chk{display:flex;gap:10px;align-items:flex-start;font-size:15px;margin:8px 0;cursor:pointer}
-.chk input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--acc);flex:none}
-.seg{display:flex;gap:0;border:1px solid var(--line2);border-radius:8px;overflow:hidden;width:max-content;max-width:100%}
-.seg button{border:0;border-right:1px solid var(--line2);background:var(--inp);padding:10px 22px;cursor:pointer;font-size:14.5px;font-weight:600;min-width:80px}
-.seg button:last-child{border-right:0}
-.seg button.on{background:var(--txt);color:var(--bg)}
-.ask{margin:4px 0 14px}
-.ask .qq{display:block;margin-bottom:8px}
-.rows{display:flex;flex-direction:column;gap:12px}
-.row{border:1px solid var(--line);border-radius:10px;padding:14px;position:relative;background:var(--panel)}
-.row>b{font-size:14px;display:block;margin:0 70px 10px 0}
-.row .x{position:absolute;right:8px;top:8px;border:0;background:none;color:var(--mut);cursor:pointer;font-size:13px;padding:6px 8px;border-radius:6px}
-.row .x:hover{color:var(--txt)}
-.add{margin-top:12px;width:100%;border:1px dashed var(--line2);background:none;border-radius:10px;padding:13px;color:var(--txt);font-weight:600;cursor:pointer}
-.add:hover{border-color:var(--acc);color:var(--acc)}
-.who{display:block;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin:22px 0 10px}
+.money span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--ink-2);font-size:var(--fs-s);pointer-events:none}
+/* zaškrtnutí = iOS přepínač vpravo */
+.chk{display:flex;gap:var(--sp-3);align-items:center;justify-content:space-between;min-height:var(--h-m);font-size:var(--fs-m);margin:var(--sp-1) 0;cursor:pointer}
+.chk>input.switch{order:2}
+.ask{margin:var(--sp-1) 0 14px}
+.ask .qq{display:block;margin-bottom:var(--sp-2)}
+.ask .seg{min-height:var(--h-m)}
+.ask .seg>button{min-height:40px;min-width:88px;font-size:var(--fs-m)}
+.rows{display:flex;flex-direction:column;gap:var(--sp-3)}
+.erow{border:1px solid var(--line);border-radius:var(--r-l);padding:14px;position:relative;background:var(--surface)}
+.erow>b{font-size:var(--fs-m);display:block;margin:0 96px 10px 0;min-height:32px;line-height:32px}
+.erow>.del{position:absolute;right:8px;top:8px}
+.add{margin-top:var(--sp-3)}
+.who{display:block;font-size:var(--fs-s);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-text);margin:22px 0 10px}
 .who:first-child{margin-top:0}
-.calc{font-size:12.5px;color:var(--acc);font-weight:600}
-.file{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:6px 0}
-.file .nm{flex:1;min-width:160px;font-size:14px}
-.file .nm small{display:block;color:var(--mut);font-size:12.5px}
-.file .ok{color:var(--acc);font-weight:700}
-.err{border-color:var(--acc)!important;box-shadow:0 0 0 3px var(--acc-soft)!important}
-.seg.err{box-shadow:0 0 0 3px var(--acc-soft)}
-.emsg{display:block;font-size:12.5px;color:var(--acc);font-weight:600;margin-top:2px}
-.banner{position:sticky;top:64px;z-index:5;background:var(--txt);color:var(--bg);border-radius:10px;padding:12px 14px;font-size:14px;margin:16px 0 0;display:flex;gap:12px;align-items:center}
-.banner b{color:var(--acc)}
-.banner button{margin-left:auto;border:0;background:var(--acc);color:#fff;border-radius:6px;padding:7px 12px;font-weight:700;cursor:pointer;white-space:nowrap}
-.bottom{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));z-index:10}
-.bottom .in{max-width:720px;margin:0 auto;display:flex;gap:12px;align-items:center}
-.bottom .st{flex:1;font-size:13px;color:var(--mut)}
-.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:11px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
-.toast.on{opacity:1}
-.priv{font-size:12.5px;color:var(--mut);margin:26px 0 0;line-height:1.55}
+.calc{font-size:var(--fs-s);color:var(--accent-text);font-weight:600}
+.file{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);border-radius:var(--r-l);padding:var(--sp-3) 14px;margin:6px 0;background:var(--surface)}
+.file .nm{flex:1;min-width:160px;font-size:var(--fs-m)}
+.file .nm small{display:block;color:var(--ink-2);font-size:var(--fs-s)}
+.file .ok{color:var(--accent-text);font-weight:700}
+.err{border-color:var(--accent)!important;box-shadow:0 0 0 3px var(--accent-soft)!important}
+.seg.err{box-shadow:0 0 0 3px var(--accent-soft)}
+.emsg{display:block;font-size:var(--fs-s);color:var(--accent-text);font-weight:600;margin-top:2px}
+.banner{position:sticky;top:64px;z-index:5;background:var(--ink);color:var(--canvas);border-radius:var(--r-m);padding:6px 6px 6px 14px;font-size:var(--fs-m);margin:var(--sp-4) 0 0;display:flex;gap:var(--sp-3);align-items:center;min-height:var(--h-m)}
+.banner b{color:var(--accent)}
+.banner .btn{margin-left:auto}
+.bottom{position:fixed;left:0;right:0;bottom:0;background:var(--canvas);border-top:.5px solid var(--line);padding:var(--sp-3) var(--sp-4);padding-bottom:max(12px,env(safe-area-inset-bottom));z-index:10}
+.bottom .in{max-width:720px;margin:0 auto;display:flex;gap:var(--sp-3);align-items:center}
+.bottom .st{flex:1;font-size:var(--fs-s);color:var(--ink-2)}
+.toast{bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:30;text-align:center}
+.priv{font-size:var(--fs-s);color:var(--ink-2);margin:26px 0 0;line-height:1.55}
 .done{text-align:center;padding:60px 10px}
-.done .ic{width:64px;height:64px;border-radius:50%;background:var(--acc);display:inline-flex;align-items:center;justify-content:center;margin-bottom:18px}
-.done h1{font-size:26px;margin:0 0 8px}
-.done p{color:var(--mut);max-width:440px;margin:0 auto}
-body.emb .hero h1{font-size:22px}
-.book{max-width:640px;margin:8px auto 0;text-align:left}
-.book h2{font-size:22px;margin:0 0 6px;font-weight:800}
-.days{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:thin}
-.days button{flex:none;border:1px solid var(--line2);background:var(--inp);border-radius:10px;padding:9px 12px;cursor:pointer;text-align:center;min-width:72px;font-size:13px;line-height:1.3}
-.days button b{display:block;font-size:16px}
-.days button.on{background:var(--txt);color:var(--bg);border-color:var(--txt)}
-.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin:6px 0 16px}
-.times button{border:1px solid var(--line2);background:var(--inp);border-radius:8px;padding:10px 0;font-weight:700;cursor:pointer;font-variant-numeric:tabular-nums}
-.times button.on{background:var(--acc);border-color:var(--acc);color:#fff}
-.map{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:10px 0 6px}
+.done.top0{padding:40px 10px 20px}
+.done .ic{width:64px;height:64px;border-radius:50%;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;margin-bottom:18px}
+.done h1{font-size:var(--fs-2xl);margin:0 0 var(--sp-2)}
+.done p{color:var(--ink-2);max-width:440px;margin:0 auto}
+body.emb .hero h1{font-size:var(--fs-xl)}
+/* rezervace termínu (po odeslání / krátký odkaz /termin/) */
+.book{max-width:640px;margin:var(--sp-2) auto 0;text-align:left}
+.book h2{font-size:var(--fs-xl);margin:0 0 6px;font-weight:700}
+.book .qq{display:block;margin:var(--sp-4) 0 var(--sp-2)}
+.days{display:flex;gap:var(--sp-2);overflow-x:auto;padding:var(--sp-1) 0 10px;scrollbar-width:thin}
+.days button{flex:none;border:0;background:var(--fill);color:var(--ink-2);border-radius:var(--r-m);padding:var(--sp-2) var(--sp-3);cursor:pointer;text-align:center;min-width:72px;min-height:var(--h-m);font-size:var(--fs-s);line-height:1.3}
+.days button b{display:block;font-size:var(--fs-m);color:var(--ink)}
+.days button.on{background:var(--ink);color:var(--canvas)}.days button.on b{color:var(--canvas)}
+.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:var(--sp-2);margin:6px 0 var(--sp-4)}
+.times button{border:0;background:var(--fill);color:var(--ink);border-radius:var(--r-pill);min-height:var(--h-m);padding:6px 0;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums;line-height:1.2}
+.times button small{display:block;font-size:var(--fs-xs);font-weight:500;color:var(--ink-2)}
+.times button.on{background:var(--ink);color:var(--canvas)}.times button.on small{color:var(--canvas)}
+.seg>button:disabled{opacity:.4;cursor:not-allowed}
+.bact{display:flex;gap:10px;margin-top:var(--sp-4);flex-wrap:wrap}
+.map{border:1px solid var(--line);border-radius:var(--r-l);overflow:hidden;margin:10px 0 6px}
 .map iframe{display:block;width:100%;height:240px;border:0}
-.mapph{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:140px;text-align:center;padding:12px;font-size:12.5px;color:var(--mut)}
-.gdpr{margin:22px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:12.5px;color:var(--mut);line-height:1.55}
-.gdpr summary{cursor:pointer;font-weight:600;color:inherit}
-.gdpr ul{margin:8px 0 2px;padding-left:18px}.gdpr li{margin:4px 0}.gdpr a{color:var(--acc)}
-.note{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;font-size:14.5px}
+.mapph{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;height:140px;text-align:center;padding:var(--sp-3);font-size:var(--fs-s);color:var(--ink-2)}
+a{color:var(--accent-text)}
+.gdpr{margin:22px 0 0;border:1px solid var(--line);border-radius:var(--r-l);padding:0 14px;font-size:var(--fs-s);color:var(--ink-2);line-height:1.55;background:var(--surface)}
+.gdpr summary{cursor:pointer;font-weight:600;color:var(--ink);min-height:var(--h-m);display:flex;align-items:center}
+.gdpr ul{margin:var(--sp-2) 0 var(--sp-3);padding-left:18px}.gdpr li{margin:var(--sp-1) 0}
+.note{border:1px solid var(--line);border-radius:var(--r-l);padding:14px;margin:10px 0;font-size:var(--fs-m);background:var(--surface)}
+.ctr{text-align:center}
 </style>
 </head>
 <body>
 <div class="top"><div class="in"><span class="brand"><img src="/pipeline/zfp-consulting-logo.svg" alt="ZFP Consulting" class="logo logo-l"><img src="/pipeline/zfp-consulting-logo-white.svg" alt="ZFP Consulting" class="logo logo-d"><span>Vstupní dotazník</span></span><span class="sp"></span><span id="topBtns"></span></div><div class="prog"><i id="prog"></i></div></div>
 <main id="main"></main>
 <div class="bottom" id="bottom"><div class="in"><span class="st" id="st"></span><span id="botBtns"></span></div></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" hidden></div>
 <script>window.DZ_LINK=decodeURIComponent(escape(atob("dj0xJnRvPWt1ZGxpY2thLnZvanRlY2gyMDAyJTQwZ21haWwuY29tJms9Qkx1WDQya2FqQnUtMXpYVnZkQ0RhODliMkhUb0x3YkJvY0xVN1VZNGNidklOYkFpRHpEWGZta0NPR19HenV2SDB0VTk4c1FsNzJaMXJHajVqUzdMU0hJJnA9Vm9qdCVDNCU5QmNoK0t1ZGxpJUM0JThEa2EmYj1odHRwcyUzQSUyRiUyRnNjcmlwdC5nb29nbGUuY29tJTJGbWFjcm9zJTJGcyUyRkFLZnljYnlfSXJTRzlsSXdzWlYtTUl3blhVdG12TzN1Rjg4eTg2Q2lLaHdOOEtXenNyXzlRSHNMZW16YnE1aGMzMXl0eVYzYyUyRmV4ZWMmZT12b2p0ZWNoLmt1ZGxpY2thJTQwemZwYS5jeiZ0PTc3NCsyMjIrNjE3")));</script>
 <script src="/pipeline/dzcrypto.js?v=2"></script>
 <script src="/pipeline/nnrs.js?v=1"></script>
@@ -183,7 +182,15 @@ const fmtIn=v=>{if(v===""||v==null||isNaN(+v))return v==null?"":String(v);const[
 const parseIn=t=>{const c=String(t).replace(/[\s  ]/g,"").replace(",",".");if(c===""||c==="-")return "";const n=+c;return isFinite(n)?n:""};
 const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?a:a[k],o);
 const set=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach((k,i)=>{if(a[k]==null)a[k]=/^\d+$/.test(ks[i+1])?[]:{};a=a[k]});a[ks.at(-1)]=v};
-function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("on"),3200)}
+/* toast stejný jako v Pipeline (ui.css .toast) */
+function toast(m){const t=$("#toast");clearTimeout(toast._t);clearTimeout(toast._t2);t.textContent="";const sp=document.createElement("span");sp.textContent=m;t.append(sp);t.hidden=false;t.classList.remove("out");void t.offsetWidth;t.classList.add("in");
+  toast._t=setTimeout(()=>{t.classList.remove("in");t.classList.add("out")},3200);toast._t2=setTimeout(()=>{t.hidden=true;t.classList.remove("out")},3500)}
+/* potvrzení stejné jako confirmSheet v Pipeline (ui.css .cfm) */
+function confirmSheet(text,o={}){return new Promise(res=>{const d=document.createElement("dialog");d.className="cfm";d.setAttribute("role","alertdialog");let done=false;
+  d.innerHTML=`<div class="cfm-box"><p class="cfm-t">${esc(text)}</p><div class="cfm-b"><button type="button" class="btn btn--secondary" data-v="0">Zrušit</button><button type="button" class="btn ${o.danger?"btn--danger is-armed":"btn--primary"}" data-v="1">${esc(o.okLabel||"Pokračovat")}</button></div></div>`;
+  const fin=v=>{if(done)return;done=true;try{d.close()}catch(e){}d.remove();res(v)};
+  d.addEventListener("click",e=>{const b=e.target.closest("[data-v]");if(b)fin(b.dataset.v==="1");else if(e.target===d)fin(false)});d.addEventListener("cancel",e=>{e.preventDefault();fin(false)});
+  document.body.append(d);try{d.showModal()}catch(e){d.setAttribute("open","")}d.querySelector('[data-v="0"]').focus()})}
 
 /* stejné číselníky jako v plánu (fp.html) */
 const TYPY=["Běžný účet","Spořicí účet","Termínovaný vklad","Stavební spoření","Penzijní připojištění (PP)","Doplňkové penzijní spoření (DPS)","Podílový fond (OPF)","ETF","Akcie / dluhopisy (přímé)","Životní pojištění (ŽP)","Dlouhodobý investiční produkt (DIP)","Jiné"];
@@ -224,12 +231,12 @@ const num=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}
 const txt=(q,p,o={})=>`<label class="f ${o.full?"full":""}"><span class="q">${q}</span><input class="${ec(p)}" data-p="${p}" type="${o.type||"text"}" ${o.ac?`autocomplete="${o.ac}"`:""} ${o.im?`inputmode="${o.im}"`:""} ${o.list?`list="${o.list}" autocomplete="off"`:""} value="${esc(get(P,p)==null?"":get(P,p))}" placeholder="${esc(o.ph||"")}">${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`;
 const area=(q,p,o={})=>`<label class="f full"><span class="q">${q}</span><textarea class="${ec(p)}" data-p="${p}" rows="${o.rows||4}" placeholder="${esc(o.ph||"")}">${esc(get(P,p)||"")}</textarea>${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`;
 const sel=(q,p,opts,o={})=>{const v=get(P,p);return `<label class="f ${o.full?"full":""}"><span class="q">${q}</span><select class="${ec(p)}" data-p="${p}">${opts.map(x=>{const[val,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(val)}" ${String(val)===String(v==null?"":v)?"selected":""}>${esc(t)}</option>`}).join("")}</select>${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</label>`};
-const chk=(t,p)=>`<label class="chk"><input type="checkbox" data-p="${p}" ${get(P,p)?"checked":""}><span>${t}</span></label>`;
-const ask=(q,p,opts=[[true,"Ano"],[false,"Ne"]])=>`<div class="ask full"><span class="qq">${q}</span><div class="seg${ec(p)}" data-segp="${p}">${opts.map(([v,t])=>`<button type="button" data-seg="${p}" data-v="${esc(JSON.stringify(v))}" class="${get(P,p)===v?"on":""}">${t}</button>`).join("")}</div>${em(p)}</div>`;
+const chk=(t,p)=>`<label class="chk"><input type="checkbox" class="switch" role="switch" data-p="${p}" ${get(P,p)?"checked":""}><span>${t}</span></label>`;
+const ask=(q,p,opts=[[true,"Ano"],[false,"Ne"]])=>`<div class="ask full"><span class="qq">${q}</span><div class="seg${ec(p)}" role="group" data-segp="${p}">${opts.map(([v,t])=>`<button type="button" data-seg="${p}" data-v="${esc(JSON.stringify(v))}" class="${get(P,p)===v?"on":""}" aria-pressed="${get(P,p)===v}">${t}</button>`).join("")}</div>${em(p)}</div>`;
 const TITLES={};
 function rows(path,blankRow,title,fields){const L=get(P,path)||[];TITLES[path]=title;
-  return `<div class="rows">${L.map((r,i)=>`<div class="row"><b data-t="${path}" data-i="${i}">${esc(title(r,i))}</b><button type="button" class="x" data-del="${path}.${i}">Odebrat</button><div class="g">${fields(path+"."+i,r,i)}</div></div>`).join("")}</div>
-   <button type="button" class="add" data-add="${path}" data-blank='${esc(JSON.stringify(blankRow))}'>+ Přidat</button>`}
+  return `<div class="rows">${L.map((r,i)=>`<div class="erow"><b data-t="${path}" data-i="${i}">${esc(title(r,i))}</b><button type="button" class="btn btn--danger btn--s del" data-del="${path}.${i}">Odebrat</button><div class="g">${fields(path+"."+i,r,i)}</div></div>`).join("")}</div>
+   <button type="button" class="btn btn--secondary btn--block add" data-add="${path}" data-blank='${esc(JSON.stringify(blankRow))}'>+ Přidat</button>`}
 const yes=k=>K()[k]===true;
 
 /* ---------- osoba ---------- */
@@ -242,9 +249,9 @@ const VYH=()=>"bydlení, jídlo, doprava, děti, splátky, volný čas…"+(get(
 const vydaje=k=>`${money("Měsíční výdaje celkem",k+".vydaje_osobni",{h:VYH()})}
  ${money("Z toho na společnou domácnost",k+".vydaje_dom",{h:"co by domácnost platila dál, i kdybyste tu nebyl/a (bydlení, jídlo, děti, splátky)"})}`;
 const ioldpBox=k=>{const f=FILES[k],m=(P.ioldp||{})[k];return `<div class="file${ec(k+".ioldp")}" data-segp="${k}.ioldp"><span class="nm"><b>IOLDP – ${esc(pNm(k))}</b>
-   <small>${f?`<span class="ok">✓ ${esc(f.name)}</span> · ${Math.max(1,Math.round(f.size/1024))} kB`:m&&m.pozdeji?"pošlu později":"Výpis důchodového pojištění z ePortálu ČSSZ (PDF)"}</small></span>
-   <a class="btn sm" href="${ESSZ}" target="_blank" rel="noopener noreferrer">Přejít na ePortál ČSSZ</a>
-   <button type="button" class="btn sm pri" data-ioldp="${k}">${f?"Vyměnit":"Vložit IOLDP"}</button></div>
+   <small>${f?`<span class="ok">${esc(f.name)}</span> · ${Math.max(1,Math.round(f.size/1024))} kB`:m&&m.pozdeji?"pošlu později":"Výpis důchodového pojištění z ePortálu ČSSZ (PDF)"}</small></span>
+   <a class="btn btn--ghost btn--s" href="${ESSZ}" target="_blank" rel="noopener noreferrer">Přejít na ePortál ČSSZ</a>
+   <button type="button" class="btn btn--secondary btn--s" data-ioldp="${k}">${f?"Vyměnit":"Vložit IOLDP"}</button></div>
    ${f?"":chk("IOLDP teď nemám – pošlu ho poradci později","ioldp."+k+".pozdeji")}${em(k+".ioldp")}`};
 
 /* ---------- sekce: h = obsah, miss = co chybí [cesta, text] (vše povinné, kromě poznámky) ---------- */
@@ -258,13 +265,13 @@ const spolD=()=>ma()&&!odd();           /* oddělené finance: každý má vlast
 const kdoSel=b=>odd()?sel("Čí je to?",b+".kdo",[["","Vyberte…"],["klient",pNm("klient")],["partner",pNm("partner")],["spolecne","Společné"]]):"";
 const kdoMiss=(M,path)=>{if(odd())(P[path]||[]).forEach((r,i)=>{if(!r.kdo)M(`${path}.${i}.kdo`,"Čí je to?")})};
 /* riziková skupina NN – jen pro poradce (v plánu), klientovi se neukazuje */
-const rsHint=k=>{if(!EMB||!window.NNRS)return "";const o=NNRS.osoba(PO(k));return `<p class="hint full" style="margin:0"><b>Riziková skupina NN: ${NNRS.RS_TXT(o.rs)}</b>${o.pov?" · povolání "+esc(o.pov.nazev)+" ("+NNRS.RS_TXT(o.pov.rs)+")":""}${o.sporty.length?" · "+o.sporty.map(s=>esc(s.nazev)+" "+(s.rs?NNRS.RS_TXT(s.rs):"?")).join(", "):""}${o.pozn.length?"<br>"+o.pozn.map(esc).join("<br>"):""}</p>`};
+const rsHint=k=>{if(!EMB||!window.NNRS)return "";const o=NNRS.osoba(PO(k));return `<p class="hint full"><b>Riziková skupina NN: ${NNRS.RS_TXT(o.rs)}</b>${o.pov?" · povolání "+esc(o.pov.nazev)+" ("+NNRS.RS_TXT(o.pov.rs)+")":""}${o.sporty.length?" · "+o.sporty.map(s=>esc(s.nazev)+" "+(s.rs?NNRS.RS_TXT(s.rs):"?")).join(", "):""}${o.pozn.length?"<br>"+o.pozn.map(esc).join("<br>"):""}</p>`};
 const renta1=(p,lbl)=>`${lbl?`<span class="who">${esc(lbl)}</span>`:""}<div class="g">${money("Kolik měsíčně (dnešní ceny)",p+".mesicne",{h:"státní důchod do toho započítáme"})}${num("Od kolika let",p+".od_veku",{ph:"prázdné = od důchodu"})}</div>`;
 let SEC=[
  {id:"motivace",t:"Co je pro vás důležité",why:"Vaše slova dáme na začátek plánu – podle nich stavíme priority.",
   h:()=>`<div class="g">${area("Co je pro vás v životě nejdůležitější? Čeho chcete finančním plánem dosáhnout?","motivace",{ph:"Např. Chci, aby rodina měla jistotu, a jednou bydlet ve vlastním bez velké hypotéky."})}</div>
-   <div class="g" style="margin-top:14px">${ask("Pro koho plán děláme?","kontakt.plan_pro",[["ja","Jen pro mě"],["dva","Pro nás dva"]])}</div>
-   ${ma()?`<div class="g">${ask("Jak to máte s penězi?","fin.spolecne",[[true,"Společné finance"],[false,"Každý zvlášť"]])}</div><p class="hint" style="margin:-6px 0 0">Společné = jeden rozpočet, společné úspory i cíle. Každý zvlášť = každému z vás uděláme vlastní plán (příjmy, výdaje, úspory, cíle), pojištění a společné věci probereme dohromady.</p>`:""}`,
+   <div class="g mt">${ask("Pro koho plán děláme?","kontakt.plan_pro",[["ja","Jen pro mě"],["dva","Pro nás dva"]])}</div>
+   ${ma()?`<div class="g">${ask("Jak to máte s penězi?","fin.spolecne",[[true,"Společné finance"],[false,"Každý zvlášť"]])}</div><p class="hint">Společné = jeden rozpočet, společné úspory i cíle. Každý zvlášť = každému z vás uděláme vlastní plán (příjmy, výdaje, úspory, cíle), pojištění a společné věci probereme dohromady.</p>`:""}`,
   miss:M=>{if(String(P.motivace||"").trim().length<10)M("motivace","Napište pár slov");if(!K().plan_pro)M("kontakt.plan_pro","Odpovězte prosím");if(ma()&&typeof (P.fin||{}).spolecne!=="boolean")M("fin.spolecne","Odpovězte prosím")}},
  {id:"cile",t:"Cíle",why:"Na co chcete spořit. Částky pište v dnešních cenách – inflaci v plánu započítáme sami.",
   h:()=>`<div class="g">${ask("Máte konkrétní cíl, na který chcete spořit? (auto, studium dětí, cestování…)","kontakt.cile_ma")}</div>`+(yes("cile_ma")?rows("cile",{nazev:"",castka:"",za_let:""},(r,i)=>r.nazev||"Cíl "+(i+1),b=>`${txt("Cíl",b+".nazev",{ph:"Auto, studium dětí, rekonstrukce…",full:1})}${money("Kolik (dnešní ceny)",b+".castka",{u:"Kč"})}${num("Za kolik let",b+".za_let",{ph:"např. 5"})}${kdoSel(b)}`):"")+
@@ -281,7 +288,7 @@ let SEC=[
       if(h.inkaso_ted===""||h.inkaso_ted==null)M("hypo.inkaso_ted","Částka (může být i odhad)");if(h.stavajici==="najem"&&(h.odpadne===""||h.odpadne==null))M("hypo.odpadne","Nájem")}
     if(K().renta_ma==null)M("kontakt.renta_ma","Odpovězte prosím");if(yes("renta_ma")){if(!(+get(P,"renta.mesicne")>0))M("renta.mesicne","Měsíční částka");if(odd()&&!(+get(P,"renta2.mesicne")>0))M("renta2.mesicne","Měsíční částka")}}},
  {id:"majetek",t:"Úspory a investice",why:"Účty, spoření a investice. Z nich postavíme rezervu a zbytek pošleme do vašich cílů.",
-  h:()=>`<div class="g">${ask("Máte nějaké úspory, spoření nebo investice?","kontakt.majetek_ma")}</div>`+(yes("majetek_ma")?rows("majetek",{nazev:"",typ:"",hodnota:"",vklad:""},(r,i)=>r.typ||"Položka "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...TYPY])}${txt("Kde (banka / instituce)",b+".nazev",{ph:"Např. Moneta, Conseq…"})}${money("Aktuální hodnota",b+".hodnota",{u:"Kč"})}${money("Měsíčně si posílám",b+".vklad",{ph:"0"})}${ZAMP_D.includes(get(P,b+".typ"))?money("Kolik přispívá zaměstnavatel",b+".zam_prisp",{ph:"0",h:"pokud vám zaměstnavatel na tento produkt přispívá (nebo bude)"}):""}${kdoSel(b)}`)+`<p class="hint" style="margin-top:8px">Zaměstnavatel vám přispívá na penzijko, DIP nebo životní pojištění, které teprve založíte? Přidejte ho s hodnotou 0 a vyplňte příspěvek.</p>`:""),
+  h:()=>`<div class="g">${ask("Máte nějaké úspory, spoření nebo investice?","kontakt.majetek_ma")}</div>`+(yes("majetek_ma")?rows("majetek",{nazev:"",typ:"",hodnota:"",vklad:""},(r,i)=>r.typ||"Položka "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...TYPY])}${txt("Kde (banka / instituce)",b+".nazev",{ph:"Např. Moneta, Conseq…"})}${money("Aktuální hodnota",b+".hodnota",{u:"Kč"})}${money("Měsíčně si posílám",b+".vklad",{ph:"0"})}${ZAMP_D.includes(get(P,b+".typ"))?money("Kolik přispívá zaměstnavatel",b+".zam_prisp",{ph:"0",h:"pokud vám zaměstnavatel na tento produkt přispívá (nebo bude)"}):""}${kdoSel(b)}`)+`<p class="hint mt">Zaměstnavatel vám přispívá na penzijko, DIP nebo životní pojištění, které teprve založíte? Přidejte ho s hodnotou 0 a vyplňte příspěvek.</p>`:""),
   miss:M=>{if(K().majetek_ma==null)M("kontakt.majetek_ma","Odpovězte prosím");if(yes("majetek_ma")){if(!(P.majetek||[]).length)M("majetek","Přidejte položku");(P.majetek||[]).forEach((a,i)=>{if(!a.typ)M(`majetek.${i}.typ`,"Vyberte typ");if(!(+a.hodnota>0)&&!(ZAMP_D.includes(a.typ)&&(+a.zam_prisp>0||+a.vklad>0)))M(`majetek.${i}.hodnota`,"Hodnota")});kdoMiss(M,"majetek")}}},
  {id:"nefin",t:"Nemovitosti a jiný majetek",why:"Byt, dům, chata, auto, podíl ve firmě. Do investic ho nepřesouváme, ukáže se v čistém jmění.",
   h:()=>`<div class="g">${ask("Vlastníte nemovitost, auto nebo jiný větší majetek?","kontakt.nefin_ma")}</div>`+(yes("nefin_ma")?rows("nefin",{nazev:"",typ:"",hodnota:""},(r,i)=>r.typ||"Majetek "+(i+1),b=>`${sel("Typ",b+".typ",[["","Vyberte…"],...NEFIN])}${txt("Popis",b+".nazev",{ph:"Byt 3+1 Brno"})}${money("Odhadovaná hodnota",b+".hodnota",{u:"Kč"})}${/Nemovitost|Pozemek|Rekreační/.test(get(P,b+".typ")||"")?money("Příjem z pronájmu",b+".najem",{h:"čistý za měsíc, pokud ji pronajímáte (jinak nechte prázdné)"}):""}${kdoSel(b)}`):""),
@@ -294,22 +301,22 @@ let SEC=[
    ${ppl().map(k=>`<span class="who" data-who="${k}">${esc(pNm(k))}</span><div class="g">${sel("Pracuji jako",k+".prace",PRACE)}
      ${pracuje(k)||PO(k).povolani?txt("Povolání – co přesně děláte",k+".povolani",{ph:"Začněte psát – např. účetní, elektrikář…",list:"dlPov"}):"<span></span>"}
      ${rsHint(k)}</div>
-     <div class="g" style="margin-top:14px">${ask("Sportujete pravidelně?",k+".sport_ma")}</div>
+     <div class="g mt">${ask("Sportujete pravidelně?",k+".sport_ma")}</div>
      ${get(P,k+".sport_ma")===true?rows(k+".sporty",{nazev:"",uroven:""},(r,i)=>r.nazev||"Sport "+(i+1),b=>`${txt("Sport",b+".nazev",{ph:"Začněte psát – např. fotbal, lyže…",list:"dlSport"})}${sel("Jak",b+".uroven",[["","Vyberte…"],...(window.NNRS?NNRS.UROVNE:[])])}`):""}
-     <div class="g" style="margin-top:10px">${txt("Další sporty nebo rizikové koníčky (nepovinné)",k+".sport",{ph:"Např. motorka, potápění…",full:1})}</div>
-     ${yes("zp_ma")?`<p class="hint" style="margin:12px 0 6px">Pojistné částky ze smlouvy – pokud je víte (jinak nechte prázdné, dohledáme spolu):</p>
+     <div class="g mt">${txt("Další sporty nebo rizikové koníčky (nepovinné)",k+".sport",{ph:"Např. motorka, potápění…",full:1})}</div>
+     ${yes("zp_ma")?`<p class="hint mt">Pojistné částky ze smlouvy – pokud je víte (jinak nechte prázdné, dohledáme spolu):</p>
      <div class="g">${money("Invalidita III. stupně",k+".zp_inv3",{u:"Kč"})}${money("Invalidita II. stupně",k+".zp_inv2",{u:"Kč"})}${money("Invalidita I. stupně",k+".zp_inv1",{u:"Kč"})}${money("Smrt",k+".zp_smrt",{u:"Kč"})}${money("Pracovní neschopnost",k+".zp_pn",{u:"Kč/den"})}</div>`:""}
-     <div style="margin-top:14px">${ioldpBox(k)}</div>`).join("")}
-   <p class="hint" style="margin-top:10px">IOLDP (Informativní osobní list důchodového pojištění) stáhnete na ePortálu ČSSZ přes bankovní identitu – služba „Moje konto“ nebo „Informativní důchodová aplikace“, tlačítko Vytisknout / Stáhnout PDF.</p>`,
+     <div class="mt">${ioldpBox(k)}</div>`).join("")}
+   <p class="hint mt">IOLDP (Informativní osobní list důchodového pojištění) stáhnete na ePortálu ČSSZ přes bankovní identitu – služba „Moje konto“ nebo „Informativní důchodová aplikace“, tlačítko Vytisknout / Stáhnout PDF.</p>`,
   miss:M=>{if(K().zp_ma==null)M("kontakt.zp_ma","Odpovězte prosím");if(yes("zp_ma")&&!(+get(P,"pojisteni.zivotni.stav")>0))M("pojisteni.zivotni.stav","Měsíční pojistné");
     ppl().forEach(k=>{const o=PO(k);if(!o.prace)M(k+".prace","Vyberte");if(pracuje(k)&&!String(o.povolani||"").trim())M(k+".povolani","Povolání");
       if(o.sport_ma==null)M(k+".sport_ma","Odpovězte prosím");if(o.sport_ma===true){if(!(o.sporty||[]).length)M(k+".sporty","Přidejte sport");(o.sporty||[]).forEach((s,i)=>{if(!String(s.nazev||"").trim())M(`${k}.sporty.${i}.nazev`,"Sport");if(!s.uroven)M(`${k}.sporty.${i}.uroven`,"Vyberte")})}
       if(!FILES[k]&&!get(P,"ioldp."+k+".pozdeji")&&!EMB)M(k+".ioldp","Vložte IOLDP, nebo zaškrtněte, že ho pošlete později")})}},
  {id:"vydaje",t:"Výdaje",why:"Kolik měsíčně utratíte. Spoření, investice a pojistné sem nepatří – ty v plánu nastavíme znovu.",
   /* společná domácnost páru: výdaje jedním číslem za oba; finance zvlášť nebo jen pro mě: za každého */
-  h:()=>`<div style="margin-bottom:12px">${chk("Částka zahrnuje všechno – i to, co teď platíte na spoření, investice a pojištění","vydaje.vcetne")}</div>`+(spolD()?`<div class="g">${money("Měsíční výdaje domácnosti celkem – za oba dohromady","vydaje.domacnost",{full:1,h:VYH()})}</div>`
+  h:()=>`<div>${chk("Částka zahrnuje všechno – i to, co teď platíte na spoření, investice a pojištění","vydaje.vcetne")}</div>`+(spolD()?`<div class="g">${money("Měsíční výdaje domácnosti celkem – za oba dohromady","vydaje.domacnost",{full:1,h:VYH()})}</div>`
     :ppl().map(k=>`${ma()?`<span class="who" data-who="${k}">${esc(pNm(k))}</span>`:""}<div class="g">${vydaje(k)}</div>`).join(""))+
-   `<p class="hint" style="margin-top:12px">Nevíte přesně? Stačí odhad – průměr z výpisu za posledních pár měsíců.</p>`,
+   `<p class="hint mt">Nevíte přesně? Stačí odhad – průměr z výpisu za posledních pár měsíců.</p>`,
   miss:M=>{if(spolD()){if(!(+get(P,"vydaje.domacnost")>0)&&!(EMB&&ppl().every(k=>+PO(k).vydaje_osobni>0)))M("vydaje.domacnost","Výdaje domácnosti");return}
     ppl().forEach(k=>{const o=PO(k);if(!(+o.vydaje_osobni>0))M(k+".vydaje_osobni","Výdaje celkem");if(o.vydaje_dom===""||o.vydaje_dom==null)M(k+".vydaje_dom","Kolik z toho jde na domácnost (může být i 0)")})}},
  {id:"prijmy",t:"Příjmy",why:"Pravidelné měsíční příjmy po zdanění, za každého zvlášť – při výpadku příjmu jde vždy o konkrétního člověka. Příjem z pronájmu se zadává u konkrétní nemovitosti.",
@@ -319,7 +326,7 @@ let SEC=[
      return `${sel("Co to je",b+".typ",[["","Vyberte…"],...DOC])}${money("Kolik vám chodí měsíčně",b+".castka")}
      ${ma()?sel("Komu",b+".kdo",[["klient",pNm("klient")],["partner",pNm("partner")]]):""}
      ${r.typ==="materska"||r.typ==="rodicovska"?(deti.length?sel("Na které dítě",b+".dite",[["","Vyberte…"],...deti]):`<span class="hint full">Dítě přidáte v části Rodina – podle jeho věku pak spočítáme, do kdy dávka bude.</span>`):""}
-     ${r.typ==="materska"||r.typ==="rodicovska"?`<label class="f"><span class="q">Do kdy</span><input class="${ec(b+".do")}" data-p="${b}.do" type="month" readonly tabindex="-1" value="${esc(r.do||"")}" placeholder="spočítá se" style="background:var(--chip)"><span class="hint">${c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte"}</span>${em(b+".do")}</label>`
+     ${r.typ==="materska"||r.typ==="rodicovska"?`<label class="f"><span class="q">Do kdy</span><input class="${ec(b+".do")}" data-p="${b}.do" type="month" readonly tabindex="-1" value="${esc(r.do||"")}" placeholder="spočítá se"><span class="hint">${c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte"}</span>${em(b+".do")}</label>`
        :txt("Do kdy",b+".do",{type:"month"})}`}):""}`,
   miss:M=>{ppl().forEach(k=>{const o=PO(k);if(!(+o.zam>0||+o.podnik>0||+o.pasiv>0||+o.pronajem>0||(P.nefin||[]).some(a=>+a.najem>0))&&!o.bez_prijmu)M(k+".prijem","Vyplňte příjem, nebo zaškrtněte, že žádný nemáte");if(+o.zam>0&&!(+o.hruba>0))M(k+".hruba","Hrubá mzda")});
     if(K().docasne_ma==null)M("kontakt.docasne_ma","Odpovězte prosím");
@@ -327,9 +334,9 @@ let SEC=[
  {id:"rodina",t:"Rodina",why:"Podle rodiny počítáme, koho je potřeba zajistit – vdovský a sirotčí důchod, krytí úmrtí.",
   h:()=>`<div class="g">${sel("Rodinný stav","kontakt.stav",STAV)}<span></span>
    ${ma()?"":ask("Máte manžela / manželku nebo partnera / partnerku?","klient.bez_partnera",[[false,"Ano"],[true,"Ne"]])}</div>
-   ${ma()?`<div class="g" style="margin-top:10px">${txt("Jméno a příjmení partnera / partnerky","partner.jmeno")}${txt("Datum narození","partner.narozen",{type:"date"})}</div>`
+   ${ma()?`<div class="g mt">${txt("Jméno a příjmení partnera / partnerky","partner.jmeno")}${txt("Datum narození","partner.narozen",{type:"date"})}</div>`
      :P.klient.bez_partnera===false?`<p class="hint">Plán teď děláme jen pro vás. Chcete ho i pro partnera / partnerku? Změňte volbu „Pro koho plán děláme“ v první části.</p>`:""}
-   <div class="g" style="margin-top:14px">${ask("Máte děti?","kontakt.deti_ma")}</div>
+   <div class="g mt">${ask("Máte děti?","kontakt.deti_ma")}</div>
    ${yes("deti_ma")?rows("deti",{jmeno:"",narozen:"",vs:false},(r,i)=>r.jmeno||"Dítě "+(i+1),b=>`${txt("Jméno",b+".jmeno")}${txt("Datum narození",b+".narozen",{type:"date",h:"u čekaného miminka předpokládaný termín"})}<div class="full">${chk("Plánuje vysokou školu",b+".vs")}</div>`):""}`,
   miss:M=>{if(!K().stav)M("kontakt.stav","Vyberte rodinný stav");if(!ma()&&P.klient.bez_partnera==null)M("klient.bez_partnera","Odpovězte prosím");
     if(ma()){if(!/\S+\s+\S+/.test(P.partner.jmeno||""))M("partner.jmeno","Jméno i příjmení");if(!P.partner.narozen)M("partner.narozen","Datum narození")}
@@ -371,7 +378,7 @@ function render(){
      :`<h1>Než se potkáme</h1><p>Vyplňte prosím všechno – zabere to 10–15 minut. Kde si nejste jistí, stačí odhad.</p>`}</div>
    ${EMB?"":A.n?`<div class="adv"><span class="av">${esc(ini)}</span><span><b>${esc(A.n)}</b><small>váš finanční poradce${A.t?" · "+esc(A.t):""}${A.e?" · "+esc(A.e):""}</small></span></div>`:""}
    ${EMB?"":`<div class="lock">${LOCK}<span>Odpovědi se před odesláním zašifrují přímo ve vašem zařízení. Přečíst je může jen váš poradce – nikdo jiný, ani provozovatel úložiště.</span></div>`}
-   ${tried&&bad?`<div class="banner"><span>Ještě chybí údaje v <b>${bad}</b> ${bad===1?"části":"částech"}.</span><button type="button" id="goMiss">Ukázat</button></div>`:""}
+   ${tried&&bad?`<div class="banner"><span>Ještě chybí údaje v <b>${bad}</b> ${bad===1?"části":"částech"}.</span><button type="button" class="btn btn--primary btn--s" id="goMiss">Ukázat</button></div>`:""}
    <datalist id="dlPov">${(window.NNRS?NNRS.POVOLANI:[]).map(x=>`<option value="${esc(x[0])}">`).join("")}</datalist><datalist id="dlSport">${(window.NNRS?NNRS.SPORTY:[]).map(x=>`<option value="${esc(x[0])}">`).join("")}</datalist>
    ${SEC.map((s,i)=>`<section id="${s.id}"><h2><span class="n">${String(i+1).padStart(2,"0")}</span>${s.t}${!per[i].length&&!s.optional?'<span class="dn">✓</span>':""}</h2><p class="why">${s.why}</p><div class="body">${s.h()}</div></section>`).join("")}
    ${EMB?"":`<p class="priv">Rozpracované odpovědi se drží jen v tomto prohlížeči (bez příloh) a po odeslání se smažou. Data se šifrují standardem AES-256 klíčem, který má jen váš poradce.</p>${gdprBox()}`}`;
@@ -406,26 +413,26 @@ function renderSent0(){
   const K0=ONLY?{email:BK.c.email}:(SENT&&SENT.kontakt)||{},mail=K0.email||"váš e-mail";
   if(BK.done){$("#main").innerHTML=`<div class="done">${OK_IC}<h1>Termín je zarezervovaný</h1><p><b>${esc(dayTxt(BK.done.start))} v ${esc(hm(BK.done.start))}</b> – ${BK.done.online?`online. Odkaz na schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.`:`osobně, ${esc(BK.addr)}.`}</p></div>${BK.done.online?"":mapBox()}`;return}
   const head=ONLY?`<div class="hero"><h1>Rezervace konzultace</h1><p>${ADVN?esc(ADVN)+", ZFP Consulting · ":""}vyberte si den a čas, který vám vyhovuje. Konzultace trvá zhruba 45 minut, osobně v kanceláři nebo online.</p></div>`
-    :`<div class="done" style="padding:40px 10px 20px">${OK_IC}<h1>Odesláno</h1><p>Dotazník dorazil vašemu poradci – zašifrovaný, přečíst ho může jen on. Z tohoto zařízení jsme odpovědi smazali.</p></div>`;
-  if(BK.slots===null){$("#main").innerHTML=head+`<p class="hint" style="text-align:center">Načítám volné termíny…</p>`;return}
+    :`<div class="done top0">${OK_IC}<h1>Odesláno</h1><p>Dotazník dorazil vašemu poradci – zašifrovaný, přečíst ho může jen on. Z tohoto zařízení jsme odpovědi smazali.</p></div>`;
+  if(BK.slots===null){$("#main").innerHTML=head+`<p class="hint ctr">Načítám volné termíny…</p>`;return}
   if(!BK.slots.length){$("#main").innerHTML=head+`<div class="book"><div class="note">${ONLY?"Volné termíny se teď nepodařilo načíst. Zkuste to prosím později, nebo se ozvěte přímo poradci.":"Termín druhé konzultace si domluvíme – poradce se vám ozve."}</div></div>`;return}
   const days=[...new Set(BK.slots.map(x=>dk(x.t)))];if(!BK.day||!days.includes(BK.day))BK.day=days[0];
   const times=BK.slots.filter(x=>dk(x.t)===BK.day),cur=BK.slots.find(x=>x.t===BK.time),onlyOn=!!(cur&&cur.o);if(onlyOn&&BK.mode==="osobne")BK.mode="online";
-  $("#main").innerHTML=head+`<div class="book">${ONLY?"":`<h2>Zarezervujte si druhou konzultaci</h2><p class="hint" style="margin:0 0 14px">Na ní spolu projdeme finanční plán připravený z vašich odpovědí. Trvá zhruba 45 minut.</p>`}
-   <span class="qq" style="display:block;margin:4px 0 8px">Den</span><div class="days">${days.map(d=>{const x=new Date(d+"T12:00:00");return `<button type="button" data-day="${d}" class="${d===BK.day?"on":""}">${DNY[x.getDay()]}<b>${x.getDate()}. ${x.getMonth()+1}.</b></button>`}).join("")}</div>
-   <span class="qq" style="display:block;margin:6px 0 4px">Čas</span><div class="times">${times.map(x=>`<button type="button" data-time="${x.t}" class="${x.t===BK.time?"on":""}">${hm(x.t)}${x.o?'<small style="display:block;font-size:10px;font-weight:600;opacity:.75">jen online</small>':""}</button>`).join("")}</div>
-   <div class="ask"><span class="qq">Jak se potkáme?</span><div class="seg"><button type="button" data-mode="osobne" class="${BK.mode==="osobne"?"on":""}"${onlyOn?" disabled style=\"opacity:.4;cursor:not-allowed\" title=\"V tomto čase je kancelář obsazená – jen online\"":""}>Osobně</button><button type="button" data-mode="online" class="${BK.mode==="online"?"on":""}">Online</button></div></div>
-   ${onlyOn?`<p class="hint" style="margin:6px 0 0">V tomto čase je kancelář obsazená, konzultace proběhne online.</p>`:""}${BK.mode==="osobne"?`<div class="note"><b>Kancelář ZFP</b><br>${esc(BK.addr)}</div>${mapBox()}`:BK.mode==="online"?`<div class="note">Odkaz na online schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.</div>`:""}
-   ${ONLY?`<span class="qq" style="display:block;margin:16px 0 6px">Vaše kontakty</span><div class="g">${[["jmeno","Jméno a příjmení","text","name"],["email","E-mail","email","email"],["telefon","Telefon","tel","tel"]].map(([k,l,t,a])=>`<label class="f"><span class="q">${l}</span><input data-bkc="${k}" type="${t}" autocomplete="${a}" value="${esc(BK.c[k])}"></label>`).join("")}</div>`:""}
+  $("#main").innerHTML=head+`<div class="book">${ONLY?"":`<h2>Zarezervujte si druhou konzultaci</h2><p class="hint">Na ní spolu projdeme finanční plán připravený z vašich odpovědí. Trvá zhruba 45 minut.</p>`}
+   <span class="qq">Den</span><div class="days">${days.map(d=>{const x=new Date(d+"T12:00:00");return `<button type="button" data-day="${d}" class="${d===BK.day?"on":""}">${DNY[x.getDay()]}<b>${x.getDate()}. ${x.getMonth()+1}.</b></button>`}).join("")}</div>
+   <span class="qq">Čas</span><div class="times">${times.map(x=>`<button type="button" data-time="${x.t}" class="${x.t===BK.time?"on":""}">${hm(x.t)}${x.o?'<small>jen online</small>':""}</button>`).join("")}</div>
+   <div class="ask"><span class="qq">Jak se potkáme?</span><div class="seg"><button type="button" data-mode="osobne" class="${BK.mode==="osobne"?"on":""}"${onlyOn?" disabled title=\"V tomto čase je kancelář obsazená – jen online\"":""}>Osobně</button><button type="button" data-mode="online" class="${BK.mode==="online"?"on":""}">Online</button></div></div>
+   ${onlyOn?`<p class="hint">V tomto čase je kancelář obsazená, konzultace proběhne online.</p>`:""}${BK.mode==="osobne"?`<div class="note"><b>Kancelář ZFP</b><br>${esc(BK.addr)}</div>${mapBox()}`:BK.mode==="online"?`<div class="note">Odkaz na online schůzku a potvrzení konzultace vám pošlu na <b>${esc(mail)}</b>.</div>`:""}
+   ${ONLY?`<span class="qq">Vaše kontakty</span><div class="g">${[["jmeno","Jméno a příjmení","text","name"],["email","E-mail","email","email"],["telefon","Telefon","tel","tel"]].map(([k,l,t,a])=>`<label class="f"><span class="q">${l}</span><input data-bkc="${k}" type="${t}" autocomplete="${a}" value="${esc(BK.c[k])}"></label>`).join("")}</div>`:""}
    ${BK.err?`<p class="emsg">${esc(BK.err)}</p>`:""}
-   <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button type="button" class="btn pri" id="bBook"${BK.busy?" disabled":""}>${BK.busy?"Rezervuji…":"Potvrdit termín"}</button>${ONLY?"":`<button type="button" class="btn" id="bSkip">Teď ne, domluvíme se</button>`}</div></div>`;
+   <div class="bact"><button type="button" class="btn btn--primary" id="bBook"${BK.busy?" disabled":""}>${BK.busy?"Rezervuji…":"Potvrdit termín"}</button>${ONLY?"":`<button type="button" class="btn btn--secondary" id="bSkip">Teď ne, domluvíme se</button>`}</div></div>`;
 }
 /* osobně: pěší trasa od Galerie Vaňkovka (hlavní nádraží / zastávky MHD) až ke kanceláři + navigace v Google Maps */
 const FROM="Galerie Vaňkovka, Ve Vaňkovce 1, Brno";
-const mapBox=()=>`<div class="note" style="margin-top:14px"><b>Cesta od Vaňkovky</b><br>Od Galerie Vaňkovka (u hlavního nádraží) je to pár minut pěšky.</div>
+const mapBox=()=>`<div class="note mt"><b>Cesta od Vaňkovky</b><br>Od Galerie Vaňkovka (u hlavního nádraží) je to pár minut pěšky.</div>
   <div class="map">${BK.map?`<iframe title="Pěší trasa od Vaňkovky – ${esc(BK.addr)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.google.com/maps?saddr=${encodeURIComponent(FROM)}&daddr=${encodeURIComponent(BK.addr)}&dirflg=w&output=embed"></iframe>`
-    :`<div class="mapph"><button type="button" class="btn sm" id="bMap">Zobrazit mapu</button><span>Mapa se načte ze služby Google Maps, která může ukládat cookies.</span></div>`}</div>
-  <p class="hint"><a href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(FROM)}&destination=${encodeURIComponent(BK.addr)}&travelmode=walking" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">Navigovat pěšky v Google Maps</a> · <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(BK.addr)}" target="_blank" rel="noopener noreferrer" style="color:var(--acc)">Adresa v mapě</a></p>`;
+    :`<div class="mapph"><button type="button" class="btn btn--secondary btn--s" id="bMap">Zobrazit mapu</button><span>Mapa se načte ze služby Google Maps, která může ukládat cookies.</span></div>`}</div>
+  <p class="hint"><a href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(FROM)}&destination=${encodeURIComponent(BK.addr)}&travelmode=walking" target="_blank" rel="noopener noreferrer">Navigovat pěšky v Google Maps</a> · <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(BK.addr)}" target="_blank" rel="noopener noreferrer">Adresa v mapě</a></p>`;
 async function book(){
   if(!BK.time){BK.err="Vyberte čas.";return renderSent()}if(!BK.mode){BK.err="Vyberte, jestli osobně, nebo online.";return renderSent()}
   if(ONLY){const c=BK.c;if(String(c.jmeno).trim().split(/\s+/).length<2){BK.err="Vyplňte jméno a příjmení.";return renderSent()}
@@ -454,11 +461,11 @@ function status(per){per=per||check();const req=SEC.filter(s=>!s.optional),done=
   $("#prog").style.width=Math.round(done/req.length*100)+"%";
   $("#st").textContent=done===req.length?"Vše vyplněno – můžete odeslat.":`Vyplněno ${done} z ${req.length} částí`+(EMB?" · ukládá se rovnou do plánu":"");
   document.querySelectorAll("[data-who]").forEach(w=>w.textContent=pNm(w.dataset.who));
-  document.querySelectorAll(".row > b[data-t]").forEach(b=>{const L=get(P,b.dataset.t)||[],i=+b.dataset.i,f=TITLES[b.dataset.t];if(L[i]&&f)b.textContent=f(L[i],i)});
+  document.querySelectorAll(".erow > b[data-t]").forEach(b=>{const L=get(P,b.dataset.t)||[],i=+b.dataset.i,f=TITLES[b.dataset.t];if(L[i]&&f)b.textContent=f(L[i],i)});
   document.querySelectorAll("section").forEach((el,i)=>{const s=SEC[i],h=el.querySelector("h2");let d=h.querySelector(".dn");const ok=!per[i].length&&!s.optional;if(ok&&!d){d=document.createElement("span");d.className="dn";d.textContent="✓";h.append(d)}else if(!ok&&d)d.remove()})}
 function buttons(){
-  if(EMB){$("#topBtns").innerHTML=`<button class="btn pri sm" id="bDone">Hotovo<span class="long"> – zpět na plán</span></button>`;$("#botBtns").innerHTML=`<button class="btn pri" id="bDone2">Hotovo</button>`}
-  else{$("#topBtns").innerHTML=`<button class="btn sm" id="bClr">Začít znovu</button>`;$("#botBtns").innerHTML=`<button class="btn pri" id="bSend">Odeslat poradci</button>`}
+  if(EMB){$("#topBtns").innerHTML=`<button class="btn btn--ghost" id="bDone">Hotovo<span class="long"> – zpět na plán</span></button>`;$("#botBtns").innerHTML=`<button class="btn btn--primary" id="bDone2">Hotovo</button>`}
+  else{$("#topBtns").innerHTML=`<button class="btn btn--ghost btn--s" id="bClr">Začít znovu</button>`;$("#botBtns").innerHTML=`<button class="btn btn--primary" id="bSend">Odeslat poradci</button>`}
 }
 /* první chybějící údaj: posunout k němu a zvýraznit */
 function goMissing(){const per=check();const i=per.findIndex(l=>l.length);if(i<0)return false;
@@ -495,12 +502,12 @@ document.addEventListener("click",e=>{
     if(p==="kontakt.hypo_ma")P.hypo={...(P.hypo||{}),zapnuto:!!v};
     render();save();return}
   const a=e.target.closest("[data-add]");if(a){const p=a.dataset.add,L=get(P,p)||[];L.push(JSON.parse(a.dataset.blank));set(P,p,L);render();save();
-    setTimeout(()=>{const rs=document.querySelectorAll(`[data-add="${CSS.escape(p)}"]`)[0]?.previousElementSibling?.querySelectorAll(".row");const last=rs&&rs[rs.length-1];const i=last&&last.querySelector("input,select");if(i)i.focus()},0);return}
+    setTimeout(()=>{const rs=document.querySelectorAll(`[data-add="${CSS.escape(p)}"]`)[0]?.previousElementSibling?.querySelectorAll(".erow");const last=rs&&rs[rs.length-1];const i=last&&last.querySelector("input,select");if(i)i.focus()},0);return}
   const d=e.target.closest("[data-del]");if(d){const ps=d.dataset.del.split("."),i=+ps.pop(),L=get(P,ps.join("."));L.splice(i,1);render();save();return}
   const io=e.target.closest("[data-ioldp]");if(io){pickIoldp(io.dataset.ioldp);return}
   if(e.target.id==="goMiss"){goMissing();return}
   if(e.target.id==="bDone"||e.target.id==="bDone2"){clearTimeout(saveT);parent.postMessage({type:"dz:change",plan:P,close:true},location.origin);return}
-  if(e.target.id==="bClr"){if(confirm("Smazat vyplněné odpovědi z tohoto zařízení?")){P=blank();Object.keys(FILES).forEach(k=>delete FILES[k]);tried=false;try{localStorage.removeItem(DRAFT)}catch(err){}render()}return}
+  if(e.target.id==="bClr"){confirmSheet("Smazat vyplněné odpovědi z tohoto zařízení?",{okLabel:"Smazat",danger:true}).then(ok=>{if(!ok)return;P=blank();Object.keys(FILES).forEach(k=>delete FILES[k]);tried=false;try{localStorage.removeItem(DRAFT)}catch(err){}render()});return}
   if(e.target.id==="bSend"){send();return}
 });
 const MAXF=4*1024*1024;

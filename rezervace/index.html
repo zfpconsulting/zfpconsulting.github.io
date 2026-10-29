@@ -11,71 +11,96 @@
 <link rel="icon" type="image/png" sizes="192x192" href="/og/icon-192.png?v=3">
 <link rel="apple-touch-icon" sizes="180x180" href="/og/icon-180.png?v=3">
 <style>
-/* Bez webových fontů, cookies, analytiky a cizích skriptů – viz CSP výše a /rezervace/zasady/ */
-:root{--acc:#E8600A;--acc-soft:rgba(232,96,10,.09);--bg:#fff;--panel:#fafafa;--line:#e6e6e6;--line2:#cfcfcf;--txt:#111;--mut:#5f5f5f;--ok:#1a7f45;--err:#c0392b}
-@media (prefers-color-scheme:dark){:root{--bg:#000;--panel:#0f0f0f;--line:#262626;--line2:#3a3a3a;--txt:#f2f2f2;--mut:#a0a0a0;--acc-soft:rgba(232,96,10,.18);--ok:#4cc38a;--err:#ff7b6b}}
+/* Bez webových fontů, cookies, analytiky a cizích skriptů – viz CSP výše a /rezervace/zasady/.
+   Tokeny a vzhled prvků (pole, tlačítka, chipy časů, přepínač, kroky) odpovídají design systému Pipeline (pipeline/ui.css) – tady vložené
+   přímo, ať stránka nic nenačítá a jde přenést i na jiný web (CSP bez 'self' pro styly). Při změně tokenů v ui.css uprav i tady. */
+:root{--accent:#E8571A;--accent-press:#C94F0C;--accent-text:#C2410C;--accent-soft:rgba(232,87,26,.10);
+  --ink:#1A1A1A;--ink-2:#5C5C60;--ink-3:#8A8A8E;--surface:#FFFFFF;--canvas:#F4F4F5;--line:rgba(0,0,0,.10);--fill:rgba(0,0,0,.05);--seg-on:#FFFFFF;
+  --r-s:8px;--r-m:12px;--r-l:16px;--r-pill:999px;--h-s:32px;--h-m:44px;--fs-xs:12px;--fs-s:13px;--fs-m:15px;--fs-l:17px;--fs-xl:22px;--fs-2xl:28px;--fs-3xl:34px}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--ink:#F2F2F2;--ink-2:#A8A8AD;--ink-3:#6E6E73;--accent-text:#FF8A4C;--accent-soft:rgba(232,87,26,.18);--surface:#1C1C1E;--canvas:#000000;--line:rgba(255,255,255,.12);--fill:rgba(255,255,255,.08);--seg-on:#48484A}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:var(--acc)}
-header{border-bottom:1px solid var(--line);padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top))}
+body{margin:0;background:var(--canvas);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+a{color:var(--accent-text)}
+button{font:inherit;color:inherit}
+header{background:#000;color:#fff;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top))}
 header .in,main,footer .in{max-width:760px;margin:0 auto}
 header .in{display:flex;align-items:center;gap:12px}
-.logo{height:34px;width:auto;display:block}.logo-d{display:none}
-@media (prefers-color-scheme:dark){.logo-l{display:none}.logo-d{display:block}}
+/* ZFP Consulting logo vždy na černém pruhu */
+.logo{height:34px;width:auto;display:block}.logo-l{display:none}
 header .sp{flex:1}
-header a.tel{font-weight:600;text-decoration:none;color:inherit;font-size:14.5px;white-space:nowrap}
+header a.tel{font-weight:600;text-decoration:none;color:#fff;font-size:var(--fs-m);white-space:nowrap;min-height:var(--h-m);display:inline-flex;align-items:center}
 main{padding:8px 16px 72px}
 .hero{position:relative;color:#fff;background:#1a1a1a url(/rezervace/triniti.jpg) center 38%/cover no-repeat}
 .hero:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.62),rgba(0,0,0,.72))}
 .hero .in{position:relative;max-width:760px;margin:0 auto;padding:48px 16px 40px}
 .hero .lead{color:rgba(255,255,255,.88)}
-.hero .facts li{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28);color:#fff;backdrop-filter:blur(4px)}
-.wkbar{display:flex;align-items:center;gap:10px;margin:0 0 12px}
-.wkbar .wkl{flex:1;text-align:center;font-weight:650;font-size:14.5px}
-.arr{width:44px;height:44px;border:1px solid var(--line2);background:var(--bg);color:inherit;border-radius:10px;font-size:22px;line-height:1;cursor:pointer}
-.arr:hover:not(:disabled){border-color:var(--txt)}.arr:disabled{opacity:.3;cursor:not-allowed}
-.arr:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-h1{font-size:32px;line-height:1.12;margin:0 0 12px;font-weight:800;letter-spacing:-.015em}
+.hero .facts li{background:rgba(255,255,255,.14);color:#fff;backdrop-filter:blur(4px)}
+h1{font-size:var(--fs-3xl);line-height:1.12;margin:0 0 12px;font-weight:700;letter-spacing:-.015em}
 .hero h1{text-shadow:0 1px 12px rgba(0,0,0,.35)}
-h2{font-size:21px;margin:40px 0 12px;font-weight:750}
-.lead{font-size:18px;color:var(--mut);margin:0 0 8px;max-width:600px}
+h2{font-size:var(--fs-xl);margin:40px 0 12px;font-weight:700}
+.lead{font-size:var(--fs-l);color:var(--ink-2);margin:0 0 8px;max-width:600px}
+/* fakta = štítky (chip--tag) */
 .facts{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 0;padding:0;list-style:none}
-.facts li{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px;font-size:14px}
+.facts li{border-radius:var(--r-pill);padding:6px 14px;font-size:var(--fs-s);font-weight:500;background:var(--fill)}
+/* kroky = karty s oranžovým číslem */
 .steps{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:0;padding:0;list-style:none;counter-reset:s}
-.steps li{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel);counter-increment:s}
-.steps li:before{content:counter(s);display:inline-flex;width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;font-weight:700;font-size:14px;align-items:center;justify-content:center;margin-bottom:8px}
-.steps b{display:block;margin-bottom:2px}.steps span{color:var(--mut);font-size:14.5px}
-.book{border:1px solid var(--line);border-radius:14px;padding:20px;background:var(--panel)}
-.qq{display:block;font-weight:650;font-size:14px;margin:0 0 8px}
+.steps li{border:1px solid var(--line);border-radius:var(--r-l);padding:16px;background:var(--surface);counter-increment:s}
+.steps li:before{content:counter(s);display:inline-flex;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:var(--fs-s);align-items:center;justify-content:center;margin-bottom:8px}
+.steps b{display:block;margin-bottom:2px}.steps span{color:var(--ink-2);font-size:var(--fs-m)}
+.book{border:1px solid var(--line);border-radius:var(--r-l);padding:20px;background:var(--surface)}
+.qq{display:block;font-weight:600;font-size:var(--fs-m);margin:0 0 8px}
+.qq.mt{margin-top:18px}
+/* týden: ‹ › = icon-btn */
+.wkbar{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.wkbar .wkl{flex:1;text-align:center;font-weight:600;font-size:var(--fs-m);font-variant-numeric:tabular-nums}
+.arr{position:relative;width:44px;height:44px;border:0;border-radius:50%;background:var(--fill);color:var(--ink);font-size:22px;line-height:1;cursor:pointer}
+.arr:disabled{opacity:.3;cursor:not-allowed}
+/* dny a časy = chipy (neaktivní šedý, vybraný černý), 44 px */
 .days,.times{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
-.days button,.times button,.seg button{border:1px solid var(--line2);background:var(--bg);color:inherit;border-radius:10px;padding:9px 14px;font:inherit;font-size:14.5px;cursor:pointer;min-height:44px}
-.days button.on,.times button.on,.seg button.on{border-color:var(--acc);background:var(--acc-soft);font-weight:650}
-.days button:hover,.times button:hover,.seg button:hover:not(:disabled){border-color:var(--txt)}
-.seg{display:flex;gap:8px;margin:0 0 6px}.seg button{flex:1}.seg button:disabled{opacity:.4;cursor:not-allowed}
-.note{border-left:3px solid var(--acc);background:var(--acc-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14.5px;margin:10px 0}
+.days button,.times button{border:0;background:var(--fill);color:var(--ink);border-radius:var(--r-pill);padding:0 16px;font-size:var(--fs-m);font-weight:500;cursor:pointer;min-height:var(--h-m);font-variant-numeric:tabular-nums}
+.times button small{color:var(--ink-2);font-size:var(--fs-xs)}
+.days button.on,.times button.on{background:var(--ink);color:var(--canvas);font-weight:600}
+.times button.on small{color:var(--canvas)}
+/* osobně / online = segmentový přepínač */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:2px;background:var(--fill);border-radius:var(--r-m);margin:0 0 6px}
+.seg button{border:0;background:transparent;border-radius:calc(var(--r-m) - 2px);min-height:40px;font-size:var(--fs-m);font-weight:500;cursor:pointer;color:var(--ink)}
+.seg button.on{background:var(--seg-on);box-shadow:0 1px 3px rgba(0,0,0,.14);font-weight:600}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
+.note{background:var(--accent-soft);padding:12px 14px;border-radius:var(--r-m);font-size:var(--fs-m);margin:10px 0}
 .g{display:grid;gap:12px;grid-template-columns:1fr}
 @media(min-width:620px){.g{grid-template-columns:1fr 1fr}.g .full{grid-column:1/-1}}
-label.f{display:block;font-size:14px;font-weight:600}
-label.f input{display:block;width:100%;margin-top:6px;border:1px solid var(--line2);background:var(--bg);color:inherit;border-radius:10px;padding:11px 12px;font:inherit;font-size:16px}
-label.f input:focus,.days button:focus-visible,.times button:focus-visible,.seg button:focus-visible,.btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+/* pole = .field: 44 px, 16 px písmo, --r-m */
+label.f{display:block;font-size:var(--fs-s);font-weight:500;color:var(--ink-2)}
+label.f input{display:block;width:100%;margin-top:6px;min-height:var(--h-m);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--r-m);padding:0 12px;font:inherit;font-size:16px;outline:none}
+label.f input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.days button:focus-visible,.times button:focus-visible,.seg button:focus-visible,.btn:focus-visible,.arr:focus-visible,.ack input:focus-visible{outline:3px solid var(--accent-soft);outline-offset:1px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-.ack{display:flex;gap:10px;align-items:flex-start;margin:16px 0 0;font-size:14.5px;line-height:1.45}
-.ack input{width:20px;height:20px;margin:2px 0 0;flex:none;accent-color:var(--acc)}
-.btn{border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:10px;padding:13px 22px;font:inherit;font-weight:700;cursor:pointer;min-height:48px}
-.btn:hover{filter:brightness(1.06)}.btn:disabled{opacity:.55;cursor:default}
-.btn.sec{background:transparent;color:inherit;border-color:var(--line2);font-weight:600}
-.emsg{color:var(--err);font-weight:600;margin:14px 0 0}
-.hint{color:var(--mut);font-size:14px;margin:8px 0 0}
+/* potvrzení zásad: iOS přepínač */
+.ack{display:flex;gap:12px;align-items:center;margin:16px 0 0;font-size:var(--fs-m);line-height:1.45;cursor:pointer}
+.ack input{-webkit-appearance:none;appearance:none;flex:none;position:relative;width:51px;height:31px;margin:0;border-radius:var(--r-pill);background:var(--line);cursor:pointer;transition:background .2s;order:2}
+.ack input::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15),0 3px 1px rgba(0,0,0,.06);transition:transform .2s}
+.ack input:checked{background:var(--accent)}
+.ack input:checked::after{transform:translateX(20px)}
+.ack span{flex:1}
+/* tlačítka = .btn (primární jen „Potvrdit termín“) */
+.btn{display:inline-flex;align-items:center;justify-content:center;border:0;background:var(--accent);color:#fff;border-radius:var(--r-m);padding:0 22px;font:inherit;font-size:var(--fs-m);font-weight:600;cursor:pointer;min-height:var(--h-m)}
+.btn:hover{background:var(--accent-press)}.btn:disabled{opacity:.55;cursor:default}
+.btn.sec{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);min-height:var(--h-s);padding:0 12px;font-size:var(--fs-s);border-radius:var(--r-s);position:relative}
+.btn.sec::after{content:"";position:absolute;inset:-6px 0}
+.btn.sec:hover{box-shadow:inset 0 0 0 1px var(--ink-3)}
+.bact{margin-top:16px}
+.emsg{color:var(--accent-text);font-weight:600;margin:14px 0 0}
+.hint{color:var(--ink-2);font-size:var(--fs-s);margin:8px 0 0}
 .done{text-align:center;padding:12px 4px}
-.done .ic{display:inline-flex;width:56px;height:56px;border-radius:50%;background:var(--ok);align-items:center;justify-content:center;margin-bottom:10px}
+.done .ic{display:inline-flex;width:56px;height:56px;border-radius:50%;background:var(--accent);align-items:center;justify-content:center;margin-bottom:10px}
 .done h2{margin:6px 0 8px}
-.mapph{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px;font-size:14px;color:var(--mut)}
-iframe{width:100%;height:320px;border:1px solid var(--line);border-radius:12px;margin-top:14px}
-.priv{margin:18px 0 0;font-size:13.5px;color:var(--mut)}
-footer{border-top:1px solid var(--line);padding:24px 16px 40px;font-size:13.5px;color:var(--mut)}
+.mapph{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px;font-size:var(--fs-s);color:var(--ink-2)}
+iframe{width:100%;height:320px;border:1px solid var(--line);border-radius:var(--r-m);margin-top:14px}
+.priv{margin:18px 0 0;font-size:var(--fs-s);color:var(--ink-2)}
+footer{border-top:1px solid var(--line);padding:24px 16px 40px;font-size:var(--fs-s);color:var(--ink-2)}
 footer .in{display:flex;flex-wrap:wrap;gap:6px 24px}
 footer p{margin:0}
-noscript p{border:1px solid var(--err);padding:14px;border-radius:10px}
+noscript p{border:1px solid var(--accent);padding:14px;border-radius:var(--r-m)}
 </style>
 </head>
 <body>
@@ -182,8 +207,8 @@ function render(){
    <span class="qq" id="qm">Jak se potkáme?</span>
    <div class="seg" role="group" aria-labelledby="qm"><button type="button" data-mode="osobne" class="${BK.mode==="osobne"?"on":""}"${onlyOn?" disabled":""} aria-pressed="${BK.mode==="osobne"}">Osobně v Brně</button><button type="button" data-mode="online" class="${BK.mode==="online"?"on":""}" aria-pressed="${BK.mode==="online"}">Online</button></div>
    ${onlyOn?'<p class="hint">V tomto čase je kancelář obsazená, konzultace proběhne online.</p>':""}
-   ${BK.mode==="osobne"?`<div class="note"><b>Kancelář ZFP</b><br>${esc(BK.addr)}${BK.map?`<iframe title="Pěší trasa od Vaňkovky – ${esc(BK.addr)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.google.com/maps?saddr=${encodeURIComponent(FROM)}&daddr=${encodeURIComponent(BK.addr)}&dirflg=w&output=embed"></iframe>`:`<div class="mapph"><button type="button" class="btn sec" id="bMap" style="padding:8px 14px;min-height:40px">Zobrazit mapu</button><span>Mapa se načte od Googlu, který může ukládat cookies.</span></div>`}</div>`:""}
-   <span class="qq" style="margin-top:18px">Vaše kontakty</span>
+   ${BK.mode==="osobne"?`<div class="note"><b>Kancelář ZFP</b><br>${esc(BK.addr)}${BK.map?`<iframe title="Pěší trasa od Vaňkovky – ${esc(BK.addr)}" loading="lazy" referrerpolicy="no-referrer" src="https://www.google.com/maps?saddr=${encodeURIComponent(FROM)}&daddr=${encodeURIComponent(BK.addr)}&dirflg=w&output=embed"></iframe>`:`<div class="mapph"><button type="button" class="btn sec" id="bMap">Zobrazit mapu</button><span>Mapa se načte od Googlu, který může ukládat cookies.</span></div>`}</div>`:""}
+   <span class="qq mt">Vaše kontakty</span>
    <div class="g">
      <label class="f full">Jméno a příjmení<input data-c="jmeno" type="text" autocomplete="name" value="${esc(c.jmeno)}" required></label>
      <label class="f">E-mail<input data-c="email" type="email" autocomplete="email" inputmode="email" value="${esc(c.email)}" required></label>
@@ -192,7 +217,7 @@ function render(){
    </div>
    <label class="ack"><input type="checkbox" id="ack"${BK.ack?" checked":""}><span>Seznámil/a jsem se s <a href="/rezervace/zasady/" target="_blank" rel="noopener">informacemi o zpracování osobních údajů</a>. Údaje použiji jen k domluvení a vedení konzultace.</span></label>
    ${BK.err?`<p class="emsg" role="alert">${esc(BK.err)}</p>`:""}
-   <div style="margin-top:16px"><button type="button" class="btn" id="bBook"${BK.busy?" disabled":""}>${BK.busy?"Rezervuji…":"Potvrdit termín"}</button></div>
+   <div class="bact"><button type="button" class="btn" id="bBook"${BK.busy?" disabled":""}>${BK.busy?"Rezervuji…":"Potvrdit termín"}</button></div>
    <p class="priv">Kontakt se šifruje už ve vašem zařízení a přečte ho jen můj osobní systém. Web nepoužívá cookies ani analytiku.</p>`}
 
 async function book(){

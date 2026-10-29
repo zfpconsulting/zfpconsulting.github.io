@@ -5,7 +5,7 @@
 //   node tools/bump.mjs --check   → jen kontrola (CI / testy): selže, když CORE nesedí s index.html nebo když dvě stránky
 //                                   načítají stejný soubor s jinou verzí (index.html, fp.html, dotaznik.html).
 //
-// Do CORE patří všechno, co index.html načítá s ?v= (skripty, ikony), kromě LAZY – ty se uloží až při prvním otevření
+// Do CORE patří všechno, co index.html načítá s ?v= (skripty, styly <link rel=stylesheet> – ui.css, ikony), kromě LAZY – ty se uloží až při prvním otevření
 // (finanční plán ~1,2 MB, dotazník), a kromě knihoven ve vendor/ (mají vlastní mezipaměť).
 import { readFileSync, writeFileSync } from "node:fs";
 
@@ -16,7 +16,7 @@ const PAGES = ["index.html", "fp.html", "dotaznik.html"];
 
 const refs = f => {
   const s = readFileSync(R + f, "utf8"), out = new Map();
-  for (const m of s.matchAll(/["'(`\s]((?:\.\/)?[A-Za-z0-9_\-]+(?:\/[A-Za-z0-9_\-]+)*\.(?:js|mjs|html|png|svg|jpg|json|webmanifest|ico))\?v=(\d+)/g)) {
+  for (const m of s.matchAll(/["'(`\s]((?:\.\/)?[A-Za-z0-9_\-]+(?:\/[A-Za-z0-9_\-]+)*\.(?:js|mjs|css|html|png|svg|jpg|json|webmanifest|ico))\?v=(\d+)/g)) {
     const n = m[1].replace(/^\.\//, "");
     if (n.startsWith("/") || n.startsWith("og/")) continue;
     (out.get(n) || out.set(n, new Set()).get(n)).add(m[2]);

@@ -9,29 +9,31 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'none'; base-uri 'none'">
 <link rel="icon" type="image/png" sizes="48x48" href="/og/icon-48.png?v=3">
 <style>
-:root{--acc:#E8600A;--bg:#fff;--panel:#fafafa;--line:#e6e6e6;--txt:#111;--mut:#5f5f5f}
-@media (prefers-color-scheme:dark){:root{--bg:#000;--panel:#0f0f0f;--line:#262626;--txt:#f2f2f2;--mut:#a0a0a0}}
+/* tokeny design systému Pipeline (pipeline/ui.css) vložené přímo – stránka nic nenačítá (CSP bez 'self' pro styly) */
+:root{--accent:#E8571A;--accent-text:#C2410C;--ink:#1A1A1A;--ink-2:#5C5C60;--surface:#FFFFFF;--canvas:#F4F4F5;--line:rgba(0,0,0,.10);--fill:rgba(0,0,0,.05);--r-m:12px;--r-l:16px;--fs-s:13px;--fs-m:15px;--fs-l:17px;--fs-2xl:28px}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--ink:#F2F2F2;--ink-2:#A8A8AD;--accent-text:#FF8A4C;--surface:#1C1C1E;--canvas:#000000;--line:rgba(255,255,255,.12);--fill:rgba(255,255,255,.08)}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:var(--acc)}
-header{border-bottom:1px solid var(--line);padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top))}
+body{margin:0;background:var(--canvas);color:var(--ink);font:16px/1.6 -apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+a{color:var(--accent-text)}
+/* ZFP Consulting logo vždy na černém pruhu */
+header{background:#000;color:#fff;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top))}
 .in{max-width:760px;margin:0 auto}
 header .in{display:flex;align-items:center;gap:12px}
-.logo{height:34px;width:auto;display:block}.logo-d{display:none}
-@media (prefers-color-scheme:dark){.logo-l{display:none}.logo-d{display:block}}
+.logo{height:34px;width:auto;display:block}.logo-l{display:none}
 header .sp{flex:1}
+header a{color:#fff;font-weight:600;font-size:var(--fs-m);text-decoration:none;min-height:44px;display:inline-flex;align-items:center}
 main{max-width:760px;margin:0 auto;padding:32px 16px 72px}
-h1{font-size:28px;line-height:1.15;margin:0 0 8px;letter-spacing:-.01em}
-h2{font-size:18px;margin:32px 0 8px}
+h1{font-size:var(--fs-2xl);line-height:1.15;margin:0 0 8px;letter-spacing:-.01em}
+h2{font-size:var(--fs-l);margin:32px 0 8px}
 p,li{margin:0 0 10px}ul{padding-left:20px;margin:0 0 10px}
-.mut{color:var(--mut);font-size:14px}
-table{width:100%;border-collapse:collapse;font-size:14.5px;margin:8px 0 12px}
-th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:var(--panel)}
+.mut{color:var(--ink-2);font-size:var(--fs-s)}
+table{width:100%;border-collapse:collapse;font-size:var(--fs-m);margin:8px 0 12px;background:var(--surface);border-radius:var(--r-m);overflow:hidden}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}th{background:var(--fill);font-weight:600}
 .tw{overflow-x:auto}
 </style>
 </head>
 <body>
-<header><div class="in"><img src="/pipeline/zfp-consulting-logo.svg" alt="ZFP Consulting" class="logo logo-l"><img src="/pipeline/zfp-consulting-logo-white.svg" alt="ZFP Consulting" class="logo logo-d"><span class="sp"></span><a href="/rezervace/">← Zpět na rezervaci</a></div></header>
+<header><div class="in"><img src="/pipeline/zfp-consulting-logo.svg" alt="ZFP Consulting" class="logo logo-l"><img src="/pipeline/zfp-consulting-logo-white.svg" alt="ZFP Consulting" class="logo logo-d"><span class="sp"></span><a href="/rezervace/">‹ Zpět na rezervaci</a></div></header>
 <main>
 <h1>Zásady zpracování osobních údajů</h1>
 <p class="mut">Rezervace konzultace na zfpconsulting.github.io/rezervace · informace podle čl. 13 nařízení (EU) 2016/679 (GDPR)</p>

@@ -1450,17 +1450,19 @@ tests["mobil: přepínač Editor / Náhled, menu ⋯ (PDF, PowerPoint, Export), 
   const r = await page.evaluate(() => ({ edVis: !!$("#ed").offsetParent, viewVis: !!document.querySelector(".view").offsetParent,
     top: [...document.querySelectorAll(".top > button, .top .more > button")].filter(e => e.offsetParent).map(e => e.id),
     imp: !!document.querySelector("#bImp,#fImp"), font: getComputedStyle(document.querySelector("label.f input")).fontSize,
-    small: [...document.querySelectorAll("#ed button,#ed input:not([type=checkbox]):not([type=file]),#ed select,.top button,.mtabs button")].filter(e => e.offsetParent && e.getBoundingClientRect().height < 40).map(e => e.id || e.dataset.p || e.className) }));
+    /* běžné prvky ≥ 40 px; kroky (.chip) a malá tlačítka (.btn--s) ≥ 36 px – dotykovou plochu do 44 px jim rozšiřuje ::after */
+    small: [...document.querySelectorAll("#ed button,#ed input:not([type=checkbox]):not([type=file]),#ed select,.top button,.mtabs button")].filter(e => e.offsetParent && e.getBoundingClientRect().height < (e.matches(".chip,.btn--s") ? 36 : 40)).map(e => e.id || e.dataset.p || e.className) }));
   eq([r.edVis, r.viewVis], [true, false], "na mobilu nejdřív editor");
-  eq(r.top, ["bClose", "bMail", "bPres", "bMore"], "v hlavičce Zavřít, Poslat shrnutí, Prezentovat, ⋯");
+  eq(r.top, ["bMail", "bPres", "bMore", "bClose"], "v hlavičce Poslat shrnutí, Prezentovat, ⋯ a vpravo Hotovo (jako sheet v appce)");
   eq([r.imp, r.font, r.small], [false, "16px", []], "bez Importu, 16 px, cíle ≥ 40 px");
   await page.click('.mtabs [data-mt="view"]');
   eq(await page.evaluate(() => [!!$("#ed").offsetParent, document.getElementById("box").getBoundingClientRect().top < 400]), [false, true], "náhled hned nahoře");
   await page.click("#bMore");
   eq(await page.$$eval("#moreMenu button", b => b.filter(x => x.offsetParent).map(x => x.id)), ["bDzM", "bPdf", "bPptx", "bExp"], "menu ⋯");
+  await page.evaluate(() => document.body.click()); eq(await page.evaluate(() => $("#moreMenu").hidden), true, "klepnutí vedle menu zavře");
   await page.click('.mtabs [data-mt="ed"]');
   await page.evaluate(() => goStep(3));
-  eq(await page.evaluate(() => { const d = document.querySelector("#ed details.hintd"); return d ? [d.open, /Stela|KoopLife|UniPoint|Allfa|LISA|Zeus|SUS Plus/.test(d.textContent)] : null; }), [false, true], "dlouhé nápovědy pojišťoven sbalené");
+  eq(await page.evaluate(() => { const d = document.querySelector("#ed details.more"); return d ? [d.open, /Stela|KoopLife|UniPoint|Allfa|LISA|Zeus|SUS Plus/.test(d.textContent)] : null; }), [false, true], "dlouhé nápovědy pojišťoven sbalené");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
