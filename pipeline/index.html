@@ -7910,7 +7910,7 @@ function renderPf(){
 $("pfSearchI")?.addEventListener("input",e=>{pfSearch=e.target.value.trim();renderPf()});
 /* uložená důchodová kalkulace (invalidní, vdovský, sirotčí z IOLDP) v kartě klienta */
 function duchClientSection(e,rec){
-  const d=rec&&duchod.find(x=>x.id===rec.id),r=d&&d.res;
+  const d=rec&&duchOf(rec),r=d&&d.res;
   const open=()=>{$("edDlg").close();setView("duch");renderDuch(u=>u.select(rec.id))};
   if(!r)return [el("h3",{class:"sechead"},"Důchodová kalkulačka"),el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setView("duch");if(rec)renderDuch(u=>u.select(rec.id))}},"+ Spočítat invalidní, vdovský a sirotčí důchod"))];
   const row=(t,v)=>el("div",{class:"row"},el("span",{class:"main"},t),el("span",{class:"end"},kc(v)));
@@ -7923,6 +7923,9 @@ function duchClientSection(e,rec){
    Jméno, datum narození a důchody z IOLDP (Důchodová kalkulačka) se do plánu předvyplní. */
 /* klíč plánu: plán klienta (fplan/<id klienta>), nebo plán vytvořený u leadu (fplan/lead_<id leadu>) */
 function fpKeyOf(rec){if(!rec)return null;if(fplans.some(x=>x.id===rec.id))return rec.id;const lp=rec.leadId&&fplans.find(x=>x.id==="lead_"+rec.leadId);return lp?lp.id:rec.id}
+/* uložená důchodová kalkulace klienta: najde se pod ID klienta, pod klíčem jeho plánu i pod klíčem leadu (kalkulace a plán se mohly uložit pod různými klíči); vyhrává nejnovější */
+function duchOf(rec,fpKey){if(!rec)return undefined;const ks=[rec.id,fpKey,rec.leadId&&"lead_"+rec.leadId].filter(Boolean);
+  return duchod.filter(x=>ks.includes(x.id)).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0]}
 function fpPlanOf(rec){const k=fpKeyOf(rec);return k?fplans.find(x=>x.id===k)||null:null}
 const FP_IC='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>';
 function fpHeroBtn(f,onclick){const ic=el("span",{class:"fph-ic"});ic.innerHTML=FP_IC;
@@ -8007,7 +8010,9 @@ async function openFP(e,rec){
   try{if(!rec)rec=await ensureClient(e)}catch(err){toast("Nepodařilo se založit klienta");return}
   if(!rec){toast("Klient chybí");return}
   try{$("edDlg").close()}catch(err){}try{$("dlg").open&&$("dlg").close()}catch(err){}
-  const id=fpKeyOf(rec),dch=duchod.find(x=>x.id===id)||(rec.leadId&&duchod.find(x=>x.id==="lead_"+rec.leadId))||undefined,r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
+  const id=fpKeyOf(rec),dch=duchOf(rec,id),r=dch&&dch.res||{},saved=fplans.find(x=>x.id===id);
+  /* ioldpAt = čas kalkulace, která už je v plánu zapracovaná; novější kalkulace přepíše důchody v plánu */
+  const ioldpAt=Math.max(dch&&dch.updatedAt||0,saved&&saved.ioldpAt||0),ioldpDone=saved?(saved.ioldpAt!=null?saved.ioldpAt:saved.updatedAt||0):0;
   /* plánovaná hypotéka: poslední uložená kalkulace úvěru přiřazená k tomuto klientovi (Kalkulačka → menu → Klient) */
   const hc=fincalcs.filter(x=>x.hypo&&(x.clientId===rec.id||x.clientId===id||(rec.leadId&&x.clientId==="lead_"+rec.leadId))).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
   const hypo=hc?{...hc.hypo,at:hc.updatedAt||0,name:hc.name||""}:null;
@@ -8020,10 +8025,10 @@ async function openFP(e,rec){
   let last=null;
   const close=()=>{removeEventListener("message",onMsg);ov.remove();document.documentElement.style.overflow=""};
   const store=async plan=>{const js=JSON.stringify(plan);if(js===last)return;last=js;
-    try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now()})}catch(err){toast("Plán se nepodařilo uložit")}};
+    try{await db.doc("fplan/"+id).set({clientId:id,name:(plan.klient&&plan.klient.jmeno)||e.name||"",plan:JSON.parse(js),updatedAt:Date.now(),ioldpAt})}catch(err){toast("Plán se nepodařilo uložit")}};
   const onMsg=ev=>{if(ev.origin!==location.origin||ev.source!==fr.contentWindow||!ev.data)return;const d=ev.data;
     if(d.type==="fp:ready"){fpPodpisEv(e.name||rec.name).then(pd=>{if(pd)fr.contentWindow.postMessage({type:"fp:podpis",podpis:pd},location.origin)}).catch(()=>{});let kurz=null;try{kurz=+localStorage.getItem("eurczk")||null}catch(err){}
-      dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,kontakt,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>(saved.updatedAt||0)),kurz,prodDef:settings.fpProd||null,dz,hypo,rez:(()=>{try{return dzLinkSync(true)||""}catch(err){return ""}})()},location.origin))}
+      dzLinkInfo().catch(()=>null).then(dz=>fr.contentWindow.postMessage({type:"fp:init",plan:saved&&saved.plan||null,prefill,kontakt,market:fpMarket(),ioldpNew:!!(dch&&saved&&(dch.updatedAt||0)>ioldpDone),kurz,prodDef:settings.fpProd||null,dz,hypo,rez:(()=>{try{return dzLinkSync(true)||""}catch(err){return ""}})()},location.origin))}
     else if(d.type==="fp:save"&&d.plan){store(d.plan).then(()=>{if(d.close)close()});
       /* telefon / e-mail doplněný v plánu nebo dotazníku → do karty klienta, když tam chybí */
       const K=d.plan.kontakt||{},up={};if(K.telefon&&!rec.phone)up.phone=K.telefon;if(K.email&&!rec.email)up.email=K.email;
