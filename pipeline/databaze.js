@@ -80,7 +80,7 @@ const MAP=[
   ["zdroj","—","—","Lead → Zdroj: Databáze"],
   ["telefon","Pojistník","Telefon","Lead → Telefon"],
   ["email","Pojistník","Email / E-mail","Lead → E-mail"],
-  ["narozen","Pojistník","Datum narození","Databáze (tabulka)"],
+  ["narozen","Pojistník","Datum narození","Databáze (tabulka) · Lead → Finanční plán (datum narození klienta)"],
   ["bydliste","Pojistník","Trvalé bydliště","jen v Databázi"],
   ["adresa","Pojistník","Kontaktní adresa","jen v Databázi"],
   ["produkt","Hlavička","„2010 - ZFP DŮCHOD - číslo“","jen v Databázi"],
@@ -317,7 +317,9 @@ function mount(root,opts={}){
     if(money)inp.addEventListener("focus",()=>{inp.value=r[k]==null?"":String(r[k]).replace(".",",");inp.select()});
     inp.addEventListener("change",()=>{
       if(money){const n=parseNum(inp.value);if(Number.isNaN(n)){toast("Zadej částku číslem");show();return}save(r,k,n)}
-      else{save(r,k,k==="name"?clean(inp.value):inp.value);if(k==="narozen"){r.info=Object.assign({},r.info||{});if(inp.value)r.info.narozen=inp.value;else delete r.info.narozen;persist()}}
+      else{save(r,k,k==="name"?clean(inp.value):inp.value);if(k==="narozen"){r.info=Object.assign({},r.info||{});if(inp.value)r.info.narozen=inp.value;else delete r.info.narozen;persist();
+        /* opravené datum narození → i do leadu (a do finančního plánu, kde je pole ještě prázdné) */
+        if(r.leadId&&inp.value&&typeof opts.fillBirth==="function")try{opts.fillBirth(r.leadId,inp.value,true)}catch(e){}}}
       show();
     });
     inp.addEventListener("blur",show);
@@ -372,7 +374,8 @@ function mount(root,opts={}){
     /* jméno už v pipeline je (stejný člověk) → přidat k němu, ne zakládat znovu: navázat přes řádek, který už lead má */
     const groups=[];for(const g of G.values()){const sib=rows.find(x=>x.leadId&&key(x)===key(g[0])&&(!opts.leadExists||opts.leadExists(x.leadId)));
       const I=g[0].info||{},files=[];for(const r of g){const b=await pdfStore.get(r.id);if(b)files.push(b instanceof File?b:new File([b],r.pdf||("Smlouva_"+(r.key||r.id)+".pdf"),{type:"application/pdf"}))}
-      groups.push({rows:g,name:niceName(g[0].name),phone:I.telefon||"",email:I.email||"",address:addrOf(I),contracts:g.map(r=>(r.info||{}).cislo||r.key||""),files,existing:sib?sib.leadId:(opts.findLead?opts.findLead(clean(g[0].name),I.telefon||""):null)||null})}
+      const birth=g.map(r=>r.narozen||(r.info||{}).narozen||"").find(Boolean)||"";
+      groups.push({rows:g,name:niceName(g[0].name),birth,phone:I.telefon||"",email:I.email||"",address:addrOf(I),contracts:g.map(r=>(r.info||{}).cislo||r.key||""),files,existing:sib?sib.leadId:(opts.findLead?opts.findLead(clean(g[0].name),I.telefon||""):null)||null})}
     const ex=groups.filter(g=>g.existing).length;
     if(list.length>1&&!await ask_("Založit v pipeline "+(groups.length-ex)+" "+(groups.length-ex===1?"nový lead":groups.length-ex<5?"nové leady":"nových leadů")+(ex?" a "+ex+"× doplnit smlouvu k existujícímu":"")+"? ("+(lost?"fáze Lost":"fáze Nový lead")+", zdroj Databáze, PDF smluv do dokumentů)",{okLabel:lost?"Do Lost":"Do pipeline"}))return;
     busy=true;bLead.disabled=true;bLead.textContent="Zakládám…";
@@ -430,6 +433,8 @@ function mount(root,opts={}){
   draw();
   /* doplnění adresy u leadů, které už z Databáze v pipeline jsou (adresa z uloženého PDF; jen když lead adresu nemá) */
   if(typeof opts.fillAddress==="function")rows.forEach(r=>{const a=addrOf(r.info||{});if(r.leadId&&a)try{opts.fillAddress(r.leadId,a)}catch(e){}});
+  /* doplnění data narození u leadů, které už z Databáze v pipeline jsou (jen když ho lead nemá) – odtud jde do finančního plánu */
+  if(typeof opts.fillBirth==="function")rows.forEach(r=>{const b=r.narozen||(r.info||{}).narozen;if(r.leadId&&b)try{opts.fillBirth(r.leadId,b)}catch(e){}});
   return{refresh:()=>{if(busy)return;rows=load();draw()},importFiles,toPipeline,rows:()=>rows};
 }
 

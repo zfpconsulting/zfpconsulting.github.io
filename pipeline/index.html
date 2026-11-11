@@ -2320,24 +2320,30 @@ function renderDb(){
   if(dbUI){dbUI.refresh();return}
   if(dbLoading)return;
   const go=()=>{dbLoading=false;if(!window.Databaze){$("dbBox").textContent="Databázi se nepodařilo načíst – zkontroluj připojení.";return}
-    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},addLeads:dbAddLead,lostLeads:dbLostLead,fillAddress:dbFillAddress,
+    dbUI=Databaze.mount($("dbBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},addLeads:dbAddLead,lostLeads:dbLostLead,fillAddress:dbFillAddress,fillBirth:dbFillBirth,
       leadExists:id=>leads.some(x=>x.id===id),openLead:id=>{const l=leads.find(x=>x.id===id);if(l)openEdit(l);else toast("Lead už v pipeline není")},
       findLead:(name,phone)=>{const f=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(),d=t=>String(t||"").replace(/\D/g,"").slice(-9);
         const l=leads.find(x=>f(x.name)===f(name)&&(!phone||!x.phone||d(x.phone)===d(phone)));return l?l.id:null}})};
   if(window.Databaze)return go();
-  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=12";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  dbLoading=true;const sc=document.createElement("script");sc.src="databaze.js?v=13";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 /* Databáze → pipeline: nový lead (fáze Nový lead, zdroj „Databáze“) s telefonem a e-mailem ze smlouvy a PDF v dokumentech; poznámky se nepíšou.
    Stejný člověk už v pipeline → PDF se přidá k němu (poznámky ani zdroj se nemění). */
 async function dbAddLead(g){
   const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;const sm=(g.contracts||[]).filter(Boolean).join(", ");
   if(l){const log=[...(l.log||[]),{d:now,t:"Smlouva z Databáze (NN Stela) přidána"+(sm?" · "+sm:"")}].slice(-100);
-    await db.doc("leads/"+l.id).update({log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{}),...(!l.address&&g.address?{address:g.address}:{})})}
-  else{l=await leadAdd({name:g.name,phone:g.phone,email:g.email,address:g.address,source:"Databáze"});
+    await db.doc("leads/"+l.id).update({log,updatedAt:now,...(!l.phone&&g.phone?{phone:g.phone}:{}),...(!l.email&&g.email?{email:g.email}:{}),...(!l.address&&g.address?{address:g.address}:{}),...(!l.birth&&g.birth?{birth:g.birth}:{})})}
+  else{l=await leadAdd({name:g.name,phone:g.phone,email:g.email,address:g.address,birth:g.birth,source:"Databáze"});
     await db.doc("leads/"+l.id).update({log:[{d:now,t:"Založeno z Databáze smluv (NN Stela)"+(sm?" · "+sm:"")}],updatedAt:now})}
   if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
   return l.id}
 async function dbFillAddress(id,a){const l=leads.find(x=>x.id===id);if(l&&!l.address&&a)try{await db.doc("leads/"+id).update({address:a})}catch(e){}}
+/* datum narození ze smlouvy → lead (odtud se předvyplní do finančního plánu); force = ručně opravené v Databázi */
+async function dbFillBirth(id,b,force){const l=leads.find(x=>x.id===id);if(!l||!/^\d{4}-\d{2}-\d{2}$/.test(String(b||""))||l.birth===b||(l.birth&&!force))return;
+  try{await db.doc("leads/"+id).update({birth:b});l.birth=b}catch(e){}}
+/* datum narození leadu: z leadu, jinak z řádků Databáze navázaných na lead (smlouvy nahrané dřív, než se datum začalo ukládat k leadu) */
+function leadBirthOf(leadId){if(!leadId)return "";const l=leads.find(x=>x.id===leadId);if(l&&l.birth)return l.birth;
+  const R=lsGet("db_rows_v1")||[];const r=Array.isArray(R)?R.find(x=>x&&x.leadId===leadId&&(x.narozen||(x.info||{}).narozen)):null;return r?(r.narozen||r.info.narozen):""}
 /* Databáze → Lost (tlačítko −): nový lead rovnou ve fázi Lost, nebo existující lead (stejný člověk) přesunout do Lost. Podepsané a sdílené obchody se nepřesouvají. */
 async function dbLostLead(g){
   const now=new Date().toISOString();let l=g.existing?leads.find(x=>x.id===g.existing):null;const sm=(g.contracts||[]).filter(Boolean).join(", ");
@@ -2347,7 +2353,7 @@ async function dbLostLead(g){
     if(l.stage!=="lost")await moveTo(l,"lost");
     const log=[...(l.log||[]),{d:now,t:"Přesunuto do Lost z Databáze (NN Stela)"+(sm?" · "+sm:"")}].slice(-100);
     await db.doc("leads/"+l.id).update({log,updatedAt:now})}
-  else{l=await leadAdd({name:g.name,phone:g.phone,email:g.email,address:g.address,source:"Databáze"});
+  else{l=await leadAdd({name:g.name,phone:g.phone,email:g.email,address:g.address,birth:g.birth,source:"Databáze"});
     await db.doc("leads/"+l.id).update({stage:"lost",stageAt:now,log:[{d:now,t:"Založeno z Databáze smluv (NN Stela) rovnou jako Lost"+(sm?" · "+sm:"")}],updatedAt:now})}
   if(g.files&&g.files.length&&window.Docs)try{await Docs.add(docOwnerLead(l),g.files)}catch(err){console.warn("soubory",err)}
   return l.id}
@@ -4379,7 +4385,7 @@ async function stafleExport(){
 }
 async function ensureClient(e){
   if(e.rec)return e.rec;
-  const data={name:e.name,phone:e.phone||"",email:e.lead?.email||"",address:e.lead?.address||"",note:e.lead?.note||"",calKey:e.cal?.key||e.key||surnameOf(e.name),leadId:e.lead?.id||null,products:(e.products||[]).map(p=>({...p,id:newId()})),log:[],createdAt:new Date().toISOString()};
+  const data={name:e.name,phone:e.phone||"",email:e.lead?.email||"",address:e.lead?.address||"",...(e.lead?.birth?{birth:e.lead.birth}:{}),note:e.lead?.note||"",calKey:e.cal?.key||e.key||surnameOf(e.name),leadId:e.lead?.id||null,products:(e.products||[]).map(p=>({...p,id:newId()})),log:[],createdAt:new Date().toISOString()};
   const r=await db.collection("clients").add(data);const rec={id:r.id,...data};e.rec=rec;e.id="c:"+r.id;return rec;
 }
 async function srvCall(e,ok){
@@ -4701,7 +4707,7 @@ async function saveMeeting(l,start,online,opt={}){
 /* zápisy do leadu sdílené Databází, nahrávkami a volacím blokem */
 async function leadAdd(d){
   const now=new Date().toISOString();
-  const data={name:d.name,phone:d.phone||"",email:d.email||"",address:d.address||"",source:d.source||"",referredBy:"",stage:"novy",stageAt:now,items:[],share:null,pointsManual:null,points:null,signedAt:null,products:[],nextStep:"",nextDate:null,note:"",log:[],meetings:[],lastContact:now,createdAt:now,updatedAt:now};
+  const data={name:d.name,phone:d.phone||"",email:d.email||"",address:d.address||"",...(d.birth?{birth:d.birth}:{}),source:d.source||"",referredBy:"",stage:"novy",stageAt:now,items:[],share:null,pointsManual:null,points:null,signedAt:null,products:[],nextStep:"",nextDate:null,note:"",log:[],meetings:[],lastContact:now,createdAt:now,updatedAt:now};
   const ref=await db.collection("leads").add(data);
   return {id:ref.id,...data};
 }
@@ -7934,7 +7940,7 @@ function fpHeroBtn(f,onclick){const ic=el("span",{class:"fph-ic"});ic.innerHTML=
 function fpHero(e,rec){return fpHeroBtn(fpPlanOf(rec),()=>openFP(e,rec))}
 /* lead v pipeline: plán se ukládá k leadu (klient se kvůli plánu nezakládá); když už klient existuje, použije se jeho plán */
 function fpLeadTarget(l){const c=clientOfLead(l);if(c){const e=clientEntries().find(x=>x.rec&&x.rec.id===c.id)||{id:"c:"+c.id,rec:c,name:c.name};return {e,rec:c}}
-  return {e:{id:"l:"+l.id,lead:l,name:l.name,key:surnameOf(l.name),phone:l.phone||"",products:[],virtual:true},rec:{id:"lead_"+l.id,name:l.name,birth:"",leadId:l.id,pseudo:true}}}
+  return {e:{id:"l:"+l.id,lead:l,name:l.name,key:surnameOf(l.name),phone:l.phone||"",products:[],virtual:true},rec:{id:"lead_"+l.id,name:l.name,birth:leadBirthOf(l.id),leadId:l.id,pseudo:true}}}
 function fpLeadBox(l){const b=$("fpLeadBox");if(!b)return;if(!l){b.hidden=true;b.replaceChildren();return}
   /* banner „Vytvořit finanční plán“ až od fáze Schůzka; dřív jen když plán už existuje */
   const t=fpLeadTarget(l),pl=fpPlanOf(t.rec),early=STAGES.findIndex(x=>x.k===l.stage)<STAGES.findIndex(x=>x.k==="schuzka");
@@ -8016,7 +8022,7 @@ async function openFP(e,rec){
   /* plánovaná hypotéka: poslední uložená kalkulace úvěru přiřazená k tomuto klientovi (Kalkulačka → menu → Klient) */
   const hc=fincalcs.filter(x=>x.hypo&&(x.clientId===rec.id||x.clientId===id||(rec.leadId&&x.clientId==="lead_"+rec.leadId))).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
   const hypo=hc?{...hc.hypo,at:hc.updatedAt||0,name:hc.name||""}:null;
-  const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
+  const prefill={jmeno:e.name||rec.name||"",narozen:rec.birth||leadBirthOf(e.lead?.id||rec.leadId)||"",inv1:r.i1||"",inv2:r.i2||"",inv3:r.i3||"",starobni:r.sta||"",ovz:(dch&&dch.in&&+dch.in.ovz)||"",vdovsky:r.wid||"",sirotci:r.orp||"",duchod:(dch&&dch.in&&dch.in.ret)||""};
   /* kontakt z karty klienta → plán i dotazník (prázdná pole) */
   const kontakt={telefon:e.phone||rec.phone||e.lead?.phone||"",email:rec.email||e.rec?.email||e.lead?.email||""};
   const ov=el("div",{id:"fpOverlay",style:"position:fixed;inset:0;z-index:9999;background:#111"});

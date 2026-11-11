@@ -660,6 +660,32 @@ export default {
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
+  async "datum narození ze smlouvy (Databáze) → lead → předvyplněné ve finančním plánu; ruční oprava v Databázi přepíše, jinak ne"(env) {
+    const store = { ...STORE, "leads/b2": { name: "Karel Starý", stage: "novy", items: [], meetings: [], log: [], _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store });
+    const id = await page.evaluate(() => dbAddLead({ name: "Jana Nováková", phone: "", email: "", address: "", birth: "1985-05-15", contracts: ["9900000001"], files: [] }));
+    await page.waitForFunction(id => leads.some(l => l.id === id), id);
+    eq(await page.evaluate(id => leads.find(l => l.id === id).birth, id), "1985-05-15", "lead má datum narození ze smlouvy");
+    /* lead založený dřív (bez data) → doplní se z řádku Databáze navázaného na lead */
+    await page.evaluate(() => lsSet("db_rows_v1", [{ id: "r1", name: "Karel Starý", narozen: "1970-01-02", leadId: "b2", info: { narozen: "1970-01-02" } }]));
+    eq(await page.evaluate(() => leadBirthOf("b2")), "1970-01-02", "starší lead: datum z Databáze");
+    await page.evaluate(() => dbFillBirth("b2", "1970-01-02"));
+    await page.waitForFunction(() => leads.find(l => l.id === "b2").birth === "1970-01-02");
+    await page.evaluate(() => dbFillBirth("b2", "1971-01-02"));
+    eq(await page.evaluate(() => leads.find(l => l.id === "b2").birth), "1970-01-02", "bez ruční opravy se datum u leadu nepřepíše");
+    await page.evaluate(() => dbFillBirth("b2", "1971-01-02", true));
+    await page.waitForFunction(() => leads.find(l => l.id === "b2").birth === "1971-01-02");
+    /* finanční plán pro lead: pole Datum narození klienta je vyplněné */
+    await page.evaluate(id => { const t = fpLeadTarget(leads.find(l => l.id === id)); openFP(t.e, t.rec); }, id);
+    const fr = await (await page.waitForSelector("#fpOverlay iframe")).contentFrame();
+    await fr.waitForFunction(() => typeof inp === "function" && inp() && inp().klient, null, { timeout: 30000 });
+    eq(await fr.evaluate(() => inp().klient.narozen), "1985-05-15", "narození v plánu");
+    await fr.waitForFunction(() => document.querySelector('[data-p="klient.narozen"]'), null, { timeout: 30000 }).catch(() => {});
+    const v = await fr.evaluate(() => document.querySelector('[data-p="klient.narozen"]')?.value ?? null);
+    if (v !== null) eq(v, "15.05.1985", "pole v editoru");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
   async "design systém: sloučené záložky (Kalkulačky, Síť) se starými klíči, Další na iPhonu, potvrzení confirmSheet, Nastavení s podstránkami"(env) {
     /* staré uložené pořadí s „duch“ a „akv“ a skrytá Akvizice → skupiny Kalkulačky / Síť, Akvizice skrytá jen jako podzáložka */
     const store = { ...STORE, "settings/main": { ...STORE["settings/main"], tabOrder: ["pipe", "duch", "money", "cli", "calc", "akv", "cal", "fp", "uv", "net", "tax", "pf", "pp"], tabHidden: ["pp", "akv"] } };

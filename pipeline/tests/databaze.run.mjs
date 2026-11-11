@@ -241,6 +241,22 @@ const tests = {
     eq((await stored(page)).map(r => r.leadId).sort(), ["L1", "L2", "L2"], "lead uložen u řádků");
     await ctx.close();
   },
+  async "do pipeline: datum narození ze smlouvy jde s leadem (→ finanční plán), oprava v tabulce i do leadu"() {
+    const { ctx, page } = await open();
+    await page.evaluate(() => { window.calls = []; window.births = []; ui = Databaze.mount(document.getElementById("box"), { toast: m => toasts.push(m), addLeads: async g => { calls.push({ name: g.name, birth: g.birth }); return "L" + calls.length; }, fillBirth: (id, b, force) => births.push([id, b, !!force]), leadExists: () => true, openLead: () => {} }); });
+    await upload(page, [file("a.pdf", await stelaPdf({ key: "9900000201", name: "Jana Nováková", birth: "15.05.1985" })), file("b.pdf", await stelaPdf({ key: "9900000202", name: "Karel Dvořák" }))]);
+    await page.check("thead th.c input");
+    await page.click("text=Do pipeline (2)");
+    await page.waitForFunction(() => calls.length === 2);
+    const c = await page.evaluate(() => Object.fromEntries(calls.map(x => [x.name, x.birth])));
+    eq([c["Jana Nováková"], c["Karel Dvořák"]], ["1985-05-15", ""], "datum narození v leadu (bez data prázdné, nic se nehádá)");
+    const cell = page.locator('input[aria-label="Datum narození – Karel Dvořák"]');
+    await cell.fill("1979-03-04"); await cell.press("Tab");
+    eq(await page.evaluate(() => births.at(-1)), ["L2", "1979-03-04", true], "oprava data v tabulce → do leadu");
+    await page.evaluate(() => { births.length = 0; ui = Databaze.mount(document.getElementById("box"), { toast: () => {}, addLeads: async () => "x", fillBirth: (id, b, force) => births.push([id, b, !!force]), leadExists: () => true }); });
+    eq((await page.evaluate(() => births)).sort(), [["L1", "1985-05-15", false], ["L2", "1979-03-04", false]], "po otevření Databáze se doplní leadům, které datum nemají");
+    await ctx.close();
+  },
   async "jméno vždy „Jméno Příjmení“ bez kapitálek (Stela: „NOVÁKOVÁ Jana“)"() {
     const { ctx, page } = await open();
     const r = await page.evaluate(() => ["NOVÁKOVÁ Jana", "Ing. NOVÁK Petr", "Jana NOVÁKOVÁ", "DVOŘÁK-NOVÁK Karel", "Jana Nováková"].map(Databaze.math.niceName));
