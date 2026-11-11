@@ -2467,8 +2467,33 @@ const NR_FP=["klient.jmeno","klient.narozen","klient.zam","klient.hruba","klient
   "partner.jmeno","partner.narozen","partner.zam","partner.hruba","partner.podnik","partner.pasiv","partner.pronajem","partner.bonus","partner.vydaje_osobni","partner.vydaje_dom","partner.povolani","partner.sport",
   "kontakt.telefon","kontakt.email","kontakt.stav","vydaje.domacnost","renta.mesicne","renta.od_veku","pojisteni.zivotni.stav","hypo.cena","hypo.za_let","motivace","poznamka",
   "klient.bez_partnera","vydaje.vcetne"];
-/* seznamy (finanční a nefinanční majetek, úvěry, cíle, děti): položky se přidají, pokud ve FP ještě nejsou (stejný název + typ) */
+/* seznamy (finanční a nefinanční majetek, úvěry, cíle, děti): položka se přidá, jen když ve FP ještě není (nrSameItem); jinak se do ní doplní jen prázdná pole */
 const NR_FP_L={majetek:["nazev","typ","hodnota","vklad","odpocet","zam_prisp"],nefin:["nazev","typ","hodnota","najem"],uvery:["typ","nazev","zustatek","splatka","fixace_do","splatnost"],cile:["nazev","castka","za_let"],deti:["jmeno","narozen","vs"]};
+/* stejná položka z nahrávky a z plánu: přepis pojmenuje totéž pokaždé trochu jinak („Stavebko“ × „Stavební spoření ČSOB“, typ jednou chybí,
+   nebo stejnou věc v jedné nahrávce dvakrát) → porovnává se typ, podstatná slova názvu (banka, produkt, místo – obecná slova jako „účet“, „spoření“ se nepočítají) a částka.
+   Jiný vyplněný typ = jiná položka (Conseq DPS × Conseq fond); jiné datum narození = jiné dítě; Jan × Jana se nespojí. */
+const NR_GEN_W="a u v ve na do z ze s se od pro k ke o po za mesicne mesicni muj moje jeho jeji nas spolecny spolecne klient klienta partner partnera partnerky manzel manzela manzelka manzelky";
+const NR_GEN=Object.fromEntries(Object.entries({
+  majetek:"ucet uctu bezny sporici sporeni sporak terminovany terminak vklad stavebni stavebko penzijni penzijko pripojisteni doplnkove dps pp dip dlouhodoby investicni investice investicka produkt fond fondu fondy podilovy podilove opf etf akcie dluhopisy dluhopis prime primo portfolio zivotni zivotko pojisteni pojistka zp jine jiny ostatni bank banka banky money hotovost",
+  nefin:"nemovitost nemovitosti bydleni investicni byt bytu dum domu rodinny pozemek pozemku rekreacni objekt chata chalupa podil firme firma auto auta umeni sbirky jine",
+  uvery:"uver uveru hypoteka hypoteky hypotecni spotrebitelsky spotrebak kreditni karta kontokorent leasing pujcka americka jine",
+  cile:"cil cile koupe nakup sporeni penize",deti:""}).map(([k,w])=>[k,new Set((NR_GEN_W+" "+w).split(" ").filter(Boolean))]));
+const NR_AMT={majetek:"hodnota",nefin:"hodnota",uvery:"zustatek",cile:"castka"};
+const nrTx=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const nrWEq=(a,b)=>a===b||(a+"a"!==b&&b+"a"!==a&&((Math.min(a.length,b.length)>=3&&(a.startsWith(b)||b.startsWith(a)))||(Math.min(a.length,b.length)>=4&&nrLev(a,b)<=1)));
+function nrSameItem(list,a,b,cur){
+  const G=NR_GEN[list]||NR_GEN.deti,nm=o=>nrTx(list==="deti"?o.jmeno:o.nazev),sig=o=>nm(o).split(" ").filter(w=>w&&!G.has(w));
+  if(list==="deti"){if(a.narozen&&b.narozen)return a.narozen===b.narozen;const A=sig(a),B=sig(b);return !!(A.length&&B.length&&nrWEq(A[0],B[0]))}
+  const ta=nrTx(a.typ),tb=nrTx(b.typ);if(ta&&tb&&ta!==tb)return false;
+  if(nm(a)&&nm(a)===nm(b))return true;
+  const A=sig(a),B=sig(b);
+  if(A.length&&B.length){const [S,L]=A.length<=B.length?[A,B]:[B,A];if(S.every(w=>L.some(v=>nrWEq(w,v))))return true}
+  const k=NR_AMT[list],x=+a[k]||0,y=+b[k]||0,near=x>0&&y>0&&Math.abs(x-y)<=0.05*Math.max(x,y),far=x>0&&y>0&&Math.abs(x-y)>0.2*Math.max(x,y);
+  if(list==="cile")return near&&(+a.za_let||0)>0&&+a.za_let===+b.za_let;
+  if(!(ta&&ta===tb))return false;
+  if(near)return true;
+  /* obecný název („Stavební spoření“, „Byt“) nebo bez názvu: stejná položka, když je v plánu jediná toho typu a částky si neodporují */
+  return (!A.length||!B.length)&&!far&&cur.filter(o=>nrTx(o.typ)===ta).length===1}
 /* jméno z přepisu může mít překlep („Aloys“ místo „Alois“) → klient se najde i podle výslovnosti a drobného překlepu,
    ale jen když to sedí na jediného člověka (lead + jeho karta klienta = jeden člověk). Jan × Jana se nespojí. */
 const nrPh=w=>norm(w).replace(/ph/g,"f").replace(/th/g,"t").replace(/ch/g,"x").replace(/ck/g,"k").replace(/qu/g,"kv").replace(/w/g,"v").replace(/y/g,"i").replace(/(.)\1+/g,"$1");
@@ -2592,9 +2617,13 @@ async function dzRecording(x){
     const plan=saved&&saved.plan&&saved.plan.klient?JSON.parse(JSON.stringify(saved.plan)):{klient:{},partner:{zapnuto:false},deti:[],docasne:[],majetek:[],nefin:[],uvery:[],cile:[],renta:{mesicne:0,od_veku:""},pojisteni:{zivotni:{stav:0,navrh:""}},realokace:{rucne:false,polozky:[]}};
     const get=(o,p)=>p.split(".").reduce((a,k)=>a==null?a:a[k],o),setp=(o,p,v)=>{const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=="object")a[k]={};a=a[k]});a[ks.at(-1)]=v};
     for(const [p,v] of Object.entries(V)){
-      if(NR_FP_L[p]){if(!Array.isArray(v))continue;const F=NR_FP_L[p],cur=Array.isArray(plan[p])?plan[p]:(plan[p]=[]),kk=o=>f(o.nazev||o.jmeno||"")+"|"+f(o.typ||"");
-        const add=v.filter(o=>o&&typeof o==="object").map(o=>Object.fromEntries(F.filter(k=>val(o[k])).map(k=>[k,o[k]]))).filter(o=>Object.keys(o).length&&!cur.some(c=>kk(c)===kk(o)));
-        if(add.length){cur.push(...add);filled.push(p+" ("+add.length+")")}continue}
+      if(NR_FP_L[p]){if(!Array.isArray(v))continue;const F=NR_FP_L[p],cur=Array.isArray(plan[p])?plan[p]:(plan[p]=[]);let nA=0,nD=0;
+        /* položka, která v plánu už je (i pod trochu jiným názvem, nebo dvakrát v jedné nahrávce), se nepřidá znovu – doplní se do ní jen prázdná pole */
+        for(const o0 of v){if(!o0||typeof o0!=="object")continue;const o=Object.fromEntries(F.filter(k=>val(o0[k])).map(k=>[k,o0[k]]));if(!Object.keys(o).length)continue;
+          const m=cur.find(c=>c&&typeof c==="object"&&nrSameItem(p,o,c,cur));
+          if(!m){cur.push(o);nA++;continue}
+          let ch=false;F.forEach(k=>{if(!(k in o))return;const e=m[k];if(!val(e)||e===""||(e===0&&o[k]!==0)){m[k]=o[k];ch=true}});if(ch)nD++}
+        if(nA)filled.push(p+" ("+nA+")");if(nD)filled.push(p+" – doplněno ("+nD+")");continue}
       if(!NR_FP.includes(p)||!val(v))continue;const cur=get(plan,p);
       if(typeof v==="boolean"){if(cur!=null)continue;if(p==="klient.bez_partnera"&&v&&plan.partner&&plan.partner.zapnuto)continue}
       else if(val(cur)&&!(typeof cur==="number"&&cur===0))continue;

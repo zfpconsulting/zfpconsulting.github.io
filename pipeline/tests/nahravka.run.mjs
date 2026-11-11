@@ -96,6 +96,56 @@ const tests = {
     eq([S.meets.length, S.tasks.length], [0, 0], "stejná schůzka už v kalendáři je → nic dalšího");
     ({ S, f } = mk()); await f(x({ start: "2020-01-01T10:00" })); eq([S.meets.length, S.tasks.length], [0, 0], "termín v minulosti se ignoruje");
   },
+  async "FP seznamy: stejná položka pod jiným názvem / bez typu / dvakrát v nahrávce se nepřidá znovu, doplní se jen prázdná pole; různé položky zůstanou"() {
+    const M = grab(/const NR_FP_L=[\s\S]*?\nfunction nrSameItem[\s\S]*?\n  return [^\n]*\n/) + grab(/function nrLev[^\n]*\n[^\n]*\n/);
+    const same = run(M, {}, "nrSameItem");
+    const S = (l, a, b, cur) => same(l, a, b, cur || [b]);
+    const SS = "Stavební spoření", SU = "Spořicí účet", OPF = "Podílový fond (OPF)", DPS = "Doplňkové penzijní spoření (DPS)";
+    /* duplicity, které vznikaly */
+    assert(S("majetek", { nazev: "Stavební spoření ČSOB", typ: SS }, { nazev: "Stavebko ČSOB", typ: SS }), "Stavebko ČSOB = Stavební spoření ČSOB");
+    assert(S("majetek", { nazev: "Stavební spoření", typ: "" }, { nazev: "Stavební spoření", typ: SS }), "chybějící typ");
+    assert(S("majetek", { nazev: "Stavební spoření Modrá pyramida", typ: SS, hodnota: 120000 }, { nazev: "Stavební spoření", typ: SS }), "obecný název, jediná položka typu");
+    assert(S("majetek", { nazev: "Conseq PLATINiQ", typ: OPF }, { nazev: "Conseq", typ: OPF }), "Conseq ⊂ Conseq PLATINiQ");
+    assert(S("majetek", { nazev: "Spořák Air Bank", typ: SU, hodnota: 80000 }, { nazev: "Spořicí účet u Air Bank", typ: SU, hodnota: 80000 }), "spořák Air Bank");
+    assert(S("majetek", { nazev: "Investice", typ: OPF, hodnota: 251000 }, { nazev: "Amundi", typ: OPF, hodnota: 250000 }), "stejný typ a skoro stejná částka");
+    assert(S("nefin", { nazev: "Byt Brno", typ: "Nemovitost k bydlení" }, { nazev: "Byt v Brně", typ: "Nemovitost k bydlení" }), "Brno × Brně");
+    assert(S("uvery", { nazev: "Hypotéka ČSOB", typ: "Hypotéka" }, { nazev: "Hypotéka u ČSOB", typ: "Hypotéka" }), "hypotéka");
+    assert(S("cile", { nazev: "Koupě bytu", castka: 2000000, za_let: 5 }, { nazev: "Byt", castka: 1800000, za_let: 5 }), "cíl byt");
+    assert(S("cile", { nazev: "Finanční rezerva", castka: 150000 }, { nazev: "Rezerva", castka: 0 }), "rezerva");
+    assert(S("deti", { jmeno: "Anna Nováková", narozen: "" }, { jmeno: "Anna", narozen: "2018-04-02" }), "dítě bez data");
+    /* různé položky se nesmí spojit */
+    assert(!S("majetek", { nazev: "Spořicí účet ČSOB", typ: SU }, { nazev: "Spořicí účet Air Bank", typ: SU }), "dvě banky");
+    assert(!S("majetek", { nazev: "Conseq", typ: DPS }, { nazev: "Conseq", typ: OPF }), "Conseq DPS × Conseq fond");
+    assert(!S("majetek", { nazev: "Conseq Horizont", typ: OPF }, { nazev: "Conseq PLATINiQ", typ: OPF }), "dva fondy Conseq");
+    const two = [{ nazev: "Stavební spoření", typ: SS, hodnota: 50000 }, { nazev: "Stavební spoření Raiffeisen", typ: SS, hodnota: 200000 }];
+    assert(!S("majetek", { nazev: "Stavební spoření", typ: SS, hodnota: 300000 }, two[1], two), "obecný název, ale dvě stavebka a jiná částka");
+    assert(!S("majetek", { nazev: "Stavební spoření ČSOB", typ: SS, hodnota: 300000 }, { nazev: "Stavební spoření", typ: SS, hodnota: 50000 }), "obecný název, částky si odporují");
+    assert(!S("nefin", { nazev: "Byt Praha", typ: "Investiční nemovitost" }, { nazev: "Byt Brno", typ: "Investiční nemovitost" }), "dva byty");
+    assert(!S("deti", { jmeno: "Jan" }, { jmeno: "Jana" }), "Jan × Jana");
+    assert(!S("deti", { jmeno: "Anna", narozen: "2018-04-02" }, { jmeno: "Anna", narozen: "2021-01-01" }), "jiné datum narození");
+    assert(!S("cile", { nazev: "Auto", castka: 500000, za_let: 3 }, { nazev: "Byt", castka: 2000000, za_let: 5 }), "dva cíle");
+
+    /* celý zápis nahrávky do plánu */
+    const fn = HELP + M + grab(/async function dzRecording\(x\)\{[\s\S]*?\n\}\n/);
+    const plan0 = { klient: { jmeno: "Tomáš Novák" }, majetek: [{ nazev: "Stavebko ČSOB", typ: SS, hodnota: 0, vklad: 1700, kdo: "klient" }, { nazev: "Spořák", typ: SU, hodnota: 90000 }], cile: [] };
+    const W = { writes: [] }, client = { id: "c1", name: "Tomáš Novák", birth: "1980-01-01" };
+    Object.assign(W, {
+      meetDateTxt: s => s.slice(0, 10), leads: [], clients: [client], clientOfLead: () => client, leadAdd: async () => null, nrFindPerson: () => ({ l: null, c: client }),
+      db: { doc: p => ({ update: async o => W.writes.push([p, o]), set: async o => W.writes.push([p, o]) }) },
+      addClientTask: async () => {}, tkMerge: a => a.join("\n"), tkMinDue: () => "", linkPushToLeads: async () => {}, linkPushToClient: async () => {}, plural: (n, a) => a, leadPatch: async () => {},
+      fplans: [{ id: "c1", name: "Tomáš Novák", plan: JSON.parse(JSON.stringify(plan0)) }], fpKeyOf: () => "c1", fpLeadTarget: () => ({ rec: client }),
+      NR_FP: ["klient.zam"], document: { getElementById: () => null }, window: {}, dzNotify: () => {}, console, Date,
+    });
+    const rec = run(fn, W, "dzRecording");
+    await rec({ type: "fp-nahravka", rec: { client: "Tomáš Novák", at: "2026-11-10T10:00", notes: [], tasks: [], fp: {
+      majetek: [{ nazev: "Stavební spoření ČSOB", typ: SS, hodnota: 120000, vklad: 1000 }, { nazev: "Spořicí účet", typ: SU, hodnota: 90000 },
+                { nazev: "Conseq", typ: DPS, hodnota: 60000, vklad: 1000 }, { nazev: "Doplňkové penzijko Conseq", typ: DPS, hodnota: 60000 }],
+      cile: [{ nazev: "Byt", castka: 2000000, za_let: 5 }, { nazev: "Koupě bytu", castka: 2000000, za_let: 5 }] } } });
+    const out = W.writes.find(([p]) => p === "fplan/c1")[1].plan;
+    eq(out.majetek.map(o => o.nazev), ["Stavebko ČSOB", "Spořák", "Conseq"], "žádná položka dvakrát");
+    eq([out.majetek[0].hodnota, out.majetek[0].vklad, out.majetek[0].kdo], [120000, 1700, "klient"], "doplněna jen prázdná hodnota, vklad a ostatní pole zůstaly");
+    eq(out.cile.length, 1, "cíl ze stejné nahrávky dvakrát → jednou");
+  },
   async "jméno s překlepem z přepisu → existující klient (Aloys = Alois), nový lead se nezaloží; Jan ≠ Jana"() {
     const mk = (people) => {
       const S = { tasks: [], added: [], writes: [] };
