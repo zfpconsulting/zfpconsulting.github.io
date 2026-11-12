@@ -3280,7 +3280,7 @@ function renderPipe(cur){
   const TL=$("todayList");TL.className="group";
   {const cb=$("cbBtn"),n=callBlockIds().length;cb.replaceChildren(ico("phone"),"Začít volat"+(n?" ("+n+")":""));cb.hidden=!n}
   TL.replaceChildren(...inv,...(D.length?[...shown.map(x=>x.row()),D.length>LIM?el("button",{class:"row row-btn",type:"button",style:"color:var(--accent-text);font-weight:500;justify-content:center",onclick:()=>{window.__todayAll=!showAll;render()}},showAll?"Zobrazit méně":"Zobrazit všech "+D.length):null].filter(Boolean)
-    :inv.length?[]:[el("div",{class:"row"},el("span",{class:"empty"},"Nic nehoří. Každý rozjednaný lead má naplánovaný další krok."))]));
+    :inv.length?[]:[el("div",{class:"row"},el("span",{class:"empty"},"Nic nehoří."))]));
 
   renderCal();
   $("cols").replaceChildren(...STAGES.map((st,i)=>{
@@ -9236,7 +9236,9 @@ function dnesItems(opt){opt=opt||{};const t=todayStr(),rank=k=>({late:0,today:1,
   const T=asPipeTasks().filter(x=>!opt.today||(x.st!=="hotovo"&&(!x.due||x.due<=t)));
   const open=T.filter(x=>x.st!=="hotovo");
   const hasTask=l=>open.some(x=>x.leadId===l.id||x.rid==="auto_"+l.id||(!x.leadId&&x.client&&sameName(x.client,l.name)));
-  const L=opt.today?todayData().calls:leads.filter(l=>ACTIVE(l.stage)&&(["late","today","none"].includes(dueState(l))||isCold(l)));
+  /* lead bez dalšího kroku i bez termínu („Chybí další krok“) se do úkolů nedává – řeší se v kartě leadu, ne jako úkol */
+  const noStep=l=>dueState(l)==="none"&&!String(l.nextStep||"").trim();
+  const L=(opt.today?todayData().calls:leads.filter(l=>ACTIVE(l.stage)&&(["late","today","none"].includes(dueState(l))||isCold(l)))).filter(l=>!noStep(l));
   const out=[...T.map(x=>({k:x.st==="hotovo"?"done":!x.due?"none":asDue(x)==="late"?"late":x.due===t?"today":"later",d:x.due||"",row:()=>asTaskRow(x)})),
     ...L.filter(l=>!hasTask(l)).map(l=>{const s=dueState(l);return {k:s==="late"?"late":s==="today"?"today":s==="none"?"none":"later",d:l.nextDate||"",row:inSheet=>dnesLeadRow(l,inSheet)}})];
   return out.sort((a,b)=>rank(a.k)-rank(b.k)||a.d.localeCompare(b.d))}

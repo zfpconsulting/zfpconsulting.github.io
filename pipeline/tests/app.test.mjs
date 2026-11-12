@@ -239,10 +239,11 @@ export default {
     await page.fill("#q", "777102202"); await page.waitForTimeout(300); eq(await names(), ["Karel Dvořák"], "telefon bez mezer");
     await page.fill("#q", "+420 777 102"); await page.waitForTimeout(300); eq(await names(), ["Karel Dvořák"], "telefon s předvolbou");
     await page.fill("#q", ""); await page.waitForTimeout(300);
-    /* Dnes udělat: Petra jen jednou (úkol z dalšího kroku), Karel bez kroku jako lead; po termínu první */
+    /* Dnes udělat: Petra jen jednou (úkol z dalšího kroku); Karel bez kroku i bez termínu v úkolech NENÍ („chybí další krok“ se do úkolů nedává) */
     const rows = await page.evaluate(() => [...document.querySelectorAll("#todayList .row")].map(r => r.innerText));
     eq(rows.filter(r => r.includes("Petra Černá")).length, 1, "Petra bez duplicity: " + rows.join(" | "));
-    assert(rows[0].includes("Petra Černá") && rows.some(r => r.includes("Karel Dvořák")), "řazení po termínu → bez termínu: " + rows.join(" | "));
+    assert(rows[0].includes("Petra Černá"), "po termínu první: " + rows.join(" | "));
+    assert(!rows.some(r => r.includes("Karel Dvořák") || /Chybí další krok/.test(r)), "lead bez dalšího kroku není v úkolech: " + rows.join(" | "));
     eq(await page.evaluate(() => [...document.querySelectorAll("#todaySec button")].filter(b => /Volací blok/.test(b.textContent)).length), 0, "jen Začít volat");
     /* karta: bez Otevřít a Kopírovat, telefon jako tel:, šipka zpět jen v detailu, klik na kartu otevře */
     const card = await page.evaluate(() => { const c = [...document.querySelectorAll("#cols .card")].find(c => c.textContent.includes("Petra Černá"));
