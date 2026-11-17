@@ -432,7 +432,7 @@ tests["NN Orange Risk: navržené pojistné se doplní samo, slide modelace ukaz
     cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" } } };
   await setPlan(page, rodina);
   const o = await page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[\u00a0\u202f]/g, " "); };
-    const zp = FR.filter(f => /^zp\d$/.test(f.g)), deti = FR.find(f => f.g === "deti");
+    const zp = FR.filter(f => /^zp\d$/.test(f.g) && !/ – (celkový příjem|výdaje s plánem)$/.test(f.lbl)), deti = FR.find(f => f.g === "deti");
     return { auto: R.pojAuto, poj: R.pojNove, nn: R.nn.celkem, sumRows: R.nn.osoby.reduce((a, x) => a + x.rizika.reduce((b, r) => b + r.mes, 0), 0), sleva: R.nn.sleva,
       zp: zp.map(f => t(f.h)), deti: deti && t(deti.h), rows0: R.nn.dospeli[0].rizika.filter(r => r.pc > 0).map(r => [r.nazev, r.pc, r.mes]),
       bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; });
@@ -462,7 +462,7 @@ tests["NN Orange Risk: dospělí mají vždy TNÚ PREMIUM 1 mil., pojistné do k
   assert(r.kon.every(([t, k]) => k === 65), "bez TNÚ se rizika prodlouží na maximum (65)"); assert(r.dk >= 100, "pojistné do konce smlouvy ≥ 100 Kč");
   await setPlan(page, { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 40000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 75000 }, partner: { zapnuto: false },
     deti: [], majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 200000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }], cile: [], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" }, pojistovna: "nn" } });
-  const o = await page.evaluate(() => { compute(); const zi = FR.map((f, i) => [f.g, f.lbl, i]).filter(x => x[0] === "zp0"); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
+  const o = await page.evaluate(() => { compute(); const zi = FR.map((f, i) => [f.g, f.lbl, i]).filter(x => x[0] === "zp0" && !/ – (celkový příjem|výdaje s plánem)$/.test(x[1])); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
     return { n: zi.length, lbl: zi.map(x => x[1]), t: zi.map(x => t(FR[x[2]].h)), logo: zi.every(x => FR[x[2]].h.includes(NN_LOGO)), base: R.nn.celkem, fit: R.nnFit && R.nnFit.celkem, poj: R.pojNove }; });
   eq(o.n, 2, "modelace + hned za ní varianta FitSport"); assert(/FitSport/.test(o.lbl[1]), "druhý snímek je FitSport");
   assert(o.fit < o.base, "s FitSport je pojistné nižší (" + o.fit + " < " + o.base + ")"); eq(o.poj, o.base, "do plánu jde pojistné bez FitSport");
@@ -593,7 +593,7 @@ tests["NN × Kooperativa × UNIQA × Allianz × Generali × ČPP: bez volby jde 
     cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" } } };
   const run = async poj => { await setPlan(page, Object.assign({}, rodina, { pojisteni: Object.assign({ zivotni: { stav: 0, navrh: "" } }, poj) }));
     return page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
-      const zp = FR.filter(f => /^zp\d$/.test(f.g) && !/FitSport|zdravý styl/.test(f.lbl)), alt = R.nnAlt;
+      const zp = FR.filter(f => /^zp\d$/.test(f.g) && !/FitSport|zdravý styl|celkový příjem|výdaje s plánem/.test(f.lbl)), alt = R.nnAlt;
       return { poj: R.nn.pojistovna, alt: alt.pojistovna, c: R.nn.celkem, a: alt.celkem, nove: R.pojNove, auto: R.pojAuto, kompl: R.nn.kompletni && alt.kompletni, volba: R.nn.volba,
         sum: R.nn.osoby.reduce((s, x) => s + x.rizika.reduce((b, r) => b + (r.mes || 0), 0), 0), lbl: FR.map(f => f.lbl), zp: zp.map(f => t(f.h)),
         logo: zp.every(f => f.h.includes(pojInfo(R.nn).logo()) && R.nnAlts.every(a => f.h.includes(pojInfo(a).logo()))), nAlt: R.nnAlts.length, altPer: R.pojOsAlt.dosp, altsPer: R.pojOsAlts.map(o => o.dosp), altsDeti: R.pojOsAlts.map(o => o.deti[0]), poradi: [R.nn.celkem].concat(R.nnAlts.map(a => a.celkem)), deti: t(FR.find(f => f.g === "deti").h), detiAlt: R.pojOsAlt.deti[0],
@@ -648,7 +648,7 @@ tests["ČSOB ve srovnání: bez dětí šestá pojišťovna na slidu (logo + cen
     cile: [], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" } } };
   const run = async (poj, deti) => { await setPlan(page, Object.assign({}, par, { deti: deti || [], pojisteni: Object.assign({ zivotni: { stav: 0, navrh: "" } }, poj) }));
     return page.evaluate(() => { compute(); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
-      const zp = FR.filter(f => /^zp\d$/.test(f.g) && !/FitSport|zdravý styl/.test(f.lbl));
+      const zp = FR.filter(f => /^zp\d$/.test(f.g) && !/FitSport|zdravý styl|celkový příjem|výdaje s plánem/.test(f.lbl));
       return { poj: R.nn.pojistovna, alts: R.nnAlts.map(a => a.pojistovna), c: R.nn.celkem, nove: R.pojNove, csob: R.nnAlts.concat([R.nn]).find(a => a.pojistovna === "csob"),
         logo: zp.every(f => f.h.includes(CSOB_LOGO)), zp: zp.map(f => t(f.h)), cmp: pojCmpTxt(R),
         bad: FR.filter(f => /Infinity|NaN|undefined|null/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; }); };
@@ -1463,6 +1463,42 @@ tests["mobil: přepínač Editor / Náhled, menu ⋯ (PDF, PowerPoint, Export), 
   await page.click('.mtabs [data-mt="ed"]');
   await page.evaluate(() => goStep(3));
   eq(await page.evaluate(() => { const d = document.querySelector("#ed details.more"); return d ? [d.open, /Stela|KoopLife|UniPoint|Allfa|LISA|Zeus|SUS Plus/.test(d.textContent)] : null; }), [false, true], "dlouhé nápovědy pojišťoven sbalené");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+tests["pojištění dorovnává výdaje s finančním plánem (výchozí) nebo celkový příjem (Nastavení): obě varianty se spočítají, druhá je další slide modelace, slide katastrof má čáry výdaje / výdaje s plánem / příjem"] = async function () {
+  const { ctx, page, errors } = await open();
+  const rodina = { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 52000, vydaje_dom: 44000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 75000 },
+    partner: { zapnuto: true, jmeno: "Eva Nováková", narozen: "1991-02-02", zam: 38000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 52000 },
+    deti: [{ jmeno: "Anička", narozen: "2018-04-01", vs: false }], motivace: "x", majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }],
+    cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" }, pojistovna: "nn" } };
+  await setPlan(page, rodina);
+  const grab = () => page.evaluate(() => { compute(); const al = R.varAlt;
+    const okK = (K, typ) => K.every(k => k.cilTyp === typ && k.cil === (typ === "prijem" ? k.normal : k.vydFP) && k.invAll.every(x => x.dop === Math.max(x.min, k.cil - x.prijem)) && k.vydPN === k.cil);
+    const zp0 = FR.filter(f => f.g === "zp0").map(f => f.lbl), kat = FR.filter(f => f.g === "kat0");
+    return { typ: R.cilTyp, altTyp: al && al.typ, okMain: okK(R.katastrofy, R.cilTyp), okAlt: !!al && okK(al.kat, al.typ), c: R.nn.celkem, ca: al && al.nn.celkem, poj: R.pojNove, auto: R.pojAuto, zp0,
+      smrt: R.katastrofy.map((k, i) => k.smrt.pc === al.kat[i].smrt.pc), lines: kat.every(f => /data-k="vyd"/.test(f.h) && /data-k="vydf"/.test(f.h) && /data-k="prij"/.test(f.h) && /celkový příjem/.test(f.h)),
+      inv: R.katastrofy.map(k => k.invAll.map(x => x.pcDop)), invA: al && al.kat.map(k => k.invAll.map(x => x.pcDop)),
+      bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; });
+  const a = await grab();
+  eq([a.typ, a.altTyp], ["vydfp", "prijem"], "výchozí: dorovnáváme výdaje s plánem, druhá varianta je příjem");
+  assert(a.okMain && a.okAlt, "invalidita (max(min, cíl − příjem)) i PN podle zvoleného cíle u obou variant"); assert(a.smrt.every(Boolean), "úmrtí se mezi variantami nemění");
+  assert(a.auto && a.poj === a.c, "pojistné v plánu = výpočet zvolené varianty"); assert(a.c !== a.ca, "varianty se liší cenou (" + a.c + " × " + a.ca + ")");
+  eq(a.zp0.filter(l => /^ŽP Jan/.test(l)).length >= 2, true, "dvě modelace ŽP"); assert(/celkový příjem/.test(a.zp0[a.zp0.length - 1]), "druhá modelace = celkový příjem: " + a.zp0.join(" | "));
+  assert(a.lines, "slide katastrof: čáry výdaje / výdaje s plánem / celkový příjem"); eq(a.bad, [], "bez Infinity / NaN / undefined");
+  /* zaškrtnutí v Nastavení */
+  const ui = await page.evaluate(() => { STEP = 5; renderEditor(); const el = document.querySelector('#ed input[data-p="nastaveni.poj_prijem"]'); if (!el) return null; el.click(); return !!(inp().nastaveni || {}).poj_prijem; });
+  assert(ui === true, "checkbox „Pojištění dorovnává celkový příjem“ v Nastavení se uloží do plánu");
+  const b = await grab();
+  eq([b.typ, b.altTyp], ["prijem", "vydfp"], "zapnuto: dorovnáváme celkový příjem, druhá varianta jsou výdaje s plánem");
+  assert(b.okMain && b.okAlt, "výpočet obou variant po přepnutí"); assert(b.auto && b.poj === b.c, "pojistné v plánu = varianta příjem");
+  eq(b.c, a.ca, "příjem: stejné pojistné jako druhá varianta před přepnutím"); eq(b.inv, a.invA, "pojistné částky invalidity se přepnutím prohodily");
+  assert(/výdaje s plánem/.test(b.zp0[b.zp0.length - 1]), "druhá modelace = výdaje s plánem: " + b.zp0.join(" | ")); eq(b.bad, [], "bez Infinity / NaN / undefined (příjem)");
+  /* stejné krytí obou cílů → žádná druhá modelace */
+  await setPlan(page, { klient: { jmeno: "Petr Novák", narozen: "1988-03-01", zam: 62000, vydaje_osobni: 35000, starobni: 21000, inv1: 9000, inv2: 12000, inv3: 20000, bez_partnera: true }, partner: { zapnuto: false }, deti: [],
+    majetek: [{ typ: "Spořicí účet", nazev: "Účet", hodnota: 300000 }], uvery: [], cile: [], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" }, pojistovna: "nn" }, nastaveni: {} });
+  const c = await page.evaluate(() => { compute(); return { alt: !!R.varAlt, same: R.varAlt ? null : R.katastrofy.every(k => k.invAll.every(x => x.pcDop >= 0)), zp: FR.filter(f => /^zp\d$/.test(f.g)).map(f => f.lbl) }; });
+  assert(c.alt || c.zp.every(l => !/celkový příjem|výdaje s plánem/.test(l)), "bez rozdílu mezi variantami se druhá modelace nepřidává: " + c.zp.join(" | "));
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
