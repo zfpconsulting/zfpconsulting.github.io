@@ -1366,6 +1366,7 @@ function compute0(inp, today, ext) {
   /* Extra DIP: klientem zvolená měsíční částka navíc (nastavení), nezávislá na tom, kolik cash flow cíle potřebují; hlídá se daňový strop DIP */
   const dipXreq = Math.max(0, Math.round(+S.dip_extra || 0)), dipXmax = Math.max(0, S.dip_strop - dpsOdpocet);
   const dipX = useDip ? Math.min(dipXreq, dipXmax) : 0;
+  const rDipX = S.v_opf - S.inflace;   /* nový DIP roste jako DIP/OPF (nastavení) minus inflace */
   const prispVlastni = dpsMes + dipOwnMes + dipX;
   const growList = dpsGrow.concat(keepList.map(a => ({ h: a.keep, mes: Math.max(0, n0(a.nech_mes)) + a.zp, r: rOfA(a) })), extraGrow);
   const growFv = (L, m) => L.reduce((t, g) => t + fvA(g.h, g.mes, g.r, m), 0);
@@ -1418,41 +1419,59 @@ function compute0(inp, today, ext) {
   let renta = null;
   if (rentaMes > 0) {
     const odVeku = n0(RT.od_veku);
-    const start = odVeku > 0 ? new Date(K.nar.getFullYear() + odVeku, K.nar.getMonth(), 1) : new Date(Math.min(...persons.map(p => p.duch.getTime())));
-    const months = Math.max(1, monthsBetween(T0, start)), a = bezHot(alok(months / 12), S), r = rr(a), fee = feeA(a);
+    const start0 = odVeku > 0 ? new Date(K.nar.getFullYear() + odVeku, K.nar.getMonth(), 1) : new Date(Math.min(...persons.map(p => p.duch.getTime())));
     /* renta: do starobního důchodu celá částka, potom jen dorovnání ke státnímu důchodu až do věku dožití */
     const starobni = persons.reduce((s, p) => s + p.starobni, 0), duchK = K.duch;
-    const vekDuch = yearsBetween(K.nar, duchK), vekStart0 = yearsBetween(K.nar, start);
     /* _min_plna / _min_dor: interní minimum renty pro fázi (dopočítá prezentace), aby cash flow domácnosti nikdy nebylo záporné
        (např. hypotéka nebo výdaje partnera, když klient skončí s prací dřív) */
     const mesPlna = Math.max(rentaMes, Math.ceil(n0(RT._min_plna) / 100) * 100);
     const dor = Math.max(0, rentaMes - starobni, Math.ceil(n0(RT._min_dor) / 100) * 100);
-    const faze = [];
-    let kap;
-    if (start < duchK) {
-      const yA = yearsBetween(start, duchK), yB = Math.max(0, S.doziti - vekDuch);
-      kap = pvAnn(mesPlna, yA, S.renta_r) + pvAnn(dor, yB, S.renta_r) / Math.pow(1 + S.renta_r, yA);
-      faze.push({ od: start, vekOd: vekStart0, vekDo: vekDuch, mes: mesPlna, typ: "plna" });
-      if (yB > 0 && dor > 0) faze.push({ od: duchK, vekOd: vekDuch, vekDo: S.doziti, mes: dor, typ: "dorovnani" });
-    } else {
-      const yB = Math.max(0, S.doziti - vekStart0);
-      kap = pvAnn(dor, yB, S.renta_r);
-      faze.push({ od: start, vekOd: vekStart0, vekDo: S.doziti, mes: dor, typ: "dorovnani" });
+    /* fáze renty a potřebný kapitál pro daný začátek čerpání */
+    const phases = st => {
+      const months = Math.max(1, monthsBetween(T0, st)), a = bezHot(alok(months / 12), S), r = rr(a), fee = feeA(a);
+      const vekDuch = yearsBetween(K.nar, duchK), vekStart0 = yearsBetween(K.nar, st), faze = [];
+      let kap;
+      if (st < duchK) {
+        const yA = yearsBetween(st, duchK), yB = Math.max(0, S.doziti - vekDuch);
+        kap = pvAnn(mesPlna, yA, S.renta_r) + pvAnn(dor, yB, S.renta_r) / Math.pow(1 + S.renta_r, yA);
+        faze.push({ od: st, vekOd: vekStart0, vekDo: vekDuch, mes: mesPlna, typ: "plna" });
+        if (yB > 0 && dor > 0) faze.push({ od: duchK, vekOd: vekDuch, vekDo: S.doziti, mes: dor, typ: "dorovnani" });
+      } else {
+        const yB = Math.max(0, S.doziti - vekStart0);
+        kap = pvAnn(dor, yB, S.renta_r);
+        faze.push({ od: st, vekOd: vekStart0, vekDo: S.doziti, mes: dor, typ: "dorovnani" });
+      }
+      return { st, months, a, r, fee, vekDuch, vekStart0, faze, kap };
+    };
+    /* stávající majetek (DPS, PP, ponechané produkty) se zhodnocuje každý svým výnosem; extra DIP (nastavení) roste navíc */
+    const dipFvOf = m => dipX > 0 ? fvA(0, dipX, rDipX, m) : 0;
+    const solve = (P, credit, vol) => { const dpsFv = growFv(growList, P.months) + (credit ? dipFvOf(P.months) : 0), need = Math.max(0, P.kap - dpsFv);
+      const vklad = Math.min(vol, ceil(lumpFor(need, P.r, P.months, P.fee), 5000));
+      return { dpsFv, vklad, pmt: pmtFor(need, vklad, P.r, P.months, P.fee, P.kap) }; };
+    let P = phases(start0), pred = null;
+    /* extra DIP navíc → klient může skončit s prací dřív: nejdřívější začátek čerpání (ne před 60. rokem – DIP je vázaný), při kterém stačí stejná platba renty jako bez extra DIPu */
+    if (P.kap > 1 && dipX > 0 && !(odVeku > 0)) {
+      const base = solve(P, false, volne), minSt = new Date(K.nar.getFullYear() + 60, K.nar.getMonth(), 1);
+      let best = null;
+      for (let m = P.months - 1; m >= 12; m--) { const st = new Date(T0.getFullYear(), T0.getMonth() + m, 1); if (st < minSt) break;
+        const Pc = phases(st), sc = solve(Pc, true, volne);
+        if (sc.pmt <= base.pmt + 0.5 && sc.vklad <= base.vklad + 0.5) best = Pc; else break; }
+      if (best) { pred = { puvodni: start0, puvodniVek: P.vekStart0, let: Math.round((P.vekStart0 - best.vekStart0) * 10) / 10 }; P = best; }
     }
+    const { st: start, months, a, r, fee, vekDuch, vekStart0, faze, kap } = P;
     if (!starobni) flags.push("Renta: chybí odhad starobního důchodu (IOLDP) — po důchodovém věku počítám dorovnání celé renty.");
     /* státní důchod už požadovanou rentu pokrývá (a renta nezačíná před důchodem) → není co spořit; renta se do plánu nedává */
     if (kap <= 1) flags.push(`Renta ${Math.round(rentaMes)} Kč/měs už pokrývá státní důchod (${Math.round(starobni)} Kč/měs) — renta se do plánu nezapočítává.`);
     else {
-    /* stávající majetek (DPS, PP, ponechané produkty) se zhodnocuje každý svým výnosem */
-    const dpsFv = growFv(growList, months);
-    const vklad = Math.min(volne, ceil(lumpFor(Math.max(0, kap - dpsFv), r, months, fee), 5000)); volne -= vklad;
-    const pmt = pmtFor(Math.max(0, kap - dpsFv), vklad, r, months, fee, kap);
+    const S1 = solve(P, true, volne), dpsFv = S1.dpsFv, vklad = S1.vklad, pmt = S1.pmt; volne -= vklad;
     const vysledek = fvOf(vklad, pmt, r, months, fee) + dpsFv;
     const prostor = Math.max(0, S.dip_strop - dpsOdpocet - dipX);
     const dip = Math.min(prostor, pmt);
     if (useDip && prostor < S.dip_strop - dipX) flags.push(`DIP: daňový strop částečně čerpá DPS/ŽP — do DIP jen ${prostor} Kč/měs.`);
-    renta = { auto: rentaAuto, mesicne: start < duchK ? mesPlna : rentaMes, mesicnePuv: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal: dpsVal + keepVal + extraVal, keepVal, keepMes, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start) };
+    renta = { auto: rentaAuto, mesicne: start < duchK ? mesPlna : rentaMes, mesicnePuv: rentaMes, start, months, alok: a, r, rNom: r + S.inflace, fee, kap, vklad, dpsVal: dpsVal + keepVal + extraVal, keepVal, keepMes, dpsFv, pmt, vysledek, splneni: vysledek / kap, splneniJ: (fvOf(vklad, 0, r, months, fee) + dpsFv) / kap, splneniDps: dpsFv / kap, dip, prostor, danRok: dip * 12 * S.dan, let: Math.round(S.doziti - vekStart0), faze, starobni, dor, doziti: S.doziti, vekStart: yearsBetween(K.nar, start), predcasne: pred };
     flags.push(`Renta: kapitál se vyčerpá v ${S.doziti} letech (reálný výnos při čerpání ${(S.renta_r * 100).toFixed(1).replace(".", ",")} %).`);
+    if (pred) flags.push(`Extra DIP ${dipX} Kč/měs: do důchodu můžeš už v ${Math.round(vekStart0)} letech místo ${Math.round(pred.puvodniVek)} — do státního důchodu jen renta, od něj renta + důchod na stejný měsíční příjem.`);
+    else if (dipX > 0 && odVeku > 0) flags.push(`Extra DIP ${dipX} Kč/měs zvyšuje kapitál renty (začátek čerpání je zadaný ručně, proto se jen sníží potřebná platba renty).`);
     }
   }
   if (!renta && volne > 0) flags.push(`Nepřiřazený majetek ${Math.round(volne)} Kč — bez cíle renty.`);
@@ -1762,7 +1781,7 @@ function compute0(inp, today, ext) {
   /* start plánu = vždy aktuální finanční majetek (vstupní poplatky se projeví až v dalších bodech) */
   udalosti.forEach(u => u.hodnota = u.typ === "start" ? majCelkem : hodnota(u.m));
   /* měsíční vývoj finančního majetku v plánu (dnešní ceny): rezerva + cíle + renta + DPS; při výběru na cíl hodnota spadne */
-  const dpsAt = m => growFv(dpsGrow, m);
+  const dpsAt = m => growFv(dpsGrow, m) + (dipX > 0 ? fvA(0, dipX, rDipX, m) : 0);
   const mEnd = Math.max(12, renta ? renta.months : 0, ...cile.map(c => c.months));
   const vyvoj = []; for (let m = 0; m <= mEnd; m++) vyvoj.push(m === 0 ? majCelkem : Math.max(0, hodnota(m) + (renta ? dpsAt(Math.min(m, renta.months)) : dpsAt(m))));
   udalosti.forEach(u => { u.v = vyvoj[Math.min(mEnd, Math.max(0, u.m))]; u.vPred = u.m > 0 ? vyvoj[Math.min(mEnd, u.m - 1)] : u.v; if (u.typ !== "start") u.hodnota = u.v; }); /* časová osa = stejná čísla jako graf majetku */
@@ -3211,7 +3230,7 @@ function buildFrames(I,R){
    .concat(R.detiPoj.length?[[`Pojistit děti (${R.detiPoj.length})`,"úraz 1 mil. s 10× progresí · vážná onemocnění 500 tis. · 400 Kč/den"]]:[])
    .concat(R.uvery.filter(u=>u.fixace).map(u=>[`Refixace: ${esc(u.nazev)} — ${mesRok(u.fixace)}`,"Před koncem fixace porovnáme nabídky bank"])).filter(s=>!NOINS||!/oji[sš]t/.test(s[0])).slice(0,6);
   const k0g=R.katastrofy[0],ppTx=R.transakce.filter(t=>t.bezpoplatku);
-  const gains=[[`Splnění cílů za každého počasí`,NOINS?`pravidelné platby vedou k cílům krok za krokem, bez nutnosti hlídat trhy`:`i při invaliditě, dlouhé nemoci nebo úmrtí plán běží dál a cíle zůstanou splněné`]].concat(R.dip?[R.renta.dipOd&&R.renta.dipPozdeji>R.dip+0.5?[`Daňová úleva ${kc(R.renta.danCelkem)} celkem`,`DIP ${fmt(R.dip)} → od ${R.renta.dipRok} ${kcm(R.renta.dipPozdeji)} (${kc(R.renta.dipPozdeji*12*R.S.dan)} ročně)`]
+  const gains=[[`Splnění cílů za každého počasí`,NOINS?`pravidelné platby vedou k cílům krok za krokem, bez nutnosti hlídat trhy`:`i při invaliditě, dlouhé nemoci nebo úmrtí plán běží dál a cíle zůstanou splněné`]].concat((R.renta&&R.renta.predcasne?[[`Do důchodu o ${String(R.renta.predcasne.let).replace(".",",")} let dřív`,`už v ${Math.round(R.renta.vekStart)} letech místo ${Math.round(R.renta.predcasne.puvodniVek)} díky extra DIP – do státního důchodu jen renta, pak renta + důchod na stejný příjem`]]:[])).concat(R.dip?[R.renta.dipOd&&R.renta.dipPozdeji>R.dip+0.5?[`Daňová úleva ${kc(R.renta.danCelkem)} celkem`,`DIP ${fmt(R.dip)} → od ${R.renta.dipRok} ${kcm(R.renta.dipPozdeji)} (${kc(R.renta.dipPozdeji*12*R.S.dan)} ročně)`]
      :[`Daňová úleva ${kc(R.renta.danRok)} ročně`,`DIP ${kcm(R.dip)} – za ${Math.round(R.renta.months/12)} let celkem ${kc(R.renta.danCelkem)}`]]:[])
    .concat([[`Zajištěný příjem`,`při invaliditě až ${kcm(k0g.inv.dop+k0g.inv.prijem)}${k0g.pn.treba?" a v dlouhé nemoci "+fmt(k0g.pn.denniDop)+" Kč/den":""}`]])
    .concat([[`Rezerva na nečekané situace`,`${kc(R.rez.cil)} vždy k dispozici do pár dnů`]])

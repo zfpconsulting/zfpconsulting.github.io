@@ -1533,6 +1533,22 @@ tests["extra DIP: pevná měsíční částka navíc ubírá z cash flow, slouč
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["extra DIP: dřívější odchod do důchodu – do státního důchodu jen renta, pak renta + důchod na stejný příjem"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Jan Novák", narozen: "1986-05-05", zam: 70000, vydaje_osobni: 35000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 95000 }, partner: { zapnuto: false }, deti: [], motivace: "x",
+    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 800000 }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 40000, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 1500 } } };
+  const get = () => page.evaluate(() => { compute(); const r = R.renta; return r ? { start: +r.start, vek: r.vekStart, pred: r.predcasne ? r.predcasne.let : 0, f: r.faze.map(f => f.typ), m: r.faze.map(f => f.mes), pmt: r.pmt, vekDuch: r.faze[0].vekDo, dipX: R.dipX } : null; });
+  await setPlan(page, Object.assign({}, base, { nastaveni: {} }));
+  const a = await get(); assert(a, "renta bez extra DIPu existuje"); eq(a.pred, 0, "bez extra DIPu žádný dřívější odchod");
+  await setPlan(page, Object.assign({}, base, { nastaveni: { dip_extra: 3000 } }));
+  const b = await get(); assert(b && b.dipX === 3000, "extra DIP 3 000 se použije");
+  assert(b.start < a.start, "začátek renty je dřív (" + a.vek + " → " + b.vek + ")"); assert(b.vek >= 60, "ne před 60. rokem (" + b.vek + ")"); assert(b.pred > 0, "uloženo o kolik let dřív");
+  eq(b.f[0], "plna", "do státního důchodu jen renta"); assert(b.vek < b.vekDuch, "start před státním důchodem");
+  if (b.f[1]) { eq(b.f[1], "dorovnani", "po státním důchodu dorovnání"); assert(b.m[1] <= b.m[0], "dorovnání ≤ plná renta"); }
+  assert(b.pmt <= a.pmt + 1, "platba renty nevzrostla (" + a.pmt + " → " + b.pmt + ")");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests).filter(([n])=>n.includes(process.env.F||""))) {
   const t0 = Date.now();
