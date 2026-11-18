@@ -1549,6 +1549,18 @@ tests["extra DIP: dřívější odchod do důchodu – do státního důchodu je
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["pojištění: Invalidita a PN do 65 let, nebo automaticky do renty (přepínač v Nastavení)"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Jan Novák", narozen: "1990-05-05", zam: 70000, vydaje_osobni: 35000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 95000 }, partner: { zapnuto: false }, deti: [], motivace: "x",
+    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 800000 }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 0 } } };
+  const get = () => page.evaluate(() => { compute(); const k = (R.kat || R.katastrofy || [])[0]; return k ? { roky: k.roky, kr: !!k.smlKrati } : null; });
+  await setPlan(page, Object.assign({}, base, { nastaveni: {} })); const a = await get();
+  await setPlan(page, Object.assign({}, base, { nastaveni: { poj_do: "renta" } })); const b = await get();
+  assert(a && b, "katastrofy v modelu"); assert(b.roky > a.roky, "do renty je horizont delší než do 65 let (" + a.roky.toFixed(1) + " → " + b.roky.toFixed(1) + ")"); assert(a.kr && !b.kr, "příznak zkrácení smlouvy jen u „do 65“");
+  const ui = await page.evaluate(() => { for (let i = 0; i < 12; i++) { STEP = i; try { renderEditor(); } catch (e) {} if (document.querySelector('#ed select[data-p="nastaveni.poj_do"]')) return true; } return false; }); assert(ui, "volba „Invalidita a PN do“ v editoru");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests).filter(([n])=>n.includes(process.env.F||""))) {
   const t0 = Date.now();
