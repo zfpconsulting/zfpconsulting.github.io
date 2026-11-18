@@ -122,6 +122,26 @@ const tests = {
     await ctx.close();
   },
 
+  async "klient bez leadu: detail ve stejném rozložení jako lead (kontakt, poznámky, Historie kontaktů s Nezvedl / Hovor proběhl / Zpráva), zápisy se ukládají ke klientovi; klient s leadem otevře lead"() {
+    const store = { "settings/main": S({ calPrefix: "VK:", calId: "primary" }),
+      "leads/a": L("Tomáš Bílý", "nabidka", null, 0),
+      "clients/k1": { name: "Petr Klientský", phone: "777 111 222", email: "p@x.cz", note: "Rodina", products: [], log: [], createdAt: "2024-01-01T00:00:00Z" } };
+    const { ctx, page, errors } = await at("2026-10-28", store, { width: 1440, height: 900 });
+    await page.evaluate(() => setView("cli")); await page.waitForTimeout(300);
+    await page.locator("#cliList .crow", { hasText: "Tomáš Bílý" }).first().click(); await page.waitForTimeout(500);
+    assert(await page.locator("#dlg").evaluate(d => d.open), "klient s leadem otevře dialog leadu jako v pipeline");
+    await page.keyboard.press("Escape"); await page.waitForTimeout(400);
+    await page.locator("#cliList .crow", { hasText: "Petr Klientský" }).first().click(); await page.waitForTimeout(600);
+    eq(await page.locator("#edDlg .sechead", { hasText: "Historie kontaktů" }).count(), 1, "Historie kontaktů");
+    eq(await page.locator("#edDlg .sechead", { hasText: "Poznámky" }).count(), 1, "Poznámky");
+    await page.locator("#edDlg .calls button", { hasText: "Nezvedl" }).click(); await page.waitForTimeout(300);
+    await page.locator("#edDlg .logadd input").fill("Test zápis"); await page.locator("#edDlg .logadd button").click(); await page.waitForTimeout(300);
+    const log = await page.evaluate(() => (clients.find(c => c.name === "Petr Klientský") || {}).log.map(x => x.t).sort());
+    eq(log, ["Nezvedl", "Test zápis"], "zápisy v záznamu klienta");
+    eq(errors, [], "chyby");
+    await ctx.close();
+  },
+
   async "hodnota klientů v Kč podle tarifu kvartálu podpisu"() {
     const store = { "settings/main": S({ manual: { "2026-Q2": 3200 } }),
       "leads/a": L("Jan Novák", "vyplaceno", "2026-07-05T10:00:00Z", 100, { paidAt: "2026-08-01T10:00:00Z" }), "leads/b": L("Eva Malá", "podpis", "2026-10-05T10:00:00Z", 100) };

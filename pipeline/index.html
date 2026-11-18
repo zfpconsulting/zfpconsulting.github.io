@@ -427,7 +427,7 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 
 /* zápis hovoru v detailu leadu: Nezvedl | Hovor proběhl, pod tím Zpráva */
 .calls{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2);padding:var(--sp-3) var(--sp-4)}
-.calls #msgBtn{grid-column:1/-1}
+.calls #msgBtn,.calls .msgwide{grid-column:1/-1}
 .durs{display:flex;flex-wrap:wrap;gap:var(--sp-2);padding:0 var(--sp-4) var(--sp-3);align-items:center}
 .durs span{font-size:var(--fs-s);color:var(--ink-2);width:100%}
 .durs button{position:relative;font-size:var(--fs-s);color:var(--ink-2);background:var(--fill);border-radius:var(--r-pill);min-height:var(--h-s);padding:0 var(--sp-3);font-weight:500}
@@ -4473,21 +4473,43 @@ function openClient(e0){
   const add=el("div",{class:"chips"},Object.keys(PTYPES).map(t=>el("button",{type:"button",class:"btn btn--secondary btn--s",onclick:()=>{prods.push({id:newId(),type:t,company:"",amt:"",unit:PTYPES[t].unit,from:todayStr(),status:"active",_open:true});renderProds();saveProds()}},"+ "+t)));
   const meets=[...(e.cal?.meets||[]),...((e.lead?.meetings)||[])].map(m=>m.start).filter((v,i,a)=>a.indexOf(v)===i).sort().reverse();
   const log=(rec?.log||[]).slice().reverse();
+  /* Historie kontaktů – stejná karta jako v detailu leadu (Nezvedl / Hovor proběhl / Zpráva / vlastní zápis), zapisuje se do záznamu klienta */
+  let hist=(rec?.log||[]).slice();
+  const hAt=el("input",{type:"datetime-local","aria-label":"Kdy"});hAt.value=localDT();
+  const hList=el("div",{});
+  const renderHist=()=>{const all=[...hist.map(x=>({...x})),...meets.map(m=>({d:m,t:"Schůzka z kalendáře",cal:true}))].sort((a,b)=>(b.d||"").localeCompare(a.d||""));
+    hList.replaceChildren(...all.slice(0,40).map(x=>{const row=el("div",{class:"row"},el("span",{class:"main"},x.cal?el("span",{class:"src-cal"},x.d>new Date().toISOString()?"Naplánováno":"Kalendář"):null,x.cal?"":x.t),el("span",{class:"d"},fmtDT(x.d)));
+      if(!x.cal){const del=el("button",{type:"button",class:"icon-btn icon-btn--plain logdel","aria-label":"Odstranit záznam",title:"Odstranit záznam"},ico("x"));
+        del.onclick=async()=>{if(!await confirmSheet("Odstranit záznam „"+x.t+"“?",{okLabel:"Odstranit",danger:true}))return;const i=hist.findIndex(h=>h.d===x.d&&h.t===x.t);if(i<0)return;hist.splice(i,1);await save({log:hist.slice()});renderHist()};row.append(del)}
+      return row}))};
+  const hAdd=async(t,extra)=>{if(!t)return false;const at=hAt.value?new Date(hAt.value).toISOString():new Date().toISOString();hist=[...hist,{d:at,t,...(extra||{})}].sort((a,b)=>(a.d||"").localeCompare(b.d||"")).slice(-100);
+    await save({log:hist.slice(),lastContact:at});hAt.value=localDT();renderHist();return true};
+  const hIn=el("input",{placeholder:"Co proběhlo? (nebral, schůzka…)","aria-label":"Zápis kontaktu"});
+  const hBtn=el("button",{type:"button",class:"btn btn--ghost btn--s"},"Zapsat");
+  hBtn.onclick=async()=>{if(await hAdd(hIn.value.trim()))hIn.value=""};hIn.addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();hBtn.click()}});
+  const hNow=el("button",{type:"button",class:"btn btn--ghost btn--s"},"Teď");hNow.onclick=()=>{hAt.value=localDT()};
+  const hNo=el("button",{type:"button",class:"btn btn--secondary"},"Nezvedl"),hYes=el("button",{type:"button",class:"btn btn--secondary"},"Hovor proběhl"),hMsg=el("button",{type:"button",class:"btn btn--secondary msgwide"},"Zpráva");
+  hNo.onclick=()=>{const n=hist.filter(x=>x.call==="no").length+1;hAdd("Nezvedl"+(n>1?" ("+n+". pokus)":""),{call:"no"})};
+  hYes.onclick=()=>hAdd("Hovor proběhl",{call:"yes"});
+  hMsg.onclick=()=>openMsg({name:nm.value.trim()||e.name,phone:ph.value.trim(),email:em.value.trim(),start:null,online:false,place:"",meetId:null,meets:[]},null,r=>hAdd("Poslána zpráva ("+r.ch+"): "+r.tpl,{msg:r.ch}));
+  renderHist();
+  const histBox=el("div",{class:"fg"},el("h3",{class:"sechead"},"Historie kontaktů"),el("div",{class:"group logl"},el("div",{class:"frow"},el("label",{},"Kdy"),hAt,hNow),el("div",{class:"calls"},hNo,hYes,hMsg),hList,el("div",{class:"frow logadd"},hIn,hBtn)));
+  const callA=el("a",{class:"icon-btn",href:"#","aria-label":"Zavolat",title:"Zavolat"},ico("phone"));
+  const syncCall=()=>{const n=(ph.value||"").replace(/[^\d+]/g,"");callA.hidden=n.length<9;if(n)callA.setAttribute("href","tel:"+n)};syncCall();ph.addEventListener("input",syncCall);
   sheetEnter=true;
   const col=(c,...k)=>el("div",{class:"ccol "+c},...k.flat().filter(Boolean));
   openSheet(e.name||"Klient",[col("cc1",
-    el("div",{class:"mhero "+BAND[e.band]},el("span",{class:"avatar big cl-av"},initials(e.name)),el("div",{},el("div",{class:"cl-days"},daysTxt(e)),el("div",{class:"mh-s"},(e.active.length?e.active.length+" "+plural(e.active.length,"aktivní smlouva","aktivní smlouvy","aktivních smluv"):"bez smluv")+(e.lead?" · z pipeline":e.calOnly?" · z kalendáře":"")))),
     fpHero(e,rec),
     fpPlanOf(rec)?el("button",{type:"button",class:"btn btn--secondary",onclick:()=>rvCopy(rec)},ico("link"),"Odkaz na výroční dotazník"):null,
-    el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),nm),el("div",{class:"frow"},el("label",{},"Telefon"),ph),el("div",{class:"frow"},el("label",{},"E-mail"),em),el("div",{class:"frow"},el("label",{},"Adresa"),ad,adM),el("div",{class:"frow"},el("label",{},"Datum narození"),bd),el("div",{class:"frow"},el("label",{},"Poslední schůzka"),lm)),
-    el("div",{class:"group"},el("div",{class:"frow col"},nt))),col("cc2",
-    el("div",{class:"section-head"},el("h3",{},"Produkty")),pwrap,add,
-    el("p",{class:"hint"},"Produkty tady nemají vliv na výdělek – slouží jako přehled smluv. Výjimka: když u ŽP z pipeline označíš zánik, spočítá se storno a odečte se v Obratu."),
-    docSection(e)),col("cc3",
-    meets.length?el("div",{class:"section-head"},el("h3",{},"Schůzky z kalendáře · "+meets.length)):null,
-    meets.length?el("div",{class:"group"},meets.slice(0,12).map(s=>el("div",{class:"row"},el("span",{class:"main"},fmtMeet(s)+" "+s.slice(0,4)),el("span",{class:"end"},s>new Date().toISOString()?"naplánováno":"")))):null,
-    log.length?el("div",{class:"section-head"},el("h3",{},"Historie servisu")):null,
-    log.length?el("div",{class:"group"},log.slice(0,15).map(x=>el("div",{class:"row"},el("span",{class:"main"},x.t),el("span",{class:"end"},fmtDT(x.d))))):null,
+    el("div",{class:"fg"},el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Jméno"),nm),el("div",{class:"frow"},el("label",{},"Telefon"),ph,callA),el("div",{class:"frow"},el("label",{},"E-mail"),em),el("div",{class:"frow"},el("label",{},"Adresa"),ad,adM))),
+    el("div",{class:"fg"},el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Datum narození"),bd),el("div",{class:"frow"},el("label",{},"Poslední schůzka"),lm))),
+    el("div",{class:"mhero "+BAND[e.band]},el("span",{class:"avatar big cl-av"},initials(e.name)),el("div",{},el("div",{class:"cl-days"},daysTxt(e)),el("div",{class:"mh-s"},(e.active.length?e.active.length+" "+plural(e.active.length,"aktivní smlouva","aktivní smlouvy","aktivních smluv"):"bez smluv")+(e.lead?" · z pipeline":e.calOnly?" · z kalendáře":"")))),
+    el("div",{class:"fg lnote"},el("h3",{class:"sechead"},"Poznámky"),el("div",{class:"group"},el("div",{class:"frow col"},nt)))),col("cc2",
+    el("h3",{class:"sechead lhead"},"Produkty"),pwrap,
+    el("div",{id:"addItemWrap"},el("h3",{class:"sechead"},"Přidat produkt"),el("div",{style:"margin:0 4px"},add)),
+    el("p",{class:"hint"},"Produkty tady nemají vliv na výdělek – slouží jako přehled smluv. Výjimka: když u ŽP z pipeline označíš zánik, spočítá se storno a odečte se v Obratu.")),col("cc3",
+    histBox,
+    docSection(e),
     e.lead?el("div",{class:"group"},el("button",{type:"button",class:"row row-btn",onclick:()=>{$("edDlg").close();openEdit(e.lead)}},el("span",{class:"main"},"Otevřít lead v pipeline"),chev()),
       !e.lead.shared&&!SIGNED(e.lead.stage)&&!(e.lead.items||[]).length?el("button",{type:"button",class:"row row-btn",title:"Výroční schůzka bez novinek: lead zmizí z pipeline, historie se přenese ke klientovi",onclick:async()=>{if(await leadToClients(e.lead))$("edDlg").close()}},ico("undo"),el("span",{class:"main"},el("div",{class:"t"},"Bez novinek – uzavřít lead"),el("div",{class:"s"},"lead zmizí z pipeline, historie zůstane u klienta"))):null):null,
     ...duchClientSection(e,rec),
