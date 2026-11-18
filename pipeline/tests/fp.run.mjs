@@ -1557,6 +1557,9 @@ tests["pojištění: Invalidita a PN do 65 let, nebo automaticky do renty (přep
   await setPlan(page, Object.assign({}, base, { nastaveni: {} })); const a = await get();
   await setPlan(page, Object.assign({}, base, { nastaveni: { poj_do: "renta" } })); const b = await get();
   assert(a && b, "katastrofy v modelu"); assert(b.roky > a.roky, "do renty je horizont delší než do 65 let (" + a.roky.toFixed(1) + " → " + b.roky.toFixed(1) + ")"); assert(a.kr && !b.kr, "příznak zkrácení smlouvy jen u „do 65“");
+  await setPlan(page, Object.assign({}, base, { renta: { mesicne: 30000, od_veku: 60 }, nastaveni: { poj_do: "65" } })); const c = await get();
+  await setPlan(page, Object.assign({}, base, { renta: { mesicne: 30000, od_veku: 60 }, nastaveni: { poj_do: "renta" } })); const d = await get();
+  assert(c.roky > d.roky + 3, "při rentě od 60 let a volbě „do 65“ se počítá do 65, ne do začátku renty (" + c.roky.toFixed(1) + " vs " + d.roky.toFixed(1) + ")");
   const ui = await page.evaluate(() => { for (let i = 0; i < 12; i++) { STEP = i; try { renderEditor(); } catch (e) {} if (document.querySelector('#ed select[data-p="nastaveni.poj_do"]')) return true; } return false; }); assert(ui, "volba „Invalidita a PN do“ v editoru");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
