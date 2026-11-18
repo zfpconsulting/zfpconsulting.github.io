@@ -4278,7 +4278,7 @@ function renderClients(){
   const qq=norm(cliQ);
   const list=E.filter(e=>(!qq||norm(e.name).includes(qq)||(e.phone||"").replace(/\s/g,"").includes(cliQ.replace(/\s/g,"")))&&CLI_F[cliFilter](e))
     .sort((a,b)=>(b.products.length>0)-(a.products.length>0)||surnameOf(a.name).localeCompare(surnameOf(b.name),"cs"));
-  $("cliList").replaceChildren(...(list.length?list.slice(0,cliShow).map(e=>docDecor(e,el("button",{type:"button",class:"row row-btn crow",onclick:()=>openClient(e)},
+  $("cliList").replaceChildren(...(list.length?list.slice(0,cliShow).map(e=>docDecor(e,el("button",{type:"button",class:"row row-btn crow",onclick:()=>openClientCard(e)},
       el("span",{class:"avatar"+(e.products.length?" av-on":" av-off")},initials(e.name)),
       el("span",{class:"main"},el("div",{class:"t"},e.name,e.prospect?el("span",{class:"chip chip--tag chip--accent ctag"},"v pipeline · "+e.prospect):e.calOnly?el("span",{class:"chip chip--tag ctag"},"z kalendáře"):null),
         el("div",{class:"s"},[e.phone?fmtPhone(e.phone):null,e.since?(isClient(e)?"klient od ":"první schůzka ")+fmtDate(e.since)+" "+e.since.slice(0,4):null,e.meetCount?e.meetCount+" "+plural(e.meetCount,"schůzka","schůzky","schůzek"):null].filter(Boolean).join(" · ")||"bez údajů"),
@@ -4305,7 +4305,7 @@ function srvCard(e){
   const lastLog=(e.rec?.log||[]).slice(-1)[0], on=!!e.rec&&callQIds().includes(e.rec.id);
   return docDecor(e,el("article",{class:"scard"+" card "+BAND[e.band]+(e.snooze?" snoozed":"")},
     el("div",{class:"sc-top"},el("span",{class:"avatar sc-av"},initials(e.name)),
-      el("div",{class:"main"},el("button",{type:"button",class:"sc-name",onclick:()=>openClient(e)},e.name),el("div",{class:"sc-days"},daysTxt(e))),
+      el("div",{class:"main"},el("button",{type:"button",class:"sc-name",onclick:()=>openClientCard(e)},e.name),el("div",{class:"sc-days"},daysTxt(e))),
       el("button",{type:"button",class:"icon-btn"+(on?" icon-btn--primary":""),title:on?"V dnešním volacím bloku – klepnutím odebereš":"Přidat do dnešního volacího bloku","aria-label":on?"Odebrat z volacího bloku":"Přidat do volacího bloku","aria-pressed":String(on),onclick:()=>callQToggle(e)},ico(on?"check":"plus"))),
     el("div",{class:"sc-meta"},e.last?"Poslední schůzka "+fmtDate(e.last)+" "+e.last.slice(0,4):"Bez schůzky v kalendáři",e.products.length?" · "+e.active.length+" "+plural(e.active.length,"smlouva","smlouvy","smluv"):"",e.snooze?" · odloženo do "+fmtDate(e.snooze):"",lastLog?" · "+lastLog.t+" "+fmtDate(lastLog.d.slice(0,10)):""),
     el("div",{class:"sc-acts"},
@@ -4449,6 +4449,8 @@ function dmyParse(t){const s=String(t||"").trim();const r=/^(\d{1,2})\s*[.\/\-\s
   return y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0")}
 function dmyMask(t){const d=String(t).replace(/\D/g,"").slice(0,8);let o=d.slice(0,2);if(d.length>=2)o+=".";if(d.length>2)o+=d.slice(2,4);if(d.length>=4)o+=".";if(d.length>4)o+=d.slice(4,8);return o}
 function dmyLive(t){t=String(t).replace(/\.{2,}/g,".");if(/[^\d.]/.test(t)||/(^|\.)\d\./.test(t))return t;const m=dmyMask(t.replace(/\D/g,""));return m.length>=t.length?m:t}
+/* záložka Klienti: klik otevře stejný náhled jako karta v pipeline (openEdit leadu); klient bez leadu (jen z kalendáře / ručně zapsaný) má původní detail klienta */
+function openClientCard(e){const l=e.lead||(e.rec?leadsOfClient(e.rec)[0]:null);if(l)openEdit(l);else openClient(e)}
 function openClient(e0){
   const e=clientEntries().find(x=>x.id===e0.id||(e0.rec&&x.rec?.id===e0.rec.id))||e0;
   let rec=e.rec;
