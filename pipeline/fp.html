@@ -319,7 +319,7 @@ const PROD_IDX = Object.fromEntries(PRODUKTY.map(p => [p.k, p]));
 const DEFAULT_SET = { inflace: 0.03, hotovost_nom: 0.02, renta_let: 20, doziti: 85, renta_r: 0.045, dip_strop: 4000, dip_extra: 0, dps_nom: 0.07, v_bu: 0, v_term: 0.04, v_ss: 0.02, v_pp: 0.01, v_opf: 0.05, v_etf: 0.09, v_akcie: 0.09, dan: 0.15, smrt_nasobek: 3,
   prac_inv1: 0.5, prac_inv2: 0.3, dluh_mix: 0.5, cq_mgmt: 0.01, cq_success: 0.05, auv_tarif: "M", eur_kurz: 24.5,
   akc_prod: "cq_akc", dluh_p1: "zfpi", dluh_p2: "cq_dluh", dip_prod: "cq_dip",
-  nn_smrt: "klesajici", nn_inv: "klesajici", poj_do: "65" };
+  nn_smrt: "klesajici", nn_inv: "klesajici", poj_do: "65", renta_nepracuje: true };
 const PP = "Penzijní připojištění (PP)", DPS = "Doplňkové penzijní spoření (DPS)", DPS_OLD = "Penzijní připojištění (DPS)";
 /* stávající DIP (vázaný do 60 let) a produkty, na které může přispívat zaměstnavatel */
 const DIPT = "Dlouhodobý investiční produkt (DIP)", ZPT = "Životní pojištění (ŽP)", ZAMP = [DPS, PP, DIPT, ZPT];
@@ -1693,7 +1693,7 @@ function compute0(inp, today, ext) {
     const hMain = persons[Math.min(Math.max(0, nnHlavniIdx(inp)), persons.length - 1)] || persons[0];
     const konecSml = new Date(hMain.nar.getFullYear() + 65, hMain.nar.getMonth(), hMain.nar.getDate());
     /* S.poj_do: "65" = pojištění invalidity/PN končí nejdéle v 65 letech, "renta" = automaticky až do začátku renty / státního důchodu */
-    const pojRenta = S.poj_do === "renta", konecInv = pojRenta ? konec : konecSml, smlKrati = !pojRenta && konecSml < konec;
+    const pojRenta = S.poj_do === "renta", konecInv = pojRenta ? konec : (S.renta_nepracuje !== false && konec < konecSml ? konec : konecSml), smlKrati = !pojRenta && konecSml < konec;
     const roky = Math.max(0, yearsBetween(today, konecInv));
     /* invalidita I./II. st.: zbylý výdělek jako % dnešního – u osoby vlastní %, jinak z nastavení; „nebude pracovat“ = 0 %; III. st. vždy 0 */
     const invSt = st => { const prac = !p.invPrace || st === 3 ? 0 : Math.min(1, Math.max(0, st === 1 ? (p.pracInv1 ?? S.prac_inv1) : (p.pracInv2 ?? S.prac_inv2))), duch = st === 1 ? p.inv1 : st === 2 ? p.inv2 : p.inv3;
@@ -2267,7 +2267,7 @@ function renderEditor(){
    <div class="hint mt" id="pojCmp">${pojCmpTxt(R)}</div>
    ${[["klient",I.klient]].concat(I.partner&&I.partner.zapnuto?[["partner",I.partner]]:[]).map(([k,o])=>`<label class="chk"><input type="checkbox" class="switch" role="switch" data-p="${k}.koop_zzs" ${get(I,k+".koop_zzs")?"checked":""}> ${esc((o&&o.jmeno)||k)}: Kooperativa – splněný dotazník na zdravý životní styl (−5 % na smrt a invaliditu)</label>`).join("")}
    <div class="g"><label class="chk full"><input type="checkbox" class="switch" role="switch" data-p="nastaveni.poj_prijem" ${(I.nastaveni||{}).poj_prijem?"checked":""}> Pojištění dorovnává celkový příjem (místo výdajů s finančním plánem)</label>
-   ${sel("Smrt","nastaveni.nn_smrt",[["klesajici","klesající PČ do 65 let"],["konstantni","konstantní PČ do 65 let"],["kratsi","konstantní, kratší doba (do konce závislosti)"]])}${sel("Invalidita","nastaveni.nn_inv",[["klesajici","klesající PČ"],["konstantni","konstantní PČ"]])}${sel("Invalidita a PN do","nastaveni.poj_do",[["65","do 65 let"],["renta","automaticky do renty / důchodu"]])}<p class="hint full">Od začátku čerpání renty klient přestává pracovat, takže mu končí výdělek, který invalidita a PN nahrazují. „Automaticky do renty“ proto končí pojištění v den začátku renty (nebo státního důchodu). „Do 65 let“ drží pojištění do 65 let vždy, i když renta začíná dřív.</p>
+   ${sel("Smrt","nastaveni.nn_smrt",[["klesajici","klesající PČ do 65 let"],["konstantni","konstantní PČ do 65 let"],["kratsi","konstantní, kratší doba (do konce závislosti)"]])}${sel("Invalidita","nastaveni.nn_inv",[["klesajici","klesající PČ"],["konstantni","konstantní PČ"]])}${sel("Invalidita a PN do","nastaveni.poj_do",[["65","do 65 let"],["renta","automaticky do renty / důchodu"]])}<label class="chk full"><input type="checkbox" class="switch" role="switch" data-p="nastaveni.renta_nepracuje" ${(I.nastaveni||{}).renta_nepracuje!==false?"checked":""}> Od začátku renty klient nepracuje (invalidita a PN končí začátkem renty, i když je před 65 lety)</label><p class="hint full">Od začátku čerpání renty klient přestává pracovat, takže mu končí výdělek, který invalidita a PN nahrazují. „Automaticky do renty“ proto končí pojištění v den začátku renty (nebo státního důchodu). „Do 65 let“ drží pojištění do 65 let vždy, i když renta začíná dřív.</p>
 </div>
    ${KOOPI(I)?"":[["klient",I.klient]].concat(I.partner&&I.partner.zapnuto?[["partner",I.partner]]:[]).map(([k,o])=>{const A=window.NNRS?NNRS.osoba(o||{}):null,au=v=>v?(v>=5?"UW – posoudí NN (počítám 4)":String(v)):"1 (nic nezadáno)";
     return `<div class="hint mt"><b>${esc((o&&o.jmeno)||k)}</b></div>
