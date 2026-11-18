@@ -1502,6 +1502,37 @@ tests["pojištění dorovnává výdaje s finančním plánem (výchozí) nebo c
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+/* ---- dlouhá nemoc: stát + pojištění + rezerva (jiná barva) na slidu sociální vs. pojištění; poslední slide: splnění cílů na prvním místě ---- */
+tests["dlouhá nemoc: pruh stát + pojištění + rezerva (jiná barva, dokryje výdaje); Co tím získáte začíná splněním cílů"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, { klient: { jmeno: "Jan Novák", narozen: "1986-05-05", zam: 55000, vydaje_osobni: 52000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 75000 }, partner: { zapnuto: false }, deti: [], motivace: "x",
+    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 3200 } } });
+  const o = await page.evaluate(() => { compute(); const f = FR.filter(x => x.g === "soc0"), last = f[f.length - 1].h; const e = document.createElement("div"); e.innerHTML = last;
+    const rb = e.querySelector('[data-k="rb20"]'); const w = rb ? parseFloat(rb.style.width) : 0, bg = rb ? rb.style.background : "";
+    const z = FR.find(x => x.g === "z"); return { n: f.length, w, bg, txt: e.textContent.replace(/ /g, " "), gains: z.gains.map(g => g[0]), bad: /Infinity|NaN|undefined/.test(last) }; });
+  eq(o.n, 3, "stále 3 snímky"); assert(o.w > 20, "rezerva má v pruhu šířku (" + o.w + ")"); assert(/e8e8e8|232, 232, 232/.test(o.bg), "rezerva jinou barvou: " + o.bg);
+  assert(/\+ rezerva/.test(o.txt), "popisek rezervy: " + o.txt.slice(-200)); assert(!o.bad, "bez Infinity / NaN");
+  assert(/Splnění cílů/.test(o.gains[0]), "první bod „Co tím získáte“: " + o.gains.join(" | "));
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+/* ---- Extra DIP: pevná částka navíc nad cíle, z cash flow, hlídá strop ---- */
+tests["extra DIP: pevná měsíční částka navíc ubírá z cash flow, sloučí se do trvalého příkazu DIP, hlídá strop 4 000"] = async function () {
+  const { ctx, page, errors } = await open();
+  const base = { klient: { jmeno: "Jan Novák", narozen: "1986-05-05", zam: 70000, vydaje_osobni: 35000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 95000 }, partner: { zapnuto: false }, deti: [], motivace: "x",
+    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 800000 }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 1500 } } };
+  await setPlan(page, Object.assign({}, base, { nastaveni: {} }));
+  const a = await page.evaluate(() => { compute(); return { cf: R.cfZbyva, dip: R.pozice.filter(p => p.dip).reduce((s, p) => s + p.mesicne, 0), tot: R.pozice.reduce((s, p) => s + p.mesicne, 0), x: R.dipX || 0 }; });
+  await setPlan(page, Object.assign({}, base, { nastaveni: { dip_extra: 2000 } }));
+  const b = await page.evaluate(() => { compute(); return { cf: R.cfZbyva, dip: R.pozice.filter(p => p.dip).reduce((s, p) => s + p.mesicne, 0), tot: R.pozice.reduce((s, p) => s + p.mesicne, 0), x: R.dipX }; });
+  eq(b.x, 2000, "extra DIP 2 000 se použije"); assert(Math.abs((a.cf - b.cf) - 2000) < 1.5, "cash flow klesne o 2 000 (" + a.cf + " → " + b.cf + ")"); assert(Math.abs((b.tot - a.tot) - 2000) < 120, "trvalé příkazy celkem +2 000 (" + a.tot + " → " + b.tot + ")"); assert(b.dip <= 4001, "DIP v příkazech v rámci stropu (" + b.dip + ")");
+  await setPlan(page, Object.assign({}, base, { nastaveni: { dip_extra: 9000 } }));
+  const c = await page.evaluate(() => { compute(); return { x: R.dipX, dip: R.pozice.filter(p => p.dip).reduce((s, p) => s + p.mesicne, 0), kont: (R.kontrola || []).filter(k => !k.ok).map(k => k.t) }; });
+  eq(c.x, 4000, "nad strop se ořízne na 4 000"); assert(c.dip <= 4000 + 1, "celkové DIP v příkazech nepřekročí strop (" + c.dip + ")");
+  const ui = await page.evaluate(() => { STEP = 5; renderEditor(); return !!document.querySelector('#ed input[data-p="nastaveni.dip_extra"]'); }); assert(ui, "pole „Extra DIP“ v Nastavení");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests).filter(([n])=>n.includes(process.env.F||""))) {
   const t0 = Date.now();
