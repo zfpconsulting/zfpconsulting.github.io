@@ -1771,12 +1771,16 @@ function compute0(inp, today, ext) {
   const volba = (inp.pojisteni || {}).pojistovna || "auto", POJ_NAZEV = { nn: "NN Orange Risk", koop: "Kooperativa FLEXI", uniqa: "UNIQA Život & radost", allianz: "Allianz ŽIVOT", generali: "Generali Bel Mondo 20", csob: "ČSOB Náš život", cpp: "ČPP NEON Life" };
   const flP = { nn: [], koop: [], uniqa: [], allianz: [], generali: [], csob: [], cpp: [] };
   const vse = { nn: Object.assign(nnSmlouva(inp, katastrofy, deti, S, today, flP.nn), { pojistovna: "nn" }), koop: koopSmlouva(inp, katastrofy, deti, S, today, flP.koop), uniqa: uniqaSmlouva(inp, katastrofy, deti, S, today, flP.uniqa), allianz: allianzSmlouva(inp, katastrofy, deti, S, today, flP.allianz), generali: generaliSmlouva(inp, katastrofy, deti, S, today, flP.generali), csob: csobSmlouva(inp, katastrofy, deti, S, today, flP.csob), cpp: cppSmlouva(inp, katastrofy, deti, S, today, flP.cpp) };
-  const lze = x => x.kompletni && x.celkem > 0, poradi = Object.keys(vse).filter(k => lze(vse[k])).sort((a, b) => vse[a].celkem - vse[b].celkem);
+  const lze = x => x.kompletni && x.celkem > 0; let /* s „Splňuje FitSport“ se pořadí (automatický výběr nejlevnější pojišťovny) řídí cenou po slevě – NN Program Fit Sport, Kooperativa zdravý životní styl */
+  cenaPoj = { nn: vse.nn.celkem, koop: vse.koop.celkem };
+  if ((inp.pojisteni || {}).splnuje_fit) { try { if (lze(vse.nn) && !nnFitOf(inp)) { const f = nnSmlouva(inp, katastrofy, deti, S, today, [], "sport"); if (lze(f)) cenaPoj.nn = f.celkem; }
+    if (lze(vse.koop)) { const f = koopSmlouva(inp, katastrofy, deti, S, today, [], true); if (lze(f)) cenaPoj.koop = f.celkem; } } catch (e) {} }
+  const cenaP = k => cenaPoj[k] != null ? cenaPoj[k] : vse[k].celkem, poradi = Object.keys(vse).filter(k => lze(vse[k])).sort((a, b) => cenaP(a) - cenaP(b));
   const vyber = vse[volba] ? volba : poradi[0] || "nn";
   const nn = vse[vyber], nnAlts = poradi.filter(k => k !== vyber).map(k => vse[k]), nnAlt = nnAlts[0] || Object.keys(vse).filter(k => k !== vyber).map(k => vse[k])[0];
   const koop = vyber === "koop", nnN = vse.nn, nnK = vse.koop;
   nn.volba = volba; flags.push(...flP[vyber]);
-  if (volba === "auto" && poradi.length > 1) flags.push(`Pojištění: nejlevnější vychází ${POJ_NAZEV[vyber]} (${Math.round(nn.celkem)} Kč) – ${nnAlts.map(x => `${POJ_NAZEV[x.pojistovna]} ${Math.round(x.celkem)} Kč`).join(", ")} měsíčně.`);
+  if (volba === "auto" && poradi.length > 1) flags.push(`Pojištění: nejlevnější vychází ${POJ_NAZEV[vyber]} (${Math.round(cenaP(vyber))} Kč) – ${nnAlts.map(x => `${POJ_NAZEV[x.pojistovna]} ${Math.round(cenaP(x.pojistovna))} Kč`).join(", ")} měsíčně${(inp.pojisteni || {}).splnuje_fit ? " (nn a Kooperativa se slevou FitSport)" : ""}.`);
   /* varianta se slevou za zdraví: NN = Program Fit Sport u hlavního pojištěného, Kooperativa = sleva za zdravý životní styl (dotazník) u dospělých; slide hned za modelací */
   const nnFit = ["uniqa", "allianz", "generali", "csob", "cpp"].includes(vyber) ? null : koop ? (nnK.osoby.filter(o => !o.dite).every(o => o.zzs) || !nnK.sleva ? null : koopSmlouva(inp, katastrofy, deti, S, today, [], true))
     : nnFitOf(inp) ? null : nnSmlouva(inp, katastrofy, deti, S, today, [], "sport");

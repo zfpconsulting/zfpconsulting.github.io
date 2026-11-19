@@ -1670,6 +1670,15 @@ tests["přechody: uvnitř tématu (stejná skupina) přibude nový obsah s efekt
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
+tests["automatický výběr pojišťovny s „Splňuje FitSport“ porovnává ceny po slevě (NN / Kooperativa)"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, RODINA_FIT({ pojistovna: "auto" }));
+  const a = await page.evaluate(() => { compute(); return { v: R.nn.pojistovna, alts: (R.nnAlts || []).map(x => [x.pojistovna, x.celkem]), c: R.nn.celkem }; });
+  await setPlan(page, RODINA_FIT({ pojistovna: "auto", splnuje_fit: true }));
+  const b = await page.evaluate(() => { compute(); return { v: R.nn.pojistovna, fit: R.fitPlan, plan: R.pojNove, flag: (R.flags || []).filter(x => /nejlevnější/.test(x)) }; });
+  assert(a.v && b.v, "pojišťovna vybrána"); assert(b.flag.every(x => /FitSport/.test(x)), "poznámka o výběru uvádí ceny se slevou: " + b.flag.join(""));
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests).filter(([n])=>n.includes(process.env.F||""))) {
   const t0 = Date.now();
