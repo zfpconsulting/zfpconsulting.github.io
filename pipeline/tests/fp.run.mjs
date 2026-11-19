@@ -379,16 +379,16 @@ tests["slide sociální vs. pojištění: 3 animované snímky hned za modelací
     const idx = FR.map((f, i) => [f.g, i]).filter(x => /^soc\d$/.test(x[0]));
     const zp0 = FR.map(f => f.g).lastIndexOf("zp0"), s0 = FR.map((f, i) => f.g === "soc0" ? i : -1).filter(i => i >= 0);
     return { groups: [...new Set(idx.map(x => x[0]))], n0: s0.length, nextToZp: s0[0] === zp0 + 1, last: t(FR[s0[s0.length - 1]].h), first: t(FR[s0[0]].h), bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl),
-      keys: s0.map(i => [...FR[i].h.matchAll(/data-k="(sb00|sb01|sb02|ib00|sum)"/g)].map(m => m[1]).join(",")), lbl: FR[s0[0]].lbl }; });
-  eq(o.groups, ["soc0", "soc1"], "slide pro každou osobu"); eq(o.n0, 3, "3 snímky = animace karty → stát → + pojištění"); assert(o.nextToZp, "slide je hned za slidy s modelací ŽP (včetně varianty FitSport)");
+      keys: s0.map(i => [...FR[i].h.matchAll(/data-k="(sb00|sb01|sb02|ib00|sum)"/g)].map(m => m[1]).join(",")), lbl: FR[s0[0]].lbl, alt: !!R.varAlt }; });
+  eq(o.groups, ["soc0", "soc1"], "slide pro každou osobu"); eq(o.n0, o.alt ? 6 : 3, "3 snímky = animace karty → stát → + pojištění (u obou variant pojištění 2× 3)"); assert(o.nextToZp, "slide je hned za slidy s modelací ŽP (včetně varianty FitSport)");
   assert(/5 320/.test(o.first) && /7,1 %/.test(o.first), "sociální pojistné = 7,1 % z hrubé 75 000 = 5 320 Kč");
   assert(/Stát\s+20 000 Kč/.test(o.last) && /pojištění/.test(o.last), "poslední snímek ukazuje dávku státu i doplatek pojištění");
   assert(!/majetku/i.test(o.lbl), "popisek bez „majetku“"); eq(o.bad, [], "bez Infinity / NaN"); assert(o.keys.every(k => k === "sb00,ib00,sb01,sb02,sum"), "stejné animované prvky ve všech snímcích (" + o.keys.join(" | ") + ")");
   const osvc = { klient: { jmeno: "Petr Svoboda", narozen: "1990-03-03", zam: 0, podnik: 70000, vydaje_osobni: 45000, starobni: 20000, inv1: 6000, inv2: 10000, inv3: 18000, bez_partnera: true }, partner: { zapnuto: false }, deti: [], motivace: "x",
     majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 150000 }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 2500 } } };
   await setPlan(page, osvc);
-  const p = await page.evaluate(() => { compute(); const e = document.createElement("div"), f = FR.filter(x => x.g === "soc0"); e.innerHTML = f[f.length - 1].h; return { n: f.length, t: e.textContent.replace(/ /g, " ") }; });
-  eq(p.n, 3, "OSVČ má také 3 snímky"); assert(/odhad/.test(p.t) && !/7,1 %/.test(p.t), "OSVČ: částka je označená jako odhad, bez sazby zaměstnance"); assert(/OSVČ bez nemocenského/.test(p.t), "OSVČ nemá nemocenskou");
+  const p = await page.evaluate(() => { compute(); const e = document.createElement("div"), f = FR.filter(x => x.g === "soc0"); e.innerHTML = f[f.length - 1].h; return { n: f.length, alt: !!R.varAlt, t: e.textContent.replace(/ /g, " ") }; });
+  eq(p.n, p.alt ? 6 : 3, "OSVČ má také 3 snímky (na variantu pojištění)"); assert(/odhad/.test(p.t) && !/7,1 %/.test(p.t), "OSVČ: částka je označená jako odhad, bez sazby zaměstnance"); assert(/OSVČ bez nemocenského/.test(p.t), "OSVČ nemá nemocenskou");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
@@ -462,7 +462,7 @@ tests["NN Orange Risk: dospělí mají vždy TNÚ PREMIUM 1 mil., pojistné do k
   assert(r.kon.every(([t, k]) => k === 65), "bez TNÚ se rizika prodlouží na maximum (65)"); assert(r.dk >= 100, "pojistné do konce smlouvy ≥ 100 Kč");
   await setPlan(page, { klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 40000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 75000 }, partner: { zapnuto: false },
     deti: [], majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 200000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }], cile: [], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: "" }, pojistovna: "nn" } });
-  const o = await page.evaluate(() => { compute(); const zi = FR.map((f, i) => [f.g, f.lbl, i]).filter(x => x[0] === "zp0" && !/ – (celkový příjem|výdaje s plánem)$/.test(x[1])); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
+  const o = await page.evaluate(() => { compute(); const zi = FR.map((f, i) => [f.g, f.lbl, i]).filter(x => x[0] === "zp0" && !/ – (celkový příjem|výdaje s plánem)/.test(x[1])); const t = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/[  ]/g, " "); };
     return { n: zi.length, lbl: zi.map(x => x[1]), t: zi.map(x => t(FR[x[2]].h)), logo: zi.every(x => FR[x[2]].h.includes(NN_LOGO)), base: R.nn.celkem, fit: R.nnFit && R.nnFit.celkem, poj: R.pojNove }; });
   eq(o.n, 2, "modelace + hned za ní varianta FitSport"); assert(/FitSport/.test(o.lbl[1]), "druhý snímek je FitSport");
   assert(o.fit < o.base, "s FitSport je pojistné nižší (" + o.fit + " < " + o.base + ")"); eq(o.poj, o.base, "do plánu jde pojistné bez FitSport");
@@ -689,7 +689,7 @@ tests["pojistné za osobu: SOCKO, modelace i realizace jen za danou osobu; hlavn
     deti: [{ jmeno: "Ema", narozen: "2019-02-01" }], motivace: "x", majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 450000 }], uvery: [{ nazev: "Hypotéka", zustatek: 3000000, splatka: 18000 }], cile: [], renta: { mesicne: 0 }, pojisteni: { stavajici: 0, navrh: 0 } };
   await setPlan(page, rodina);
   const t = await page.evaluate(() => { compute(); const tx = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/\s+/g, " "); };
-    const soc = g => { const f = FR.filter(x => x.g === g); return tx(f[f.length - 1].h); };
+    const soc = g => { const f = FR.filter(x => x.g === g); return tx(f[2].h); /* 3. snímek = hlavní varianta pojištění (další 3 patří druhé variantě) */ };
     return { hl: R.nn.hlavni, auto: R.pojAuto, po: R.pojOs, lbl: FR.map(f => f.lbl), soc0: soc("soc0"), soc1: soc("soc1"), real: tx(FR.find(f => f.lbl === "Realizace").h), zp1: tx(FR.find(f => f.lbl === "ŽP Karel").h),
       smtv: R.nn.dospeli.map(o => o.rizika.some(r => r.tarif === "SMTV-P2R")) }; });
   eq(t.hl, 1, "hlavní pojištěný je muž (partner Karel), i když klientkou je Jana"); eq(t.smtv, [true, true], "konstantní smrt: u hlavního aspoň povinné minimum, u druhého pojištěného 1× roční příjem");
@@ -1249,7 +1249,7 @@ tests["úmrtí (metodika VK): renta, kterou by pozůstalý potřeboval na všech
   await setPlan(page, { klient: { jmeno: "Adam Test", narozen: "1986-01-01", zam: 80000, hruba: 110000, inv1: 14000, inv2: 19000, inv3: 33000, vdovsky: 19100, sirotci: 16200, starobni: 32000, vydaje_osobni: 60000 },
     partner: { zapnuto: true, jmeno: "Eva Testová", narozen: "1988-01-01", zam: 40000, hruba: 55000, vdovsky: 14400, sirotci: 12500, inv1: 11000, inv2: 14000, inv3: 24000, vydaje_osobni: 40000 },
     deti: [{ jmeno: "A", narozen: (y - 10) + "-01-01" }], majetek: [{ typ: "Spořicí účet", hodnota: 500000 }], uvery: [], cile: [] });
-  const s = await page.evaluate(() => { const L = FR.filter(f => /^soc0/.test(f.g)).map(f => f.h); return { n: L.length, lanes: /dnes–20\d\d/.test(L[2] || ""), konec: (L[1] || "").includes("dávky skončily"), ins: /\+[0-9]+ %/.test(L[2] || "") }; });
+  const s = await page.evaluate(() => { const L = FR.filter(f => /^soc0/.test(f.g)).map(f => f.h); return { n: L.length / (R.varAlt ? 2 : 1), lanes: /dnes–20\d\d/.test(L[2] || ""), konec: (L[1] || "").includes("dávky skončily"), ins: /\+[0-9]+ %/.test(L[2] || "") }; });
   eq(s, { n: 3, lanes: true, konec: true, ins: true }, "SOCKO: posun pojistky u úmrtí dnes a po skončení dávek");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
@@ -1509,7 +1509,7 @@ tests["dlouhá nemoc: pruh stát + pojištění + rezerva (jiná barva, dokryje 
     majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 3200 } } });
   const o = await page.evaluate(() => { compute(); const f = FR.filter(x => x.g === "soc0"), last = f[f.length - 1].h; const e = document.createElement("div"); e.innerHTML = last;
     const rb = e.querySelector('[data-k="rb20"]'); const w = rb ? parseFloat(rb.style.width) : 0, bg = rb ? rb.style.background : "";
-    const z = FR.find(x => x.g === "z"); return { n: f.length, w, bg, txt: e.textContent.replace(/ /g, " "), gains: z.gains.map(g => g[0]), bad: /Infinity|NaN|undefined/.test(last) }; });
+    const z = FR.find(x => x.g === "z"); return { n: f.length / (R.varAlt ? 2 : 1), w, bg, txt: e.textContent.replace(/ /g, " "), gains: z.gains.map(g => g[0]), bad: /Infinity|NaN|undefined/.test(last) }; });
   eq(o.n, 3, "stále 3 snímky"); assert(o.w > 20, "rezerva má v pruhu šířku (" + o.w + ")"); assert(/e8e8e8|232, 232, 232/.test(o.bg), "rezerva jinou barvou: " + o.bg);
   assert(/\+ rezerva/.test(o.txt), "popisek rezervy: " + o.txt.slice(-200)); assert(!o.bad, "bez Infinity / NaN");
   assert(/Splnění cílů/.test(o.gains[0]), "první bod „Co tím získáte“: " + o.gains.join(" | "));
@@ -1562,6 +1562,111 @@ tests["pojištění: Invalidita a PN do 65 let, nebo automaticky do renty (přep
   assert(c.roky > d.roky + 3, "při rentě od 60 let a volbě „do 65“ se počítá do 65, ne do začátku renty (" + c.roky.toFixed(1) + " vs " + d.roky.toFixed(1) + ")");
   await setPlan(page, Object.assign({}, base, { renta: { mesicne: 30000, od_veku: 60 }, nastaveni: { poj_do: "65" } })); const e = await get(); assert(e.roky < c.roky - 3, "výchozí: po začátku renty klient nepracuje, pojištění končí začátkem renty (" + e.roky.toFixed(1) + ")");
   const ui = await page.evaluate(() => { for (let i = 0; i < 12; i++) { STEP = i; try { renderEditor(); } catch (e) {} if (document.querySelector('#ed select[data-p="nastaveni.poj_do"]') && document.querySelector('#ed input[data-p="nastaveni.renta_nepracuje"]')) return true; } return false; }); assert(ui, "volba „Invalidita a PN do“ v editoru");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+/* ---- FitSport v plánu, FitSport po obou variantách pojištění, SOCKO pro obě varianty ---- */
+const RODINA_FIT = (poj) => ({ klient: { jmeno: "Jan Novák", narozen: "1989-05-05", zam: 55000, vydaje_osobni: 52000, vydaje_dom: 44000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, vdovsky: 9000, sirotci: 7000, bez_partnera: false, hruba: 75000 },
+  partner: { zapnuto: true, jmeno: "Eva Nováková", narozen: "1991-02-02", zam: 38000, starobni: 18000, inv1: 6000, inv2: 9000, inv3: 15000, vdovsky: 9000, sirotci: 7000, hruba: 52000 },
+  deti: [{ jmeno: "Anička", narozen: "2018-04-01", vs: false }], motivace: "x", majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 300000 }], uvery: [{ nazev: "Hypotéka", zustatek: 2500000, splatka: 15000 }],
+  cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: Object.assign({ zivotni: { stav: 0, navrh: "" }, pojistovna: "nn" }, poj || {}) });
+const FITGRAB = () => { compute(); const al = R.varAlt, tx = h => { const e = document.createElement("div"); e.innerHTML = h; return e.textContent.replace(/\s+/g, " "); };
+  const zp0 = FR.filter(f => f.g === "zp0"), soc0 = FR.filter(f => f.g === "soc0");
+  return { fitPlan: R.fitPlan, poj: R.pojNove, base: R.nn.celkem, fit: R.nnFit && R.nnFit.celkem, altBase: al && al.nn.celkem, altFit: al && al.nnFit && al.nnFit.celkem,
+    pojOs: R.pojOs.celkem, pojOsBase: R.pojOsBase.celkem, pojOsDosp: R.pojOs.dosp, altPlan: al && al.pojOsPlan.celkem, altBaseOs: al && al.pojOs.celkem, altFitOs: al && al.pojOsFit && al.pojOsFit.celkem,
+    lbl: zp0.map(f => f.lbl), titles: zp0.map(f => tx(f.h).slice(0, 90)), nSoc: soc0.length, socLbl: soc0.map(f => f.lbl), socT: soc0.map(f => tx(f.h)),
+    flag: (R.flags || []).filter(x => /^FitSport/.test(x)), bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; };
+tests["FitSport: po modelaci obou variant (dokrytí výdajů i příjmů) je slide s FitSport; bez „Splňuje FitSport“ jde do plánu cena bez slevy"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, RODINA_FIT());
+  const a = await page.evaluate(FITGRAB);
+  assert(a.altBase > 0 && a.altFit > 0, "obě varianty mají modelaci i FitSport (" + a.altBase + " / " + a.altFit + ")");
+  eq(a.lbl.length, 4, "modelace + FitSport, druhá varianta + FitSport"); assert(/FitSport/.test(a.lbl[1]) && !/FitSport/.test(a.lbl[0]), "FitSport hned za 1. modelací: " + a.lbl.join(" | "));
+  assert(/FitSport/.test(a.lbl[3]) && !/FitSport/.test(a.lbl[2]) && /(celkový příjem|výdaje s plánem)$/.test(a.lbl[2]), "FitSport hned za 2. modelací (druhá varianta): " + a.lbl.join(" | "));
+  assert(a.fit < a.base && a.altFit < a.altBase, "FitSport je levnější v obou variantách");
+  assert(/příjmu|výdajů/.test(a.titles[1]) && /příjmu|výdajů/.test(a.titles[3]), "nadpisy FitSport slidů říkají, které dokrytí: " + a.titles[1] + " | " + a.titles[3]);
+  eq(a.fitPlan, false, "bez volby se FitSport do plánu nepočítá"); eq(a.poj, a.base, "do plánu jde cena bez slevy"); eq(a.flag, [], "bez volby žádná poznámka o FitSport v plánu"); eq(a.bad, [], "bez Infinity / NaN");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["„Splňuje FitSport“ v nastavení pojištění: do plánu jde pojistné se slevou (cash flow, pojistné po osobách, SOCKO obou variant, slidy modelace)"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, RODINA_FIT());
+  const a = await page.evaluate(FITGRAB);
+  await setPlan(page, RODINA_FIT({ splnuje_fit: true }));
+  const b = await page.evaluate(FITGRAB);
+  eq(b.fitPlan, true, "FitSport se počítá do plánu"); assert(b.poj > 0 && Math.abs(b.poj - b.fit) <= 1, "do cash flow jde pojistné se slevou: " + b.poj + " vs " + b.fit); assert(b.poj < a.poj, "plán je levnější o slevu (" + a.poj + " → " + b.poj + ")");
+  eq(b.base, a.base, "cena bez slevy se nemění"); assert(b.pojOs < b.pojOsBase && Math.abs(b.pojOs - b.fit) <= 2, "pojistné po osobách v plánu je se slevou: " + b.pojOs + " | bez slevy " + b.pojOsBase);
+  assert(b.flag.length === 1 && b.flag[0].includes(String(Math.round(b.fit))), "poznámka o FitSport v plánu: " + b.flag.join(""));
+  assert(b.altPlan < b.altBaseOs && Math.abs(b.altPlan - b.altFitOs) <= 2, "SOCKO / realizace druhé varianty počítá s FitSport: " + b.altPlan + " < " + b.altBaseOs);
+  eq(b.lbl.length, 4, "slidy modelace zůstávají 4 (cena bez slevy → s FitSport u obou variant)"); assert(/výdaje s plánem|celkový příjem/.test(b.titles[2]) || /s plánem|příjmu/.test(b.titles[2]), "druhá varianta nadpisem: " + b.titles[2]);
+  eq(b.nSoc, 6, "SOCKO: 3 snímky pro každou variantu pojištění");
+  assert(/pojištění dorovnává (celkový příjem|výdaje s plánem)/.test(b.socT[0]) && /pojištění dorovnává (celkový příjem|výdaje s plánem)/.test(b.socT[3]), "SOCKO snímky označují variantu: " + b.socT[0].slice(0, 160));
+  assert(b.socLbl[0] !== b.socLbl[3] && /celkový příjem|výdaje s plánem/.test(b.socLbl[0] + b.socLbl[3]), "popisky SOCKO se liší podle varianty: " + b.socLbl.join(" | "));
+  const k = v => v.toLocaleString("cs-CZ").replace(/\s/g, " ");
+  assert(b.socT[2].includes(k(b.pojOsDosp[0]) + " Kč/měs"), "SOCKO 1. varianty: pojistné osoby se slevou " + k(b.pojOsDosp[0]));
+  eq(b.bad, [], "bez Infinity / NaN");
+  /* přepínač je v nastavení pojištění a ukládá se do plánu */
+  const ui = await page.evaluate(() => { for (let i = 0; i < 14; i++) { STEP = i; try { renderEditor(); } catch (e) {} const c = document.querySelector('#ed input[data-p="pojisteni.splnuje_fit"]'); if (c) return { ok: true, on: c.checked, type: c.type }; } return { ok: false }; });
+  assert(ui.ok && ui.type === "checkbox", "v nastavení pojištění je zaškrtávátko „Splňuje FitSport“"); eq(ui.on, true, "zaškrtnuté podle plánu");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+tests["„Splňuje FitSport“: Kooperativa počítá zdravý životní styl −5 %; pojišťovny bez slevy ho do plánu nepočítají a plán to oznámí"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, RODINA_FIT({ pojistovna: "koop", splnuje_fit: true }));
+  const k = await page.evaluate(FITGRAB);
+  if (k.fit != null) { eq(k.fitPlan, true, "Kooperativa: zdravý životní styl do plánu"); assert(k.fit < k.base && k.fit >= k.base * 0.9 && Math.abs(k.poj - k.fit) <= 1, "Kooperativa −5 % (cca): " + k.base + " → " + k.fit + ", plán " + k.poj); }
+  await setPlan(page, RODINA_FIT({ pojistovna: "uniqa", splnuje_fit: true }));
+  const u = await page.evaluate(FITGRAB);
+  eq(u.fitPlan, false, "UNIQA slevu za FitSport nemá → do plánu se nepočítá"); eq(u.poj, u.base, "UNIQA: plán s cenou bez slevy");
+  eq(u.bad, [], "bez Infinity / NaN"); eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+/* ---- finanční majetek ve vyváženém portfoliu: 50 % akcie / 50 % dluhopisy v rámci produktu ---- */
+tests["majetek: „Vyvážené portfolio“ (50 % akcie / 50 % dluhopisy v produktu) se v struktuře nyní i po realokaci rozdělí napůl, jinak podle typu"] = async function () {
+  const { ctx, page, errors } = await open();
+  const mk = sl => ({ klient: { jmeno: "Jan Novák", narozen: "1986-05-05", zam: 55000, vydaje_osobni: 40000, starobni: 22000, inv1: 8000, inv2: 12000, inv3: 20000, bez_partnera: true, hruba: 75000 }, partner: { zapnuto: false }, deti: [], motivace: "x",
+    majetek: [{ typ: "Spořicí účet", nazev: "S", hodnota: 100000 }, { typ: "Fond", nazev: "Smíšený fond", hodnota: 400000, slozeni: sl, akce: "ponechat" }], uvery: [], cile: [{ nazev: "Auto", castka: 400000, za_let: 3 }], renta: { mesicne: 0, od_veku: "" }, pojisteni: { zivotni: { stav: 0, navrh: 3200 } } });
+  const get = () => page.evaluate(() => { compute(); const t = R.struktura.ted, n = R.struktura.nove; return { ted: t.map(Math.round), nove: n.map(Math.round), bad: FR.filter(f => /Infinity|NaN|undefined/.test(f.h.replace(/<style[\s\S]*?<\/style>/g, ""))).map(f => f.lbl) }; });
+  await setPlan(page, mk("")); const a = await get();
+  await setPlan(page, mk("vyvazene")); const b = await get();
+  assert(a.ted[0] === 400000 || a.ted[1] === 400000 || a.ted[0] + a.ted[1] === 400000, "bez volby fond spadá do jedné třídy podle typu: " + a.ted.join("/"));
+  eq(b.ted[0] + b.ted[1], a.ted[0] + a.ted[1], "součet akcie + dluhopisy se nemění"); eq(b.ted[2], a.ted[2], "hotovost se nemění");
+  assert(Math.abs((b.ted[0] - a.ted[0]) + (b.ted[1] - a.ted[1])) <= 1, "přesun mezi akciemi a dluhopisy, ne mimo ně");
+  eq(b.ted[0] - a.ted[0] + b.ted[1] - a.ted[1], 0, "akcie a dluhopisy dohromady stejné");
+  assert(b.ted[0] >= 200000 - 1 && b.ted[1] >= 200000 - 1, "vyvážený fond: aspoň 200 000 v akciích a 200 000 v dluhopisech (" + b.ted.join("/") + ")");
+  assert(Math.abs(b.ted[0] - b.ted[1] - (a.ted[0] - a.ted[1] - (a.ted[0] > a.ted[1] ? 400000 : -400000))) <= 1, "fond je rozdělen přesně 50 / 50");
+  assert(b.nove[0] >= 200000 - 1 && b.nove[1] >= 200000 - 1, "po realokaci ponechaný vyvážený fond dál 50 / 50 (" + b.nove.join("/") + ")");
+  eq(b.bad, [], "bez Infinity / NaN");
+  /* editor: pole „Složení produktu“ je u majetku a ukládá se */
+  const ui = await page.evaluate(() => { for (let i = 0; i < 14; i++) { STEP = i; try { renderEditor(); } catch (e) {} const s = document.querySelector('#ed select[data-p="majetek.1.slozeni"]'); if (s) return { ok: true, v: s.value, opts: [...s.options].map(o => o.value) }; } return { ok: false }; });
+  assert(ui.ok && ui.opts.includes("vyvazene"), "u majetku je volba složení produktu"); eq(ui.v, "vyvazene", "uložená volba se v editoru zobrazí");
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
+
+/* ---- přechody mezi slidy: efekty jen uvnitř jednoho tématu, mezi tématy jen prolnutí ---- */
+tests["přechody: uvnitř tématu (stejná skupina) přibude nový obsah s efektem a světelný přejezd, mezi tématy jen prolnutí; úprava vstupu efekt nespouští"] = async function () {
+  const { ctx, page, errors } = await open();
+  await setPlan(page, RODINA_FIT());
+  const r = await page.evaluate(async () => { compute();
+    const idx = (g, n) => FR.map((f, i) => [f.g, i]).filter(x => x[0] === g)[n][1], sleep = ms => new Promise(r => setTimeout(r, ms)), st = document.querySelector("#stage"),
+      sw = () => st.querySelectorAll(".sweep").length, tin = () => st.querySelectorAll(".tin").length;
+    update(); const out = {};
+    cur = idx("zp0", 0); update(); await sleep(50); cur = idx("zp0", 1); show(st, cur); await sleep(60);
+    out.sameSweep = sw(); out.sameTin = tin(); out.sameCls = [...st.querySelectorAll(".tin")].map(e => e.className.replace(/\s+/g, " ")).slice(0, 3);
+    await sleep(1400); out.sweepGone = sw();
+    cur = idx("zp0", 2); show(st, cur); await sleep(60); const fx1 = [...st.querySelectorAll(".tin")].map(e => e.className.match(/tin\d/)[0])[0] || "";
+    cur = idx("zp0", 1); show(st, cur); await sleep(60); out.backSweep = !!st.querySelector(".sweep") && st.querySelector(".sweep").classList.contains("back"); out.fxChange = fx1 !== ([...st.querySelectorAll(".tin")].map(e => e.className.match(/tin\d/)[0])[0] || "");
+    await sleep(1400);
+    const g2 = FR.findIndex((f, i) => i > cur && f.g !== FR[cur].g); cur = g2; show(st, cur); await sleep(60);
+    const nw = [...st.querySelectorAll(".sl")].pop(); out.crossSweep = nw.querySelectorAll(".sweep").length; out.crossTin = nw.querySelectorAll(".tin").length; out.crossLeave = st.querySelectorAll(".sl.leave,.sl.enter").length;
+    await sleep(900); cur = idx("soc0", 0); update(); out.updSweep = sw(); out.updTin = tin();
+    out.reduced = typeof matchMedia === "function"; out.slCount = st.querySelectorAll(".sl").length;
+    return out; });
+  assert(r.sameSweep >= 1 && r.sameTin >= 1, "uvnitř skupiny: světelný přejezd i nový obsah s efektem (" + r.sameSweep + " / " + r.sameTin + ")");
+  assert(r.sameCls.every(c => /tin tin[012]/.test(c)), "efekt náběhu je jeden ze tří: " + r.sameCls.join(" | ")); eq(r.sweepGone, 0, "přejezd se po animaci odstraní z DOM");
+  assert(r.backSweep, "při přechodu zpět jede přejezd opačně"); assert(r.fxChange, "efekt se mezi přechody střídá");
+  eq([r.crossSweep, r.crossTin], [0, 0], "mezi tématy žádný přejezd ani efekt – jen prolnutí"); assert(r.crossLeave >= 1, "mezi tématy běží prolnutí (enter/leave)");
+  eq([r.updSweep, r.updTin], [0, 0], "překreslení po úpravě vstupu efekty nespouští"); assert(r.slCount === 1, "po přechodech zůstává ve scéně jeden slide");
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
