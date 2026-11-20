@@ -5588,7 +5588,7 @@ const TPL_DEF=[{id:"potvrzeni",name:"Potvrzení schůzky",text:"Dobrý den, {osl
   {id:"rezervace",name:"Rezervace schůzky",text:"Dobrý den, {osloveni}, termín konzultace si můžete vybrat zde: {rezervace}. Stačí zvolit den, čas a jestli se potkáme osobně, nebo online. Děkuji a těším se.\n{podpis}"},
   {id:"nezvedl",name:"Nezvedl – dotaz na nabídku",text:"Dobrý den, {osloveni},\n\npoté, co jsem Vám zaslal nabídku, se mi Vás opakovaně nedaří zastihnout. Moje kapacita je omezená, proto potřebuji vědět, zda máte zájem pokračovat. Stačí mi do pátku odepsat ano, ne, nebo termín krátkého hovoru. Pokud se neozvete, budu záležitost považovat za uzavřenou.\n\nS pozdravem,\nVojtěch Kudlička"},
   {id:"nezvedl2",name:"Nezvedl – uzavření",text:"Dobrý den, {osloveni}, protože jsem se Vám nedovolal, beru to tak, že teď nabídku řešit nechcete, a nebudu Vás dál obtěžovat. Nabídka zůstává k dispozici, kdykoli se ozvěte a navážeme.\n{podpis}"},
-  {id:"vyroci",name:"Výroční schůzka",text:"Dobrý den, {osloveni},\n\nuž je to {odKonzultace} od naší poslední konzultace. Abych měl jistotu, že jsou Vaše produkty stále aktuální a v souladu s Vaším finančním plánem, rád bych se s Vámi domluvil na výroční konzultaci. Zabere zhruba 45 minut.\n\nTermín, který Vám nejvíc vyhovuje, si prosím zvolte zde (osobně i online): {rezervace}\n\nDěkuji a přeji hezký den.\n\nS pozdravem,\nVojtěch Kudlička"},
+  {id:"vyroci",name:"Výroční schůzka",text:"Dobrý den, {osloveni},\n\nuž je to {odKonzultace} od naší poslední konzultace. Abych měl jistotu, že jsou Vaše produkty stále aktuální a v souladu s Vaším finančním plánem, rád bych se s Vámi domluvil na výroční konzultaci. Zabere zhruba 45 minut.\n\nTermín, který Vám nejvíc vyhovuje, si prosím zvolte v odkazu níže (osobně i online). Děkuji a přeji hezký den.\n\nS pozdravem,\nVojtěch Kudlička\n\n{rezervace}"},
   {id:"narozeniny",name:"Přání k narozeninám",text:"Dobrý den, {osloveni}, chtěl bych Vám popřát vše nejlepší k narozeninám – hodně zdraví, štěstí a pohody.\n{podpis}"}];
 /* e-mail k potvrzení schůzky má vlastní šablonu (předmět + text), zvlášť osobně a online – upravuje se v nastavení pod Šablonami zpráv.
    Končí termínem s místem (osobně) nebo odkazem na Google Meet (online); bez vizitky, poděkování a podpisu. */
@@ -5606,6 +5606,8 @@ function tpls(){let L=settings.tpls&&settings.tpls.length?settings.tpls:TPL_DEF;
   if(L!==TPL_DEF)L=L.concat(TPL_DEF.filter(d=>(d.id==="nezvedl"||(!settings.tplNezvedl&&/^nezvedl/.test(d.id))||(d.id==="vyroci"&&!settings.tplVyroci))&&!L.some(t=>t.id===d.id)));
   /* první verze šablony „Nezvedl“ (před finálním zněním) se přepíše novým výchozím textem, pokud ji nikdo neupravil */
   L=L.map(t=>t.id==="nezvedl"&&/^Dobrý den, \{osloveni\}, zkoušel jsem se Vám dovolat/.test(t.text||"")?{...t,text:TPL_DEF.find(d=>d.id==="nezvedl").text,name:TPL_DEF.find(d=>d.id==="nezvedl").name}:t);
+  /* první verze „Výroční schůzky“ měla odkaz uprostřed – Zprávy na iPhonu ukážou náhled jen u odkazu na konci, tak se přepíše novým výchozím textem */
+  L=L.map(t=>t.id==="vyroci"&&/si prosím zvolte zde \(osobně i online\): \{rezervace\}/.test(t.text||"")?{...t,text:TPL_DEF.find(d=>d.id==="vyroci").text}:t);
   return L.map(t=>OLD_MEET_RE.test(t.text||"")?{...t,text:t.text.replace(OLD_MEET_RE,"Zde Vám zasílám odkaz pro připojení: {meet}.")}:t)}
 /* ================= Google Meet odkaz k online schůzce ================= */
 const MEET_PH="[odkaz na Google Meet se generuje…]";

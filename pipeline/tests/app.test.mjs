@@ -718,6 +718,12 @@ export default {
     const r = await page.evaluate(() => { const T = tpls().find(t => t.id === "vyroci");
       return [!!T, ...["Jan Dvouletý", "Petr Pětiletý", "Eva Čerstvá", "Nikdo Neznámý"].map(n => /už je to (.+?) od naší/.exec(fillTpl(T.text, { name: n }))[1])] });
     eq(r, [true, "2 roky", "5 let", "rok", "rok"], "šablona je v nabídce a doba od schůzky sedí (min. rok)");
+    /* odkaz na rezervaci musí být na úplném konci zprávy, jinak Zprávy na iPhonu neukážou náhled (logo, obrázek) */
+    const txt = await page.evaluate(() => fillTpl(tpls().find(t => t.id === "vyroci").text, { name: "Jan Dvouletý" }));
+    assert(/\n\nS pozdravem,\nVojtěch Kudlička\n\n\S+$/.test(txt) && !/\n\s*$/.test(txt) && /\S+$/.exec(txt)[0].startsWith("http") || /\[odkaz na rezervaci/.test(txt), "odkaz je až za podpisem, na konci: " + txt.slice(-80));
+    /* už uložená první verze (odkaz uprostřed) se přepíše */
+    const mig = await page.evaluate(() => { settings.tpls = [{ id: "vyroci", name: "Výroční schůzka", text: "Dobrý den, {osloveni}, si prosím zvolte zde (osobně i online): {rezervace}\n\nDěkuji." }]; return /\{rezervace\}$/.test(tpls().find(t => t.id === "vyroci").text); });
+    assert(mig, "stará verze šablony se přepíše");
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
