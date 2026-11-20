@@ -708,6 +708,19 @@ export default {
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
+  async "šablona Výroční schůzka: {odKonzultace} = celé roky od poslední schůzky, nejméně rok"(env) {
+    const old = y => new Date(Date.now() - y * 365.25 * 864e5).toISOString();
+    const store = { ...STORE,
+      "leads/v1": { name: "Jan Dvouletý", stage: "podpis", items: [], meetings: [{ id: "m1", start: old(2.4), title: "VK: Dvouletý" }], log: [], _u: 1 },
+      "leads/v2": { name: "Petr Pětiletý", stage: "podpis", items: [], meetings: [{ id: "m2", start: old(5.2), title: "VK: Pětiletý" }], log: [], _u: 1 },
+      "leads/v3": { name: "Eva Čerstvá", stage: "podpis", items: [], meetings: [{ id: "m3", start: old(0.3), title: "VK: Čerstvá" }], log: [], _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store });
+    const r = await page.evaluate(() => { const T = tpls().find(t => t.id === "vyroci");
+      return [!!T, ...["Jan Dvouletý", "Petr Pětiletý", "Eva Čerstvá", "Nikdo Neznámý"].map(n => /už je to (.+?) od naší/.exec(fillTpl(T.text, { name: n }))[1])] });
+    eq(r, [true, "2 roky", "5 let", "rok", "rok"], "šablona je v nabídce a doba od schůzky sedí (min. rok)");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
   async "datum narození ze smlouvy (Databáze) → lead → předvyplněné ve finančním plánu; ruční oprava v Databázi přepíše, jinak ne"(env) {
     const store = { ...STORE, "leads/b2": { name: "Karel Starý", stage: "novy", items: [], meetings: [], log: [], _u: 1 } };
     const { ctx, page, errors } = await openApp(env, { store });

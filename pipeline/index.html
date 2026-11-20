@@ -5588,6 +5588,7 @@ const TPL_DEF=[{id:"potvrzeni",name:"Potvrzení schůzky",text:"Dobrý den, {osl
   {id:"rezervace",name:"Rezervace schůzky",text:"Dobrý den, {osloveni}, termín konzultace si můžete vybrat zde: {rezervace}. Stačí zvolit den, čas a jestli se potkáme osobně, nebo online. Děkuji a těším se.\n{podpis}"},
   {id:"nezvedl",name:"Nezvedl – dotaz na nabídku",text:"Dobrý den, {osloveni},\n\npoté, co jsem Vám zaslal nabídku, se mi Vás opakovaně nedaří zastihnout. Moje kapacita je omezená, proto potřebuji vědět, zda máte zájem pokračovat. Stačí mi do pátku odepsat ano, ne, nebo termín krátkého hovoru. Pokud se neozvete, budu záležitost považovat za uzavřenou.\n\nS pozdravem,\nVojtěch Kudlička"},
   {id:"nezvedl2",name:"Nezvedl – uzavření",text:"Dobrý den, {osloveni}, protože jsem se Vám nedovolal, beru to tak, že teď nabídku řešit nechcete, a nebudu Vás dál obtěžovat. Nabídka zůstává k dispozici, kdykoli se ozvěte a navážeme.\n{podpis}"},
+  {id:"vyroci",name:"Výroční schůzka",text:"Dobrý den, {osloveni},\n\nuž je to {odKonzultace} od naší poslední konzultace. Abych měl jistotu, že jsou Vaše produkty stále aktuální a v souladu s Vaším finančním plánem, rád bych se s Vámi domluvil na výroční konzultaci. Zabere zhruba 45 minut.\n\nTermín, který Vám nejvíc vyhovuje, si prosím zvolte zde (osobně i online): {rezervace}\n\nDěkuji a přeji hezký den.\n\nS pozdravem,\nVojtěch Kudlička"},
   {id:"narozeniny",name:"Přání k narozeninám",text:"Dobrý den, {osloveni}, chtěl bych Vám popřát vše nejlepší k narozeninám – hodně zdraví, štěstí a pohody.\n{podpis}"}];
 /* e-mail k potvrzení schůzky má vlastní šablonu (předmět + text), zvlášť osobně a online – upravuje se v nastavení pod Šablonami zpráv.
    Končí termínem s místem (osobně) nebo odkazem na Google Meet (online); bez vizitky, poděkování a podpisu. */
@@ -5602,7 +5603,7 @@ function isConfTpl(t){return !!t&&t.id!=="zitra"&&(t.id==="potvrzeni"||/potvrz/i
 const OLD_MEET_RE=/Na Vaši (?:e-)?mailovou adresu Vám v den konzultace zašlu\s+odkaz pro připojení\.?/;
 function tpls(){let L=settings.tpls&&settings.tpls.length?settings.tpls:TPL_DEF;
   /* nové výchozí šablony „Nezvedl“ se k uloženým šablonám přidají jednou (po prvním uložení šablon už je lze smazat) */
-  if(L!==TPL_DEF)L=L.concat(TPL_DEF.filter(d=>(d.id==="nezvedl"||(!settings.tplNezvedl&&/^nezvedl/.test(d.id)))&&!L.some(t=>t.id===d.id)));
+  if(L!==TPL_DEF)L=L.concat(TPL_DEF.filter(d=>(d.id==="nezvedl"||(!settings.tplNezvedl&&/^nezvedl/.test(d.id))||(d.id==="vyroci"&&!settings.tplVyroci))&&!L.some(t=>t.id===d.id)));
   /* první verze šablony „Nezvedl“ (před finálním zněním) se přepíše novým výchozím textem, pokud ji nikdo neupravil */
   L=L.map(t=>t.id==="nezvedl"&&/^Dobrý den, \{osloveni\}, zkoušel jsem se Vám dovolat/.test(t.text||"")?{...t,text:TPL_DEF.find(d=>d.id==="nezvedl").text,name:TPL_DEF.find(d=>d.id==="nezvedl").name}:t);
   return L.map(t=>OLD_MEET_RE.test(t.text||"")?{...t,text:t.text.replace(OLD_MEET_RE,"Zde Vám zasílám odkaz pro připojení: {meet}.")}:t)}
@@ -5646,12 +5647,19 @@ function salutation(full){const p=parseName(full);if(p.title)return (p.fem?"pan�
 const DNY_V=["v neděli","v pondělí","v úterý","ve středu","ve čtvrtek","v pátek","v sobotu"];
 const VE_HOURS=new Set([0,2,3,4,12,13,14,20,21,22,23]);
 function timePrep(hour){return VE_HOURS.has(hour)?"ve":"v"}
+/* {odKonzultace}: kolik uplynulo od poslední proběhlé schůzky s člověkem (kalendář, leady) – celé roky dolů, nejméně „rok“ */
+function sinceMeetTxt(name){
+  const now=new Date().toISOString();let last="";
+  try{leads.forEach(l=>{if(l&&l.name&&sameName(l.name,name))(l.meetings||[]).forEach(m=>{if(m.start&&m.start<now&&m.start>last)last=m.start})});
+    calPeople().forEach(p=>{if(sameName(p.name,name))p.meets.forEach(m=>{if(m.start&&m.start<now&&m.start>last)last=m.start})})}catch(e){}
+  const y=last?Math.max(1,Math.floor((Date.now()-new Date(last).getTime())/31557600000)):1;
+  return y===1?"rok":y+" "+plural(y,"rok","roky","let")}
 function fillTpl(text,c){const p=parseName(c.name),d=c.start?new Date(c.start):null,z=n=>String(n).padStart(2,"0");
   const days=d?dDiff(ymd(d),todayStr()):null, zk=days==null?"":days===0?"dnes":days===1?"zítra":days===2?"pozítří":days>0?"za "+days+" dní":"";
   const kde=c.online?" (online)":c.place?" ("+c.place+")":"";
   const casTxt=d?d.getHours()+":"+z(d.getMinutes()):"[čas]";
   const V={osloveni:salutation(c.name),jmeno:p.first,prijmeni:p.sur,den:d?DNY_V[d.getDay()]:"[den]",datum:d?d.getDate()+". "+(d.getMonth()+1)+".":"[datum]",cas:casTxt,vcas:(d?timePrep(d.getHours()):"v")+" "+casTxt,zaKolik:zk,kde,misto:c.online?"online":c.place||"",meet:c.meetLink||(c.online?MEET_PH:"[odkaz – schůzka není online]"),podpis:settings.sign||"",
-    rezervace:dzLinkSync(true)||"[odkaz na rezervaci – přihlas se Googlem]",dotaznik:dzLinkSync(false)||"[odkaz na dotazník – přihlas se Googlem]"};
+    odKonzultace:/\{odKonzultace\}/.test(text)?sinceMeetTxt(c.name):"",rezervace:dzLinkSync(true)||"[odkaz na rezervaci – přihlas se Googlem]",dotaznik:dzLinkSync(false)||"[odkaz na dotazník – přihlas se Googlem]"};
   return text.replace(/\{(\w+)\}/g,(m,k)=>k in V?V[k]:m).replace(/\n\s*$/,"").replace(/ ,/g,",").replace(/ {2,}/g," ")}
 function contactFor(ev){const l=ev?leads.find(l=>(l.meetings||[]).some(m=>m.id===ev.id))||leads.find(l=>evMatches(ev,l)):null;const c=!l?.phone&&ev?clients.find(c=>!c.hidden&&c.phone&&sameSurname(c.calKey||surnameOf(c.name),ev.key)):null;return {lead:l||null,client:c||null,phone:l?.phone||c?.phone||"",email:l?.email||c?.email||"",name:l?.name||c?.name||ev?.name||""}}
 function leadMsgCtx(l,mid){const now=new Date().toISOString(),ms=(l.meetings||[]).filter(x=>x.start&&x.start>=now).sort((a,b)=>a.start.localeCompare(b.start));
@@ -5719,7 +5727,7 @@ function renderMailConf(){const box=$("mailConfList");if(!box)return;
     return el("div",{class:"tpl"},el("b",{style:"font-size:13px;color:var(--ink-2)"},"E-mail – potvrzení "+lbl.toLowerCase()),s,x,
       same?null:el("button",{type:"button",class:"del",style:"color:var(--ink-2)",onclick:()=>{mc[k]={...def};save().then(renderMailConf)}},"Vrátit výchozí text"))}))}
 function renderTpls(){const box=$("tplList");if(!box)return;const list=tpls().map(t=>({...t}));
-  const save=async()=>{try{await db.doc("settings/main").set({...settings,tpls:list,tplNezvedl:true});toast("Šablony uloženy")}catch(e){toast("Nepodařilo se uložit")}};
+  const save=async()=>{try{await db.doc("settings/main").set({...settings,tpls:list,tplNezvedl:true,tplVyroci:true});toast("Šablony uloženy")}catch(e){toast("Nepodařilo se uložit")}};
   box.replaceChildren(...list.map((t,i)=>{const n=el("input",{value:t.name,"aria-label":"Název šablony"});n.value=t.name;n.onchange=()=>{t.name=n.value.trim()||"Šablona";save()};
     const x=el("textarea",{"aria-label":"Text šablony"});x.value=t.text;x.onchange=()=>{t.text=x.value;save()};
     return el("div",{class:"tpl"},n,x,el("button",{type:"button",class:"del",onclick:()=>{list.splice(i,1);save().then(renderTpls)}},"Smazat"))}));
@@ -8718,7 +8726,7 @@ async function updateEurRate(){
     addEventListener("keydown",e=>{if(!(e.metaKey||e.ctrlKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=="z"&&k!=="y")return;
       const a=document.activeElement;if(a&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))return;e.preventDefault();go(k==="y"||e.shiftKey?1:-1)})}
   /* ----- Nastavení: navigace mezi podstránkami uvnitř sheetu ----- */
-  {const vh='<b>{osloveni}</b> (pane inženýre / paní Nováková / pane Nováku), <b>{jmeno}</b>, <b>{prijmeni}</b>, <b>{den}</b> (ve čtvrtek), <b>{datum}</b>, <b>{cas}</b>, <b>{zaKolik}</b> (dnes / zítra / za 3 dny), <b>{kde}</b> (online nebo místo v závorce), <b>{misto}</b> (místo bez závorky – v e-mailu u osobní schůzky Trnitá, když místo není vyplněné), <b>{meet}</b> (odkaz na Google Meet – u online schůzky se vytvoří automaticky), <b>{rezervace}</b> (odkaz, kde si klient sám vybere termín schůzky), <b>{dotaznik}</b> (odkaz na vstupní dotazník), <b>{podpis}</b>. Zprávu pošleš z „Co tě dneska čeká“ nebo z volacího bloku – před odesláním ji ještě můžeš upravit.';
+  {const vh='<b>{osloveni}</b> (pane inženýre / paní Nováková / pane Nováku), <b>{jmeno}</b>, <b>{prijmeni}</b>, <b>{den}</b> (ve čtvrtek), <b>{datum}</b>, <b>{cas}</b>, <b>{zaKolik}</b> (dnes / zítra / za 3 dny), <b>{kde}</b> (online nebo místo v závorce), <b>{misto}</b> (místo bez závorky – v e-mailu u osobní schůzky Trnitá, když místo není vyplněné), <b>{meet}</b> (odkaz na Google Meet – u online schůzky se vytvoří automaticky), <b>{odKonzultace}</b> (rok / 2 roky / 3 roky od poslední schůzky, nejméně rok), <b>{rezervace}</b> (odkaz, kde si klient sám vybere termín schůzky), <b>{dotaznik}</b> (odkaz na vstupní dotazník), <b>{podpis}</b>. Zprávu pošleš z „Co tě dneska čeká“ nebo z volacího bloku – před odesláním ji ještě můžeš upravit.';
     dd.querySelectorAll(".setvars").forEach(x=>x.innerHTML=vh);
     dd.querySelectorAll(".row-btn[data-ic]").forEach(r=>r.prepend(el("span",{class:"setic"},ico(r.dataset.ic))));
     dd.querySelectorAll("[data-go]").forEach(r=>r.addEventListener("click",()=>setNav(r.dataset.go,1)));
