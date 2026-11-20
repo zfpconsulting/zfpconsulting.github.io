@@ -1679,6 +1679,25 @@ tests["automatický výběr pojišťovny s „Splňuje FitSport“ porovnává c
   assert(a.v && b.v, "pojišťovna vybrána"); assert(b.flag.every(x => /FitSport/.test(x)), "poznámka o výběru uvádí ceny se slevou: " + b.flag.join(""));
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
+tests["čistá mzda z OVZ (IOLDP): sleva na poplatníka, děti, úroky z hypotéky, zaokrouhlení na tisíce; ručně zadaná zůstane"] = async () => {
+  const { ctx, page, errors } = await open();
+  const base = await page.evaluate(() => JSON.parse(JSON.stringify(inp())));
+  const zam = async (patch) => { await setPlan(page, patch); return page.evaluate(() => ({ zam: inp().klient.zam, auto: inp().klient.zam_auto, hint: document.querySelector('[data-zam="klient"]')?.textContent || "" })); };
+  /* OVZ 50 000, jedno dítě → 50 000 − 3 550 − 2 250 − 3 663 = 40 537 → 41 000 */
+  let r = await zam({ klient: { ...base.klient, zam: 0, ovz: 50000 } });
+  eq([r.zam, r.auto], [41000, 41000], "čistá z OVZ se slevou na dítě");
+  /* + hypotéka 3 mil. (odhad úroků 150 000 Kč → odpočet) → 42 000 */
+  r = await zam({ klient: { ...base.klient, zam: 0, ovz: 50000 }, uvery: [{ typ: "Hypotéka", nazev: "ČS", zustatek: 3000000, splatka: 16000 }] });
+  eq(r.zam, 42000, "odpočet úroků z hypotéky se započítá");
+  /* ručně zadaná čistá mzda se nepřepíše */
+  r = await zam({ klient: { ...base.klient, zam: 45000, ovz: 50000 }, uvery: [] });
+  eq(r.zam, 45000, "ručně zadanou čistou mzdu appka nemění");
+  assert(/ručně/.test(r.hint) && /41\s?000/.test(r.hint), "hint: " + r.hint);
+  /* hodnota z minula (zam === zam_auto) se při změně OVZ přepočítá */
+  r = await zam({ klient: { ...base.klient, zam: 41000, zam_auto: 41000, ovz: 60000 }, uvery: [] });
+  eq(r.zam > 41000 && r.zam % 1000 === 0, true, "přepočet po změně OVZ, na tisíce: " + r.zam);
+  eq(errors, [], "chyby v konzoli"); await ctx.close();
+};
 let ok = 0, bad = 0;
 for (const [name, fn] of Object.entries(tests).filter(([n])=>n.includes(process.env.F||""))) {
   const t0 = Date.now();

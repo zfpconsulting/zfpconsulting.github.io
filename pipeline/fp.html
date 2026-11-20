@@ -2125,6 +2125,40 @@ const isProdPath=p=>/^nastaveni\.(mixA|mixD|dip_prod)(\.|$)/.test(p||"");
 /* ---------------- editor ---------------- */
 function get(o,p){return p.split(".").reduce((a,k)=>a==null?a:a[k],o)}
 function set(o,p,v){const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null)a[k]={};a=a[k]});a[ks.at(-1)]=v}
+/* ---- čistá mzda z OVZ (hrubý příjem z IOLDP): -7,1 % sociální, -4,5 % zdravotní, daň 15 % po slevách (poplatník, děti vč. bonusu), odpočty (úroky z hypotéky, DPS/DIP/ŽP);
+   zaokrouhleno na tisíce. Doplní se jen do prázdné čisté mzdy nebo do té, kterou předtím vyplnila appka (zam_auto) – ručně přepsanou nechává být. ---- */
+const AUTONET={r:{}};
+function czNetFromGross(g,o){
+  const odp=Math.min(o.urok||0,300000)+Math.min(o.odpocet||0,48000),T=Math.max(0,g*12-odp)*0.15;
+  let tax=Math.max(0,T-30840)-(o.deti||[]).reduce((a,m)=>a+m*12,0);          /* sleva na poplatníka 2 570/měs, děti 1 267 / 1 860 / 2 320 */
+  tax=tax<0?(g>=11200?Math.max(tax,-60300):0):tax;                             /* daňový bonus max 60 300 Kč/rok, jen při dostatečném příjmu */
+  return g-g*0.071-g*0.045-tax/12;
+}
+function autoNetCalc(I){
+  const K=I.klient||{},P=I.partner&&I.partner.zapnuto?I.partner:null,g={klient:+K.ovz>0?+K.ovz:0,partner:P&&+P.ovz>0?+P.ovz:0},out={};
+  if(!g.klient&&!g.partner)return out;
+  const now=Date.now(),kids=(I.deti||[]).map(d=>{const t=Date.parse(d.narozen);if(!t)return null;const age=(now-t)/31557600000;return age>=0&&age<(d.vs?26:18)?t:null}).filter(x=>x!=null).sort((a,b)=>a-b);
+  const kidSl=kids.map((_,i)=>i===0?1267:i===1?1860:2320),kidsTo=g.partner>g.klient?"partner":"klient";
+  const owner=kdo=>kdo==="klient"?{klient:1}:kdo==="partner"&&P?{partner:1}:P?{klient:.5,partner:.5}:{klient:1};   /* „Čí to je“: prázdné = společné napůl */
+  const urok={klient:0,partner:0},odpocet={klient:0,partner:0};
+  (I.uvery||[]).forEach(u=>{if(/^(Hypotéka|Úvěr ze stavebního spoření)$/.test(u.typ||"")){const o=owner(u.kdo),i=(+u.zustatek||0)*0.05;Object.entries(o).forEach(([k,w])=>urok[k]+=i*w)}});   /* odhad ročních úroků: 5 % ze zůstatku */
+  (I.majetek||[]).forEach(a=>{const m=(+a.odpocet||0)*12;if(m>0){const o=owner(a.kdo);Object.entries(o).forEach(([k,w])=>odpocet[k]+=m*w)}});
+  ["klient","partner"].forEach(k=>{if(!g[k])return;const deti=k===kidsTo?kidSl:[],net=czNetFromGross(g[k],{deti,urok:urok[k],odpocet:odpocet[k]});
+    out[k]={gross:g[k],net:Math.round(net/1000)*1000,deti:deti.length,urok:Math.round(urok[k]),odpocet:Math.round(odpocet[k])}});
+  return out;
+}
+function applyAutoNet(){
+  const I=inp(),R=autoNetCalc(I);AUTONET.r=R;let ch=false;
+  ["klient","partner"].forEach(k=>{const p=I[k],r=R[k];if(!p||!r)return;const zam=+p.zam||0,auto=+p.zam_auto||0;
+    if(zam===0||zam===auto){if(zam!==r.net||auto!==r.net){p.zam=r.net;p.zam_auto=r.net;ch=true;
+      const e=document.querySelector(`#ed [data-p="${k}.zam"]`);if(e&&document.activeElement!==e)e.value=fmtIn(r.net)}}});
+  return ch;
+}
+function autoNetHints(){document.querySelectorAll("[data-zam]").forEach(h=>{const k=h.dataset.zam,r=AUTONET.r[k],p=inp()[k];
+  if(!r||!p){h.textContent="";return}
+  const sl=[r.deti?r.deti+" "+(r.deti===1?"dítě":r.deti<5?"děti":"dětí"):"",r.urok?"úroky z hypotéky (odhad)":"",r.odpocet?"odpočty DPS/DIP/ŽP":""].filter(Boolean);
+  h.textContent=(+p.zam||0)===r.net?`Čistá mzda ${kc(r.net)} je dopočtená z hrubé ${kc(r.gross)} (OVZ z IOLDP): sociální 7,1 %, zdravotní 4,5 %, daň 15 % po slevě na poplatníka${sl.length?" a po zohlednění: "+sl.join(", "):""}, zaokrouhleno na tisíce. Když ji přepíšeš, už se nemění.`
+    :`Čistá mzda je zadaná ručně. Z OVZ ${kc(r.gross)} z IOLDP by vyšlo ${kc(r.net)}.`})}
 /* datum narození: píše se ručně (1.5.1990, 01.05.1990, 01051990), ukládá se ISO RRRR-MM-DD */
 const dmyShow=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||"");return m?m[3]+"."+m[2]+"."+m[1]:""};
 function dmyParse(t){const s=String(t||"").trim();let r=/^(\d{1,2})\s*[.\/\-\s]\s*(\d{1,2})\s*[.\/\-\s]\s*(\d{4})$/.exec(s)||/^(\d{2})(\d{2})(\d{4})$/.exec(s);if(!r)return null;
@@ -2154,6 +2188,7 @@ function person(p,t){return `<div class="g">${fld("Titul",p+".titul","text")}${f
  ${fld("Čistý příjem ze zaměstnání",p+".zam")}${fld("Příjem z podnikání (čistý)",p+".podnik")}${fld("Pasivní příjmy",p+".pasiv")}${najemFld(p)}
  ${fld("Roční bonus",p+".bonus")}${spolDom(inp())?"":fld("Výdaje celkem / měs "+(vcetneOf(inp())?"(vč. investic a pojištění)":"(bez investic a pojištění)"),p+".vydaje_osobni")+fld("z toho na domácnost (bydlení, jídlo, děti, splátky)",p+".vydaje_dom","number",'placeholder="prázdné = vše domácnost"')}${fld("Hrubá mzda (pro nemocenskou)",p+".hruba","number",'placeholder="z IOLDP, jinak z čisté"')}</div>
  <div class="hint" data-vs="${p}"></div>
+ <div class="hint" data-zam="${p}"></div>
  <div class="hint mt"><b>Důchody z IOLDP</b> (Kč/měs)</div>
  <div class="g">${fld("Invalidní I. stupně",p+".inv1")}${fld("Invalidní II. stupně",p+".inv2")}${fld("Invalidní III. stupně",p+".inv3")}${fld("Starobní (odhad)",p+".starobni")}${fld("Hrubý příjem z IOLDP (OVZ)",p+".ovz")}${fld("Vdovský / vdovecký",p+".vdovsky")}${fld("Sirotčí (na 1 dítě)",p+".sirotci")}</div>
  <div class="g">${sel("Při invaliditě I. a II. st.",p+".inv_prace",[["","bude dál pracovat (část výdělku)"],["ne","nebude pracovat"]])}${get(inp(),p+".inv_prace")==="ne"?"":pfld("Výdělek při I. st. (% dnešního)",p+".prac_inv1",get(inp(),"nastaveni.prac_inv1")??FPE.DEFAULT_SET.prac_inv1)+pfld("Výdělek při II. st. (% dnešního)",p+".prac_inv2",get(inp(),"nastaveni.prac_inv2")??FPE.DEFAULT_SET.prac_inv2)}</div>
@@ -3445,6 +3480,7 @@ function updateSoon(){if(!upR)upR=requestAnimationFrame(()=>{upR=0;update()})}
 function flushUpdate(){if(upR){cancelAnimationFrame(upR);upR=0;update()}}
 function update(){
   if(upR){cancelAnimationFrame(upR);upR=0}
+  if(applyAutoNet())save();
   compute();if(cur>=FR.length)cur=FR.length-1;
   const st=$("#stage");st.innerHTML="";show(st,cur,false);scaleStage($("#box"),st);
   $("#cnt").textContent=`${cur+1} / ${FR.length} · ${FR[cur].lbl}${FR[cur].skip?" · VYNECHÁN":""}`;$("#skipCur").checked=!!FR[cur].skip;
@@ -3458,6 +3494,7 @@ function update(){
   const mp=$("#motPrev");if(mp&&R)mp.textContent=R.motivace.map(m=>m.t).join(" · ");
   document.querySelectorAll("[data-vs]").forEach(h=>{const q=R&&R.persons[h.dataset.vs==="partner"?1:0];if(!q)return;
     h.textContent=q.vydaje>0?`Osobní výdaje: ${kcm(Math.max(0,q.vydaje-q.vydDom))} – při úmrtí odpadnou. Výdaje domácnosti: ${kcm(q.vydDom)} – zůstanou a krytí smrti je pokrývá.`:""});
+  autoNetHints();
   if($("#pres").classList.contains("on")){const ps=$("#pstage");ps.innerHTML="";show(ps,cur,false)}
   scrRefresh();
 }
