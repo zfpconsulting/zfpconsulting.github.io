@@ -6008,7 +6008,7 @@ function summaryHTML(){
     hodn=`<div class="q"><span>„</span>${esc(I.motivace)}</div><div class="vals">${hv.map(v=>`<div><b>${esc(v.t||"")}</b><small>${esc(v.d||"")}</small></div>`).join("")}</div>`}
   /* KPI */
   const jednor=sum(Q=>Q.pozice.reduce((a,p)=>a+p.jednor,0)),pmt=Math.max(0,sum(Q=>Q.pmtCelkem)-offMes);
-  const kpi=[["Finanční majetek",kc(sum(Q=>Q.majCelkem)),"celý započtený v plánu"],["Volné cash flow",kcm(sum(Q=>Q.cf)),"měsíčně k dispozici"],["Čisté jmění",kc(sum(Q=>Q.jmeni)),"majetek včetně nefinančního − závazky"],["Pravidelně měsíčně",kcm(pmt),"investice z cash flow"+(pojSum>0&&!noIns&&vg(/^(zp\d|deti)$/)?" + pojištění "+kc(pojSum):"")]];
+  const kpi=[["Do plánu použito",kc(sum(Q=>Q.majCelkem)),"veškerý finanční majetek – i to, co zůstává beze změny"],["Volné cash flow",kcm(sum(Q=>Q.cf)),"měsíčně k dispozici"],["Pravidelně měsíčně",kcm(pmt),"investice z cash flow"+(pojSum>0&&!noIns&&vg(/^(zp\d|deti)$/)?" + pojištění "+kc(pojSum):"")]];
   /* cíle a splnění */
   const rows=[];
   parts.forEach(p=>{const Q=p.R,pr=pre(p);
@@ -6059,7 +6059,7 @@ function summaryHTML(){
 .a4s .hd h1{margin:4px 0 2px;font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-.4px}.a4s .hd p{margin:0;color:#b4b4b4;font-style:italic;font-size:11px}.a4s .hd img{width:104px;margin-top:2px}
 .a4s .q{margin:10px 0 6px;font-style:italic;color:#d6d6d6;font-size:10.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.a4s .q span{color:#F37520;font-weight:700;font-size:16px;line-height:0;margin-right:4px}
 .a4s .vals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:2px}.a4s .vals div{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:5px 9px}.a4s .vals b{color:#F37520;font-size:10px;display:block}.a4s .vals small{font-size:8.5px;color:#b4b4b4}
-.a4s .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 4px}.a4s .kp div{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:7px 10px}.a4s .kp span{display:block;color:#b4b4b4;font-size:8.5px}.a4s .kp b{display:block;color:#F37520;font-size:16px;margin:1px 0}.a4s .kp small{font-size:8px;color:#9a9a9a}
+.a4s .kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 4px}.a4s .kp div{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:7px 10px}.a4s .kp span{display:block;color:#b4b4b4;font-size:8.5px}.a4s .kp b{display:block;color:#F37520;font-size:16px;margin:1px 0}.a4s .kp small{font-size:8px;color:#9a9a9a}
 .a4s .sh{display:flex;align-items:center;gap:8px;margin:12px 0 5px}.a4s .sh span{color:#F37520;font-weight:700;font-size:12px;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}.a4s .sh i{flex:1;height:1px;background:#3a3a3a}.a4s .sh b{font-size:10px;color:#cfcfcf;font-weight:700;display:flex;align-items:center;gap:6px}.a4s .sh img{height:20px;background:#fff;border-radius:4px;padding:2px 5px}
 .a4s .gt{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:2px 10px 4px}
 .a4s .gh,.a4s .gr{display:grid;grid-template-columns:1fr 50px 84px 76px 84px 84px 86px;gap:6px;align-items:center}
