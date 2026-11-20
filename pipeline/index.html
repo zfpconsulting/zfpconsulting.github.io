@@ -1269,6 +1269,9 @@ b.acc{color:var(--accent-text)}
     <div id="fpBox"></div>
     <p class="secfoot">Živý finanční plán: upravíš vstupy a prezentace se okamžitě přepočítá. Plán se ukládá ke klientovi (nebo k leadu z pipeline).</p>
   </section>
+  <section id="view_frm" hidden>
+    <div id="frmBox"></div>
+  </section>
   <section id="view_uv" hidden>
     <div id="uvBox"></div>
   </section>
@@ -2249,6 +2252,7 @@ function render(){
   else if(view==="cli"){$("bigTitle").textContent="Klienti";renderClients()}
   else if(view==="cal"){$("bigTitle").textContent="Kalendář";$("sub").textContent="Schůzky z vybraných kalendářů · oranžově volné bloky po 90 min (8:30–19:00)";renderCalTab()}
   else if(view==="fp"){$("bigTitle").textContent="Finanční plán";$("sub").textContent="Živé finanční plány klientů";renderFpTab()}
+  else if(view==="frm"){$("bigTitle").textContent="Formuláře";$("sub").textContent="Žádosti a výpovědi smluv na instituce – klient, instituce, typ žádosti, odkupné; tisk nebo PDF";renderFrm()}
   else if(view==="uv"){$("bigTitle").textContent="Úvěry";$("sub").textContent="Hypotéky a úvěry klientů – dotazník, výběr banky, podklady a průběh až po čerpání";renderUv()}
   else if(view==="net"){$("bigTitle").textContent="Síť";$("sub").textContent=SUB_TITLE.net[1];renderNet()}
   else if(view==="tax"){$("bigTitle").textContent="Daně";renderTax()}
@@ -2290,6 +2294,15 @@ function renderDuch(then){
 }
 /* záložka Úvěry – modul uvery.js se načte až při prvním otevření; případy v kolekci „uvery“, vlastní pravidla bank v „uvcfg“ */
 let uvUI=null,uvLoading=false,uvPending=null;
+let frmUI=null,frmLoading=false;
+function renderFrm(){
+  if(frmUI){frmUI.refreshClients();return}
+  if(frmLoading)return;
+  const go=()=>{frmLoading=false;if(!window.Formulare){$("frmBox").textContent="Záložku Formuláře se nepodařilo načíst – zkontroluj připojení.";return}
+    frmUI=Formulare.mount($("frmBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),birthOf:e=>(e.lead&&leadBirthOf(e.lead.id))||""})};
+  if(window.Formulare)return go();
+  frmLoading=true;const sc=document.createElement("script");sc.src="formulare.js?v=1";sc.onload=go;sc.onerror=go;document.head.append(sc);
+}
 function renderUv(then){
   if(then)uvPending=then;
   const fire=()=>{const t=uvPending;uvPending=null;if(t&&uvUI)t(uvUI)};
@@ -8157,7 +8170,7 @@ function pfClientSection(e,rec){
 /* záložky = skupiny; Kalkulačky (Finanční | Důchodová) a Síť (Tým a nábor | Akvizice) mají podzáložky (.seg pod titulkem).
    Vnitřní klíče pohledů (view = calc/duch/net/akv…) zůstaly, takže pipe_view, #odkazy i moduly fungují beze změny;
    starší uložené pořadí / skrytí s klíči duch a akv se převede na skupinu (viz tabOrder / tabHiddenSet). */
-const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačky"],["cal","Kalendář"],["fp","Finanční plán"],["uv","Úvěry"],["net","Síť"],["tax","Daně"],["pf","Portfolia"],["pp","Sazebník"]];
+const TABS=[["pipe","Pipeline"],["money","Obrat"],["cli","Klienti"],["calc","Kalkulačky"],["cal","Kalendář"],["fp","Finanční plán"],["uv","Úvěry"],["frm","Formuláře"],["net","Síť"],["tax","Daně"],["pf","Portfolia"],["pp","Sazebník"]];
 const TAB_SUBS={calc:[["calc","Finanční"],["duch","Důchodová"]],net:[["net","Tým a nábor"],["akv","Akvizice"]]};
 const VIEW_GROUP={duch:"calc",akv:"net"};
 const tabOf=v=>VIEW_GROUP[v]||v;
@@ -8469,6 +8482,7 @@ const TAB_ICON={
   calc:'<rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8" y="6" width="8" height="3.5" rx="1"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 16.8h.01M12 16.8h.01M15.5 16.8h.01" stroke-width="2.4"/>',
   duch:'<path d="M7 3.5h10M7 20.5h10"/><path d="M8 3.5c0 4.5 4 5.5 4 8.5s-4 4-4 8.5M16 3.5c0 4.5-4 5.5-4 8.5s4 4 4 8.5"/>',
   fp:'<path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5"/><path d="M10 17v-2.5M12.75 17v-4.5M15.5 17v-3"/>',
+  frm:'<rect x="3.5" y="6" width="17" height="12.5" rx="2"/><path d="m4.5 8 7.5 5.5L19.5 8"/>',
   uv:'<path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5v10.5h13V9.5"/><path d="M9.5 17.5l5-5"/><circle cx="10" cy="13" r="1"/><circle cx="14" cy="17" r="1"/>',
   net:'<circle cx="12" cy="5.5" r="2.3"/><circle cx="5.5" cy="18" r="2.3"/><circle cx="18.5" cy="18" r="2.3"/><path d="M12 7.8v4.2M12 12l-5.2 4M12 12l5.2 4"/>',
   tax:'<path d="M6 3.5h12v17l-2.4-1.6-2.4 1.6-1.2-.8-1.2.8-2.4-1.6L6 20.5z"/><path d="M9.5 14.5l5-5"/><circle cx="9.8" cy="9.8" r=".9"/><circle cx="14.2" cy="14.2" r=".9"/>',
@@ -8672,7 +8686,7 @@ if(sv==="srv")sv="cli";
 /* pohled se načte v jeho skupině (Kalkulačky / Síť); „sub_…“ pamatuje poslední podzáložku */
 {let nav="";try{nav=(performance.getEntriesByType("navigation")[0]||{}).type||""}catch(e){}
  const HM={"#vydelek":"money","#obrat":"money","#klienti":"cli","#servis":"cli","#sazebnik":"pp","#sit":"net","#nabor":"net","#tym":"net","#dane":"tax","#akvizice":"akv","#uzivatele":"users","#databaze":"db","#portfolia":"pf",
-   "#kalkulacka":"calc","#kalkulacky":"calc","#duchod":"duch","#duchodova":"duch","#kalendar":"cal","#fp":"fp","#financni-plan":"fp","#uvery":"uv","#pipeline":"pipe"};
+   "#kalkulacka":"calc","#kalkulacky":"calc","#duchod":"duch","#duchodova":"duch","#kalendar":"cal","#fp":"fp","#financni-plan":"fp","#uvery":"uv","#formulare":"frm","#formular":"frm","#pipeline":"pipe"};
  /* odkaz s # platí jen při novém otevření; při obnovení stránky (refresh) zůstane záložka, kde jsi skončil */
  if(HM[location.hash]&&nav!=="reload")sv=HM[location.hash];
  if(location.hash&&!/access_token=|error=/.test(location.hash)){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}}

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 // Testy appky Pipeline – každý test dostane env {browser,url,key} a otevře si vlastní stránku.
 import { openApp, assert, eq } from "./helpers.mjs";
 
-const TABS = ["pipe", "money", "cli", "cal", "fp", "uv", "net", "tax", "akv", "pf", "calc", "duch", "db"];
+const TABS = ["pipe", "money", "cli", "cal", "fp", "uv", "frm", "net", "tax", "akv", "pf", "calc", "duch", "db"];
 const closeDialogs = p => p.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
 const STORE = {
   "settings/main": { manual: {}, sign: "Test", career: { cpts: 30000, cAsOf: "2026-06-15", cBase: 0 }, tabHidden: [], _u: 1 },
@@ -49,6 +49,18 @@ const fbFake = (docs = {}) => async (page, ctx) => {
 const TOK = JSON.stringify({ at: "test-token-123456789012345", exp: Date.now() + 36e5, scope: "calendar.events" });
 
 export default {
+  async "záložka Formuláře: načte se, vezme údaje klienta z karty (adresa, narození) a sestaví výpověď s odkupným"(env) {
+    const { ctx, page, errors } = await openApp(env, { store: { ...STORE, "clients/k1": { name: "Jana Nováková", address: "Květinová 5, 602 00 Brno", birth: "1985-03-07", _u: 1 } } });
+    await page.evaluate(() => setView("frm")); await page.waitForSelector("#frmBox .fl-paper", { timeout: 5000 });
+    assert(await page.evaluate(() => [...document.querySelectorAll("#tabBar button")].some(b => /Formuláře/.test(b.textContent)) || !!document.querySelector("#view_frm")), "záložka existuje");
+    const opt = await page.evaluate(() => [...document.querySelectorAll("#frmBox select")[0].options].map(o => o.textContent));
+    assert(opt.includes("Jana Nováková"), "klient je v nabídce: " + opt.join("|"));
+    await page.selectOption("#frmBox select >> nth=0", { label: "Jana Nováková" });
+    await page.evaluate(() => { const i = document.querySelector("#frmBox input[placeholder=XXXXXXXXXX]"); i.value = "123"; i.dispatchEvent(new Event("input", { bubbles: true })); });
+    const t = await page.evaluate(() => document.querySelector("#frmBox .fl-paper").innerText);
+    assert(t.includes("Květinová 5, 602 00 Brno") && t.includes("nar. 7. 3. 1985") && t.includes("smlouvy č. 123"), "údaje z karty a číslo smlouvy: " + t.slice(0, 300));
+    eq(errors, [], "chyby"); await ctx.close();
+  },
   async "potvrzení e-mailem: vlastní šablona v nastavení (osobně / online), předmět + text, uložení"(env) {
     const { ctx, page, errors } = await openApp(env, { store: { ...STORE, "settings/main": { ...STORE["settings/main"], tpls: [TPL_ONLINE, TPL_MEET] } } });
     const d = inDays(3, 15);
