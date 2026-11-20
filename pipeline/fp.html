@@ -3706,7 +3706,7 @@ function summaryHTML(){
     hodn=`<div class="q"><span>„</span>${esc(I.motivace)}</div><div class="vals">${hv.map(v=>`<div><b>${esc(v.t||"")}</b><small>${esc(v.d||"")}</small></div>`).join("")}</div>`}
   /* KPI */
   const jednor=sum(Q=>Q.pozice.reduce((a,p)=>a+p.jednor,0)),pmt=sum(Q=>Q.pmtCelkem);
-  const kpi=[["Finanční majetek",kc(sum(Q=>Q.majCelkem)),"jde do plánu"],["Volné cash flow",kcm(sum(Q=>Q.cf)),"měsíčně k dispozici"],["Jednorázově do plánu",kc(jednor),"z finančního majetku"],["Pravidelně měsíčně",kcm(pmt),"investice z cash flow"+(R.pojNove>0&&!noIns&&vg(/^(zp\d|deti)$/)?" + pojištění "+kc(R.pojNove):"")]];
+  const kpi=[["Finanční majetek",kc(sum(Q=>Q.majCelkem)),"celý započtený v plánu"],["Volné cash flow",kcm(sum(Q=>Q.cf)),"měsíčně k dispozici"],["Čisté jmění",kc(sum(Q=>Q.jmeni)),"majetek včetně nefinančního − závazky"],["Pravidelně měsíčně",kcm(pmt),"investice z cash flow"+(R.pojNove>0&&!noIns&&vg(/^(zp\d|deti)$/)?" + pojištění "+kc(R.pojNove):"")]];
   /* cíle a splnění */
   const rows=[];
   parts.forEach(p=>{const Q=p.R,pr=pre(p);
@@ -3730,7 +3730,7 @@ function summaryHTML(){
     const keep=[];parts.forEach(p=>(p.R.produkty||[]).filter(x=>!x.novy&&x.zust>0.5).forEach(x=>keep.push(pre(p)+x.nazev+" "+kc(x.zust))));
     const dipM=pos.filter(x=>x.dip).reduce((a,x)=>a+x.mesicne,0),dan=R.S.dan||0.15,capM=R.S.dip_strop||4000;
     invHTML=sec("Investice a produkty")+`<div class="iv"><div><div class="legend">${NM.map((n,i)=>`<span><i style="background:${COL[i]}"></i>${n}</span>`).join("")}</div>${bar("Nyní",ted)}${bar("Nově",nove)}
-      ${keep.length?`<div class="nt" style="margin-top:6px">Ponecháno: ${esc(keep.join(" · "))}</div>`:""}</div>
+      ${keep.length?`<div class="nt" style="margin-top:6px">Ponecháno (v plánu se s tím počítá): ${esc(keep.join(" · "))}</div>`:""}</div>
       <div class="pt"><div class="ph"><span>Produkt</span><span class="r">Jednorázově</span><span class="r">Měsíčně</span></div>${pos.map(x=>`<div class="pr"><span>${esc(x.pre+x.nazev)}</span><span class="r o">${x.jednor>.5?kc(x.jednor):"–"}</span><span class="r o">${x.mesicne>.5?kc(x.mesicne):"–"}</span></div>`).join("")}</div></div>`+
       (dipM>0?`<div class="dip"><b>DIP – dlouhodobý investiční produkt</b><span>${kcm(dipM)} → daňová úspora asi <b>${kc(Math.round(dipM*12*dan))}</b> ročně. Vklady do ${kc(capM*12)} ročně (${kcm(capM)}) si odečtete od základu daně (${Math.round(dan*100)} %).</span></div>`:"")}
   /* pojištění */
@@ -3752,29 +3752,29 @@ function summaryHTML(){
   if(parts.some(p=>p.R.transakce.some(t=>t.bezpoplatku)))Ks.push("Převod penzijního připojištění do DPS");
   const stepsHTML=Ks.length&&vg(/^(z|tx|to)$/)?sec("Další kroky")+`<div class="ks">${Ks.map((k,i)=>`<div><b>${i+1}</b><span>${esc(k)}</span></div>`).join("")}</div>`:"";
   const css=`<style>
-.a4pg{width:210mm;height:297mm;position:relative;overflow:hidden;background:#161616;break-after:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.a4s{position:absolute;left:0;top:0;width:794px;height:1123px;box-sizing:border-box;padding:30px 30px 0;color:#efefef;font-family:Lato,system-ui,sans-serif;font-size:10px;line-height:1.3;background:#161616}
-.a4s *{box-sizing:border-box}.a4s b{font-weight:900}.a4s small{display:block;font-size:8px;color:#9a9a9a;font-weight:400}.a4s .r{text-align:right}.a4s .o{color:#F37520;font-weight:900}
+.a4pg{width:210mm;height:296mm;position:relative;overflow:hidden;background:#161616;break-after:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.a4s{position:absolute;left:0;top:0;width:794px;height:1123px;box-sizing:border-box;padding:30px 30px 0;color:#efefef;font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,"Segoe UI",sans-serif;font-size:10px;line-height:1.45;background:#161616}
+.a4s *{box-sizing:border-box}.a4s b{font-weight:700}.a4s small{display:block;font-size:8px;color:#9a9a9a;font-weight:400}.a4s .r{text-align:right}.a4s .o{color:#F37520;font-weight:700}
 .a4s .cz{zoom:1}.a4s.dn .vals{display:none}.a4s.dn .gr{padding:2.5px 0}.a4s.dn .gr .n small{display:none}.a4s.dn .pr{padding:2px 0}.a4s.dn .ks{gap:3px 14px}.a4s.dn .ir{padding:1px 0}.a4s.dn .kp{margin:8px 0 2px}.a4s.dn .sh{margin:8px 0 4px}.a4s .tp{position:absolute;left:0;top:0;width:100%;height:9px;background:#F37520}
-.a4s .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-top:4px}.a4s .hd .l{color:#F37520;font-weight:900;font-size:10px;letter-spacing:1.2px}
-.a4s .hd h1{margin:4px 0 2px;font-size:30px;line-height:1.08;font-weight:900;letter-spacing:-.4px}.a4s .hd p{margin:0;color:#b4b4b4;font-style:italic;font-size:11px}.a4s .hd img{width:104px;margin-top:2px}
-.a4s .q{margin:10px 0 6px;font-style:italic;color:#d6d6d6;font-size:10.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.a4s .q span{color:#F37520;font-weight:900;font-size:16px;line-height:0;margin-right:4px}
+.a4s .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-top:4px}.a4s .hd .l{color:#F37520;font-weight:700;font-size:10px;letter-spacing:1.2px}
+.a4s .hd h1{margin:4px 0 2px;font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-.4px}.a4s .hd p{margin:0;color:#b4b4b4;font-style:italic;font-size:11px}.a4s .hd img{width:104px;margin-top:2px}
+.a4s .q{margin:10px 0 6px;font-style:italic;color:#d6d6d6;font-size:10.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.a4s .q span{color:#F37520;font-weight:700;font-size:16px;line-height:0;margin-right:4px}
 .a4s .vals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:2px}.a4s .vals div{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:5px 9px}.a4s .vals b{color:#F37520;font-size:10px;display:block}.a4s .vals small{font-size:8.5px;color:#b4b4b4}
 .a4s .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 4px}.a4s .kp div{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:7px 10px}.a4s .kp span{display:block;color:#b4b4b4;font-size:8.5px}.a4s .kp b{display:block;color:#F37520;font-size:16px;margin:1px 0}.a4s .kp small{font-size:8px;color:#9a9a9a}
-.a4s .sh{display:flex;align-items:center;gap:8px;margin:12px 0 5px}.a4s .sh span{color:#F37520;font-weight:900;font-size:12px;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}.a4s .sh i{flex:1;height:1px;background:#3a3a3a}.a4s .sh b{font-size:10px;color:#cfcfcf;font-weight:700;display:flex;align-items:center;gap:6px}.a4s .sh img{height:20px;background:#fff;border-radius:4px;padding:2px 5px}
+.a4s .sh{display:flex;align-items:center;gap:8px;margin:12px 0 5px}.a4s .sh span{color:#F37520;font-weight:700;font-size:12px;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}.a4s .sh i{flex:1;height:1px;background:#3a3a3a}.a4s .sh b{font-size:10px;color:#cfcfcf;font-weight:700;display:flex;align-items:center;gap:6px}.a4s .sh img{height:20px;background:#fff;border-radius:4px;padding:2px 5px}
 .a4s .gt{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:2px 10px 4px}
 .a4s .gh,.a4s .gr{display:grid;grid-template-columns:1fr 50px 84px 76px 84px 84px 86px;gap:6px;align-items:center}
 .a4s .gh{padding:6px 0 4px;color:#b4b4b4;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}.a4s .gh .r{text-align:right}
 .a4s .gr{padding:5px 0;border-top:1px solid #2c2c2c;font-size:10px}.a4s .gr .n b{font-size:11px;display:block}.a4s .gr .c{text-align:center}
-.a4s .pb{position:relative;height:15px;border-radius:8px;background:#2c2c2c;overflow:hidden}.a4s .pb i{position:absolute;left:0;top:0;bottom:0;background:#F37520;border-radius:8px}.a4s .pb em{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;font-size:9px;color:#fff}
+.a4s .pb{position:relative;height:15px;border-radius:8px;background:#2c2c2c;overflow:hidden}.a4s .pb i{position:absolute;left:0;top:0;bottom:0;background:#F37520;border-radius:8px}.a4s .pb em{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:700;font-size:9px;color:#fff}
 .a4s .nt{font-size:8px;color:#8a8a8a;margin-top:4px}
 .a4s .iv{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;align-items:start}
 .a4s .legend{display:flex;gap:12px;color:#b4b4b4;font-size:9px;margin-bottom:6px}.a4s .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
-.a4s .ab{display:flex;align-items:center;gap:8px;margin-bottom:6px}.a4s .ab>span{width:30px;color:#b4b4b4;font-size:9px}.a4s .ab>div{flex:1;display:flex;height:22px;border-radius:5px;overflow:hidden;background:#2c2c2c}.a4s .ab i{display:flex;align-items:center;justify-content:center;color:#161616;font-weight:900;font-size:9px;font-style:normal}
+.a4s .ab{display:flex;align-items:center;gap:8px;margin-bottom:6px}.a4s .ab>span{width:30px;color:#b4b4b4;font-size:9px}.a4s .ab>div{flex:1;display:flex;height:22px;border-radius:5px;overflow:hidden;background:#2c2c2c}.a4s .ab i{display:flex;align-items:center;justify-content:center;color:#161616;font-weight:700;font-size:9px;font-style:normal}
 .a4s .pt{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:2px 10px 4px}.a4s .ph,.a4s .pr{display:grid;grid-template-columns:1fr 80px 84px;gap:6px}.a4s .ph{padding:5px 0 3px;color:#b4b4b4;font-size:8px;font-weight:700;text-transform:uppercase}.a4s .pr{padding:4px 0;border-top:1px solid #2c2c2c;font-size:9.5px}
 .a4s .dip{margin-top:7px;border:1px solid #F37520;background:rgba(243,117,32,.1);border-radius:8px;padding:6px 10px;font-size:9.5px;display:flex;gap:10px;align-items:baseline}.a4s .dip>b{color:#F37520;white-space:nowrap}.a4s .dip span b{color:#F37520}
-.a4s .ig{display:grid;gap:8px}.a4s .ic{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:6px 9px}.a4s .ih{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding-bottom:4px;margin-bottom:2px;border-bottom:1px solid #F37520}.a4s .ih b{font-size:10.5px}.a4s .ih span{color:#F37520;font-weight:900;font-size:10px;white-space:nowrap}
-.a4s .ir{display:flex;justify-content:space-between;gap:6px;padding:2px 0;font-size:8.6px;color:#d6d6d6}.a4s .ir span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.a4s .ir b{white-space:nowrap;color:#F37520}
+.a4s .ig{display:grid;gap:8px}.a4s .ic{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:6px 9px}.a4s .ih{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding-bottom:4px;margin-bottom:2px;border-bottom:1px solid #F37520}.a4s .ih b{font-size:10.5px}.a4s .ih span{color:#F37520;font-weight:700;font-size:10px;white-space:nowrap}
+.a4s .ir{display:flex;justify-content:space-between;gap:6px;padding:2px 0;font-size:9px;color:#d6d6d6}.a4s .ir span{line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.a4s .ir b{white-space:nowrap;color:#F37520}
 .a4s .ks{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}.a4s .ks div{display:flex;gap:7px;align-items:flex-start;font-size:9.5px}.a4s .ks b{flex:none;width:16px;height:16px;border-radius:50%;background:#F37520;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px}
 .a4s .ft{position:absolute;left:30px;right:30px;bottom:18px;display:flex;justify-content:space-between;gap:12px;font-size:8px;color:#8a8a8a;border-top:1px solid #2e2e2e;padding-top:6px}
 </style>`;
@@ -3789,7 +3789,7 @@ function summaryFitted(){const h=summaryHTML(),host=document.createElement("div"
       cz.style.zoom=z;if(cz.getBoundingClientRect().height>avail+1)z=Math.max(.6,z*avail/cz.getBoundingClientRect().height)}}finally{host.remove()}
   return h.replace('<div class="cz">',`<div class="cz" style="zoom:${z.toFixed(3)}">`)}
 $("#bSum").onclick=()=>{flushUpdate();if(!R)return;let h;try{h=summaryFitted()}catch(e){console.error(e);toast("Shrnutí se nepovedlo: "+e.message);return}
-  const p=$("#print");p.innerHTML=h;const st=document.createElement("style");st.id="a4css";st.textContent="@media print{@page{size:A4 portrait;margin:0}}";document.head.appendChild(st);
+  const p=$("#print");p.innerHTML=h;const st=document.createElement("style");st.id="a4css";st.textContent="@media print{@page{size:A4 portrait;margin:0}html,body{margin:0!important;padding:0!important;background:#161616!important;height:auto!important;overflow:visible!important}.mtabs,.top,.wrap,dialog{display:none!important}.print{display:block!important;position:static!important;margin:0!important;padding:0!important}}";document.head.appendChild(st);
   const done=()=>{st.remove();p.innerHTML="";removeEventListener("afterprint",done)};addEventListener("afterprint",done);
   setTimeout(()=>window.print(),300)};
 /* PowerPoint: každý snímek nativně (tvary + texty), mezi snímky stejné skupiny přechod Morph */
