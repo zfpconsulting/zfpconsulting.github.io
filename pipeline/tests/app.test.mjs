@@ -688,6 +688,26 @@ export default {
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
+  async "Nezvedl / Dovolal u Nového leadu ho rovnou přesune do Osloven; jiné fáze se nehýbou"(env) {
+    const store = { ...STORE,
+      "leads/n1": { name: "Nový Jedna", phone: "777 111 111", stage: "novy", items: [], meetings: [], log: [], _u: 1 },
+      "leads/n2": { name: "Nový Dva", phone: "777 222 222", stage: "novy", items: [], meetings: [], log: [], _u: 1 },
+      "leads/n3": { name: "Nový Tři", phone: "777 333 333", stage: "novy", items: [], meetings: [], log: [], _u: 1 },
+      "leads/s1": { name: "Schůzka Jedna", phone: "777 444 444", stage: "schuzka", items: [], meetings: [], log: [], _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store });
+    const st = id => page.evaluate(id => leads.find(l => l.id === id).stage, id);
+    await page.evaluate(() => quickNo(leads.find(l => l.id === "n1"))); await page.waitForTimeout(300);
+    eq(await st("n1"), "kontaktovan", "Nezvedl z karty → Osloven");
+    await page.evaluate(() => leadLogCall(leads.find(l => l.id === "n2"), "yes", "")); await page.waitForTimeout(300);
+    eq(await st("n2"), "kontaktovan", "Dovolal → Osloven");
+    await page.evaluate(() => openEdit(leads.find(l => l.id === "n3"))); await page.waitForTimeout(300);
+    await page.click("#callNo"); await page.waitForTimeout(400);
+    eq([await st("n3"), await page.$eval("#f_stage", e => e.value)], ["kontaktovan", "kontaktovan"], "Nezvedl v detailu → Osloven i ve formuláři");
+    await page.evaluate(() => quickNo(leads.find(l => l.id === "s1"))); await page.waitForTimeout(300);
+    eq(await st("s1"), "schuzka", "lead ve fázi Schůzka zůstane");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
   async "datum narození ze smlouvy (Databáze) → lead → předvyplněné ve finančním plánu; ruční oprava v Databázi přepíše, jinak ne"(env) {
     const store = { ...STORE, "leads/b2": { name: "Karel Starý", stage: "novy", items: [], meetings: [], log: [], _u: 1 } };
     const { ctx, page, errors } = await openApp(env, { store });

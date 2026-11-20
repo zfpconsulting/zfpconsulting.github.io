@@ -4801,8 +4801,14 @@ async function leadLogCall(l,res,text){
   const patch={log,lastContact:now,updatedAt:now};
   if(no&&(!cur.nextDate||cur.nextDate<=todayStr())){patch.nextDate=addWorkDays(1);if(!cur.nextStep)patch.nextStep="Zavolat znovu"}
   await db.doc("leads/"+cur.id).update(patch);
+  await autoContacted(cur);
   if(no)offerNoAnswerSms(leadMsgCtx(cur),log,r=>logLeadMsg(cur,r),cur);
 }
+/* nový lead, u kterého se zapsal hovor (nezvedl i dovolal), je tím osloven → rovnou do fáze Osloven */
+async function autoContacted(l){
+  const cur=leads.find(x=>x.id===(l&&l.id))||l;
+  if(!cur||cur.shared||cur.stage!=="novy")return false;
+  await moveTo(cur,"kontaktovan");return true}
 /* po domluvení schůzky (z leadu i ze záložky Kalendář): potvrzení klientovi SMS nebo e-mailem */
 function meetDoneSheet(l,r,online,onDone){const cfg=calCfg(),{evId,startISO}=r;
   const ctx={name:l.name,phone:l.phone,email:l.email,start:startISO,online,meetId:evId};
@@ -4853,7 +4859,7 @@ function openCallBlock(ids,i=0){
     return}
   const last=(l.log||[]).slice(-2).reverse();
   /* dovolal jsem se: zapíše hovor, nový lead posune do „Kontaktován“ a když nemá budoucí termín, další pokus za 3 pracovní dny */
-  const contacted=async()=>{try{await leadLogCall(l,"yes","");if(l.stage==="novy")await moveTo(l,"kontaktovan");
+  const contacted=async()=>{try{await leadLogCall(l,"yes","");await autoContacted(l);
     const cur=leads.find(x=>x.id===l.id)||l;if(!cur.nextDate||cur.nextDate<=todayStr())await db.doc("leads/"+l.id).update({nextDate:addWorkDays(3),nextStep:cur.nextStep||"Zavolat znovu",updatedAt:new Date().toISOString()});
     toast("Kontaktován · další krok "+fmtDate(addWorkDays(3)))}catch(e){toast("Nepodařilo se uložit")}next()};
   const later=async(days,txt)=>{const now=new Date().toISOString();const log=[...(l.log||[]),{d:now,t:txt}].slice(-100);try{await db.doc("leads/"+l.id).update({log,lastContact:now,updatedAt:now,nextDate:addWorkDays(days),nextStep:l.nextStep||"Zavolat znovu"});toast(txt)}catch(e){toast("Nepodařilo se uložit")}next()};
@@ -6626,7 +6632,7 @@ async function quickNo(l0){
   const log=[...(l.log||[]),{d:now,t:"Nezvedl"+(n>1?" ("+n+". pokus)":""),call:"no"}].slice(-100);
   const patch={log,lastContact:now,updatedAt:now};
   if(!l.nextDate||l.nextDate<=todayStr()){patch.nextDate=addWorkDays(1);if(!l.nextStep)patch.nextStep="Zavolat znovu"}
-  try{await db.doc("leads/"+l.id).update(patch);toast("Nezvedl · "+(patch.nextDate?"další pokus "+fmtDate(patch.nextDate):"zapsáno"));offerNoAnswerSms(leadMsgCtx(l),log,r=>logLeadMsg(l,r),l)}catch(e){toast("Nepodařilo se uložit")}
+  try{await db.doc("leads/"+l.id).update(patch);const mv=await autoContacted(l);toast("Nezvedl · "+(mv?"Osloven · ":"")+(patch.nextDate?"další pokus "+fmtDate(patch.nextDate):"zapsáno"));offerNoAnswerSms(leadMsgCtx(l),log,r=>logLeadMsg(l,r),l)}catch(e){toast("Nepodařilo se uložit")}
 }
 /* ================= sheet ================= */
 function fillSelect(sel,opts){if(!opts.some(o=>o[2])){sel.replaceChildren(...opts.map(([v,t])=>el("option",{value:v},t)));return}const out=[],grp=new Map();opts.forEach(([v,t,g])=>{const o=el("option",{value:v},t);if(!g){out.push(o);return}if(!grp.has(g)){const og=el("optgroup",{label:g});grp.set(g,og);out.push(og)}grp.get(g).append(o)});sel.replaceChildren(...out)}
@@ -6860,12 +6866,20 @@ async function addLog(t,extra={}){
   try{await db.doc("leads/"+editing.id).update({log,lastContact,updatedAt:now});editing={...editing,log,lastContact};renderLog(editing);$("f_logAt").value=localDT();toast("Zapsáno · "+fmtDT(at));return true}catch(e){showErr(e);return false}
 }
 $("logBtn").onclick=async()=>{if(await addLog($("f_log").value.trim()))$("f_log").value=""};
+/* totéž v detailu leadu: fáze se přepne hned i ve formuláři, ať ji pozdější Uložit nevrátí na Nový lead */
+async function formContacted(){
+  if(!editing||$("f_stage").value!=="novy")return;
+  if(await autoContacted(editing)){editing={...editing,stage:"kontaktovan"};$("f_stage").value="kontaktovan";
+    /* změnu fáze zapsala appka sama → v základu „neuložených změn“ ji přepíšu, ostatní rozepsané úpravy zůstanou */
+    try{const skip="#fpLeadBox,#docsBox,#logBox,#dealBox",els=[...$("form").querySelectorAll("input,select,textarea")].filter(e=>e.type!=="file"&&!e.closest(skip)),i=els.indexOf($("f_stage")),B=JSON.parse(dlgBase);if(i>=0&&B[0]&&B[0][i]==="novy"){B[0][i]="kontaktovan";dlgBase=JSON.stringify(B)}}catch(e){}}}
 $("callNo").onclick=async()=>{
   const n=(editing?.log||[]).filter(x=>x.call==="no").length+1;
-  if(await addLog("Nezvedl"+(n>1?" ("+n+". pokus)":""),{call:"no"})&&!$("f_date").value){$("f_date").value=addWorkDays(1);toast("Zapsáno · další pokus zítra")}
+  const okNo=await addLog("Nezvedl"+(n>1?" ("+n+". pokus)":""),{call:"no"});
+  if(okNo){await formContacted()}
+  if(okNo&&!$("f_date").value){$("f_date").value=addWorkDays(1);toast("Zapsáno · další pokus zítra")}
   if(editing){const l={...editing,name:$("f_name").value.trim()||editing.name,phone:$("f_phone").value.trim(),email:$("f_email").value.trim()};offerNoAnswerSms(leadMsgCtx(l),editing.log,r=>logLeadMsg(l,r),l)}
 };
-$("callYes").onclick=()=>addLog("Hovor proběhl",{call:"yes"});
+$("callYes").onclick=async()=>{if(await addLog("Hovor proběhl",{call:"yes"}))await formContacted()};
 $("msgBtn").onclick=()=>{if(!editing){toast("Nejdřív lead ulož");return}const l={...editing,name:$("f_name").value.trim()||editing.name,phone:$("f_phone").value.trim(),email:$("f_email").value.trim()};openMsg(leadMsgCtx(l),null,r=>{if(r.meetId)setTodo("conf:"+r.meetId,{s:"done",d:todayStr()});addLog("Poslána zpráva ("+r.ch+"): "+r.tpl+(r.start?" · schůzka "+fmtMeet(r.start):""),{msg:r.ch})})};
 $("form").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.defaultPrevented&&!e.isComposing&&e.target.tagName==="SELECT"){e.preventDefault();$("form").requestSubmit()}});
 $("f_log").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("logBtn").click()}});
