@@ -216,7 +216,7 @@ table.tcf th{padding:6px 12px}table.tcf td{padding:5px 12px}
 @media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);height:auto}.ed{border-right:0;overflow:visible;min-width:0}
   /* mobil: Editor / Náhled přepínačem (.seg) místo 2 600 px editoru nad náhledem */
   .top{padding:var(--sp-2) var(--sp-3);gap:var(--sp-1)}.top .tt,.top #bDz,.top .lt{display:none}
-  .top #bMail{width:44px;padding:0}.top .icon-btn{width:44px;height:44px}.menu .mob{display:flex}
+  .top #bSum{display:none}.top #bMail{width:44px;padding:0}.top .icon-btn{width:44px;height:44px}.menu .mob{display:flex}
   .mtabs{display:block;position:sticky;top:60px;z-index:15;padding:var(--sp-2) var(--sp-4);background:var(--bar-bg);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
   .mtabs .seg>button{min-height:40px}
   .wrap.m-ed .view,.wrap.m-view .ed{display:none}
@@ -243,9 +243,10 @@ table.tcf th{padding:6px 12px}table.tcf td{padding:5px 12px}
   <span class="sp"></span>
   <button class="btn btn--secondary" id="bDz" title="Vstupní dotazník – vyplnit s klientem"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg>Dotazník</button>
   <button class="btn btn--secondary" id="bMail" title="Shrnutí plánu pro klienta – text podle toho, co je v prezentaci (vynechané slidy se nepíšou)" aria-label="Poslat shrnutí"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="mail"></svg><span class="lt">Poslat shrnutí</span></button>
+  <button class="btn btn--secondary" id="bSum" title="Celý plán na jedné stránce A4 (cíle, splnění, investice, DIP, produkty, pojištění) – uložit jako PDF" aria-label="Shrnutí PDF"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="lt">Shrnutí PDF</span></button>
   <button class="btn btn--primary" id="bPres"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="present"></svg>Prezentovat</button>
   <div class="more"><button class="icon-btn" id="bMore" aria-haspopup="true" aria-expanded="false" aria-label="Další možnosti" title="Další možnosti"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="more"></svg></button>
-   <div class="menu group" id="moreMenu" hidden role="menu"><button role="menuitem" class="row row-btn mob" id="bDzM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Dotazník</span></button><button role="menuitem" class="row row-btn" id="bPdf"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="print"></svg><span class="main">PDF</span></button><button role="menuitem" class="row row-btn" id="bPptx" title="Export do PowerPointu s přechody Morph"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="present"></svg><span class="main">PowerPoint</span></button><button role="menuitem" class="row row-btn" id="bExp" title="Plán jako soubor .json (záloha)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="download"></svg><span class="main">Export plánu (.json)</span></button></div></div>
+   <div class="menu group" id="moreMenu" hidden role="menu"><button role="menuitem" class="row row-btn mob" id="bDzM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Dotazník</span></button><button role="menuitem" class="row row-btn mob" id="bSumM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Shrnutí PDF (A4)</span></button><button role="menuitem" class="row row-btn" id="bPdf"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="print"></svg><span class="main">PDF</span></button><button role="menuitem" class="row row-btn" id="bPptx" title="Export do PowerPointu s přechody Morph"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="present"></svg><span class="main">PowerPoint</span></button><button role="menuitem" class="row row-btn" id="bExp" title="Plán jako soubor .json (záloha)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="download"></svg><span class="main">Export plánu (.json)</span></button></div></div>
   <button class="done" id="bClose">Hotovo</button>
 </div>
 <div class="mtabs"><div class="seg seg--block" role="tablist"><button role="tab" data-mt="ed" aria-selected="true">Editor</button><button role="tab" data-mt="view" aria-selected="false">Náhled</button></div></div>
@@ -3687,6 +3688,110 @@ $("#scrWin").onclick=scrWindow;
 addEventListener("beforeunload",()=>{try{SCR.win&&!SCR.win.closed&&SCR.win.close()}catch(e){}});
 /* PDF: každý snímek jako stránka */
 $("#bPdf").onclick=()=>{flushUpdate();const p=$("#print");p.innerHTML=visFR().map(f=>`<div class="pp"><div class="stage"><div class="sl">${f.h}</div></div></div>`).join("");setTimeout(()=>window.print(),300)};
+/* Shrnutí PDF: celý plán na jedné stránce A4 (vzhled prezentace: tmavé pozadí, oranžová) – tlačítko „Shrnutí PDF“, tisk → uložit jako PDF.
+   Bere stejná data jako slidy (R) a respektuje „vynechat slide“: sekce, jejíž slidy jsou vynechané, na stránce není. */
+const SUM_KONTAKT="Vojtěch Kudlička · ZFP Consulting · 774 222 617 · vojtech.kudlicka@zfpa.cz · www.zfpconsulting.cz";
+function summaryHTML(){
+  const I=inp(),K=R.persons[0],noIns=!!((I.nastaveni||{}).bez_pojisteni);
+  const vg=re=>FR.some(f=>!f.skip&&re.test(f.g.replace(/^o\d/,"")));
+  const parts=R.odd?R.odd.map(o=>({jm:o.jmeno.split(" ")[0],R:o.R})):[{jm:"",R}],multi=parts.length>1,pre=p=>multi?p.jm+": ":"";
+  const sum=f=>parts.reduce((a,p)=>a+(+f(p.R)||0),0),r1000=x=>Math.round(x/1000)*1000;
+  const ttl=(K.titul?K.titul+" ":""),names=R.persons.length>1?R.persons.map(p=>p.jmeno.split(" ")[0]).join(" a "):ttl+K.jmeno;
+  const dt=new Date().toLocaleDateString("cs-CZ",{day:"numeric",month:"long",year:"numeric"});
+  const sec=(t,r)=>`<div class="sh"><span>${t}</span><i></i>${r?`<b>${r}</b>`:""}</div>`;
+  /* hodnoty z první schůzky */
+  let hodn="";
+  if(vg(/^h$/)&&(I.motivace||"").trim()){
+    const hv=I.hodnoty_vlastni?(I.hodnoty||[]).concat([{},{},{}]).slice(0,3).map((v,i)=>({t:v.t||R.motivace[i].t,d:v.d||R.motivace[i].d})):R.motivace;
+    hodn=`<div class="q"><span>„</span>${esc(I.motivace)}</div><div class="vals">${hv.map(v=>`<div><b>${esc(v.t||"")}</b><small>${esc(v.d||"")}</small></div>`).join("")}</div>`}
+  /* KPI */
+  const jednor=sum(Q=>Q.pozice.reduce((a,p)=>a+p.jednor,0)),pmt=sum(Q=>Q.pmtCelkem);
+  const kpi=[["Finanční majetek",kc(sum(Q=>Q.majCelkem)),"jde do plánu"],["Volné cash flow",kcm(sum(Q=>Q.cf)),"měsíčně k dispozici"],["Jednorázově do plánu",kc(jednor),"z finančního majetku"],["Pravidelně měsíčně",kcm(pmt),"investice z cash flow"+(R.pojNove>0&&!noIns&&vg(/^(zp\d|deti)$/)?" + pojištění "+kc(R.pojNove):"")]];
+  /* cíle a splnění */
+  const rows=[];
+  parts.forEach(p=>{const Q=p.R,pr=pre(p);
+    if(Q.rez&&Q.rez.cil>0)rows.push({n:pr+"Rezerva",sub:Q.rez.duvod||"",kdy:Q.rez.pmt?"za "+Q.rez.months+" měs.":"Ihned",cil:kc(Q.rez.cil),vys:kc(Math.round(Q.rez.cil*Math.min(1,Q.rez.splneni))),v:Q.rez.vklad,p:Q.rez.pmt||0,s:Math.round(Math.min(1,Q.rez.splneni)*100)});
+    Q.cile.forEach(c=>rows.push({n:pr+c.nazev,kdy:Math.round(c.months/12)+" let",cil:kc(c.kraceno?c.dosazitelne:c.castka),cil0:c.kraceno?c.castka:0,vys:kc(c.splneni>=0.995&&c.splneni<1.08?c.castka:r1000(c.vysledek)),v:c.vklad,p:c.pmt,s:c.kraceno?100:splPct(c.splneni)}));
+    if(Q.renta){const r=Q.renta;rows.push({n:pr+"Renta",sub:rentaTxt(r),kdy:Math.round(r.months/12)+" let",cil:kc(r1000(r.kap)),vys:kc(r1000(r.splneni>=0.995&&r.splneni<1.08?r.kap:r.vysledek)),v:(r.vklad||0)+(r.dpsVal||0),p:r.pmt+(Q.keepMes||0)+(Q.prispVlastni||0),s:r.kraceno?100:splPct(r.splneni)})}});
+  const kaskada=parts.some(p=>p.R.cile.concat(p.R.renta?[p.R.renta]:[]).some(g=>g.flowTake>0.5)||(p.R.rez.flowTake>0.5));
+  const goalsHTML=!rows.length||!vg(/^p2?$/)?"":sec("Cíle a jejich splnění",`celkem měsíčně ${kcm(rows.reduce((a,r)=>a+r.p,0))}`)+
+    `<div class="gt"><div class="gh"><span>Co</span><span>Kdy</span><span class="r">Cíl</span><span class="r">Jedn. vklad</span><span class="r">Prav. platba</span><span class="r">Výsledek</span><span class="r">Splnění</span></div>`+
+    rows.map(r=>`<div class="gr"><span class="n"><b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:""}</span><span class="c">${esc(r.kdy)}</span><span class="r">${r.cil}${r.cil0?`<small>původně ${kc(r.cil0)}</small>`:""}</span><span class="r o">${r.v>0.5?kc(r.v):"–"}</span><span class="r o">${r.p>0.5?kcm(r.p):"–"}</span><span class="r">${r.vys}</span><span class="pb"><i style="width:${Math.max(0,Math.min(100,r.s))}%"></i><em>${r.s} %</em></span></div>`).join("")+`</div>`+
+    `<div class="nt">Cíle v dnešních cenách; vstupní poplatky produktů jsou započteny v každém vkladu.${kaskada?" Platba splněného cíle se přelévá do dalšího cíle.":""}</div>`;
+  /* investice: alokace nyní → nově, produkty, DIP */
+  const inv=vg(/^(a|st|tx|to|r2|pf)$/)&&parts.some(p=>p.R.pozice.length);
+  let invHTML="";
+  if(inv){
+    const arr=k=>[0,1,2].map(i=>sum(Q=>(Q.struktura[k]||[])[i])),ted=arr("ted"),nove=arr("nove"),pc=a=>{const t=a.reduce((x,y)=>x+y,0)||1;return a.map(v=>v/t*100)};
+    const COL=["#F37520","#FFB27A","#cfcfcf"],NM=["Akcie","Dluhopisy","Hotovost"];
+    const bar=(lbl,a)=>{const p=pc(a);return `<div class="ab"><span>${lbl}</span><div>${p.map((v,i)=>v<0.5?"":`<i style="width:${v}%;background:${COL[i]}">${v>=9?Math.round(v)+" %":""}</i>`).join("")}</div></div>`};
+    const pos=[];parts.forEach(p=>p.R.pozice.filter(x=>x.jednor>.5||x.mesicne>.5).forEach(x=>pos.push(Object.assign({pre:pre(p)},x))));
+    pos.sort((a,b)=>(b.jednor+b.mesicne*12)-(a.jednor+a.mesicne*12));
+    const keep=[];parts.forEach(p=>(p.R.produkty||[]).filter(x=>!x.novy&&x.zust>0.5).forEach(x=>keep.push(pre(p)+x.nazev+" "+kc(x.zust))));
+    const dipM=pos.filter(x=>x.dip).reduce((a,x)=>a+x.mesicne,0),dan=R.S.dan||0.15,capM=R.S.dip_strop||4000;
+    invHTML=sec("Investice a produkty")+`<div class="iv"><div><div class="legend">${NM.map((n,i)=>`<span><i style="background:${COL[i]}"></i>${n}</span>`).join("")}</div>${bar("Nyní",ted)}${bar("Nově",nove)}
+      ${keep.length?`<div class="nt" style="margin-top:6px">Ponecháno: ${esc(keep.join(" · "))}</div>`:""}</div>
+      <div class="pt"><div class="ph"><span>Produkt</span><span class="r">Jednorázově</span><span class="r">Měsíčně</span></div>${pos.map(x=>`<div class="pr"><span>${esc(x.pre+x.nazev)}</span><span class="r o">${x.jednor>.5?kc(x.jednor):"–"}</span><span class="r o">${x.mesicne>.5?kc(x.mesicne):"–"}</span></div>`).join("")}</div></div>`+
+      (dipM>0?`<div class="dip"><b>DIP – dlouhodobý investiční produkt</b><span>${kcm(dipM)} → daňová úspora asi <b>${kc(Math.round(dipM*12*dan))}</b> ročně. Vklady do ${kc(capM*12)} ročně (${kcm(capM)}) si odečtete od základu daně (${Math.round(dan*100)} %).</span></div>`:"")}
+  /* pojištění */
+  let insHTML="";const N=R.nn;
+  if(!noIns&&R.pojNove>0&&N&&vg(/^(zp\d|deti)$/)){
+    const PO=R.pojOs,pi0=pojInfo(N),multiNN=N.osoby.filter(o=>o.celkem>0).length>1;
+    const card=(o,mes,t)=>{const rs=nnRows(o);return `<div class="ic"><div class="ih"><b>${esc(t)}</b><span>${kcm(mes)}</span></div>${rs.map(r=>`<div class="ir"><span>${esc(r.nazev)}</span><b>${r.typ==="poplatek"?"–":r.jedn==="Kč/den"?fmt(r.pc)+NB+"Kč/den":kc(r.pc)}</b></div>`).join("")}</div>`};
+    const cards=[];
+    (N.dospeli||[]).forEach((o,i)=>{if(!(o.celkem>0))return;cards.push(card(o,PO&&PO.dosp[i]!=null?PO.dosp[i]:(multiNN?o.celkem:R.pojNove),o.jmeno))});
+    const dd=(N.deti||[]).filter(o=>o.celkem>0);
+    dd.forEach((o,i)=>cards.push(card(o,PO&&PO.deti&&PO.deti[i]!=null?PO.deti[i]:o.celkem,o.jmeno+" (dítě)")));
+    if(cards.length)insHTML=sec("Pojištění",`<img src="${pi0.logo()}" alt="${esc(pi0.alt)}"> celkem ${kcm(R.pojNove)}`)+`<div class="ig" style="grid-template-columns:repeat(${cards.length<=3?cards.length:2},minmax(0,1fr))">${cards.join("")}</div>`+
+      (R.nnFit&&R.nnFit.celkem>0&&R.nn.celkem>R.nnFit.celkem&&R.fitPlan?`<div class="nt">V plánu počítáme s cenou po slevě (${N.pojistovna==="koop"?"zdravý životní styl":"FitSport"}).</div>`:"")}
+  /* následné kroky */
+  const Ks=[];
+  parts.forEach(p=>p.R.pozice.filter(x=>x.jednor>.5||x.mesicne>.5).sort((a,b)=>(b.mesicne*120+b.jednor)-(a.mesicne*120+a.jednor)).forEach(x=>Ks.push(pre(p)+"Zřízení "+prodGen(x.nazev)+(x.jednor>.5?" + vklad "+kc(x.jednor):"")+(x.mesicne>.5?" + trvalý příkaz "+kcm(x.mesicne):""))));
+  if(insHTML){const ma=(R.poj&&R.poj[0]&&R.poj[0].stav>0)||(I.majetek||[]).some(a=>/Životní pojištění/.test(a.typ||""));Ks.push(ma?"Zrušení stávajícího životního pojištění – realizace nového":"Sjednání životního pojištění")}
+  parts.forEach(p=>(p.R.produkty||[]).filter(x=>/Vypov/.test(x.pozn||"")).forEach(x=>Ks.push(pre(p)+"Výpověď: "+x.nazev+" – peníze jdou do plánu")));
+  if(parts.some(p=>p.R.transakce.some(t=>t.bezpoplatku)))Ks.push("Převod penzijního připojištění do DPS");
+  const stepsHTML=Ks.length&&vg(/^(z|tx|to)$/)?sec("Další kroky")+`<div class="ks">${Ks.map((k,i)=>`<div><b>${i+1}</b><span>${esc(k)}</span></div>`).join("")}</div>`:"";
+  const css=`<style>
+.a4pg{width:210mm;height:297mm;position:relative;overflow:hidden;background:#161616;break-after:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.a4s{position:absolute;left:0;top:0;width:794px;height:1123px;box-sizing:border-box;padding:30px 30px 0;color:#efefef;font-family:Lato,system-ui,sans-serif;font-size:10px;line-height:1.3;background:#161616}
+.a4s *{box-sizing:border-box}.a4s b{font-weight:900}.a4s small{display:block;font-size:8px;color:#9a9a9a;font-weight:400}.a4s .r{text-align:right}.a4s .o{color:#F37520;font-weight:900}
+.a4s .cz{zoom:1}.a4s.dn .vals{display:none}.a4s.dn .gr{padding:2.5px 0}.a4s.dn .gr .n small{display:none}.a4s.dn .pr{padding:2px 0}.a4s.dn .ks{gap:3px 14px}.a4s.dn .ir{padding:1px 0}.a4s.dn .kp{margin:8px 0 2px}.a4s.dn .sh{margin:8px 0 4px}.a4s .tp{position:absolute;left:0;top:0;width:100%;height:9px;background:#F37520}
+.a4s .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-top:4px}.a4s .hd .l{color:#F37520;font-weight:900;font-size:10px;letter-spacing:1.2px}
+.a4s .hd h1{margin:4px 0 2px;font-size:30px;line-height:1.08;font-weight:900;letter-spacing:-.4px}.a4s .hd p{margin:0;color:#b4b4b4;font-style:italic;font-size:11px}.a4s .hd img{width:104px;margin-top:2px}
+.a4s .q{margin:10px 0 6px;font-style:italic;color:#d6d6d6;font-size:10.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.a4s .q span{color:#F37520;font-weight:900;font-size:16px;line-height:0;margin-right:4px}
+.a4s .vals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:2px}.a4s .vals div{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:5px 9px}.a4s .vals b{color:#F37520;font-size:10px;display:block}.a4s .vals small{font-size:8.5px;color:#b4b4b4}
+.a4s .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 4px}.a4s .kp div{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:7px 10px}.a4s .kp span{display:block;color:#b4b4b4;font-size:8.5px}.a4s .kp b{display:block;color:#F37520;font-size:16px;margin:1px 0}.a4s .kp small{font-size:8px;color:#9a9a9a}
+.a4s .sh{display:flex;align-items:center;gap:8px;margin:12px 0 5px}.a4s .sh span{color:#F37520;font-weight:900;font-size:12px;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}.a4s .sh i{flex:1;height:1px;background:#3a3a3a}.a4s .sh b{font-size:10px;color:#cfcfcf;font-weight:700;display:flex;align-items:center;gap:6px}.a4s .sh img{height:20px;background:#fff;border-radius:4px;padding:2px 5px}
+.a4s .gt{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:2px 10px 4px}
+.a4s .gh,.a4s .gr{display:grid;grid-template-columns:1fr 50px 84px 76px 84px 84px 86px;gap:6px;align-items:center}
+.a4s .gh{padding:6px 0 4px;color:#b4b4b4;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}.a4s .gh .r{text-align:right}
+.a4s .gr{padding:5px 0;border-top:1px solid #2c2c2c;font-size:10px}.a4s .gr .n b{font-size:11px;display:block}.a4s .gr .c{text-align:center}
+.a4s .pb{position:relative;height:15px;border-radius:8px;background:#2c2c2c;overflow:hidden}.a4s .pb i{position:absolute;left:0;top:0;bottom:0;background:#F37520;border-radius:8px}.a4s .pb em{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:900;font-size:9px;color:#fff}
+.a4s .nt{font-size:8px;color:#8a8a8a;margin-top:4px}
+.a4s .iv{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;align-items:start}
+.a4s .legend{display:flex;gap:12px;color:#b4b4b4;font-size:9px;margin-bottom:6px}.a4s .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+.a4s .ab{display:flex;align-items:center;gap:8px;margin-bottom:6px}.a4s .ab>span{width:30px;color:#b4b4b4;font-size:9px}.a4s .ab>div{flex:1;display:flex;height:22px;border-radius:5px;overflow:hidden;background:#2c2c2c}.a4s .ab i{display:flex;align-items:center;justify-content:center;color:#161616;font-weight:900;font-size:9px;font-style:normal}
+.a4s .pt{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:2px 10px 4px}.a4s .ph,.a4s .pr{display:grid;grid-template-columns:1fr 80px 84px;gap:6px}.a4s .ph{padding:5px 0 3px;color:#b4b4b4;font-size:8px;font-weight:700;text-transform:uppercase}.a4s .pr{padding:4px 0;border-top:1px solid #2c2c2c;font-size:9.5px}
+.a4s .dip{margin-top:7px;border:1px solid #F37520;background:rgba(243,117,32,.1);border-radius:8px;padding:6px 10px;font-size:9.5px;display:flex;gap:10px;align-items:baseline}.a4s .dip>b{color:#F37520;white-space:nowrap}.a4s .dip span b{color:#F37520}
+.a4s .ig{display:grid;gap:8px}.a4s .ic{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:6px 9px}.a4s .ih{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding-bottom:4px;margin-bottom:2px;border-bottom:1px solid #F37520}.a4s .ih b{font-size:10.5px}.a4s .ih span{color:#F37520;font-weight:900;font-size:10px;white-space:nowrap}
+.a4s .ir{display:flex;justify-content:space-between;gap:6px;padding:2px 0;font-size:8.6px;color:#d6d6d6}.a4s .ir span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.a4s .ir b{white-space:nowrap;color:#F37520}
+.a4s .ks{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}.a4s .ks div{display:flex;gap:7px;align-items:flex-start;font-size:9.5px}.a4s .ks b{flex:none;width:16px;height:16px;border-radius:50%;background:#F37520;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px}
+.a4s .ft{position:absolute;left:30px;right:30px;bottom:18px;display:flex;justify-content:space-between;gap:12px;font-size:8px;color:#8a8a8a;border-top:1px solid #2e2e2e;padding-top:6px}
+</style>`;
+  return css+`<div class="a4pg"><div class="a4s${rows.length>7?" dn":""}"><div class="tp"></div>
+   <div class="hd"><div><div class="l">FINANČNÍ PLÁN · SHRNUTÍ</div><h1>${esc(names)}</h1><p>Komplexní strategie pro Vaše finanční cíle</p></div><img src="${LOGO_URL}" alt=""></div>
+   ${hodn}<div class="kp">${kpi.map(k=>`<div><span>${k[0]}</span><b>${k[1]}</b><small>${k[2]}</small></div>`).join("")}</div>
+   <div class="cz">${goalsHTML}${invHTML}${insHTML}${stepsHTML}</div>
+   <div class="ft"><span>${esc(SUM_KONTAKT)}</span><span>Shrnutí k ${dt}. Nejde o záruku výnosu.</span></div></div></div>`}
+/* stránka se přiblíží (zoom) tak, aby obsah vyplnil A4 – u krátkého plánu větší písmo, u dlouhého se mírně zmenší */
+function summaryFitted(){const h=summaryHTML(),host=document.createElement("div");host.style.cssText="position:fixed;left:-30000px;top:0;width:794px;visibility:hidden;pointer-events:none";host.innerHTML=h;document.body.appendChild(host);
+  let z=1;try{const cz=host.querySelector(".cz");if(cz){const top=cz.offsetTop,avail=1123-46-top;for(let i=0;i<5;i++){cz.style.zoom=z;const ch=cz.getBoundingClientRect().height;if(!ch)break;const nz=Math.max(.7,Math.min(1.22,z*avail/ch));if(Math.abs(nz-z)<.005){z=nz;break}z=nz}
+      cz.style.zoom=z;if(cz.getBoundingClientRect().height>avail+1)z=Math.max(.6,z*avail/cz.getBoundingClientRect().height)}}finally{host.remove()}
+  return h.replace('<div class="cz">',`<div class="cz" style="zoom:${z.toFixed(3)}">`)}
+$("#bSum").onclick=()=>{flushUpdate();if(!R)return;let h;try{h=summaryFitted()}catch(e){console.error(e);toast("Shrnutí se nepovedlo: "+e.message);return}
+  const p=$("#print");p.innerHTML=h;const st=document.createElement("style");st.id="a4css";st.textContent="@media print{@page{size:A4 portrait;margin:0}}";document.head.appendChild(st);
+  const done=()=>{st.remove();p.innerHTML="";removeEventListener("afterprint",done)};addEventListener("afterprint",done);
+  setTimeout(()=>window.print(),300)};
 /* PowerPoint: každý snímek nativně (tvary + texty), mezi snímky stejné skupiny přechod Morph */
 /* PPTX prezentace (jen nevynechané slidy) → {blob, name}; používá tlačítko PowerPoint i shrnutí mailem (příloha) */
 async function makePptx(onProgress){flushUpdate();const host=document.createElement("div");host.style.cssText="position:fixed;left:-30000px;top:0;width:1600px;height:900px;overflow:hidden;pointer-events:none";document.body.appendChild(host);
@@ -3787,7 +3892,7 @@ function openMail(){flushUpdate();if(!R)return;
 $("#bMail").onclick=openMail;
 /* menu ⋯ (PDF, PowerPoint, Export) */
 {const mb=$("#bMore"),mm=$("#moreMenu"),tog=on=>{mm.hidden=!on;mb.setAttribute("aria-expanded",on)};
-  mb.onclick=e=>{e.stopPropagation();tog(mm.hidden)};$("#bDzM").onclick=()=>$("#bDz").click();mm.addEventListener("click",()=>tog(false));
+  mb.onclick=e=>{e.stopPropagation();tog(mm.hidden)};$("#bDzM").onclick=()=>$("#bDz").click();$("#bSumM").onclick=()=>$("#bSum").click();mm.addEventListener("click",()=>tog(false));
   document.addEventListener("click",e=>{if(!mm.hidden&&!e.target.closest(".more"))tog(false)});addEventListener("keydown",e=>{if(e.key==="Escape")tog(false)})}
 /* mobil: Editor / Náhled */
 let MT="ed";

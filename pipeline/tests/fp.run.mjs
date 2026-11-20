@@ -84,6 +84,29 @@ const tests = {
     eq(errors, [], "bez chyb");
     await ctx.close();
   },
+  async "shrnutí PDF: celý plán na jedné A4 – cíle a splnění, investice, DIP, pojištění, kroky; vynechané slidy sekci skryjí"() {
+    const { ctx, page, errors } = await open();
+    await page.evaluate(() => { window.__pr = 0; window.print = () => { window.__pr++; }; });
+    const sum = async () => { const n = await page.evaluate(() => window.__pr); await page.click("#bSum"); await page.waitForFunction(n => window.__pr === n + 1, n); return page.$eval("#print", e => e.textContent); };
+    let t = await sum();
+    assert(/FINANČNÍ PLÁN · SHRNUTÍ/.test(t) && t.includes("Ukázkový Klient"), "záhlaví s jménem klienta");
+    for (const w of ["Cíle a jejich splnění", "Rezerva", "Byt – vlastní zdroje", "Renta", "Investice a produkty", "DIP – dlouhodobý investiční produkt", "Pojištění", "Další kroky"]) assert(t.includes(w), "chybí: " + w);
+    assert(!/undefined|NaN|\[object/.test(t), "čistý text: " + (t.match(/.{20}(undefined|NaN|\[object).{20}/) || [""])[0]);
+    const g = await page.evaluate(() => { const a = document.querySelector("#print .a4pg"); return { w: a.style.width, cz: !!document.querySelector("#print .cz"), pages: document.querySelectorAll("#print .a4pg").length, css: !!document.querySelector("style#a4css") }; });
+    assert(g.cz && g.pages === 1 && g.css, "jedna stránka A4 s vlastním @page: " + JSON.stringify(g));
+    /* po tisku se @page A4 i obsah uklidí (jinak by další PDF prezentace tisklo na A4) */
+    await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+    eq(await page.evaluate(() => [!!document.querySelector("style#a4css"), document.querySelector("#print").innerHTML]), [false, ""], "úklid po tisku");
+    /* vynechané slidy: bez pojištění a bez cílů se sekce na stránce neobjeví */
+    await page.evaluate(() => { FR.map((f, i) => [f, i]).filter(([f]) => /^zp\d/.test(f.g)).forEach(([f, i]) => toggleSkip(i, true)); });
+    t = await sum();
+    assert(!t.includes("Pojištění") && t.includes("Cíle a jejich splnění"), "bez ŽP slidů není sekce Pojištění");
+    await page.evaluate(() => { FR.map((f, i) => [f, i]).filter(([f]) => /^p2?$/.test(f.g) && !f.skip).forEach(([f, i]) => toggleSkip(i, true)); });
+    t = await sum();
+    assert(!t.includes("Cíle a jejich splnění") && t.includes("Investice a produkty"), "bez slidů plánu není sekce Cíle");
+    eq(errors, [], "bez chyb ve stránce");
+    await ctx.close();
+  },
   async "příjem a výdaje v čase: rodičovská → návrat do práce, nová hypotéka nahradí starou, důchody, splacení; rozpis za každého"() {
     const { ctx, page, errors } = await open();
     await setPlan(page, {
@@ -1444,7 +1467,7 @@ tests["barvy grafů a stavů jen ZFP (oranžová, černá, šedé) – žádná 
   eq(errors, [], "chyby v konzoli"); await ctx.close();
 };
 
-tests["mobil: přepínač Editor / Náhled, menu ⋯ (PDF, PowerPoint, Export), bez Importu; pole 16 px, dotykové cíle ≥ 40 px; nápovědy pojišťoven v rozbalení"] = async () => {
+tests["mobil: přepínač Editor / Náhled, menu ⋯ (Shrnutí PDF, PDF, PowerPoint, Export), bez Importu; pole 16 px, dotykové cíle ≥ 40 px; nápovědy pojišťoven v rozbalení"] = async () => {
   const { ctx, page, errors } = await open();
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
   const r = await page.evaluate(() => ({ edVis: !!$("#ed").offsetParent, viewVis: !!document.querySelector(".view").offsetParent,
@@ -1458,7 +1481,7 @@ tests["mobil: přepínač Editor / Náhled, menu ⋯ (PDF, PowerPoint, Export), 
   await page.click('.mtabs [data-mt="view"]');
   eq(await page.evaluate(() => [!!$("#ed").offsetParent, document.getElementById("box").getBoundingClientRect().top < 400]), [false, true], "náhled hned nahoře");
   await page.click("#bMore");
-  eq(await page.$$eval("#moreMenu button", b => b.filter(x => x.offsetParent).map(x => x.id)), ["bDzM", "bPdf", "bPptx", "bExp"], "menu ⋯");
+  eq(await page.$$eval("#moreMenu button", b => b.filter(x => x.offsetParent).map(x => x.id)), ["bDzM", "bSumM", "bPdf", "bPptx", "bExp"], "menu ⋯");
   await page.evaluate(() => document.body.click()); eq(await page.evaluate(() => $("#moreMenu").hidden), true, "klepnutí vedle menu zavře");
   await page.click('.mtabs [data-mt="ed"]');
   await page.evaluate(() => goStep(3));
