@@ -254,6 +254,7 @@ html.wp .wrap>.subnav{background:var(--canvas);box-shadow:0 0 0 4px var(--canvas
 .crow{align-items:flex-start}
 .crow .main .t,.crow .main .s{white-space:normal}
 .crow .chev,.crow .bandot{align-self:center}
+.crow .cli-plus{align-self:center;flex:none;margin-right:2px}
 .ctag{margin-left:6px;vertical-align:1px}
 .av-on{background:var(--accent)}.av-off{background:var(--ink-3)}
 .pchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
@@ -4265,6 +4266,25 @@ function docDecor(e,node){
     if(!node.classList.contains("scard")){const b=Docs.badge(ow),t=node.querySelector(".t");if(b&&t){b.style.marginLeft="6px";t.append(b)}}}catch(err){console.warn("soubory",err)}
   return node}
 function docSection(e){try{return window.Docs?Docs.section(docOwnerClient(e,true)):null}catch(err){console.warn("soubory",err);return null}}
+/* „+“ v řádku klienta: založí v pipeline nový lead (fáze Nový lead) s jeho údaji a propojí ho s kartou klienta.
+   Nezobrazí se, když už má klient rozjetý obchodní případ (aktivní lead mimo podepsané a Lost). */
+function cliActiveLead(e){
+  const c=e.rec||null,cand=[...(e.lead?[e.lead]:[]),...(c?leadsOfClient(c):[])];
+  return cand.map(x=>leads.find(l=>l.id===x.id)||x).find(l=>l&&!l._del&&ACTIVE(l.stage))||null}
+async function cliToPipeline(e){
+  if(!db)return;const ex=cliActiveLead(e);
+  if(ex){toast("Už je v pipeline · "+ST(ex.stage).t);return}
+  try{
+    const rec=e.rec||null,src=e.lead||{};
+    const l=await leadAdd({name:e.name,phone:e.phone||rec?.phone||src.phone||"",email:rec?.email||src.email||"",address:rec?.address||src.address||"",birth:rec?.birth||src.birth||"",source:"Vlastní kontakt"});
+    if(rec){try{await db.doc("leads/"+l.id).update({clientId:rec.id});if(!rec.leadId)await db.doc("clients/"+rec.id).update({leadId:l.id})}catch(x){}}
+    toast("V pipeline jako Nový lead: "+e.name)
+  }catch(err){toast("Nepodařilo se založit lead")}
+}
+function cliPlus(e){
+  if(e.prospect||cliActiveLead(e))return null;
+  const go=ev=>{ev.stopPropagation();ev.preventDefault();cliToPipeline(e)};
+  return el("span",{class:"icon-btn icon-btn--primary cli-plus",role:"button",tabindex:"0",title:"Do pipeline jako Nový lead","aria-label":"Do pipeline: "+e.name,onclick:go,onkeydown:ev=>{if(ev.key==="Enter"||ev.key===" ")go(ev)}},ico("plus"))}
 function renderClients(){
   {const b=$("stafleBtn");if(b){b.onclick=openStafle;$("stafleBtnM").onclick=()=>{srvMonth=!srvMonth;srvShow=6;renderClients()}}}
   const E=clientEntries();
@@ -4283,6 +4303,7 @@ function renderClients(){
       el("span",{class:"main"},el("div",{class:"t"},e.name,e.prospect?el("span",{class:"chip chip--tag chip--accent ctag"},"v pipeline · "+e.prospect):e.calOnly?el("span",{class:"chip chip--tag ctag"},"z kalendáře"):null),
         el("div",{class:"s"},[e.phone?fmtPhone(e.phone):null,e.since?(isClient(e)?"klient od ":"první schůzka ")+fmtDate(e.since)+" "+e.since.slice(0,4):null,e.meetCount?e.meetCount+" "+plural(e.meetCount,"schůzka","schůzky","schůzek"):null].filter(Boolean).join(" · ")||"bez údajů"),
         e.products.length?el("div",{class:"pchips"},e.products.slice(0,5).map(prodChip),e.products.length>5?el("span",{class:"chip chip--tag"},"+"+(e.products.length-5)):null):null),
+      cliPlus(e),
       el("span",{class:"bandot "+BAND[e.band],title:daysTxt(e)}),chev()))):[el("div",{class:"empty"},E.length?"Nic neodpovídá hledání.":"Zatím žádní klienti. Přibudou z podepsaných leadů a ze schůzek v kalendáři, nebo je přidej tlačítkem +.")]));
   {const m=moreBtn(list.length-cliShow,()=>{cliShow+=20;renderClients()});if(m)$("cliList").append(m)}
   renderServis(E);renderStats();
@@ -5959,7 +5980,13 @@ function parseEvent(e){
   const name=[...tPre,...cap].join(" ")+(tPost.length?", "+tPost.join(" "):"");
   return {id:e.id,start:e.start.dateTime,title:raw,name,keys:cap.map(norm),key:name?norm(cap[cap.length-1]):"",online:/\(\s*online\s*\)|\bonline\b/i.test(raw)||/\b(teams|zoom|meet)\b/i.test(raw+" "+(e.location||"")),podpis:/podpis/i.test(raw),link:e.htmlLink||"",place:(e.location||"").trim(),end:e.end&&e.end.dateTime||null,created:e.created||null};
 }
-function evMatches(ev,l){const sn=surnameOf(l.name);if(sn.length<3)return false;return ev.keys.some(k=>k===sn||k===sn+"ovi"||(k.length>4&&sn.length>4&&(k===sn+"a"||sn===k+"a")))}
+/* podle příjmení; když je v události i v leadu křestní jméno, musí se shodovat („Vladimír Šilhán“ ≠ „Miroslav Šilhán“) */
+function evMatches(ev,l){const sn=surnameOf(l.name);if(sn.length<3)return false;
+  const ki=ev.keys.findIndex(k=>k===sn||k===sn+"ovi"||(k.length>4&&sn.length>4&&(k===sn+"a"||sn===k+"a")));
+  if(ki<0)return false;
+  const lw=nameWords(l.name).filter(w=>!isTitleWord(w)).map(norm).filter(Boolean),si=lw.lastIndexOf(sn);
+  const lF=lw.filter((w,i)=>i!==si&&w.length>=2),eF=ev.keys.filter((k,i)=>i!==ki&&k.length>=2);
+  return !(lF.length&&eF.length&&!eF.some(k=>lF.includes(k)))}
 function fmtMeet(iso){const d=new Date(iso);const z=n=>String(n).padStart(2,"0");return ["ne","po","út","st","čt","pá","so"][d.getDay()]+" "+d.getDate()+". "+(d.getMonth()+1)+". "+z(d.getHours())+":"+z(d.getMinutes())}
 const CAL_SVG='<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M1.5 6.5h13M5 1v3M11 1v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 function calIcon(){const s=document.createElement("span");s.innerHTML=CAL_SVG;return s.firstChild}

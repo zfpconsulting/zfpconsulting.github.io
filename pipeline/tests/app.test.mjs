@@ -661,6 +661,33 @@ export default {
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
+  async "kalendář: schůzka „VK: Vladimír Šilhán“ se nepáruje k leadu Miroslav Šilhán (stejné příjmení, jiné křestní jméno)"(env) {
+    const { ctx, page, errors } = await openApp(env, { store: STORE });
+    const r = await page.evaluate(() => {
+      const ev = keys => ({ keys: keys.map(norm) }), L = name => ({ name });
+      return [evMatches(ev(["Vladimír", "Šilhán"]), L("Vladimír Šilhán")), evMatches(ev(["Vladimír", "Šilhán"]), L("Miroslav Šilhán")),
+        evMatches(ev(["Šilhán"]), L("Miroslav Šilhán")), evMatches(ev(["Michal", "Veselý"]), L("Veselý Michal")), evMatches(ev(["Pirková"]), L("Soňa Pirková"))];
+    });
+    eq(r, [true, false, true, true, true], "křestní jméno rozhoduje, jen příjmení / jiné pořadí jmen se páruje dál");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
+  async "Klienti: „+“ v řádku založí lead ve fázi Nový lead, klient s aktivním leadem plusko nemá"(env) {
+    const store = { ...STORE,
+      "clients/c1": { name: "Eva Klientová", phone: "777 000 111", email: "eva@x.cz", products: [], log: [], _u: 1 },
+      "clients/c2": { name: "Karel Rozjetý", phone: "", products: [], log: [], _u: 1 },
+      "leads/k2": { name: "Karel Rozjetý", stage: "nabidka", items: [], meetings: [], log: [], _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store });
+    await page.evaluate(() => setView("cli")); await page.waitForTimeout(300);
+    const plus = await page.$$eval("#cliList .crow", rows => rows.map(r => [r.querySelector(".t").firstChild.textContent.trim(), !!r.querySelector(".cli-plus")]));
+    eq(plus.filter(x => /Eva|Karel/.test(x[0])), [["Eva Klientová", true], ["Karel Rozjetý", false]].sort((a, b) => plus.findIndex(x => x[0] === a[0]) - plus.findIndex(x => x[0] === b[0])), "plusko jen u klienta bez aktivního leadu");
+    await page.click("#cliList .crow:has-text('Eva Klientová') .cli-plus"); await page.waitForTimeout(400);
+    const l = await page.evaluate(() => leads.filter(x => x.name === "Eva Klientová").map(x => [x.stage, x.phone, x.email, x.clientId]));
+    eq(l, [["novy", "777 000 111", "eva@x.cz", "c1"]], "nový lead ve fázi Nový lead s údaji klienta, navázaný na klienta");
+    eq(await page.$$eval("#cliList .crow", rows => rows.filter(r => /Eva Klientová/.test(r.textContent)).map(r => !!r.querySelector(".cli-plus"))), [false], "po založení plusko zmizí (jen jeden lead)");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
   async "datum narození ze smlouvy (Databáze) → lead → předvyplněné ve finančním plánu; ruční oprava v Databázi přepíše, jinak ne"(env) {
     const store = { ...STORE, "leads/b2": { name: "Karel Starý", stage: "novy", items: [], meetings: [], log: [], _u: 1 } };
     const { ctx, page, errors } = await openApp(env, { store });
