@@ -107,6 +107,53 @@ const tests = {
     eq(errors, [], "bez chyb ve stránce");
     await ctx.close();
   },
+  async "platební údaje: kontrola účtu (modulo 11, IBAN), QR jen z ověřených údajů, domluveno řídí 1. stranu, 2. strana s QR"() {
+    const { ctx, page, errors } = await open();
+    await page.evaluate(() => { window.__pr = 0; window.print = () => { window.__pr++; }; });
+    /* čisté funkce: vzorový účet z dokumentace ČBA, NN z pojistných podmínek, překlepy */
+    const f = await page.evaluate(() => ({
+      iban: parseUcet("19-2000145399/0800").iban, nn: parseUcet(" 1000588419 / 3500 ").txt, nnOk: ibanOk(parseUcet("1000588419/3500").iban),
+      bad: ["1000588418/3500", "19-2000145398/0800", "12345", "/0800", "0/0800", "1000588419/35000"].map(s => !!parseUcet(s).ok),
+      sp: spayd("CZ6508000000192000145399", 1500, "123", "7", spaydMsg("Conseq akciové portfolio – DIP")),
+      sym: [cleanSym(" 12 34 "), cleanSym("12a"), cleanSym(""), cleanSym("12345678901")], amt: [parseAmt("1 500,50"), parseAmt("12,345")] }));
+    eq(f.iban, "CZ6508000000192000145399", "IBAN ze vzorového účtu");
+    eq([f.nn, f.nnOk, f.bad], ["1000588419/3500", true, [false, false, false, false, false, false]], "NN účet projde, překlepy ne");
+    eq(f.sp, "SPD*1.0*ACC:CZ6508000000192000145399*AM:1500.00*CC:CZK*MSG:CONSEQ AKCIOVE PORTFOLIO DIP*X-SS:7*X-VS:123", "SPAYD");
+    eq([f.sym, f.amt.map(String)], [["1234", null, "", null], ["1500.5", "NaN"]], "VS/SS a částka");
+    /* bez zadaných údajů se druhá strana nepřidává; nic se samo nepředvyplňuje */
+    const pg = () => page.evaluate(() => document.querySelectorAll("#print .a4pg").length);
+    const sum = async () => { const n = await page.evaluate(() => window.__pr); await page.click("#bSum"); await page.waitForFunction(n => window.__pr === n + 1, n); await page.evaluate(() => 0); };
+    await sum(); eq(await pg(), 1, "bez platebních údajů jedna strana"); await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+    const rows = await page.evaluate(() => platbyRows().map(r => ({ key: r.key, nazev: r.nazev, j: r.jednor, m: r.mesicne, typ: r.typ })));
+    assert(rows.length >= 4 && rows.some(r => r.typ === "poj") && new Set(rows.map(r => r.key)).size === rows.length && rows.every(r => !r.key.includes(".")), "řádky produktů + pojištění, unikátní klíče bez teček");
+    eq(await page.evaluate(() => (inp().platby || null)), null, "nic se nezapsalo samo");
+    /* dialog: účet se kontroluje hned, údaje se ukládají do plánu */
+    await page.click("#bPay"); await page.waitForSelector("dialog.mdlg .pcard");
+    eq(await page.$$eval("dialog.mdlg .pcard", c => c.length), rows.length, "karta ke každému produktu");
+    const c0 = "dialog.mdlg .pcard:nth-of-type(1)", k0 = rows[0].key;
+    await page.fill(c0 + " [data-f=ucet]", "1000588418/3500");
+    assert(/neprojde kontrolou/.test(await page.$eval(c0 + " .pst", e => e.textContent)), "překlep v účtu se ohlásí");
+    await page.fill(c0 + " [data-f=ucet]", "1000588419/3500"); await page.fill(c0 + " [data-f=vs]", "4455667788");
+    const st = await page.$eval(c0 + " .pst", e => e.textContent); assert(/Účet v pořádku \(ING Bank\)/.test(st) && /QR bude na 2\. straně/.test(st), "stav: " + st);
+    eq(await page.evaluate(k => { const o = inp().platby[k]; return [o.ucet, o.vs, o.ok]; }, k0), ["1000588419/3500", "4455667788", undefined], "uloženo do plánu (domluveno = výchozí)");
+    /* druhá strana: jen produkty s údaji mají QR, ostatní „doplnit“ */
+    await page.click("dialog.mdlg [data-a=pdf]"); await page.waitForFunction(() => window.__pr === 2); 
+    eq(await pg(), 2, "první strana + platební údaje");
+    const L = await page.evaluate(() => payLines().map(l => ({ key: l.key, fr: l.fr, qr: !!l.svg, spd: l.spd, miss: l.miss })));
+    const mine = L.filter(l => l.key === k0); assert(mine.length && mine.every(l => l.qr && /^SPD\*1\.0\*ACC:CZ\d{22}\*AM:[\d.]+\*CC:CZK\*MSG:[A-Z0-9 .:\/+%-]+\*X-VS:4455667788$/.test(l.spd)), "QR s ověřeným SPAYD");
+    assert(L.filter(l => l.key !== k0).every(l => !l.qr && l.miss.includes("účet")), "bez údajů se QR nevytvoří");
+    const t2 = await page.$eval("#print", e => e.textContent); assert(/doplnit účet/.test(t2) && /1000588419\/3500/.test(t2), "druhá strana ukazuje údaje i chybějící");
+    await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+    /* nedomluveno → z 1. strany i z plateb pryč */
+    eq(await page.evaluate(k => summaryFitted().split('class="a4pg"')[1].includes('<div class="pr"><span>' + platbyRows().find(r => r.key === k).nazev + '</span>'), k0), true, "domluvený produkt je na 1. straně");
+    await page.click("#bPay"); await page.waitForSelector("dialog.mdlg .pcard"); await page.uncheck(c0 + " [data-f=ok]");
+    assert(await page.$eval(c0, e => e.classList.contains("off")), "nedomluvená karta je ztlumená");
+    await page.click("dialog.mdlg [data-a=x]");
+    const r = await page.evaluate(k => { const h = summaryFitted(), nm = platbyRows().find(r => r.key === k).nazev; return { p1: h.split('class="a4pg"')[1].includes('<div class="pr"><span>' + nm + '</span>'), pay: payLines().some(l => l.key === k), name: nm }; }, k0);
+    eq([r.p1, r.pay], [false, false], "nedomluvený produkt (" + r.name + ") není na 1. straně ani v platbách");
+    eq(errors, [], "bez chyb ve stránce");
+    await ctx.close();
+  },
   async "příjem a výdaje v čase: rodičovská → návrat do práce, nová hypotéka nahradí starou, důchody, splacení; rozpis za každého"() {
     const { ctx, page, errors } = await open();
     await setPlan(page, {
@@ -1481,7 +1528,7 @@ tests["mobil: přepínač Editor / Náhled, menu ⋯ (Shrnutí PDF, PDF, PowerPo
   await page.click('.mtabs [data-mt="view"]');
   eq(await page.evaluate(() => [!!$("#ed").offsetParent, document.getElementById("box").getBoundingClientRect().top < 400]), [false, true], "náhled hned nahoře");
   await page.click("#bMore");
-  eq(await page.$$eval("#moreMenu button", b => b.filter(x => x.offsetParent).map(x => x.id)), ["bDzM", "bSumM", "bPdf", "bPptx", "bExp"], "menu ⋯");
+  eq(await page.$$eval("#moreMenu button", b => b.filter(x => x.offsetParent).map(x => x.id)), ["bDzM", "bPayM", "bSumM", "bPdf", "bPptx", "bExp"], "menu ⋯");
   await page.evaluate(() => document.body.click()); eq(await page.evaluate(() => $("#moreMenu").hidden), true, "klepnutí vedle menu zavře");
   await page.click('.mtabs [data-mt="ed"]');
   await page.evaluate(() => goStep(3));
