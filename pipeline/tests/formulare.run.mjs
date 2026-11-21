@@ -36,6 +36,8 @@ const T = {
     assert(c.forms.length >= 60, "aspoň 60 formulářů (" + c.forms.length + ")");
     for (const f of c.forms) { assert(["vyp", "navaz", "zmena", "prevod"].includes(f.kind), "druh " + f.id); assert(/^https?:\/\//.test(f.src), "zdroj " + f.id); assert(ids.includes(f.inst), "instituce u " + f.id); }
     for (const id of ids) if (!c.forms.some(f => f.inst === id)) assert(c.inst.find(i => i.id === id).note, "bez formulářů musí mít vysvětlení: " + id);
+    for (const id of ["conseqps", "conseq", "zfpi", "zfpwi"]) assert(c.forms.filter(f => f.inst === id).length >= 3, "oficiální formuláře " + id);
+    assert(c.inst.find(i => i.id === "zfpwi").addr.includes("Jihlavská"), "adresa ZFP WI (WOOD Retail Investments)");
     const r = await page.evaluate(async () => (await fetch("formulare/" + F.catalog().forms.find(f => f.inst === "nn").file)).status);
     eq(r, 200, "PDF se servíruje");
     eq(errors, [], "chyby"); await ctx.close();
@@ -123,6 +125,41 @@ const T = {
     eq(vals, ["Nováková", "Jana", "1234567890", "Brno", "19", "2000145399", "0800"], "hodnoty v PDF");
     assert(!("rc" in (await page.evaluate(() => LS.frm_state_v2))), "rodné číslo se do úložiště neukládá");
     assert((await page.textContent(".pv-meta")).includes("Předvyplněno: číslo smlouvy"), "přehled předvyplněných údajů");
+    eq(errors, [], "chyby"); await ctx.close();
+  },
+  "Conseq, ZFP Investments, ZFP WI: políčka po znacích, datum po částech, výplata u investic, dopsání do PDF bez polí": async () => {
+    const { ctx, page, errors } = await open();
+    await page.selectOption("#frm-cid", "c:1");
+    const read = names => page.evaluate(async names => {
+      const b = await (await fetch(F.filled().url)).arrayBuffer(); const f = (await PDFLib.PDFDocument.load(b)).getForm();
+      return names.map(n => { try { return f.getTextField(n).getText() || "" } catch (e) { return "?" } });
+    }, names);
+    // ZFP Investments – odkup: účet bez otázky na odkupné, datum podpisu do políček den / měsíc / rok
+    await chipInst(page, "ZFP Investments");
+    await page.click(".flist .row-btn:has-text('Žádost o odkup podílových listů')");
+    assert(!(await page.isVisible(".frow:has-text('Je tam odkupné?')")), "u investic se na odkupné neptá");
+    await page.fill("input[placeholder='123456789/0800']", "19-2000145399/0800");
+    await page.waitForFunction(() => F.filled().done.includes("account") && F.filled().done.includes("date"), null, { timeout: 20000 });
+    const d = new Date(), dd = String(d.getDate()).padStart(2, "0"), mm = String(d.getMonth() + 1).padStart(2, "0");
+    eq(await read(["PRIEZVISKO  OBCHODNÉ MENO", "KRSTNÉ MENO", "Predcisli", "cislo uctu/iban", "kod banky/swift", "den", "mesiac", "rok"]), ["Nováková", "Jana", "19", "2000145399", "0800", dd, mm, String(d.getFullYear())], "odkup ZFPI");
+    // Conseq PS – výpověď PP: číslo smlouvy do 8 políček, předtištěná „77“ se přeskočí
+    await chipInst(page, "Conseq PS");
+    await page.click(".flist .row-btn:has-text('Výpověď smlouvy PP a žádost o odbytné')");
+    await page.fill(".frow:has-text('Číslo smlouvy') input", "7712345678");
+    await page.waitForFunction(() => F.filled().done.includes("cnum"), null, { timeout: 20000 });
+    eq((await read([1, 2, 3, 4, 5, 6, 7, 8].map(i => "Text" + i + "_PP_TF"))).join(""), "12345678", "číslo smlouvy po znacích");
+    // ZFP WI – výpověď je PDF bez polí: údaje se dopíší do stránky
+    await chipInst(page, "ZFP WI");
+    await page.click(".flist .row-btn:has-text('Výpověď rámcové smlouvy a výběr')");
+    await page.fill(".frow:has-text('Místo podpisu') input", "Brno");
+    await page.waitForFunction(() => ["fullname", "addr", "account", "place", "date"].every(k => F.filled().done.includes(k)), null, { timeout: 20000 });
+    const txt = await page.evaluate(async () => {
+      const lib = await import("./vendor/pdf.min.mjs"); lib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs";
+      const doc = await lib.getDocument({ data: new Uint8Array(await (await fetch(F.filled().url)).arrayBuffer()) }).promise;
+      return (await (await doc.getPage(1)).getTextContent()).items.map(i => i.str).join(" ");
+    });
+    for (const t of ["Ing. Jana Nováková", "Květinová 5, 602 00 Brno", "19-2000145399/0800", "Brno"]) assert(txt.includes(t), "v PDF je dopsáno: " + t);
+    assert((await page.textContent(".pv-meta")).includes("jméno a příjmení"), "přehled předvyplněných údajů");
     eq(errors, [], "chyby"); await ctx.close();
   },
   "instituce bez veřejných formulářů nabídne volnou formu": async () => {

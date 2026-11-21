@@ -69,8 +69,8 @@
    "n": "Conseq penzijní společnost, a. s.",
    "short": "Conseq PS",
    "group": "ps",
-   "addr": "Rybná 682/14\n110 05 Praha 1",
-   "note": "Formuláře Conseq PS jsou na webu jen přes JavaScript a automaticky je stáhnout nešlo. Převod k jiné PS podepisuje klient na formuláři nové PS; jinak volná forma s úředně ověřeným podpisem."
+   "addr": "Rybná 682/14\n110 00 Praha 1",
+   "note": "Výpověď a výplaty: originál s úředně ověřeným podpisem na adresu Conseq PS. Převod k jiné PS podepisuje klient na formuláři nové PS."
   },
   {
    "id": "csps",
@@ -134,23 +134,23 @@
    "short": "ZFP Investments",
    "group": "inv",
    "addr": "Antala Staška 2027/79\n140 00 Praha 4",
-   "note": "ZFP Investments veřejně zveřejňuje jen žádost o registraci podílníka – odkup a změny jdou přes obchodníka ZFP. Použij volnou formu (Žádost o odkup)."
+   "note": "Žádosti zasílej na adresu ZFP Investments nebo odevzdej přes obchodníka ZFP."
   },
   {
    "id": "zfpwi",
-   "n": "ZFP WI",
+   "n": "WOOD Retail Investments a. s. (ZFP World Index)",
    "short": "ZFP WI",
    "group": "inv",
-   "addr": "",
-   "note": "ZFP WI jsem na veřejném webu nenašel – pošli mi odkaz na jejich formuláře a doplním je. Zatím volná forma (adresu doplň ručně)."
+   "addr": "Jihlavská 1558/21\n140 00 Praha 4",
+   "note": "ZFP WI spravuje WOOD Retail Investments. Výpovědi jsou PDF bez vyplnitelných polí – údaje klienta do nich dopíšu na pozice; datum uzavření smlouvy doplň rukou."
   },
   {
    "id": "conseq",
    "n": "Conseq Investment Management, a. s.",
    "short": "Conseq",
    "group": "inv",
-   "addr": "Rybná 682/14\n110 05 Praha 1",
-   "note": "Další formuláře Conseq (pokyn k prodeji, změna údajů) jsou na webu jen přes JavaScript – doplním je, až mi povolíš prohlížeč. Jinak volná forma."
+   "addr": "Rybná 682/14\n110 00 Praha 1",
+   "note": "Pokyn / Avízo lze poslat i naskenovaný na fondy@conseq.cz, pokud není potřeba další ověření."
   }
  ],
  "forms": [
@@ -656,7 +656,200 @@
    "kind": "zmena",
    "t": "Žádost o změnu / zřízení trvalého pokynu k nákupu (MTPN)",
    "src": "https://www.conseq.cz/getmedia/62ca4758-20bc-46a1-a8f6-9c118c7c2833/TP-nakup-MTPN-2411-tofill.pdf.aspx?ext=.pdf",
-   "file": "conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu.pdf"
+   "file": "conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/investice/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "vyp",
+   "t": "Výpověď smlouvy DPS a žádost o odbytné",
+   "src": "https://www.conseq.cz/getmedia/e12df17e-946c-4068-8c1c-284f7c4a74e3/DPS-odbytne-vypoved-2502-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vypoved-dps-odbytne.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "vyp",
+   "t": "Výpověď smlouvy PP a žádost o odbytné",
+   "src": "https://www.conseq.cz/getmedia/b49c0b7f-5462-4c80-be24-d70c4eb7de88/PP-TF-odbytne-vypoved-2502-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vypoved-pp-odbytne.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "prevod",
+   "t": "Výpověď u jiné PS a převod do DPS u Conseq PS",
+   "src": "https://www.conseq.cz/getmedia/182cf546-9409-4d22-8e6b-2bd12f4bfba6/Vypoved-DPS-zadost-o-prevod-do-CPS-2401-tofill_1.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vypoved-a-prevod-do-dps-conseq.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "prevod",
+   "t": "Výpověď PP u jiné PS a převod do PP u Conseq PS (sloučení smluv)",
+   "src": "https://www.conseq.cz/getmedia/2f5d3a55-73ef-4f30-89af-8ce0256c9ea9/Vypoved_PP_zadost_o_prevod_do_CPS_1708_tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vypoved-pp-a-prevod-do-pp-conseq.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "prevod",
+   "t": "Výpověď PP a převod z Transformovaného fondu do DPS v rámci Conseq",
+   "src": "https://www.conseq.cz/getmedia/a1870af5-940f-4cfc-8ea4-1ed928d8748f/Prevod_TF_CDPS_UF_CDPS_1710_tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/prevod-tf-do-dps-v-ramci-conseq.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "zmena",
+   "t": "Oznámení o změně údajů (DPS i PP)",
+   "src": "https://www.conseq.cz/getmedia/6c5314dd-81b2-464e-8121-29703bec5009/Oznameni-zmena-OZ-CPS-2109-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/oznameni-o-zmene-udaju.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "vyp",
+   "t": "Výplata částečného odbytného (DPS)",
+   "src": "https://www.conseq.cz/getmedia/968fdb66-1328-466b-b00e-435df907a902/zadost-o-vyplatu-castecneho-odbytneho-2603-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vyplata-castecneho-odbytneho-dps.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "vyp",
+   "t": "Výplata jednorázového vyrovnání (DPS)",
+   "src": "https://www.conseq.cz/getmedia/1b021587-2c2d-400f-be2b-4a634fa91bef/DPS-JV-2601-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vyplata-jednorazoveho-vyrovnani-dps.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "vyp",
+   "t": "Výplata předdůchodu (DPS)",
+   "src": "https://www.conseq.cz/getmedia/37020776-3aca-46da-970d-713ddbbad4bb/DPS-predduchod-2502-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vyplata-predduchodu-dps.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "vyp",
+   "t": "Výplata starobní / invalidní penze na dobu určenou (DPS)",
+   "src": "https://www.conseq.cz/getmedia/2b2bff89-e483-47d9-905e-db21d1f7df5e/DPS-zadost-penze-2502-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vyplata-penze-dps.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "vyp",
+   "t": "Výplata jednorázového vyrovnání (PP)",
+   "src": "https://www.conseq.cz/getmedia/9b81ab98-9fc8-4b9a-97f3-d2495d29f4d2/PP-TF-JV-2502-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vyplata-jednorazoveho-vyrovnani-pp.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseqps",
+   "kind": "vyp",
+   "t": "Výplata doživotní penze (PP)",
+   "src": "https://www.conseq.cz/getmedia/e76c04c6-1dd6-4141-818f-7bb4b661e1d4/PP-TF-dozivotni-penze-2502-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseqps/vyplata-dozivotni-penze-pp.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/penze/formulare"
+  },
+  {
+   "inst": "conseq",
+   "kind": "vyp",
+   "t": "Pokyn / Avízo – prodej (odkup) a výběr, nákup, přestup",
+   "src": "https://www.conseq.cz/getmedia/162c4d49-7823-4401-ba8e-951335b0cf85/PA-2610-tofill_1.pdf.aspx?ext=.pdf",
+   "file": "conseq/pokyn-avizo.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/investice/formulare"
+  },
+  {
+   "inst": "conseq",
+   "kind": "zmena",
+   "t": "Oznámení o změně údajů",
+   "src": "https://www.conseq.cz/getmedia/92d3b496-73e6-4e45-a75d-ac2ec2447b7a/OZ-2404-tofill_3.pdf.aspx?ext=.pdf",
+   "file": "conseq/oznameni-o-zmene-udaju.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/investice/formulare"
+  },
+  {
+   "inst": "conseq",
+   "kind": "zmena",
+   "t": "Oznámení o změně obchodního zástupce",
+   "src": "https://www.conseq.cz/getmedia/1982fb89-5986-4656-96d9-f446cd14f9fd/OZOZ-2404-tofill_3.pdf.aspx?ext=.pdf",
+   "file": "conseq/oznameni-o-zmene-obchodniho-zastupce.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/investice/formulare"
+  },
+  {
+   "inst": "conseq",
+   "kind": "zmena",
+   "t": "Plná moc",
+   "src": "https://www.conseq.cz/getmedia/ee30bb83-31da-484d-bf35-5dff357c15a5/Plna_moc_final.pdf.aspx?ext=.pdf",
+   "file": "conseq/plna-moc.pdf",
+   "web": "https://www.conseq.cz/podpora/dokumenty-ke-stazeni/investice/formulare"
+  },
+  {
+   "inst": "zfpi",
+   "kind": "vyp",
+   "t": "Žádost o odkup podílových listů",
+   "src": "https://www.zfpinvest.com/getmedia/529d04cd-9c9d-49e6-85e0-abc3bba94d1a/Zadost-o-odkup-podilovych-listu.pdf?ext=.pdf",
+   "file": "zfpi/zadost-o-odkup-podilovych-listu.pdf",
+   "web": "https://www.zfpinvest.com/dokumenty/"
+  },
+  {
+   "inst": "zfpi",
+   "kind": "zmena",
+   "t": "Žádost o změnu údajů",
+   "src": "https://www.zfpinvest.com/getmedia/d724fad2-3a17-42f1-84fa-b8b60042b09c/Zadost-o-zmenu-udaju.pdf?ext=.pdf",
+   "file": "zfpi/zadost-o-zmenu-udaju.pdf",
+   "web": "https://www.zfpinvest.com/dokumenty/"
+  },
+  {
+   "inst": "zfpi",
+   "kind": "zmena",
+   "t": "Žádost o převod podílových listů (na jiného podílníka)",
+   "src": "https://www.zfpinvest.com/getmedia/94d19702-1374-4d18-bb9b-84b2d11065ae/Zadost-o-prevod-podilovych-listu.pdf?ext=.pdf",
+   "file": "zfpi/zadost-o-prevod-podilovych-listu.pdf",
+   "web": "https://www.zfpinvest.com/dokumenty/"
+  },
+  {
+   "inst": "zfpi",
+   "kind": "zmena",
+   "t": "Dispoziční práva k podílovým listům",
+   "src": "https://www.zfpinvest.com/getmedia/6a98a125-0c96-480c-ba32-48e89a8bca8d/Dispozicni-prava-k-podilovym-listum.pdf?ext=.pdf",
+   "file": "zfpi/dispozicni-prava-k-podilovym-listum.pdf",
+   "web": "https://www.zfpinvest.com/dokumenty/"
+  },
+  {
+   "inst": "zfpi",
+   "kind": "zmena",
+   "t": "Dodatek DIP (zařazení do dlouhodobého investičního produktu)",
+   "src": "https://www.zfpinvest.com/getmedia/fcbef496-ef1c-4b3f-acfc-70d30f6f2a0e/Dodatek-DIP.pdf?ext=.pdf",
+   "file": "zfpi/dodatek-dip.pdf",
+   "web": "https://www.zfpinvest.com/dokumenty/"
+  },
+  {
+   "inst": "zfpwi",
+   "kind": "vyp",
+   "t": "Výpověď rámcové smlouvy",
+   "src": "https://drive.google.com/uc?export=download&id=1I4Z0yTvjxqGfIjUJ31Gn2_scnZHDX6hD",
+   "file": "zfpwi/vypoved-ramcove-smlouvy.pdf",
+   "web": "https://www.zfpwi.cz/"
+  },
+  {
+   "inst": "zfpwi",
+   "kind": "vyp",
+   "t": "Výpověď rámcové smlouvy a výběr prostředků",
+   "src": "https://drive.google.com/uc?export=download&id=1PItmGBTHoWx0qDY2WwtPHEXBf8H1b_-j",
+   "file": "zfpwi/vypoved-ramcove-smlouvy-a-vyber.pdf",
+   "web": "https://www.zfpwi.cz/"
+  },
+  {
+   "inst": "zfpwi",
+   "kind": "vyp",
+   "t": "Pokyn k výběru peněžních prostředků (celé portfolio / část)",
+   "src": "https://drive.google.com/uc?export=download&id=1opvBQJUmU33X_28i_tUkBK0R_I7TMXu0",
+   "file": "zfpwi/pokyn-k-vyberu.pdf",
+   "web": "https://www.zfpwi.cz/"
   }
  ]
 }

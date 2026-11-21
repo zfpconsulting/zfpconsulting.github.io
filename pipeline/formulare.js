@@ -1,7 +1,8 @@
 /* Formuláře – žádosti klienta na instituce (výpovědi, změny, převody).
    Dvě cesty (první volba v záložce):
      • Oficiální formulář – PDF stažené z webů institucí (formulare/index.json, generuje ../tools/formulare.py); kde má PDF
-       vyplnitelná pole, předvyplní se údaji klienta (pdf-lib + písmo s diakritikou, vše v prohlížeči, nic se nikam neposílá).
+       vyplnitelná pole, předvyplní se údaji klienta (pdf-lib + písmo s diakritikou, vše v prohlížeči, nic se nikam neposílá);
+       u PDF bez polí se údaje dopíší do stránky za popisky (pozice „ov“ v index.json).
      • Volnou formou – dopis A4 (výpověď, výpověď v návaznosti, změna, posunutí počátku, odkup), tisk / PDF a kopie textu.
    Samostatný modul: Formulare.mount(kontejner, {clients, toast, ls, birthOf})
    clients() → [{id,name,rec,lead,phone,products,…}] (clientEntries z Pipeline); údaje klienta jdou vždy přepsat ručně.
@@ -164,8 +165,12 @@ const PAPER_CSS=`
 `;
 
 /* ---------- údaje pro oficiální PDF ---------- */
+/* klíče formuláře bez dílčích přípon („cnum@3“ → cnum, „date@d“ → date; placedate = místo + datum) */
+function fkeys(form){const k=new Set();Object.values(form.fill||{}).forEach(v=>{v=String(v).split("@")[0];if(v==="placedate"){k.add("place");k.add("date")}else k.add(v)});return k}
+/* výplata na účet: pojišťovny a PS jen když je odkupné / odbytné, investice vždy (výtěžek odkupu jde na účet) */
+const payOn=(form,g,S)=>(form.kind==="vyp"||form.kind==="navaz")&&(((g==="poj"||g==="ps")&&S.odk===true)||g==="inv");
 function values(S,form,inst){
-  const n=splitName(S.name),a=parseAddr(S.addr),acc=parseAcc(S.ucet),keys=new Set(Object.values(form.fill||{}));
+  const n=splitName(S.name),a=parseAddr(S.addr),acc=parseAcc(S.ucet),keys=fkeys(form);
   const g=(inst&&inst.group)||"poj";
   const tit=[n.tb,n.ta].filter(Boolean).join(" ");
   const V={
@@ -176,8 +181,8 @@ function values(S,form,inst){
     street:a.street,streetcp:a.streetcp,cp:a.cp,city:a.city,psc:a.psc,addr:a.line,
     phone:T(S.phone),email:T(S.email),date:dshort(S.fdate||todayISO()),place:T(S.place)
   };
-  const pay=(form.kind==="vyp"||form.kind==="navaz")&&(g==="poj"||g==="ps")&&S.odk===true;
-  if(pay){
+  V.placedate=[V.place,V.date].filter(Boolean).join(", ");
+  if(payOn(form,g,S)){
     V.accpre=acc.pre;V.bank=acc.bank;
     V.account=acc.iban||((keys.has("accpre")?"":(acc.pre?acc.pre+"-":""))+acc.num+(keys.has("bank")||!acc.bank?"":"/"+acc.bank));
     V.vs=T(S.vs);V.ss=T(S.ss);
@@ -185,7 +190,18 @@ function values(S,form,inst){
   if(keys.has("newcnum")&&T(S.cnumNew))V.newcnum=T(S.cnumNew);
   return V;
 }
-const KEYLAB={cnum:"číslo smlouvy",newcnum:"nová smlouva",surname:"příjmení",firstname:"jméno",fullname:"jméno a příjmení",fullnameRev:"příjmení a jméno",title:"titul",rc:"rodné číslo",birth:"datum narození",rcbirth:"RČ / datum narození",street:"ulice",streetcp:"ulice a č. p.",cp:"č. p.",city:"obec",psc:"PSČ",addr:"adresa",phone:"telefon",email:"e-mail",account:"číslo účtu",accpre:"předčíslí",bank:"kód banky",vs:"VS",ss:"SS",date:"datum",place:"místo"};
+/* hodnota pro klíč, i dílčí: „cnum@3“ = 4. znak (políčka po jednom znaku), „date@d|m|y“ = den / měsíc / rok */
+function pick(V,key){
+  const i=key.indexOf("@");if(i<0)return V[key]||"";
+  const base=key.slice(0,i),sub=key.slice(i+1),v=String(V[base]||"");if(!v)return "";
+  if(/^[dmy]$/.test(sub)){const m=/^(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})$/.exec(v);if(!m)return "";return sub==="d"?m[1].padStart(2,"0"):sub==="m"?m[2].padStart(2,"0"):m[3]}
+  /* „3/8“ = 4. znak z posledních 8 (předtištěná předpona čísla smlouvy se tak přeskočí, když ji zadáš celou) */
+  const m=/^(\d+)(?:\/(\d+))?$/.exec(sub);if(!m)return "";
+  let c=v.replace(/[\s-]+/g,"");if(m[2]&&c.length>+m[2])c=c.slice(-m[2]);
+  return c.charAt(+m[1])||"";
+}
+const baseKey=k=>{k=String(k).split("@")[0];return k};
+const KEYLAB={cnum:"číslo smlouvy",newcnum:"nová smlouva",surname:"příjmení",firstname:"jméno",fullname:"jméno a příjmení",fullnameRev:"příjmení a jméno",title:"titul",rc:"rodné číslo",birth:"datum narození",rcbirth:"RČ / datum narození",street:"ulice",streetcp:"ulice a č. p.",cp:"č. p.",city:"obec",psc:"PSČ",addr:"adresa",phone:"telefon",email:"e-mail",account:"číslo účtu",accpre:"předčíslí",bank:"kód banky",vs:"VS",ss:"SS",date:"datum",place:"místo",placedate:"místo a datum"};
 
 /* ---------- líné načítání knihoven ---------- */
 const libs={};
@@ -225,18 +241,31 @@ async function fillPdf(form,S,inst){
   const done=[];
   if(form.fill){
     doc.registerFontkit(fontkit);
-    const f=doc.getForm();try{f.deleteXFA()}catch(e){}
     const V=values(S,form,inst);let emb=null,touched=[];
-    for(const [name,key] of Object.entries(form.fill)){
-      const v=V[key];if(!v)continue;
+    const mark=key=>{const b=baseKey(key);(b==="placedate"?["place","date"]:[b]).forEach(x=>{if(!done.includes(x))done.push(x)})};
+    const acro=Object.keys(form.fill).some(n=>n.charAt(0)!=="@");
+    const f=acro?doc.getForm():null;if(f)try{f.deleteXFA()}catch(e){}
+    for(const [name,key] of Object.entries(acro?form.fill:{})){
+      if(name.charAt(0)==="@")continue;
+      const v=pick(V,key);if(!v)continue;
       let fld;try{fld=f.getTextField(name)}catch(e){continue}
-      try{fld.setText(fit(fld,v,key));touched.push(fld);if(!done.includes(key))done.push(key)}catch(e){continue}
+      try{fld.setText(fit(fld,v,baseKey(key)));touched.push(fld);mark(key)}catch(e){continue}
       /* některá PDF (Kooperativa) pole schovávají, dokud skript ve formuláři nezaškrtne volbu – vyplněné pole ukázat */
       try{fld.acroField.getWidgets().forEach(w=>{if(w.hasFlag&&w.hasFlag(PDFLib.AnnotationFlags.Hidden))w.clearFlag(PDFLib.AnnotationFlags.Hidden)})}catch(e){}
     }
     if(touched.length){
       try{emb=await doc.embedFont(font,{subset:true})}catch(e){}
       for(const fld of touched){try{emb?fld.updateAppearances(emb):fld.defaultUpdateAppearances&&fld.defaultUpdateAppearances()}catch(e){}}
+    }
+    /* PDF bez vyplnitelných polí: text se dopíše za popisek na pozici z index.json (ov) */
+    if(Array.isArray(form.ov)&&form.ov.length){
+      const pages=doc.getPages();
+      for(const o of form.ov){
+        const key=form.fill[o.n];const v=key&&pick(V,key);const pg=pages[o.p];if(!v||!pg)continue;
+        if(!emb)try{emb=await doc.embedFont(font,{subset:true})}catch(e){break}
+        let size=o.s||10;while(size>6&&emb.widthOfTextAtSize(v,size)>o.w)size-=.5;
+        try{pg.drawText(v,{x:o.x,y:o.y,size,font:emb,color:PDFLib.rgb(.07,.07,.1)});mark(key)}catch(e){}
+      }
     }
   }
   return {bytes:await doc.save({updateFieldAppearances:false}),done};
@@ -464,7 +493,7 @@ function mount(root,opts){
     const shown=F.filter(f=>S.ffilter==="all"||(f.kind==="navaz"?"vyp":f.kind)===S.ffilter);
     const list=h("div",{class:"group flist"});
     shown.forEach(f=>{
-      const n=f.fill?new Set(Object.values(f.fill)).size:0;
+      const n=f.fill?fkeys(f).size:0;
       const sub=[KIND[f.kind]||"",f.pages?f.pages+" str.":"",f.file.endsWith(".docx")?"Word":""].filter(Boolean).join(" · ");
       const tag=f.file.endsWith(".docx")?"Word":f.fill?"předvyplním":"k tisku";
       const r=h("button",{type:"button",class:"row row-btn"+(f.id===S.formId?" on":""),"aria-current":f.id===S.formId?"true":null,onclick:()=>{S.formId=f.id;save();renderAll();if(window.matchMedia&&matchMedia("(max-width:960px)").matches)requestAnimationFrame(()=>pv.scrollIntoView({behavior:"smooth",block:"start"}))}},
@@ -480,11 +509,11 @@ function mount(root,opts){
   /* údaje, které se propíšou do vybraného PDF */
   function dataBlock(){
     const f=curForm();if(!f||!f.fill)return null;
-    const I=instOf(S,instList())||{};const keys=new Set(Object.values(f.fill));
+    const I=instOf(S,instList())||{};const keys=fkeys(f);
     const g=h("div",{class:"group"});
     g.append(frow(f.kind==="prevod"?"Vypovídaná smlouva č.":"Číslo smlouvy","cnum",{ph:"XXXXXXXXXX"}));
     if(keys.has("newcnum"))g.append(frow("Nová smlouva č.","cnumNew",{ph:f.kind==="prevod"?"smlouva u nové společnosti":"převod odkupného na novou smlouvu"}));
-    const payable=(f.kind==="vyp"||f.kind==="navaz")&&(I.group==="poj"||I.group==="ps")&&["account","accpre","bank","vs","ss"].some(k=>keys.has(k));
+    const payable=(f.kind==="vyp"||f.kind==="navaz")&&["poj","ps","inv"].includes(I.group)&&["account","accpre","bank","vs","ss"].some(k=>keys.has(k));
     if(payable)odkRows(g,I.group);
     if(keys.has("place"))g.append(frow("Místo podpisu","place",{ph:"Brno"}));
     if(keys.has("date"))g.append(frow("Datum podpisu","fdate",{type:"date"}));
@@ -492,9 +521,12 @@ function mount(root,opts){
   }
   /* „Je tam odkupné?“ + platební údaje (VS/SS jen když jsou vyplněné) */
   function odkRows(g,grp){
-    const q=grp==="ps"?"Vyplatit odbytné na účet?":"Je tam odkupné?";
-    g.append(h("div",{class:"frow"},h("label",{text:q}),segOf([["ano","Ano"],["ne","Ne"]],S.odk?"ano":"ne",v=>{S.odk=v==="ano";save();renderAll()},{label:q})));
-    if(S.odk){
+    const inv=grp==="inv";
+    if(!inv){
+      const q=grp==="ps"?"Vyplatit odbytné na účet?":"Je tam odkupné?";
+      g.append(h("div",{class:"frow"},h("label",{text:q}),segOf([["ano","Ano"],["ne","Ne"]],S.odk?"ano":"ne",v=>{S.odk=v==="ano";save();renderAll()},{label:q})));
+    }
+    if(inv||S.odk){
       const u=frow("Číslo účtu","ucet",{ph:"123456789/0800",on:()=>chk()});
       const st=h("div",{class:"pst"});
       const chk=()=>{const c=ucetCheck(S.ucet);st.className="pst "+c.st;st.textContent=c.msg};chk();
@@ -567,7 +599,7 @@ function mount(root,opts){
     else bar.append(h("a",{class:"btn btn--primary",href:BASE+"formulare/"+f.file,target:"_blank",rel:"noopener",download:isDoc?"":null,text:isDoc?"Stáhnout Word":"Otevřít PDF"}));
     bar.append(h("span",{class:"sp"}));
     if(f.fill)bar.append(h("a",{class:"btn btn--ghost btn--s",href:BASE+"formulare/"+f.file,target:"_blank",rel:"noopener",text:"Prázdný"}));
-    bar.append(h("a",{class:"btn btn--ghost btn--s",href:f.src,target:"_blank",rel:"noopener",text:"Web instituce"}));
+    bar.append(h("a",{class:"btn btn--ghost btn--s",href:f.web||f.src,target:"_blank",rel:"noopener",text:"Web instituce"}));
     const box=h("div",{class:"pv-box",id:"frm-pvbox"});
     const pages=h("div",{class:"pv-pages"});box.append(pages);
     const meta=h("div",{class:"pv-meta"});
@@ -579,7 +611,7 @@ function mount(root,opts){
   function metaInfo(f){
     const m=refs.meta;if(!m)return;m.textContent="";
     if(f.fill){
-      const all=[...new Set(Object.values(f.fill))];
+      const all=[...fkeys(f)];
       const done=pvState.done;
       if(pvState.err)m.append(h("p",{class:"hint",text:"Předvyplnit se nepodařilo ("+pvState.err+") – otevři prázdný formulář."}));
       else m.append(h("p",{class:"hint",text:done.length?"Předvyplněno: "+done.map(k=>KEYLAB[k]||k).join(", ")+". Zkontroluj a zbytek doplň v PDF nebo rukou.":"Zatím není co předvyplnit – vyber klienta nebo doplň údaje."}));

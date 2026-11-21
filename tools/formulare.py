@@ -7,10 +7,13 @@ bezztrátově je zmenší (qpdf) a heuristicky namapuje vyplnitelná pole (AcroF
 
   python3 tools/formulare.py            stáhne vše znovu a přegeneruje index.json
   python3 tools/formulare.py --offline  jen přemapuje už stažené soubory (bez sítě)
+  python3 tools/formulare.py --only zfpi,conseq  stáhne jen formuláře těchto institucí (a chybějící), přemapuje vše
 
 Ruční opravy mapování: OVERRIDES níže ({"<instituce>/<soubor bez přípony>": {"název pole": "klíč" | None}}).
 Klíče: cnum newcnum surname firstname fullname fullnameRev title rc birth rcbirth street streetcp cp city psc addr phone email
-       account accpre bank vs ss date place.
+       account accpre bank vs ss date place placedate („Brno, 21. 11. 2026“ do jednoho pole).
+       Části hodnoty: „cnum@3“ = 4. znak čísla smlouvy (políčka po jednom znaku), „cnum@3/8“ = 4. znak z posledních 8 znaků,
+       „date@d“ / „date@m“ / „date@y“ = den / měsíc / rok.
 Potřebuje: pdftotext (poppler-utils), qpdf, python3-pypdf."""
 # Heuristické mapování polí AcroForm → klíče údajů klienta (jméno, RČ, adresa, číslo smlouvy …)
 import pypdf, subprocess, re, sys, json, unicodedata, html
@@ -26,7 +29,7 @@ def words(pdf):
         else: cur['w'].append((float(m.group(3)),float(m.group(4)),float(m.group(5)),float(m.group(6)),html.unescape(m.group(7))))
     return pages
 GENERIC=re.compile(r'^(textove pole|text|fill|undefined|comb|pole|textfield|field|untitled|zaskrtavaci pole|check box|group)(?:\d|\b|_)|^[a-z]{1,2}\.?\d+[a-z]?(\.\d+)*$|^\d+$|^[a-z]\d*$')
-EXCL=re.compile(r'^pz|^pzp|zprostred|poradc|ziskatel|zastupc|opravnen|urcen|dedic|zakonn|zamestnavatel|obmysl|pojisteny 2|2\. pojist|dite|ditet|spolecnost|\bico\b|zrostred|osobni cislo|reg(istracni)? ?zn|vozid|barcode|hvezda|pruk|vydal|platn|statni|obcanstv|narozeni misto|misto narozeni|mistnar|pohlavi|zeme|stat\b|koresp|predvolba|nazev firmy|nov[eayo] (prijmeni|jmeno|adres|ulice|titul|telefon|e ?mail|bydl)|^nov[eayo]\\b')
+EXCL=re.compile(r'^pz|^pzp|rodne prijmeni|titul za jmenem|zprostred|poradc|ziskatel|zastupc|opravnen|urcen|dedic|zakonn|zamestnavatel|obmysl|pojisteny 2|2\. pojist|dite|ditet|spolecnost|\bico\b|zrostred|osobni cislo|reg(istracni)? ?zn|vozid|barcode|hvezda|pruk|vydal|platn|statni|obcanstv|narozeni misto|misto narozeni|mistnar|pohlavi|zeme|stat\b|koresp|predvolba|nazev firmy|nov[eayo] (prijmeni|jmeno|adres|ulice|titul|telefon|e ?mail|bydl)|^nov[eayo]\\b')
 def classify(h):
     if re.search(r'nov[aeyou]* (pojistn[aeé] )?smlouv|nove smlouv|nova smlouva|cislo nove|^smlouvu c|pojistnou smlouvu c|smlouvu u .{0,40}cisl|prevod.{0,30}smlouv',h): return 'newcnum'
     if re.search(r'rodne ?cislo.{0,6}datum|rodne ?cislo ?/? ?ico|rodne cisloico',h): return 'rcbirth'
@@ -130,8 +133,8 @@ def analyse(pdf,ovkey=''):
         if split and k in('fullname','fullnameRev') and d['src']!='ovr': continue
         if k in PERSON and first and d['src']!='ovr':
             if d['page']!=first['page'] or d['y']<first['y']-25 or d['y']>first['y']+190: continue
-        if k=='addr' and ({'street','streetcp'}&keys): continue
-        if k=='addr' and ({'city','psc'}&keys): k='streetcp'
+        if k=='addr' and ({'street','streetcp'}&keys) and d['src']!='ovr': continue
+        if k=='addr' and ({'city','psc'}&keys) and d['src']!='ovr': k='streetcp'
         uk=(k,d['page']) if k=='cnum' else k
         if uk in used or d['name'] in fill: continue
         fill[d['name']]=k; used.add(uk); d['use']=True
@@ -152,8 +155,77 @@ OVERRIDES={
  "kbps/prevod-smlouvy-tf-dps-z-jine-penzijni-spolecnosti-do-kb-ps":{"fill_6":"rc","undefined":"cnum","Text1":"addr"},
  "csob/oznameni-o-zmene-zivotni-pojisteni":{"PS_cislo_1":"cnum"},
  "uniqa/vypoved-zanik-zp":{"undefined_2":"newcnum","cislouctu":"account","pozad variab symbol":"vs"},
+ # Conseq penzijní společnost
+ "conseqps/vypoved-dps-odbytne":{"Text1_DPS_VYP":"cnum","Text8_DPS_VYP":"rc","Text15_DPS_VYP":None,"Text16_DPS_VYP":None,"Text17_DPS_VYP":"addr","Text18_DPS_VYP":"street","Text25_DPS_VYP":"phone"},
+ "conseqps/vypoved-pp-odbytne":{**{"Text%d_PP_TF"%(i+1):"cnum@%d/8"%i for i in range(8)},"Text14_PP_TF":"rc","Text22_PP_TF":None,"Text24_PP_TF":None,"Text26_PP_TF":"addr","Text27_PP_TF":"street","Text34_PP_TF":"phone"},
+ "conseqps/vypoved-a-prevod-do-dps-conseq":{"Adresa účastník":"addr","Číslo smlouvy u stávající společnosti":"cnum"},
+ "conseqps/vypoved-pp-a-prevod-do-pp-conseq":{"Text1":"title","Text3":"surname","Text7":"rc","Text32":"newcnum","Text27":None,"Text28":None,"Text29":None},
+ "conseqps/prevod-tf-do-dps-v-ramci-conseq":{"Text27":"cnum","Text3":"fullname","Text4":"rc","Text7":"addr","Text11":None},
+ "conseqps/oznameni-o-zmene-udaju":{"ucastnik_cislo":"rc","paticka_v":"place","paticka_datum":"date"},
+ "conseqps/vyplata-castecneho-odbytneho-dps":{"V":"place","nazev_adresa_banky":None},
+ "conseqps/vyplata-jednorazoveho-vyrovnani-dps":{"Text32":"cnum","Text7":"rc"},
+ "conseqps/vyplata-predduchodu-dps":{"Text0":"cnum","V":"place"},
+ "conseqps/vyplata-penze-dps":{"Text0":"cnum","V":"place"},
+ "conseqps/vyplata-jednorazoveho-vyrovnani-pp":{**{"Text%d_PP_TF"%(i+1):"cnum@%d/8"%i for i in range(8)},"Text30":"place","Text31":"date"},
+ "conseqps/vyplata-dozivotni-penze-pp":{**{"Text%d"%(101+i):"cnum@%d/8"%i for i in range(8)},"Text7":"rc","Text30":"place","Text31":"date"},
+ # Conseq Investment Management
+ "conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu":{"Příjmení_MTPN":"fullname","rodne_cislo_ICO_MTPN":"rc","Telefon_e-mail_MTPN":None,"Ulice_smluvni_strana_MTPN":"streetcp","Místo_MTPN":"place","Datum_MTPN":"date"},
+ "conseq/pokyn-avizo":{"Ulice_smluvni_strana_PA":"streetcp","bankovni_spojeni_pro_odeslani_vytezku_PA":"account","misto_PA":"place","datum_prohlaseni_klienta_PA":"date"},
+ "conseq/oznameni-o-zmene-udaju":{"Text_OZ-2404_1":"fullname","Text_OZ-2404_2":"rc","Text_OZ-2404_3":"streetcp","Text_OZ-2404_4":"city","Text_OZ-2404_5":"psc",**{"Text_OZ-2404_%d"%i:None for i in range(6,60)}},
+ "conseq/oznameni-o-zmene-obchodniho-zastupce":{"OZOZ_2404_1":"fullname","OZOZ_2404_2":"rc","OZOZ_2404_3":"streetcp","OZOZ_2404_4":"city","OZOZ_2404_5":"psc","OZOZ_2404_7":"cnum","OZOZ_2404_54":"place"},
+ "conseq/plna-moc":{"Jmeno_prijmeni_zmocnitel_PLM":"fullname","Datum_narození_zmocnitel_PLM":"birth","RC_zmocnitel_PLM":"rc","Trvale_bydliste_zmocnitel_PLM":"addr","V_zmocnitel_PLM":"place","Dne_zmocnitel_PLM":"date"},
+ # ZFP Investments
+ "zfpi/zadost-o-odkup-podilovych-listu":{"PRIEZVISKO  OBCHODNÉ MENO":"surname","KRSTNÉ MENO":"firstname","rodne cislo/ico":"rc","TRVALÉ BYDLISKO  SÍDLO  ULICA":"street","cislo":"cp","den":"date@d","mesiac":"date@m","rok":"date@y"},
+ "zfpi/zadost-o-zmenu-udaju":{"meno":"firstname","adresa":"addr","e/mail":"email","rodne cislo agent":None,"adresa agent":None,"telefon2":None,"e mail":None,"datum a misto":"placedate"},
+ "zfpi/zadost-o-prevod-podilovych-listu":{"Prevodce_prijimeni/obchodni_meno":"surname","KRSTNÉ MENO":"firstname","Prevodce_rodne_cislo/ico":"rc","Prevodce_trvale_bydlyste/sidlo_ulice":"street","Prevodce_den":"date@d","Prevodce_mesic":"date@m","Prevodce_rok":"date@y","Nabyvatel_rodne_cislo/ico":None,"Nabyvatel_krestni_jmeno":None,"Nabyvatel_trvale_bydlyste/sidlo_ulice":None,"Nabyvatel_cislo_popisne":None,"Nabyvatel_psc":None,"Nabyvatel_mesto":None},
+ "zfpi/dispozicni-prava-k-podilovym-listum":{"RC/ICO_podilnik":"rc"},
+ "zfpi/dodatek-dip":{"titul_pred":"title","titul_za":None,"mobil":"phone","e-mail":"email"},
+ # ZFP World Index (WOOD Retail Investments)
+ "zfpwi/pokyn-k-vyberu":{"fill_4":"cnum","fill_5":None},
 }
+# PDF bez vyplnitelných polí: údaje se dopíší na pozici za popisek (formulare.js je vykreslí do stránky).
+# {"<instituce>/<soubor>": [(popisek, klíč[, "in"|"dots"])]} – "in" = popisek slepený s tečkami ("dne....."), "dots" = za popiskem musí být tečky
+OVERLAYS={
+ "zfpwi/vypoved-ramcove-smlouvy":[("Jméno a příjmení:","fullname"),("trvale bytem:","addr"),("rodné (identifikační) číslo:","rc"),("datum a místo narození:","birth"),("V","place","dots"),("dne","date","in")],
+ "zfpwi/vypoved-ramcove-smlouvy-a-vyber":[("Jméno a příjmení:","fullname"),("trvale bytem:","addr"),("rodné (identifikační) číslo:","rc"),("datum a místo narození:","birth"),("Všechny prostředky zaslat na bankovní účet:","account"),("V","place","dots"),("dne","date","in")],
+}
+DOTS=re.compile(r'^[._…\-]{3,}$')
+def overlay(pdf,spec):
+    P=words(pdf); r=pypdf.PdfReader(pdf); out=[]; used=set()
+    for lab,key,*opt in spec:
+        toks=[norm(t) for t in lab.split()]; glued=bool(opt and opt[0]=="in"); hit=None
+        for pi,pg in enumerate(P):
+            ws=pg['w']; W=float(r.pages[pi].mediabox.width)
+            for i in range(len(ws)):
+                if (pi,i) in used: continue
+                seq=ws[i:i+len(toks)]
+                if len(seq)<len(toks): continue
+                ok=all(norm(w[4])==t for w,t in zip(seq,toks)) if not glued else (len(toks)==1 and norm(ws[i][4]).startswith(toks[0]) and bool(DOTS.match(ws[i][4][len(lab):])))
+                if not ok: continue
+                if not glued and any(abs(w[1]-seq[0][1])>3 for w in seq): continue
+                if opt and opt[0]=="dots":
+                    nx=ws[i+len(toks)] if i+len(toks)<len(ws) else None
+                    if not (nx and abs(nx[1]-seq[0][1])<3 and DOTS.match(nx[4])): continue
+                last=seq[-1]; y0=min(w[1] for w in seq); y1=max(w[3] for w in seq)
+                hgt=y1-y0; ondots=False
+                if glued: x=last[0]+len(lab)*hgt*0.56+3; ondots=True
+                else:
+                    nxt=ws[i+len(toks)] if i+len(toks)<len(ws) else None
+                    ondots=bool(nxt and abs(nxt[1]-y0)<3 and DOTS.match(nxt[4]) and nxt[0]-last[2]<20)
+                    x=(nxt[0]+2) if ondots else last[2]+5
+                rest=[w for w in ws if abs(w[1]-y0)<3 and w[0]>x+4 and not DOTS.match(w[4]) and not (glued and w is last)]
+                x2=min([w[0]-6 for w in rest]+[W-40])
+                base=y1-hgt*(0.45 if ondots else 0.22)   # na tečkách o kousek výš, ať text nesedí přímo na nich
+                hit=dict(p=pi,x=round(x,1),y=round(pg['h']-base,1),w=round(max(30,x2-x),1),s=round(min(10.5,max(7,hgt*0.85)),1),k=key)
+                used.add((pi,i)); break
+            if hit: break
+        if hit: out.append(hit)
+    for i,o in enumerate(out): o["n"]="@o%d"%i
+    return out
 PAYKEYS={"account","accpre","bank","vs","ss"}
+# změnové formuláře, kde adresa a kontakt jen identifikují klienta (nové údaje se píší jinam) – adresu předvyplnit
+ADDR_ID={"conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu","conseq/oznameni-o-zmene-udaju","conseq/oznameni-o-zmene-obchodniho-zastupce","conseq/plna-moc",
+ "zfpi/zadost-o-zmenu-udaju","zfpi/zadost-o-prevod-podilovych-listu","zfpi/dispozicni-prava-k-podilovym-listum","zfpi/dodatek-dip"}
 ADDRKEYS={"street","streetcp","cp","city","psc","addr","phone","email"}
 import os, json, shutil, urllib.request, datetime
 R=os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),".."))
@@ -165,6 +237,7 @@ def fetch(url,dst):
     os.replace(dst+".part",dst)
 def main():
     offline="--offline" in sys.argv
+    only=set(sys.argv[sys.argv.index("--only")+1].split(",")) if "--only" in sys.argv else None
     cfg=json.load(open(os.path.join(R,"tools","formulare-zdroje.json"),encoding="utf-8"))
     OVR.update(OVERRIDES)
     old={}
@@ -174,7 +247,7 @@ def main():
     for f in cfg["forms"]:
         dst=os.path.join(OUT,f["file"]); os.makedirs(os.path.dirname(dst),exist_ok=True)
         got=old.get(f["file"],{}).get("got")
-        if not offline:
+        if not offline and (only is None or f["inst"] in only or not os.path.exists(dst)):
             try:
                 fetch(f["src"],dst+".dl")
                 with open(dst+".dl","rb") as h: head=h.read(5)
@@ -192,13 +265,18 @@ def main():
                 if not os.path.exists(dst): continue
         if not os.path.exists(dst): continue
         item=dict(id=f["file"].rsplit(".",1)[0].replace("/","-"),inst=f["inst"],kind=f["kind"],t=f["t"],file=f["file"],src=f["src"],got=got,size=os.path.getsize(dst))
+        if f.get("web"): item["web"]=f["web"]
         if f["file"].endswith(".pdf"):
             try:
                 rd=pypdf.PdfReader(dst); item["pages"]=len(rd.pages)
                 res,fill=analyse(dst,f["file"].rsplit(".",1)[0])
+                ovl=overlay(dst,OVERLAYS[f["file"].rsplit(".",1)[0]]) if f["file"].rsplit(".",1)[0] in OVERLAYS else []
+                if ovl:
+                    item["ov"]=[{k:v for k,v in o.items() if k!="k"} for o in ovl]
+                    fill.update({o["n"]:o["k"] for o in ovl})
                 if f["kind"] not in ("vyp","navaz"): fill={k:v for k,v in fill.items() if v not in PAYKEYS}
                 if f["kind"] not in ("vyp","navaz","prevod"): fill={k:v for k,v in fill.items() if v!="newcnum"}
-                if f["kind"]=="zmena": fill={k:v for k,v in fill.items() if v not in ADDRKEYS}
+                if f["kind"]=="zmena" and f["file"].rsplit(".",1)[0] not in ADDR_ID: fill={k:v for k,v in fill.items() if v not in ADDRKEYS}
                 if fill: item["fill"]=fill
                 if "newcnum" in fill.values() and f["kind"] in ("vyp","navaz"): item["navaz"]=True
                 if not rd.get_fields(): item["print"]=True
