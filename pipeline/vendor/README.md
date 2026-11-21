@@ -7,6 +7,9 @@ Načítají se líně – až když je potřeba (soubor v detailu klienta, chytr
 | pdf.min.mjs, pdf.worker.min.mjs (**legacy** build) | pdfjs-dist | 6.4.299 | Apache-2.0 | náhled PDF |
 | mammoth.browser.min.js | mammoth | 1.13.0 | BSD-2-Clause | náhled Wordu (.docx) |
 | read-excel-file.min.js | read-excel-file | 9.3.10 | MIT | náhled Excelu (.xlsx) |
+| pdf-lib.min.js | pdf-lib | 1.17.1 | MIT | předvyplnění oficiálních PDF formulářů (záložka Formuláře) |
+| fontkit.umd.min.js | @pdf-lib/fontkit | 1.1.1 | MIT | vložení písma s češtinou do vyplněného PDF |
+| LiberationSans-Regular.ttf | Liberation Sans Regular (beze změn) | 2.x | SIL OFL 1.1 | písmo vyplněných polí (diakritika) |
 
 Aktualizace: `npm i pdfjs-dist mammoth read-excel-file` a zkopírovat stejné soubory z `node_modules` (pdfjs-dist/**legacy**/build, mammoth, read-excel-file/bundle).
 

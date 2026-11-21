@@ -1,0 +1,662 @@
+{
+ "inst": [
+  {
+   "id": "allianz",
+   "n": "Allianz pojišťovna, a. s.",
+   "short": "Allianz",
+   "group": "poj",
+   "addr": "Ke Štvanici 656/3\n186 00 Praha 8",
+   "note": ""
+  },
+  {
+   "id": "generali",
+   "n": "Generali Česká pojišťovna a. s.",
+   "short": "Generali ČP",
+   "group": "poj",
+   "addr": "P. O. BOX 305\n659 05 Brno",
+   "note": "Změny a výpovědi životního pojištění Generali vyřizuje přes Moje Generali nebo webový formulář – veřejné PDF je jen k ukončení neživotního pojištění a k odvolání výpovědi. Pro životko použij volnou formu."
+  },
+  {
+   "id": "uniqa",
+   "n": "UNIQA pojišťovna, a. s.",
+   "short": "UNIQA",
+   "group": "poj",
+   "addr": "Evropská 810/136\n160 00 Praha 6",
+   "note": ""
+  },
+  {
+   "id": "koop",
+   "n": "Kooperativa pojišťovna, a. s., Vienna Insurance Group",
+   "short": "Kooperativa",
+   "group": "poj",
+   "addr": "Centrum zákaznické podpory\nBrněnská 634\n664 42 Modřice",
+   "note": ""
+  },
+  {
+   "id": "cpp",
+   "n": "Česká podnikatelská pojišťovna, a. s., Vienna Insurance Group",
+   "short": "ČPP",
+   "group": "poj",
+   "addr": "P. O. BOX 28\n664 42 Modřice",
+   "note": "ČPP formuláře pro změny ani výpovědi veřejně nezveřejňuje – vyřizuje je přes Moje ČPP nebo poradce. Použij volnou formu."
+  },
+  {
+   "id": "csob",
+   "n": "ČSOB Pojišťovna, a. s., člen holdingu ČSOB",
+   "short": "ČSOB Pojišťovna",
+   "group": "poj",
+   "addr": "Masarykovo náměstí 1458\n530 02 Pardubice",
+   "note": "Výpověď životka ČSOB Pojišťovna řeší online formulářem – veřejné PDF je jen oznámení změny a odstoupení. Na výpověď použij volnou formu."
+  },
+  {
+   "id": "nn",
+   "n": "NN Životní pojišťovna N.V., pobočka pro Českou republiku",
+   "short": "NN",
+   "group": "poj",
+   "addr": "Nádražní 344/25\n150 00 Praha 5",
+   "note": ""
+  },
+  {
+   "id": "allianzps",
+   "n": "Allianz penzijní společnost, a. s.",
+   "short": "Allianz PS",
+   "group": "ps",
+   "addr": "Ke Štvanici 656/3\n186 00 Praha 8",
+   "note": ""
+  },
+  {
+   "id": "conseqps",
+   "n": "Conseq penzijní společnost, a. s.",
+   "short": "Conseq PS",
+   "group": "ps",
+   "addr": "Rybná 682/14\n110 05 Praha 1",
+   "note": "Formuláře Conseq PS jsou na webu jen přes JavaScript a automaticky je stáhnout nešlo. Převod k jiné PS podepisuje klient na formuláři nové PS; jinak volná forma s úředně ověřeným podpisem."
+  },
+  {
+   "id": "csps",
+   "n": "Česká spořitelna – penzijní společnost, a. s.",
+   "short": "ČS PS",
+   "group": "ps",
+   "addr": "Poláčkova 1976/2\n140 21 Praha 4",
+   "note": "ČS PS řeší změny a výpovědi přes George nebo pobočku – veřejně jsou jen plné moci. Převod jinam: formulář nové PS, jinak volná forma s úředně ověřeným podpisem."
+  },
+  {
+   "id": "csobps",
+   "n": "ČSOB Penzijní společnost, a. s., člen skupiny ČSOB",
+   "short": "ČSOB PS",
+   "group": "ps",
+   "addr": "Radlická 333/150\n150 57 Praha 5",
+   "note": ""
+  },
+  {
+   "id": "genps",
+   "n": "Generali penzijní společnost, a. s.",
+   "short": "Generali PS",
+   "group": "ps",
+   "addr": "Na Pankráci 1720/123\n140 21 Praha 4",
+   "note": ""
+  },
+  {
+   "id": "kbps",
+   "n": "KB Penzijní společnost, a. s.",
+   "short": "KB PS",
+   "group": "ps",
+   "addr": "náměstí Junkových 2772/1\n155 00 Praha 5",
+   "note": ""
+  },
+  {
+   "id": "nnps",
+   "n": "NN Penzijní společnost, a. s.",
+   "short": "NN PS",
+   "group": "ps",
+   "addr": "Nádražní 344/25\n150 00 Praha 5",
+   "note": ""
+  },
+  {
+   "id": "rentea",
+   "n": "Rentea penzijní společnost, a. s.",
+   "short": "Rentea",
+   "group": "ps",
+   "addr": "Türkova 2319/5b\n149 00 Praha 4",
+   "note": ""
+  },
+  {
+   "id": "uniqaps",
+   "n": "UNIQA penzijní společnost, a. s.",
+   "short": "UNIQA PS",
+   "group": "ps",
+   "addr": "Úzká 488/8\n602 00 Brno",
+   "note": "UNIQA PS vyřizuje změny a výpovědi v online portálu, PDF formuláře veřejně nemá. Převod jinam: formulář nové PS, jinak volná forma."
+  },
+  {
+   "id": "zfpi",
+   "n": "ZFP Investments, investiční společnost, a. s.",
+   "short": "ZFP Investments",
+   "group": "inv",
+   "addr": "Antala Staška 2027/79\n140 00 Praha 4",
+   "note": "ZFP Investments veřejně zveřejňuje jen žádost o registraci podílníka – odkup a změny jdou přes obchodníka ZFP. Použij volnou formu (Žádost o odkup)."
+  },
+  {
+   "id": "zfpwi",
+   "n": "ZFP WI",
+   "short": "ZFP WI",
+   "group": "inv",
+   "addr": "",
+   "note": "ZFP WI jsem na veřejném webu nenašel – pošli mi odkaz na jejich formuláře a doplním je. Zatím volná forma (adresu doplň ručně)."
+  },
+  {
+   "id": "conseq",
+   "n": "Conseq Investment Management, a. s.",
+   "short": "Conseq",
+   "group": "inv",
+   "addr": "Rybná 682/14\n110 05 Praha 1",
+   "note": "Další formuláře Conseq (pokyn k prodeji, změna údajů) jsou na webu jen přes JavaScript – doplním je, až mi povolíš prohlížeč. Jinak volná forma."
+  }
+ ],
+ "forms": [
+  {
+   "inst": "allianz",
+   "kind": "vyp",
+   "t": "Pokyn pro výplatu odkupného / odbytného (výpověď ŽP)",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/zivot/ostatni-dokumenty/2026/Pokyn_pro_vyplatu_odkupneho_2025.pdf",
+   "file": "allianz/pokyn-pro-vyplatu-odkupneho-odbytneho.pdf"
+  },
+  {
+   "inst": "allianz",
+   "kind": "vyp",
+   "t": "Odstoupení od pojistné smlouvy bez udání důvodů",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/ostatni/odstoupeni_od_smlouvy.pdf",
+   "file": "allianz/odstoupeni-od-pojistne-smlouvy-bez-udani-duvodu.pdf"
+  },
+  {
+   "inst": "allianz",
+   "kind": "zmena",
+   "t": "Žádost o změnu osobních údajů",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/ostatni/Zmena_osobnich_udaju.pdf",
+   "file": "allianz/zadost-o-zmenu-osobnich-udaju.pdf"
+  },
+  {
+   "inst": "allianz",
+   "kind": "zmena",
+   "t": "Dohoda o placení (změna placení pojistného)",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/ostatni/Dohoda_o_placeni_07_26.pdf",
+   "file": "allianz/dohoda-o-placeni.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "vyp",
+   "t": "Výplata dávky DPS (odbytné = výpověď DPS)",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/2026/Vyplata_davky_DPS_09_26.pdf",
+   "file": "allianzps/vyplata-davky-dps.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "vyp",
+   "t": "Výplata dávky PP (odbytné = výpověď PP)",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/2026/Vyplata_davky_PP_09_26.pdf",
+   "file": "allianzps/vyplata-davky-pp.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "prevod",
+   "t": "Výpověď smlouvy DPS a převod z jiné penzijní společnosti",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/2026/Vypoved_smlouvy_a_prevod_z_jine_penzijni_spolecnosti_verze_07_1.4.2026.pdf",
+   "file": "allianzps/vypoved-smlouvy-dps-a-prevod-z-jine-penzijni-spolecnosti.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "prevod",
+   "t": "Výpověď smlouvy PP a převod do DPS u Allianz PS",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/2020/vypoved-smlouvy-pp.pdf",
+   "file": "allianzps/vypoved-smlouvy-pp-a-prevod-do-dps-u-allianz-ps.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "prevod",
+   "t": "Výpověď smlouvy PP a převod do PP z jiné penzijní společnosti",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/2026/Vypoved_smlouvy_PP_prevod_do_PP_z_jine_spolecnosti_08_22.pdf",
+   "file": "allianzps/vypoved-smlouvy-pp-a-prevod-do-pp-z-jine-penzijni-spolecnost.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "prevod",
+   "t": "Výpověď smlouvy PP a převod prostředků do DPS z jiné penzijní společnosti",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/formulare/Vypoved_smlouvy_a_prevod_prostredku_do_DPS_z_jine_spolecnosti.pdf",
+   "file": "allianzps/vypoved-smlouvy-pp-a-prevod-prostredku-do-dps-z-jine-penzijn.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "zmena",
+   "t": "Změna frekvence nebo způsobu placení",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/formulare/10-Zmena_frekvence_nebo_zpusobu_placeni.pdf",
+   "file": "allianzps/zmena-frekvence-nebo-zpusobu-placeni.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "zmena",
+   "t": "Změna osobních údajů",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/formulare/11-Zmena_osobnich_udaju.pdf",
+   "file": "allianzps/zmena-osobnich-udaju.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "zmena",
+   "t": "Změna penzijního plánu (PP)",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/penzijni-pripojisteni-3-pilir/Zmena_penzijniho_planu_interaktivni.pdf",
+   "file": "allianzps/zmena-penzijniho-planu.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "zmena",
+   "t": "Přerušení / odklad placení příspěvků",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/formulare/Formular_Preruseni%20pripojisteni_12_23_V2.pdf",
+   "file": "allianzps/preruseni-odklad-placeni-prispevku.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "zmena",
+   "t": "Stanovení oprávněných nebo určených osob",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/formulare/05-Stanoveni_opravnenych_urcenych_osob.pdf",
+   "file": "allianzps/stanoveni-opravnenych-nebo-urcenych-osob.pdf"
+  },
+  {
+   "inst": "allianzps",
+   "kind": "zmena",
+   "t": "Dohoda o způsobu placení",
+   "src": "https://www.allianz.cz/content/dam/onemarketing/cee/azcz/dokumenty-a-formulare/penze/formulare/01-Dohoda_o_zpusobu_placeni.pdf",
+   "file": "allianzps/dohoda-o-zpusobu-placeni.pdf"
+  },
+  {
+   "inst": "csob",
+   "kind": "zmena",
+   "t": "Oznámení o změně – životní pojištění",
+   "src": "https://www.csobpoj.cz/documents/10332/32938/oznameni_zmeny_zivot.pdf/8b07aea2-3dc3-4380-80e4-44fa7b0c04dd",
+   "file": "csob/oznameni-o-zmene-zivotni-pojisteni.pdf"
+  },
+  {
+   "inst": "csob",
+   "kind": "vyp",
+   "t": "Odstoupení od smlouvy (vzorový formulář)",
+   "src": "https://www.csobpoj.cz/documents/10332/32958/Formul%C3%A1%C5%99_pro_odstoupen%C3%AD_od_smlouvy_verze_01_20131105.pdf/892ac006-8cd9-411b-9074-6da28b4c574b",
+   "file": "csob/odstoupeni-od-smlouvy.pdf"
+  },
+  {
+   "inst": "generali",
+   "kind": "vyp",
+   "t": "Ukončení neživotního pojištění",
+   "src": "https://www.generaliceska.cz/documents/20183/122618/99.3.00.060_06-24_v04.pdf",
+   "file": "generali/ukonceni-nezivotniho-pojisteni.pdf"
+  },
+  {
+   "inst": "generali",
+   "kind": "vyp",
+   "t": "Odvolání pokynu k ukončení pojištění",
+   "src": "https://www.generaliceska.cz/documents/20183/121034/odvolani-k-ukonceni-pojisteni.pdf/c84f3013-bd68-4d8b-a51d-73af8f32e4e9",
+   "file": "generali/odvolani-pokynu-k-ukonceni-pojisteni.pdf"
+  },
+  {
+   "inst": "koop",
+   "kind": "vyp",
+   "t": "Žádost o ukončení pojistné smlouvy",
+   "src": "https://www.koop.cz/ver/1772717798384/file/edee/dokumenty/formulare/zmeny-dokonceni-ukonceni-pojistne-smlouvy/interaktivni/12_Zadost-o-ukonceni-pojistne-smlouvy.pdf",
+   "file": "koop/zadost-o-ukonceni-pojistne-smlouvy.pdf"
+  },
+  {
+   "inst": "koop",
+   "kind": "vyp",
+   "t": "Oznámení o odstoupení od pojistné smlouvy",
+   "src": "https://www.koop.cz/ver/1738843725699/file/edee/dokumenty/formulare/zmeny-dokonceni-ukonceni-pojistne-smlouvy/interaktivni/11_Oznameni-o-odstoupeni-od-pojistne-smlouvy.pdf",
+   "file": "koop/oznameni-o-odstoupeni-od-pojistne-smlouvy.pdf"
+  },
+  {
+   "inst": "koop",
+   "kind": "zmena",
+   "t": "Žádost o změnu – administrativní (adresa, kontakty, placení)",
+   "src": "https://www.koop.cz/ver/1739281892975/file/edee/dokumenty/formulare/zmeny-dokonceni-ukonceni-pojistne-smlouvy/interaktivni/1_Zadost-o-zmenu-pojistne-smlouvy-administrativni-zmeny-napr.-zmena-adresy.pdf",
+   "file": "koop/zadost-o-zmenu-administrativni.pdf"
+  },
+  {
+   "inst": "koop",
+   "kind": "zmena",
+   "t": "Žádost o změnu nastavení – Životní pojištění FLEXI",
+   "src": "https://www.koop.cz/ver/1738843724545/file/edee/dokumenty/formulare/zmeny-dokonceni-ukonceni-pojistne-smlouvy/interaktivni/7_Zadost-o-zmenu-pojistne-smlouvy-nastaveni-pojisteni-napr.-zmena-pojistne-castky.pdf",
+   "file": "koop/zadost-o-zmenu-nastaveni-zivotni-pojisteni-flexi.pdf"
+  },
+  {
+   "inst": "koop",
+   "kind": "zmena",
+   "t": "Žádost o změnu nastavení – Rizikové ŽP FLEXI / Soběstačnost FLEXI",
+   "src": "https://www.koop.cz/ver/1738843724964/file/edee/dokumenty/formulare/zmeny-dokonceni-ukonceni-pojistne-smlouvy/interaktivni/8_Zadost-o-zmenu-pojistne-smlouvy-nastaveni-pojisteni-napr.-zmena-pojistne-castky.pdf",
+   "file": "koop/zadost-o-zmenu-nastaveni-rizikove-zp-flexi-sobestacnost-flex.pdf"
+  },
+  {
+   "inst": "koop",
+   "kind": "zmena",
+   "t": "Žádost o zavedení či změnu příspěvku zaměstnavatele",
+   "src": "https://www.koop.cz/ver/1738843890803/file/edee/dokumenty/formulare/zmeny-dokonceni-ukonceni-pojistne-smlouvy/interaktivni/9_Zadost-o-zavedeni-ci-zmenu-prispevku-zamestnavatele.pdf",
+   "file": "koop/zadost-o-zavedeni-ci-zmenu-prispevku-zamestnavatele.pdf"
+  },
+  {
+   "inst": "koop",
+   "kind": "zmena",
+   "t": "Žádost o výběr finančních prostředků",
+   "src": "https://www.koop.cz/ver/1770624863975/file/edee/dokumenty/formulare/zmeny-dokonceni-ukonceni-pojistne-smlouvy/interaktivni/10_Zadost-o-vyber-financnich-prostredku.pdf",
+   "file": "koop/zadost-o-vyber-financnich-prostredku.pdf"
+  },
+  {
+   "inst": "koop",
+   "kind": "zmena",
+   "t": "Žádost o reaktivaci pojistné smlouvy",
+   "src": "https://www.koop.cz/ver/1738843726330/file/edee/dokumenty/formulare/zmeny-dokonceni-ukonceni-pojistne-smlouvy/interaktivni/13_Zadost-o-reaktivaci-pojistne-smlouvy.pdf",
+   "file": "koop/zadost-o-reaktivaci-pojistne-smlouvy.pdf"
+  },
+  {
+   "inst": "nn",
+   "kind": "vyp",
+   "t": "Žádost o ukončení pojistné smlouvy",
+   "src": "https://www.nn.cz/files/archiv/cz-nnblue/formulare/663641.pdf",
+   "file": "nn/zadost-o-ukonceni-pojistne-smlouvy.pdf"
+  },
+  {
+   "inst": "nn",
+   "kind": "zmena",
+   "t": "Žádost o změnu parametrů smlouvy",
+   "src": "https://www.nn.cz/files/archiv/cz-nnblue/formulare/664142.pdf",
+   "file": "nn/zadost-o-zmenu-parametru-smlouvy.pdf"
+  },
+  {
+   "inst": "nn",
+   "kind": "zmena",
+   "t": "Žádost o změnu rozsahu pojištění",
+   "src": "https://www.nn.cz/files/archiv/cz-nnblue/formulare/663630.pdf",
+   "file": "nn/zadost-o-zmenu-rozsahu-pojisteni.pdf"
+  },
+  {
+   "inst": "nn",
+   "kind": "zmena",
+   "t": "Žádost o přidání či odebrání pojištěného",
+   "src": "https://www.nn.cz/files/archiv/cz-nnblue/formulare/663628.pdf",
+   "file": "nn/zadost-o-pridani-ci-odebrani-pojisteneho.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "vyp",
+   "t": "Žádost o výplatu dávky z DPS (odbytné = výpověď)",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514574.pdf",
+   "file": "nnps/zadost-o-vyplatu-davky-z-dps.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "prevod",
+   "t": "Výpověď a žádost o převod prostředků do NN PS (DPS)",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514251ef.pdf",
+   "file": "nnps/vypoved-a-zadost-o-prevod-prostredku-do-nn-ps.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "vyp",
+   "t": "Oznámení o odstoupení od smlouvy (DPS)",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514405ef.pdf",
+   "file": "nnps/oznameni-o-odstoupeni-od-smlouvy.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "vyp",
+   "t": "Žádost o zrušení výpovědi (DPS)",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514394e_dps.pdf",
+   "file": "nnps/zadost-o-zruseni-vypovedi.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "zmena",
+   "t": "Žádost o změnu smlouvy o DPS",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514538d.pdf",
+   "file": "nnps/zadost-o-zmenu-smlouvy-o-dps.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "zmena",
+   "t": "Přerušení nebo odklad placení příspěvku (DPS)",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514247e.pdf",
+   "file": "nnps/preruseni-nebo-odklad-placeni-prispevku.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "zmena",
+   "t": "Změna smlouvy o penzijním připojištění (PP)",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514538e.pdf",
+   "file": "nnps/zmena-smlouvy-o-penzijnim-pripojisteni.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "zmena",
+   "t": "Přerušení / zakonzervování PP",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/504417e.pdf",
+   "file": "nnps/preruseni-zakonzervovani-pp.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "prevod",
+   "t": "Výpověď PP a žádost o převod prostředků do penzijní společnosti",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514305e.pdf",
+   "file": "nnps/vypoved-pp-a-zadost-o-prevod-prostredku-do-penzijni-spolecno.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "vyp",
+   "t": "Žádost o výplatu dávky z PP (odbytné = výpověď)",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514593.pdf",
+   "file": "nnps/zadost-o-vyplatu-davky-z-pp.pdf"
+  },
+  {
+   "inst": "nnps",
+   "kind": "vyp",
+   "t": "Žádost o zrušení výpovědi (PP)",
+   "src": "https://www.nn.cz/files/archiv/cz-penze/formulare/514394e.pdf",
+   "file": "nnps/zadost-o-zruseni-vypovedi-2.pdf"
+  },
+  {
+   "inst": "csobps",
+   "kind": "prevod",
+   "t": "Výpověď – převod z jiné penzijní společnosti do ČSOB PS",
+   "src": "https://www.csob-penze.cz/media/2025/11/PS-512-Vypoved-externi-prevod-122025-edit.pdf",
+   "file": "csobps/vypoved-prevod-z-jine-penzijni-spolecnosti-do-csob-ps.pdf"
+  },
+  {
+   "inst": "csobps",
+   "kind": "prevod",
+   "t": "Výpověď – převod v rámci ČSOB (z TF do DPS)",
+   "src": "https://www.csob-penze.cz/media/2025/09/514_Ukonceni-interni-prevod-072025-EDIT.pdf",
+   "file": "csobps/vypoved-prevod-v-ramci-csob.pdf"
+  },
+  {
+   "inst": "csobps",
+   "kind": "prevod",
+   "t": "Ukončení dohodou – převod zakonzervované smlouvy do TF ČSOB PS",
+   "src": "https://www.csob-penze.cz/media/2025/11/525_zadost_o_slouceni-TRF_122025.pdf",
+   "file": "csobps/ukonceni-dohodou-prevod-zakonzervovane-smlouvy-do-tf-csob-ps.pdf"
+  },
+  {
+   "inst": "csobps",
+   "kind": "zmena",
+   "t": "Žádost o změnu smlouvy o DPS",
+   "src": "https://www.csob-penze.cz/media/2025/01/520-Navrh-upravy-smlouvy-DPS-web-1224e.pdf",
+   "file": "csobps/zadost-o-zmenu-smlouvy-o-dps.pdf"
+  },
+  {
+   "inst": "csobps",
+   "kind": "zmena",
+   "t": "Žádost o změnu smlouvy v Transformovaném fondu Stabilita (PP)",
+   "src": "https://www.csob-penze.cz/media/2025/01/519-Navrh-upravy-smlouvy-TRF-web-1224e.pdf",
+   "file": "csobps/zadost-o-zmenu-smlouvy-v-transformovanem-fondu-stabilita.pdf"
+  },
+  {
+   "inst": "csobps",
+   "kind": "zmena",
+   "t": "Přerušení nebo odklad placení penzijního spoření",
+   "src": "https://www.csob-penze.cz/media/2025/09/PS-531-Preruseni-smlouvy-092025-EDIT.pdf",
+   "file": "csobps/preruseni-nebo-odklad-placeni-penzijniho-sporeni.pdf"
+  },
+  {
+   "inst": "csobps",
+   "kind": "vyp",
+   "t": "Žádost o výplatu kompenzace z ukončené smlouvy",
+   "src": "https://www.csob-penze.cz/media/2026/07/515-Zadost-o-vyplatu-kompenzace-klient-082026e.pdf",
+   "file": "csobps/zadost-o-vyplatu-kompenzace-z-ukoncene-smlouvy.pdf"
+  },
+  {
+   "inst": "csps",
+   "kind": "vyp",
+   "t": "Plná moc k ukončení PP / DPS",
+   "src": "https://cdn.erstegroup.com/content/dam/cz/csas/www_csps_cz/Dokumenty-ke-stazeni/plna-moc-k-ukonceni-ppsp-dps.pdf",
+   "file": "csps/plna-moc-k-ukonceni-pp-dps.pdf"
+  },
+  {
+   "inst": "csps",
+   "kind": "zmena",
+   "t": "Plná moc ke změně oprávněné osoby",
+   "src": "https://cdn.erstegroup.com/content/dam/cz/csas/www_csps_cz/Dokumenty-ke-stazeni/plna-moc-ke-zmene-opravnene-osoby.pdf",
+   "file": "csps/plna-moc-ke-zmene-opravnene-osoby.pdf"
+  },
+  {
+   "inst": "csps",
+   "kind": "zmena",
+   "t": "Plná moc k veškerému nakládání se smlouvou",
+   "src": "https://cdn.erstegroup.com/content/dam/cz/csas/www_csps_cz/Dokumenty-ke-stazeni/plna-moc-k-veskeremu-nakladani-se-smlouvou.pdf",
+   "file": "csps/plna-moc-k-veskeremu-nakladani-se-smlouvou.pdf"
+  },
+  {
+   "inst": "genps",
+   "kind": "prevod",
+   "t": "Žádost o ukončení smlouvy a převod prostředků do Generali PS",
+   "src": "http://www.generalipenze.cz/data/informace-pro-obchodniky/2025/Formulare/282%20FM%20Vypoved%20prevod%203P%20PP%20250311_aktivn%C3%AD.pdf",
+   "file": "genps/zadost-o-ukonceni-smlouvy-a-prevod-prostredku-do-generali-ps.pdf"
+  },
+  {
+   "inst": "genps",
+   "kind": "zmena",
+   "t": "Žádost o změnu údajů",
+   "src": "http://www.generalipenze.cz/data/documents/Formulare/2026/287_FM_Zadost_Zmena_udaju.pdf",
+   "file": "genps/zadost-o-zmenu-udaju.pdf"
+  },
+  {
+   "inst": "genps",
+   "kind": "vyp",
+   "t": "Odvolání žádosti o ukončení",
+   "src": "https://www.generalipenze.cz/data/documents/Ostatn%C3%AD%20dokumenty%20ke%20sta%C5%BEen%C3%AD/2024/277%20FM%20Odvolani%20vypovedi%20240314.pdf",
+   "file": "genps/odvolani-zadosti-o-ukonceni.pdf"
+  },
+  {
+   "inst": "genps",
+   "kind": "zmena",
+   "t": "Plná moc",
+   "src": "https://www.generalipenze.cz/data/documents/Ostatn%C3%AD%20dokumenty%20ke%20sta%C5%BEen%C3%AD/2024/Plna_moc_EDIT.pdf",
+   "file": "genps/plna-moc.pdf"
+  },
+  {
+   "inst": "rentea",
+   "kind": "vyp",
+   "t": "Žádost o výplatu dávky – odbytné (výpověď)",
+   "src": "https://www.rentea.cz/userfiles/dost-o-vyplatu-davky-odbytne-1-7-2024-podpis_17263926451198.pdf",
+   "file": "rentea/zadost-o-vyplatu-davky-odbytne.pdf"
+  },
+  {
+   "inst": "rentea",
+   "kind": "vyp",
+   "t": "Zpětvzetí výpovědi",
+   "src": "https://www.rentea.cz/userfiles/zpetvzeti-vypovedi_16732655622865.pdf",
+   "file": "rentea/zpetvzeti-vypovedi.pdf"
+  },
+  {
+   "inst": "rentea",
+   "kind": "zmena",
+   "t": "Změnový formulář",
+   "src": "https://www.rentea.cz/userfiles/rentea-zmenovy-formular_16732654640714.pdf",
+   "file": "rentea/zmenovy-formular.pdf"
+  },
+  {
+   "inst": "rentea",
+   "kind": "zmena",
+   "t": "Převod mezi fondy (změna strategie)",
+   "src": "https://www.rentea.cz/userfiles/prevod-mezi-fondy_16751602428386.pdf",
+   "file": "rentea/prevod-mezi-fondy.pdf"
+  },
+  {
+   "inst": "kbps",
+   "kind": "zmena",
+   "t": "Dodatek ke smlouvě DPS (změna smlouvy)",
+   "src": "https://www.kb.cz/getmedia/c4ce8dd2-553c-4485-98fe-995a1857dfa3/kbps-dodatek-formular-dps.pdf",
+   "file": "kbps/dodatek-ke-smlouve-dps.pdf"
+  },
+  {
+   "inst": "kbps",
+   "kind": "zmena",
+   "t": "Oznámení (změna údajů)",
+   "src": "https://www.kb.cz/getmedia/3b7efe5f-85c4-436f-a4e6-e75e7782b765/kbps-oznameni.pdf",
+   "file": "kbps/oznameni.pdf"
+  },
+  {
+   "inst": "kbps",
+   "kind": "vyp",
+   "t": "Žádost o dávku DPS (odbytné = výpověď)",
+   "src": "https://www.kb.cz/getmedia/90919a7c-3115-46b3-adf9-ab9ee43685ea/kbps-zadost-o-davku-dps.pdf",
+   "file": "kbps/zadost-o-davku-dps.pdf"
+  },
+  {
+   "inst": "kbps",
+   "kind": "vyp",
+   "t": "Žádost o dávku – Transformovaný fond (PP)",
+   "src": "https://www.kb.cz/getmedia/be43944b-b065-48d0-a8b0-3a58297db401/kbps-zadost-o-davku-tf-formular.pdf",
+   "file": "kbps/zadost-o-davku-transformovany-fond.pdf"
+  },
+  {
+   "inst": "kbps",
+   "kind": "prevod",
+   "t": "Převod smlouvy TF/DPS z jiné penzijní společnosti do KB PS",
+   "src": "https://www.kb.cz/getmedia/378ce5ab-2731-422b-9c28-c136c2f998de/Prevod-smlouvy-DPS-z-jine-PS-do-KBPS.pdf",
+   "file": "kbps/prevod-smlouvy-tf-dps-z-jine-penzijni-spolecnosti-do-kb-ps.pdf"
+  },
+  {
+   "inst": "kbps",
+   "kind": "prevod",
+   "t": "Sloučení smluv do Transformovaného fondu KB PS",
+   "src": "https://www.kb.cz/getmedia/0f47f673-adfb-4c75-89ba-ad31ac490321/kbps-slouceni-transformovanych-fondu.pdf",
+   "file": "kbps/slouceni-smluv-do-transformovaneho-fondu-kb-ps.pdf"
+  },
+  {
+   "inst": "kbps",
+   "kind": "zmena",
+   "t": "Žádost o změnu správce smlouvy",
+   "src": "https://www.kb.cz/getmedia/cbf8e014-2332-400e-a946-93d27af1e2c4/kbps-zadost-o-zmenu-spravce-smlouvy-penzijniho-sporeni.pdf",
+   "file": "kbps/zadost-o-zmenu-spravce-smlouvy.pdf"
+  },
+  {
+   "inst": "kbps",
+   "kind": "zmena",
+   "t": "Plná moc",
+   "src": "https://www.kb.cz/getmedia/860d028f-1dc9-489b-bf40-2aa934e3eb35/kbps-plna-moc-formular.pdf",
+   "file": "kbps/plna-moc.pdf"
+  },
+  {
+   "inst": "uniqa",
+   "kind": "navaz",
+   "t": "Výpověď / zánik ŽP (vč. převodu odkupného na novou smlouvu u UNIQA)",
+   "src": "https://www.uniqa.cz/documents/uniqa_dokumenty/produkty/zivotni-pojisteni/formulare/produkty-domino/formular-%E2%80%93-ukonceni-pojistne-smlouvy-zivotni-pojisteni.pdf",
+   "file": "uniqa/vypoved-zanik-zp.pdf"
+  },
+  {
+   "inst": "uniqa",
+   "kind": "vyp",
+   "t": "Žádost o ukončení smlouvy (Word)",
+   "src": "https://www.uniqa.cz/files/ukonceni-smlouvy/zadost-ukonceni-smlouvy-cz-uni.docx",
+   "file": "uniqa/zadost-o-ukonceni-smlouvy.docx"
+  },
+  {
+   "inst": "conseq",
+   "kind": "zmena",
+   "t": "Žádost o změnu / zřízení trvalého pokynu k nákupu (MTPN)",
+   "src": "https://www.conseq.cz/getmedia/62ca4758-20bc-46a1-a8f6-9c118c7c2833/TP-nakup-MTPN-2411-tofill.pdf.aspx?ext=.pdf",
+   "file": "conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu.pdf"
+  }
+ ]
+}

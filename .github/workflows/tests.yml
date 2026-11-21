@@ -37,6 +37,8 @@ jobs:
         run: node tests/uvery.run.mjs
       - name: Testy záložky Databáze
         run: node tests/databaze.run.mjs
+      - name: Testy záložky Formuláře (oficiální formuláře, předvyplnění PDF, volná forma)
+        run: node tests/formulare.run.mjs
       - name: Testy souborů u klientů (docs.js)
         run: node tests/docs.run.mjs
       - name: Testy finančního plánu a dotazníku
