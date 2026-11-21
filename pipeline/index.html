@@ -12,7 +12,7 @@
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
 <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png?v=2">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=3">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
 <title>Pipeline</title>
 <link rel="stylesheet" href="ui.css?v=1">
@@ -2894,7 +2894,7 @@ setInterval(()=>{dzScanOld().catch(()=>{}).then(()=>dzRetryQueue()).catch(()=>{}
 const dzNotes=()=>(settings&&Array.isArray(settings.dzNotes)?settings.dzNotes:[]);
 async function dzNotify(n){const L=[{id:newId(),at:Date.now(),...n},...dzNotes()].slice(0,15);settings={...settings,dzNotes:L};renderDzNotes();
   try{if(typeof asChime==="function")asChime()}catch(e){}
-  try{if("Notification" in window&&Notification.permission==="granted")new Notification(n.t,{body:n.s||"",icon:"icon-192.png?v=2",tag:n.id})}catch(e){}
+  try{if("Notification" in window&&Notification.permission==="granted")new Notification(n.t,{body:n.s||"",icon:"icon-192.png?v=3",tag:n.id})}catch(e){}
   try{await db.doc("settings/main").update({dzNotes:L})}catch(e){}}
 async function dzDismiss(id){const L=dzNotes().filter(n=>n.id!==id);settings={...settings,dzNotes:L};renderDzNotes();try{await db.doc("settings/main").update({dzNotes:L})}catch(e){}}
 /* „Potvrdit“ u rezervace: otevře Zprávy s SMS klientovi na číslo, které zadal při rezervaci. Text je ze šablony „Potvrzení schůzky“

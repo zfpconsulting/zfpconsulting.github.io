@@ -1,6 +1,6 @@
 /* CACHE a CORE needitovat ručně – srovná je `node tools/bump.mjs` podle ?v= v index.html (kontrola v CI: --check) */
-const CACHE="pipeline-v205", RCACHE="pipeline-rt-v1", VCACHE="pipeline-vendor-v1";
-const CORE=["./","./index.html","./manifest.webmanifest","./favicon-48.png?v=2","./icon-192.png?v=2","./apple-touch-icon.png?v=2","./ui.css?v=1","./fincalc.js?v=13","./duchod.js?v=11","./formulare.js?v=2","./uvery.js?v=5","./databaze.js?v=13","./dzcrypto.js?v=2","./advimg.js?v=1","./pushcrypto.js?v=1","./photoedit.js?v=4","./dmy.js?v=1","./docs.js?v=6","./wallpaper.js?v=7","./sound.js?v=1","./icon-512.png?v=2"];
+const CACHE="pipeline-v206", RCACHE="pipeline-rt-v1", VCACHE="pipeline-vendor-v1";
+const CORE=["./","./index.html","./manifest.webmanifest","./favicon-48.png?v=2","./icon-192.png?v=3","./apple-touch-icon.png?v=2","./ui.css?v=1","./fincalc.js?v=13","./duchod.js?v=11","./formulare.js?v=2","./uvery.js?v=5","./databaze.js?v=13","./dzcrypto.js?v=2","./advimg.js?v=1","./pushcrypto.js?v=1","./photoedit.js?v=4","./dmy.js?v=1","./docs.js?v=6","./wallpaper.js?v=7","./sound.js?v=1","./icon-512.png?v=3"];
 /* CORE (appka) se stáhne při instalaci. Ostatní se ukládá až při prvním použití:
    RCACHE = finanční plán (fp.html), dotazník, tapeta, sazby… – přežije vydání nové verze, staré verze téhož souboru se při uložení nové smažou;
    VCACHE = knihovny pro náhled souborů (PDF, Word, Excel, ~2,2 MB) – nemažou se ani nestahují znovu. */
@@ -46,7 +46,7 @@ self.addEventListener("fetch",e=>{
 });
 /* push notifikace (prostředník worker/push.js): zobrazit a po klepnutí otevřít / přepnout na Pipeline */
 self.addEventListener("push",e=>{let d={};try{d=e.data?e.data.json():{}}catch(x){d={t:"Pipeline",b:e.data?e.data.text():""}}
-  e.waitUntil(self.registration.showNotification(d.t||"Pipeline",{body:d.b||"",icon:"icon-192.png?v=2",badge:"icon-192.png?v=2",tag:d.tag||undefined,data:{u:d.u||"./"}}))});
+  e.waitUntil(self.registration.showNotification(d.t||"Pipeline",{body:d.b||"",icon:"icon-192.png?v=3",badge:"icon-192.png?v=3",tag:d.tag||undefined,data:{u:d.u||"./"}}))});
 self.addEventListener("notificationclick",e=>{e.notification.close();const u=new URL((e.notification.data&&e.notification.data.u)||"./",self.registration.scope).href;
   e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(cs=>{const c=cs.find(x=>x.url.startsWith(self.registration.scope));
     if(c){c.focus();try{c.postMessage({type:"push-open",u})}catch(x){}return}return self.clients.openWindow(u)}))});

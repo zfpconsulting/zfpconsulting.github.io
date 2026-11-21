@@ -2,9 +2,11 @@
 // Použití: node tools/make-icons.mjs        (potřebuje Playwright + Chromium, viz tests/helpers.mjs)
 //
 // Pravidla, proč jsou ikony takhle:
-//  • apple-touch-icon.png a icon-192/512.png jsou ČTVERCE přes celou plochu BEZ průhlednosti (RGB). iOS i Android si
-//    rohy zaoblí samy; kdyby byly zaoblené předem, iOS by průhledné rohy vyplnil černě.
-//  • icon-maskable.png má logo menší (bezpečná zóna), protože ho systém ořízne do kruhu / squircle.
+//  • apple-touch-icon.png je ČTVEREC přes celou plochu BEZ průhlednosti (RGB) – iOS si rohy zaoblí sám; kdyby byly zaoblené
+//    předem, iOS by průhledné rohy vyplnil černě.
+//  • icon-192/512.png (manifest, purpose "any") jsou ZAOBLENÉ s průhlednými rohy – Chrome na Macu je dává do Docku tak,
+//    jak jsou (nemaskuje je), takže čtverec by v Docku vypadal hranatě vedle ostatních appek (stejně jako Kudlife).
+//  • icon-maskable.png je čtverec bez průhlednosti a s menším logem (bezpečná zóna) – Android ho ořízne do kruhu / squircle.
 //  • favicon-48.png je zaoblený (průhledné rohy) a ukazuje jen „ZFP“ + vlajku – „CONSULTING“ by v záložce byl nečitelný.
 import { writeFileSync, readFileSync } from "node:fs";
 import { deflateSync, inflateSync, crc32 } from "node:zlib";
@@ -51,8 +53,8 @@ const [LW, LH] = await page.evaluate(() => [FinCalc.logo.w, FinCalc.logo.h]);
 /* kind: square = celá plocha | round = zaoblená, průhledné rohy | favicon = zaoblená jen ZFP + vlajka */
 const SPEC = [
   { file: "apple-touch-icon.png", size: 180, kind: "square", w: .70 },
-  { file: "icon-192.png", size: 192, kind: "square", w: .70 },
-  { file: "icon-512.png", size: 512, kind: "square", w: .70 },
+  { file: "icon-192.png", size: 192, kind: "round", w: .70 },
+  { file: "icon-512.png", size: 512, kind: "round", w: .70 },
   { file: "icon-maskable.png", size: 512, kind: "square", w: .56 },
   { file: "favicon-48.png", size: 48, kind: "favicon", w: .86 },
 ];
@@ -60,7 +62,7 @@ for (const sp of SPEC) {
   const S = 1024, crop = sp.kind === "favicon", lh = crop ? 96 : LH, k = sp.w * S / LW, x = (S - LW * k) / 2, y = (S - lh * k) / 2;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sp.size}" height="${sp.size}" viewBox="0 0 ${S} ${S}">
     <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${BG[0]}"/><stop offset="1" stop-color="${BG[1]}"/></linearGradient>
-    <clipPath id="c"><rect width="${S}" height="${S}" rx="${sp.kind === "favicon" ? S * RADIUS : 0}"/></clipPath>
+    <clipPath id="c"><rect width="${S}" height="${S}" rx="${sp.kind === "square" ? 0 : S * RADIUS}"/></clipPath>
     <clipPath id="l"><rect x="-2" y="-2" width="${LW + 4}" height="${crop ? 98 : LH + 4}"/></clipPath></defs>
     <g clip-path="url(#c)"><rect width="${S}" height="${S}" fill="url(#g)"/>
     <g transform="translate(${x} ${y}) scale(${k})"><g clip-path="url(#l)">__LOGO__</g></g></g></svg>`;
