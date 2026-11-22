@@ -14,6 +14,8 @@ Klíče: cnum newcnum surname firstname fullname fullnameRev title rc birth rcbi
        account accpre bank vs ss date place placedate („Brno, 21. 11. 2026“ do jednoho pole).
        Části hodnoty: „cnum@3“ = 4. znak čísla smlouvy (políčka po jednom znaku), „cnum@3/8“ = 4. znak z posledních 8 znaků,
        „date@d“ / „date@m“ / „date@y“ = den / měsíc / rok.
+       Poradce (volba v záložce, údaje v šifrovaném bloku appky): advfirm advseat advico (obchodní zástupce – firma, sídlo, IČO),
+       advname advicop advcode advphone advemail (poradce – jméno, IČO, osobní kód, telefon, e-mail).
 Potřebuje: pdftotext (poppler-utils), qpdf, python3-pypdf."""
 # Heuristické mapování polí AcroForm → klíče údajů klienta (jméno, RČ, adresa, číslo smlouvy …)
 import pypdf, subprocess, re, sys, json, unicodedata, html
@@ -154,14 +156,15 @@ OVERRIDES={
  "allianzps/stanoveni-opravnenych-nebo-urcenych-osob":{"Text3":None},
  "kbps/prevod-smlouvy-tf-dps-z-jine-penzijni-spolecnosti-do-kb-ps":{"fill_6":"rc","undefined":"cnum","Text1":"addr"},
  "csob/oznameni-o-zmene-zivotni-pojisteni":{"PS_cislo_1":"cnum"},
- "uniqa/vypoved-zanik-zp":{"undefined_2":"newcnum","cislouctu":"account","pozad variab symbol":"vs"},
+ "uniqa/vypoved-zanik-zp":{"undefined_2":"newcnum","cislouctu":"account","pozad variab symbol":"vs","zrostredkovatel jmeno prijmeni":"advname","zrostredkovatel mobil":"advphone","email zprostredkovatel":"advemail"},
  # Conseq penzijní společnost
  "conseqps/vypoved-dps-odbytne":{"Text1_DPS_VYP":"cnum","Text8_DPS_VYP":"rc","Text15_DPS_VYP":None,"Text16_DPS_VYP":None,"Text17_DPS_VYP":"addr","Text18_DPS_VYP":"street","Text25_DPS_VYP":"phone"},
  "conseqps/vypoved-pp-odbytne":{**{"Text%d_PP_TF"%(i+1):"cnum@%d/8"%i for i in range(8)},"Text14_PP_TF":"rc","Text22_PP_TF":None,"Text24_PP_TF":None,"Text26_PP_TF":"addr","Text27_PP_TF":"street","Text34_PP_TF":"phone"},
  "conseqps/vypoved-a-prevod-do-dps-conseq":{"Adresa účastník":"addr","Číslo smlouvy u stávající společnosti":"cnum"},
  "conseqps/vypoved-pp-a-prevod-do-pp-conseq":{"Text1":"title","Text3":"surname","Text7":"rc","Text32":"newcnum","Text27":None,"Text28":None,"Text29":None},
  "conseqps/prevod-tf-do-dps-v-ramci-conseq":{"Text27":"cnum","Text3":"fullname","Text4":"rc","Text7":"addr","Text11":None},
- "conseqps/oznameni-o-zmene-udaju":{"ucastnik_cislo":"rc","paticka_v":"place","paticka_datum":"date"},
+ "conseqps/oznameni-o-zmene-udaju":{"ucastnik_cislo":"rc","paticka_v":"place","paticka_datum":"date",
+   "obchodni_zastupce":"advfirm","investicni_konzultant":"advname","osobni_kod":"advcode","zastupce_telefon":"advphone","zastupce_email":"advemail"},
  "conseqps/vyplata-castecneho-odbytneho-dps":{"V":"place","nazev_adresa_banky":None},
  "conseqps/vyplata-jednorazoveho-vyrovnani-dps":{"Text32":"cnum","Text7":"rc"},
  "conseqps/vyplata-predduchodu-dps":{"Text0":"cnum","V":"place"},
@@ -169,17 +172,30 @@ OVERRIDES={
  "conseqps/vyplata-jednorazoveho-vyrovnani-pp":{**{"Text%d_PP_TF"%(i+1):"cnum@%d/8"%i for i in range(8)},"Text30":"place","Text31":"date"},
  "conseqps/vyplata-dozivotni-penze-pp":{**{"Text%d"%(101+i):"cnum@%d/8"%i for i in range(8)},"Text7":"rc","Text30":"place","Text31":"date"},
  # Conseq Investment Management
- "conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu":{"Příjmení_MTPN":"fullname","rodne_cislo_ICO_MTPN":"rc","Telefon_e-mail_MTPN":None,"Ulice_smluvni_strana_MTPN":"streetcp","Místo_MTPN":"place","Datum_MTPN":"date"},
- "conseq/pokyn-avizo":{"Ulice_smluvni_strana_PA":"streetcp","bankovni_spojeni_pro_odeslani_vytezku_PA":"account","misto_PA":"place","datum_prohlaseni_klienta_PA":"date"},
- "conseq/oznameni-o-zmene-udaju":{"Text_OZ-2404_1":"fullname","Text_OZ-2404_2":"rc","Text_OZ-2404_3":"streetcp","Text_OZ-2404_4":"city","Text_OZ-2404_5":"psc",**{"Text_OZ-2404_%d"%i:None for i in range(6,60)}},
- "conseq/oznameni-o-zmene-obchodniho-zastupce":{"OZOZ_2404_1":"fullname","OZOZ_2404_2":"rc","OZOZ_2404_3":"streetcp","OZOZ_2404_4":"city","OZOZ_2404_5":"psc","OZOZ_2404_7":"cnum","OZOZ_2404_54":"place"},
+ "conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu":{"Příjmení_MTPN":"fullname","rodne_cislo_ICO_MTPN":"rc","Telefon_e-mail_MTPN":None,"Ulice_smluvni_strana_MTPN":"streetcp","Místo_MTPN":"place","Datum_MTPN":"date",
+   "Obchodi_zastupce_MTPN":"advfirm","Investiční_konsultant_OZ_MTPN":"advname","Ičo_OZ_MTPN":"advicop","Osobní_kod_OZ_MTPN":"advcode","Telefon_OZ_MTPN":"advphone","Email_OZ_MTPN":"advemail"},
+ "conseq/pokyn-avizo":{"Ulice_smluvni_strana_PA":"streetcp","bankovni_spojeni_pro_odeslani_vytezku_PA":"account","misto_PA":"place","datum_prohlaseni_klienta_PA":"date",
+   "obchodni_zastupce_PA":"advfirm","investicni_konzultant_PA":"advname","ICO_(inv_kon)_PA":"advicop","osobni_kod_PA":"advcode","telefon_obchodniho_zastupce_PA":"advphone","e-mail_obchodniho_zastupce_PA":"advemail"},
+ "conseq/oznameni-o-zmene-udaju":{"Text_OZ-2404_1":"fullname","Text_OZ-2404_2":"rc","Text_OZ-2404_3":"streetcp","Text_OZ-2404_4":"city","Text_OZ-2404_5":"psc",**{"Text_OZ-2404_%d"%i:None for i in range(6,60)},
+   "Text_OZ-2404_47":"advfirm","Text_OZ-2404_48":"advseat","Text_OZ-2404_49":"advico","Text_OZ-2404_50":"advname","Text_OZ-2404_51":"advicop","Text_OZ-2404_52":"advcode","Text_OZ-2404_54":"advphone","Text_OZ-2404_55":"advemail"},
+ "conseq/oznameni-o-zmene-obchodniho-zastupce":{"OZOZ_2404_1":"fullname","OZOZ_2404_2":"rc","OZOZ_2404_3":"streetcp","OZOZ_2404_4":"city","OZOZ_2404_5":"psc","OZOZ_2404_7":"cnum","OZOZ_2404_54":"place",
+   "OZOZ_2404_32":"advfirm","OZOZ_2404_56":"advseat","OZOZ_2404_33":"advico","OZOZ_2404_34":"advname","OZOZ_2404_35":"advicop","OZOZ_2404_36":"advcode","OZOZ_2404_38":"advphone","OZOZ_2404_39":"advemail"},
  "conseq/plna-moc":{"Jmeno_prijmeni_zmocnitel_PLM":"fullname","Datum_narození_zmocnitel_PLM":"birth","RC_zmocnitel_PLM":"rc","Trvale_bydliste_zmocnitel_PLM":"addr","V_zmocnitel_PLM":"place","Dne_zmocnitel_PLM":"date"},
  # ZFP Investments
  "zfpi/zadost-o-odkup-podilovych-listu":{"PRIEZVISKO  OBCHODNÉ MENO":"surname","KRSTNÉ MENO":"firstname","rodne cislo/ico":"rc","TRVALÉ BYDLISKO  SÍDLO  ULICA":"street","cislo":"cp","den":"date@d","mesiac":"date@m","rok":"date@y"},
- "zfpi/zadost-o-zmenu-udaju":{"meno":"firstname","adresa":"addr","e/mail":"email","rodne cislo agent":None,"adresa agent":None,"telefon2":None,"e mail":None,"datum a misto":"placedate"},
+ "zfpi/zadost-o-zmenu-udaju":{"meno":"firstname","adresa":"addr","e/mail":"email","datum a misto":"placedate",
+   "meno agent":"advname","rodne cislo agent":"advicop","adresa agent":None,"telefon2":"advphone","e mail":"advemail","kod":None,"kod sprostedkovatel":"advcode"},
  "zfpi/zadost-o-prevod-podilovych-listu":{"Prevodce_prijimeni/obchodni_meno":"surname","KRSTNÉ MENO":"firstname","Prevodce_rodne_cislo/ico":"rc","Prevodce_trvale_bydlyste/sidlo_ulice":"street","Prevodce_den":"date@d","Prevodce_mesic":"date@m","Prevodce_rok":"date@y","Nabyvatel_rodne_cislo/ico":None,"Nabyvatel_krestni_jmeno":None,"Nabyvatel_trvale_bydlyste/sidlo_ulice":None,"Nabyvatel_cislo_popisne":None,"Nabyvatel_psc":None,"Nabyvatel_mesto":None},
- "zfpi/dispozicni-prava-k-podilovym-listum":{"RC/ICO_podilnik":"rc"},
- "zfpi/dodatek-dip":{"titul_pred":"title","titul_za":None,"mobil":"phone","e-mail":"email"},
+ "zfpi/dispozicni-prava-k-podilovym-listum":{"RC/ICO_podilnik":"rc","jmeno_zprostredkovatele":"advname","mobil_zprostredkovatele":"advphone","e-mail_zprostredkovatele":"advemail","kod_zprostredkovatele":"advcode"},
+ "zfpi/dodatek-dip":{"titul_pred":"title","titul_za":None,"mobil":"phone","e-mail":"email",
+   "jmeno_zprostredkovatel":"advname","mobil_zprostredkovatel":"advphone","e-mail_zprostredkovatele":"advemail","kod_zprostredkovatel":"advcode","RC_zprostredkovatel":"advicop"},
+ # ostatní instituce – jen jméno, telefon a e-mail poradce (získatelská čísla a kódy instituce neznám)
+ "rentea/zadost-o-vyplatu-davky-odbytne":{"jméno a příjmení zprostředkovatel  2":"advname","Telefon zprostředkovatel  2":"advphone","E-mail zprostředkovatel  2":"advemail"},
+ "kbps/dodatek-ke-smlouve-dps":{"Mobil poradce":"advphone","Email poradce":"advemail"},
+ "kbps/oznameni":{"Jméno a pCíjmení poradce":"advname"},
+ "kbps/zadost-o-davku-dps":{"fill_20":"advname"},
+ "kbps/zadost-o-zmenu-spravce-smlouvy":{"Jméno a příjmení poradce":"advname"},
+ "koop/zadost-o-vyber-financnich-prostredku":{"telefon_ziskatel":"advphone","mail_ziskatel":"advemail"},
  # ZFP World Index (WOOD Retail Investments)
  "zfpwi/pokyn-k-vyberu":{"fill_4":"cnum","fill_5":None},
 }

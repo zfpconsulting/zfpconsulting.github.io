@@ -60,6 +60,9 @@ export default {
     await page.evaluate(() => { const i = document.querySelector("#frmBox input[placeholder=XXXXXXXXXX]"); i.value = "123"; i.dispatchEvent(new Event("input", { bubbles: true })); });
     const t = await page.evaluate(() => document.querySelector("#frmBox .fl-paper").innerText);
     assert(t.includes("Květinová 5, 602 00 Brno") && t.includes("nar. 7. 3. 1985") && t.includes("smlouvy č. 123"), "údaje z karty a číslo smlouvy: " + t.slice(0, 300));
+    /* poradci pro sekci obchodní zástupce jsou v šifrovaném bloku a modul je dostane */
+    const adv = await page.evaluate(() => typeof FRM_ADV !== "undefined" ? { n: FRM_ADV.list.length, firm: FRM_ADV.firm.ico, codes: FRM_ADV.list.every(p => /^\d{6}$/.test(p.code)) } : null);
+    eq(adv, { n: 2, firm: "26304805", codes: true }, "poradci z šifrovaného bloku");
     eq(errors, [], "chyby"); await ctx.close();
   },
   async "potvrzení e-mailem: vlastní šablona v nastavení (osobně / online), předmět + text, uložení"(env) {

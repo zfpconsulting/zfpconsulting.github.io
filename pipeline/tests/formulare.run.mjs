@@ -11,6 +11,10 @@ const CLIENTS = [
     products: [{ company: "NN Životní pojišťovna", no: "1234567890", type: "Životní pojištění" }, { company: "Conseq penzijní společnost", no: "55443322" }] },
   { id: "l:2", name: "Petr Svoboda", rec: null, lead: { id: "L2", address: "Lipová 1, 614 00 Brno" } },
 ];
+/* smyšlení poradci (skuteční jsou v šifrovaném bloku appky) */
+const ADV = { firm: { name: "Testovací akademie, a.s.", seat: "Náměstí 1, 690 02 Břeclav", ico: "11112222" },
+  list: [{ id: "a", short: "Adam Poradce", name: "Bc. Adam Poradce", ico: "12345678", code: "111111", phone: "+420700000001", email: "adam@example.cz" },
+         { id: "b", short: "Bára Vedoucí", name: "Ing. Bára Vedoucí", ico: "87654321", code: "222222", phone: "+420700000002", email: "bara@example.cz" }] };
 async function open({ width = 1300, height = 900, ls = {} } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height } });
   const page = await ctx.newPage(); const errors = [];
@@ -19,7 +23,7 @@ async function open({ width = 1300, height = 900, ls = {} } = {}) {
     <body><div id="box"></div><script src="formulare.js"></script><script>
     const LS=${JSON.stringify(ls)};const toasts=[];window.toasts=toasts;window.LS=LS;
     window.F=Formulare.mount(document.getElementById("box"),{toast:t=>toasts.push(t),ls:{get:k=>LS[k]??null,set:(k,v)=>{LS[k]=JSON.parse(JSON.stringify(v))}},
-      clients:()=>${JSON.stringify(CLIENTS)},birthOf:e=>e.lead&&e.lead.id==="L2"?"1979-12-24":""});
+      clients:()=>${JSON.stringify(CLIENTS)},birthOf:e=>e.lead&&e.lead.id==="L2"?"1979-12-24":"",advisors:()=>(${JSON.stringify(ADV)})});
     </script></body></html>` }));
   await page.goto(base + "harness.html");
   await page.waitForFunction(() => window.F && F.catalog().forms.length > 0, null, { timeout: 15000 });
@@ -160,6 +164,32 @@ const T = {
     });
     for (const t of ["Ing. Jana Nováková", "Květinová 5, 602 00 Brno", "19-2000145399/0800", "Brno"]) assert(txt.includes(t), "v PDF je dopsáno: " + t);
     assert((await page.textContent(".pv-meta")).includes("jméno a příjmení"), "přehled předvyplněných údajů");
+    eq(errors, [], "chyby"); await ctx.close();
+  },
+  "poradce do sekce obchodní zástupce: volba poradce, nevyplňovat": async () => {
+    const { ctx, page, errors } = await open();
+    await page.selectOption("#frm-cid", "c:1");
+    await page.locator(".ipick .chip").filter({ hasText: /^Conseq\s*\d*$/ }).click();   /* Conseq investice, ne Conseq PS */
+    await page.click(".flist .row-btn:has-text('Pokyn / Avízo')");
+    const seg = ".frow:has-text('Poradce (obchodní zástupce)') .seg";
+    await page.waitForSelector(seg);
+    eq(await page.$$eval(seg + " button", b => b.map(x => x.textContent)), ["Adam Poradce", "Bára Vedoucí", "Nevyplňovat"], "volby poradce");
+    const read = () => page.evaluate(async () => {
+      const f = (await PDFLib.PDFDocument.load(await (await fetch(F.filled().url)).arrayBuffer())).getForm();
+      return ["obchodni_zastupce_PA", "investicni_konzultant_PA", "ICO_(inv_kon)_PA", "osobni_kod_PA", "telefon_obchodniho_zastupce_PA", "e-mail_obchodniho_zastupce_PA"].map(n => f.getTextField(n).getText() || "");
+    });
+    await page.waitForFunction(() => F.filled().done.includes("advname"), null, { timeout: 20000 });
+    eq(await read(), ["Testovací akademie, a.s.", "Bc. Adam Poradce", "12345678", "111111", "+420700000001", "adam@example.cz"], "výchozí poradce");
+    await page.click(seg + " button:text-is('Bára Vedoucí')");
+    await page.waitForFunction(() => F.state().adv === "b");
+    await page.waitForFunction(() => F.filled().done.includes("advname"), null, { timeout: 20000 });
+    await page.waitForTimeout(300);
+    eq((await read()).slice(1, 4), ["Ing. Bára Vedoucí", "87654321", "222222"], "druhý poradce");
+    assert((await page.textContent(".pst:has-text('kód 222222')")).includes("Ing. Bára Vedoucí"), "souhrn vybraného poradce");
+    await page.click(seg + " button:text-is('Nevyplňovat')");
+    await page.waitForFunction(() => !F.filled().done.includes("advname"), null, { timeout: 20000 });
+    eq(await read(), ["", "", "", "", "", ""], "nevyplňovat");
+    eq((await page.evaluate(() => LS.frm_state_v2)).adv, "none", "volba se pamatuje");
     eq(errors, [], "chyby"); await ctx.close();
   },
   "instituce bez veřejných formulářů nabídne volnou formu": async () => {
