@@ -841,10 +841,10 @@ tests["dotazník: povinné vyplnění (skok na chybějící), výpočet rodičov
   for (const q of ["majetek_ma", "nefin_ma", "uvery_ma", "cile_ma", "zp_ma"]) await seg("kontakt." + q, "false");
   await seg("kontakt.renta_ma", "true"); await f("renta.mesicne", "25000");
   /* nové otázky: pro koho je plán, bydlení, pracovní status → povolání, sporty s úrovní */
-  await page.click('[data-seg="kontakt.plan_pro"]:has-text("Jen pro mě")'); await seg("kontakt.hypo_ma", "false");
+  await page.click('[data-seg="kontakt.plan_pro"]:has-text("Jen pro mě")'); await seg("kontakt.hypo_ma", "false"); await seg("zadost.ma", "false");
   await page.selectOption('[data-p="klient.prace"]', "zam"); await f("klient.povolani", "programátor"); await seg("klient.sport_ma", "true");
   await page.click('[data-add="klient.sporty"]'); await f("klient.sporty.0.nazev", "Fotbal"); await page.selectOption('[data-p="klient.sporty.0.uroven"]', "registrovane");
-  eq(await page.$$eval("section h2", h => h.map(x => x.textContent.replace(/^\d+|✓$/g, ""))), ["Co je pro vás důležité", "Cíle", "Úspory a investice", "Nemovitosti a jiný majetek", "Úvěry", "Pojištění, práce a sport", "Výdaje", "Příjmy", "Rodina", "Něco dalšího?", "Kontakt na vás"], "pořadí částí: výdaje před příjmy, kontakt na konci");
+  eq(await page.$$eval("section h2", h => h.map(x => x.textContent.replace(/^\d+|✓$/g, ""))), ["Co je pro vás důležité", "Cíle", "Úspory a investice", "Nemovitosti a jiný majetek", "Úvěry", "Pojištění, práce a sport", "Výdaje", "Příjmy", "Rodina", "Hypotéka a úvěr", "Něco dalšího?", "Kontakt na vás"], "pořadí částí: výdaje před příjmy, hypotéka po rodině, kontakt na konci");
   await page.click("#bSend"); await page.waitForTimeout(400); eq(posts.length, 0, "bez IOLDP se neodešle");
   assert(/IOLDP/.test(await page.textContent("#toast")), "upozornění na IOLDP");
   const [fc] = await Promise.all([page.waitForEvent("filechooser"), page.click('[data-ioldp="klient"]')]); await fc.setFiles({ name: "ioldp.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") });

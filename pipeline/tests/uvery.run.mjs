@@ -10,7 +10,7 @@ const { srv, url } = await startServer();
 const base = url.replace(/index\.html$/, "");
 
 /* prázdná stránka s barvami jako v Pipeline + paměťové úložiště se stejným API jako LStore + fiktivní klienti */
-async function open({ width = 1300, height = 900, dark = false, docs = {} } = {}) {
+async function open({ width = 1300, height = 900, dark = false, docs = {}, plans = {} } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: dark ? "dark" : "light" });
   const page = await ctx.newPage();
   const errors = [];
@@ -27,6 +27,7 @@ async function open({ width = 1300, height = 900, dark = false, docs = {} } = {}
       {id:"l:b",lead:{id:"b",phone:"777333444"},name:"Jana Dvořáková",products:[]}];
     window.toasts=[];window.saved=[];window.opened=[];
     window.ui=Uvery.mount(document.getElementById("box"),{store,toast:m=>toasts.push(m),clients:()=>cl,sign:()=>"Kudlička",
+      planFor:e=>(${JSON.stringify(plans)})[e.id]||null,
       openClient:e=>opened.push(e.id),saveProduct:async(e,p)=>{saved.push({e:e.id,p});return {id:"a"}},docsFor:e=>{const d=document.createElement("div");d.className="docs-stub";d.textContent="Soubory "+e.name;return d}});
     window.docs=docs;
     </script></body></html>` }));
@@ -191,6 +192,47 @@ const tests = {
     const live = await page.textContent("#uvLive");
     assert(/4 000 000 Kč/.test(live.replace(/ /g, " ")) && /LTV/.test(live), "živé ukazatele: " + live);
     await shot(page, "02-wizard");
+    eq(errors, [], "bez chyb v konzoli");
+    await ctx.close();
+  },
+  async "finanční plán → úvěr: převod plánu (osoby, příjmy, závazky, část Hypotéka a úvěr), předvyplnění případu, doplnění jen prázdných polí, údaje k žádosti"() {
+    const PL = { klient: { jmeno: "Petr Novák", narozen: "1990-04-12", zam: 62000, bonus: 30000, prace: "zam", vydaje_osobni: 40000 }, partner: { zapnuto: true, jmeno: "Lucie Nováková", narozen: "1992-08-01", podnik: 35000, prace: "osvc", vydaje_osobni: 15000 },
+      kontakt: { stav: "zenaty" }, fin: { spolecne: true }, vydaje: { domacnost: 52000 }, deti: [{ jmeno: "Ema", narozen: "2021-02-01" }],
+      docasne: [{ typ: "rodicovska", kdo: "partner", castka: 8000, do: "2027-05" }],
+      nefin: [{ typ: "Investiční nemovitost", nazev: "Byt Kolín", hodnota: 3000000, najem: 12000 }],
+      uvery: [{ typ: "Hypotéka", nazev: "Komerční banka", zustatek: 2400000, splatka: 14000, fixace_do: "2027-03" }, { typ: "Kreditní karta / kontokorent", nazev: "Air Bank", zustatek: 0, limit: 40000, splatit: true }],
+      zadost: { ma: true, typ: "hypo", ucel: "refinancovani", predmet: "byt", ref_idx: "0", refSazba: 2.19, refZmena: false, navyseni: 300000, splatnost: 30, fixace: "5", priority: ["splatka"], zajisteni: "obe", zaj_idx: "0", pronajem: false, nemovitosti: 2,
+        najem_zdroj: "dp", ruceni: true, ruceni_kde: "bratr, ČSOB", ruceni_splatka: 4000, ruceni_zustatek: 300000, vyzivne: false, registry: "ok", exekuce: false, insolvence: false, dane: false,
+        osoby: { klient: { obc: "cz", vzdelani: "vs", bydleni: "vlastni", adresa: "Kounicova 10, Brno", pep: false, usa: false, zamestnavatel: "Acme", zam_od: "2020-01", smlouva: "neurcita", zkusebni: false, vypoved: false, zahr: false, sro: false, zmena: false },
+          partner: { obc: "eu", pobyt: "trvaly", vzdelani: "ss", bydleni: "vlastni", adresa: "Kounicova 10, Brno", pep: false, usa: false, osvc_od: "2021-06", obor: "sluzby", rezim: "pausal", pausal: "60", obrat: 1000000, dp: 4, sro: false, zmena: true, zmena_text: "konec rodičovské 5/2027" } } } };
+    const { ctx, page, errors } = await open({ plans: { "c:a": PL } });
+    const q = await page.evaluate(p => Uvery.math.fromPlan(p), PL);
+    eq([q.typ, q.ucel, q.cena, q.navyseni, q.refBanka, q.refSplatka, q.refFixDo, q.refSazba, q.fixace, q.zajisteni, q.zajHodnota, q.nemovitosti, q.deti, q.zivotni], ["hypo", "refinancovani", 2400000, 300000, "Komerční banka", 14000, "2027-03-01", 2.19, 5, "obe", 3000000, 2, 1, 52000], "úvěr z části Hypotéka a úvěr + refinancovaná hypotéka z Úvěrů");
+    eq(q.zad.map(z => [z.jmeno, z.stav, z.vztah || "", z.obc, z.pobyt, z.vzdelani, z.pep, z.zmena]), [["Petr Novák", "manzel", "", "cz", "", "vs", "ne", "ne"], ["Lucie Nováková", "manzel", "manzel", "eu", "trvaly", "ss", "ne", "ano"]], "žadatelé");
+    eq(q.zad[0].prijmy.map(x => x.typ + ":" + (x.castka || x.prijmy)), ["zam:62000", "pronajem:12000"], "příjmy klienta (mzda + nájem z nemovitosti)");
+    eq(q.zad[0].prijmy[0].smlouva + "/" + q.zad[0].prijmy[0].bonus + "/" + q.zad[0].prijmy[1].zdroj, "neurcita/30000/dp", "smlouva, bonus, nájem v DP");
+    eq(q.zad[1].prijmy.map(x => x.typ), ["osvc", "rodic"], "příjmy partnerky (OSVČ + rodičovská)");
+    eq(q.zav.map(d => [d.typ, d.splatit, d.limit || d.splatka]), [["hypo", "ano", 14000], ["kk", "ano", 40000], ["ruceni", "", 4000]], "závazky: refinancovaná hypotéka se splatí, karta zrušit, ručení");
+    const R = await page.evaluate(q => { const r = Uvery.math.recommend(q, Uvery.BANKS); return { loan: Math.round(r.M.loan), ok: r.list.filter(b => !b.ko.length).length, docs: Uvery.math.docsList(q).map(d => d.t).join("|") } }, q);
+    eq(R.loan, 2700000, "refinancování + navýšení"); assert(R.ok > 0, "aspoň jedna banka bez překážky");
+    assert(/Smlouva o stávajícím úvěru/.test(R.docs) && /Rozhodnutí o rodičovském/.test(R.docs) && /povolení k pobytu/.test(R.docs), "podklady podle odpovědí");
+    /* nový případ pro klienta s plánem → předvyplněný dotazník */
+    await click(page, '.uv-bar [data-a="new"]'); await page.fill("#uvNq", "nov"); await click(page, '[data-a="npick"]'); await click(page, '[data-a="ntyp"][data-v="hypo"]'); await click(page, '[data-a="ncreate"]');
+    await page.waitForSelector(".uv-wiz");
+    const d = await page.evaluate(() => { const k = Object.keys(docs).find(k => k.startsWith("uvery/")); return docs[k]; });
+    eq([d.q.ucel, d.q.cena, d.q.zad.length, d.q.zad[1].jmeno, d.q.zav.length, d.log.some(l => /finančního plánu/.test(l.t))], ["refinancovani", 2400000, 2, "Lucie Nováková", 3, true], "případ předvyplněný z plánu");
+    assert(/Klient má finanční plán s vyplněnou částí Hypotéka a úvěr/.test(await page.textContent(".uv-wiz")), "nabídka doplnit z plánu");
+    /* poradce v případu přepíše cenu a smaže adresu → Doplnit z plánu vrátí jen prázdné pole */
+    await click(page, '[data-a="step"][data-v="1"]'); await fillK(page, "q.cena", "2500000"); await click(page, '[data-a="step"][data-v="2"]'); await fillK(page, "q.zad.0.adresa", "");
+    await page.waitForTimeout(600); await click(page, '[data-a="step"][data-v="0"]'); await click(page, '[data-a="fromfp"]'); await page.waitForTimeout(600);
+    const d2 = await page.evaluate(() => { const k = Object.keys(docs).find(k => k.startsWith("uvery/")); return docs[k]; });
+    eq([d2.q.cena, d2.q.zad[0].adresa], [2500000, "Kounicova 10, Brno"], "doplnění jen do prázdných polí");
+    assert(/Doplněno 1 údaj/.test((await page.evaluate(() => toasts)).join("|")), "hláška o doplnění");
+    /* údaje k žádosti – všechno na jedné stránce */
+    await page.evaluate(() => { window.__w = ""; window.open = () => ({ document: { open() {}, write(h) { window.__w += h }, close() {} }, focus() {} }) });
+    await click(page, '[data-a="zadost"]');
+    const w = await page.evaluate(() => window.__w);
+    for (const t of ["Údaje k žádosti o úvěr", "Adresa trvalého bydliště", "Kounicova 10, Brno", "Politicky exponovaná osoba", "konec rodičovské 5/2027", "Ručení za cizí úvěr", "Komerční banka", "Vysokoškolské"]) assert(w.includes(t), "údaje k žádosti: " + t);
     eq(errors, [], "bez chyb v konzoli");
     await ctx.close();
   },

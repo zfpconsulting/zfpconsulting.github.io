@@ -58,6 +58,12 @@ const RELS=[["manzel","Manžel/ka"],["partner","Partner/ka (nesezdaní)"],["rodi
 const OBORY=[["it","IT / software"],["svobodne","Svobodné povolání (advokát, lékař, architekt, daňový poradce)"],["sluzby","Služby (poradenství, marketing, reality)"],["remeslo","Řemeslo / stavebnictví"],["obchod","Obchod / výroba"],["jine","Jiné"]];
 const DEBTS=[["hypo","Hypotéka"],["spotr","Spotřebitelský úvěr"],["kk","Kreditní karta"],["ko","Kontokorent"],["leasing","Leasing / splátky"],["vyzivne","Výživné (placené)"],["ruceni","Ručení za cizí úvěr"],["jine","Jiný závazek"]];
 const DEBT_T=Object.fromEntries(DEBTS);
+/* údaje k žádosti, které chce každá banka (z dotazníku k finančnímu plánu nebo doplněné tady) */
+const EDU=[["zs","Základní"],["vyuc","Vyučen/a"],["ss","Střední s maturitou"],["vos","Vyšší odborné"],["vs","Vysokoškolské"]];
+const BYDL=[["vlastni","Ve vlastním"],["najem","V nájmu"],["rodice","U rodičů / příbuzných"],["druzstevni","V družstevním"],["jine","Jinak (služební, ubytovna…)"]];
+const POVOL=[["ma","Pravomocné povolení"],["rizeni","V řízení"],["ohlaseni","Ohlášení / není potřeba"],["nemam","Zatím nic"]];
+const STAVI=[["firma","Stavební firma"],["svepomoc","Svépomoc"],["kombinace","Kombinace"]];
+const VYPOR=[["sjm","SJM po rozvodu"],["dedictvi","Dědictví"],["spoluvl","Vyplacení spoluvlastníka"]];
 
 /* typy příjmů: pole formuláře [klíč, popisek, druh, volby/podmínka] – druh: kc (částka), n (číslo), sel, yn (ano/ne), date, t (text) */
 const INC={
@@ -519,6 +525,73 @@ function clientDocsText(q,state,bank,sign){
   return "Dobrý den,\npro vyřízení úvěru prosím připravte:\n"+miss.join("\n")+(sign?"\n\n"+sign:"");
 }
 
+/* ================= finanční plán → dotazník úvěru =================
+   Vstupní dotazník k finančnímu plánu má část „Hypotéka a úvěr“ (plan.zadost) se vším, co banka chce k žádosti.
+   fromPlan z ní (a z toho, co plán už má: osoby, příjmy, děti, úvěry, nemovitosti, výdaje) sestaví dotazník úvěrového případu (q).
+   Prázdné hodnoty vynechá; mergeQ je pak doplní jen do prázdných polí případu – co poradce v případu přepsal, zůstává. */
+const PL_DEBT={"Hypotéka":"hypo","Úvěr ze stavebního spoření":"spotr","Spotřebitelský úvěr":"spotr","Leasing":"leasing","Kreditní karta / kontokorent":"kk","Podnikatelský úvěr":"jine","Jiný":"jine"};
+const PL_STAV={svobodny:"svobodny",zenaty:"manzel",partner:"svobodny",rozvedeny:"rozveden",vdovec:"vdovec"};
+const monthsSince=ym=>{const m=/^(\d{4})-(\d{2})/.exec(ym||"");if(!m)return "";const d=new Date(),x=(d.getFullYear()-+m[1])*12+(d.getMonth()+1-+m[2]);return x>=0?x:""};
+const ymDay=s=>/^\d{4}-\d{2}$/.test(s||"")?s+"-01":/^\d{4}-\d{2}-\d{2}/.test(s||"")?s.slice(0,10):"";
+function fromPlan(pl){
+  pl=pl||{};const Z=pl.zadost||{},K=pl.klient||{},Pa=pl.partner||{},kt=pl.kontakt||{},O=Z.osoby||{},nf=pl.nefin||[];
+  const ok=v=>v!==""&&v!=null&&!(typeof v==="number"&&isNaN(v));
+  const kc0=v=>{const x=num(v);return isFinite(x)&&x>0?x:""};
+  const yn=v=>v===true||v==="ano"?"ano":v===false||v==="ne"?"ne":"";
+  const nr=v=>{const x=num(v);return isFinite(x)?x:""};
+  const people=[["klient",K]].concat(Pa&&Pa.zapnuto?[["partner",Pa]]:[]),married=kt.stav==="zenaty";
+  const owner=o=>o&&o.kdo==="partner"&&people.length>1?"partner":"klient";
+  const zad=people.map(([k,p],i)=>{const o=O[k]||{},inc=[];
+    const zam=kc0(p.zam);
+    if(zam){if(o.smlouva==="dpp"||o.smlouva==="dpc")inc.push({typ:o.smlouva,castka:zam,mesicu:monthsSince(o.zam_od)});
+      else if(o.zahr===true)inc.push({typ:"zahr",zeme:o.zeme||"",castka:zam,mesicu:monthsSince(o.zam_od),pendler:yn(o.pendler)});
+      else inc.push({typ:"zam",castka:zam,smlouva:o.smlouva==="urcita"||o.smlouva==="neurcita"?o.smlouva:"",mesicu:monthsSince(o.zam_od),zkusebni:yn(o.zkusebni),vypoved:yn(o.vypoved),bonus:kc0(p.bonus)})}
+    if(kc0(p.podnik)||(["osvc","zam_osvc"].includes(p.prace)&&o.rezim))
+      inc.push({typ:"osvc",rezim:o.rezim||"",prijmy:kc0(o.obrat),vydaje:kc0(o.vydaje),pausal:o.pausal||"",pasmo:o.pasmo||"",obor:o.obor||"",mesicu:monthsSince(o.osvc_od),dp:nr(o.dp)});
+    if(o.sro===true)inc.push({typ:"sro",zisk:kc0(o.sro_zisk),podil:nr(o.sro_podil),vyplata:yn(o.sro_vyplata),odmena:kc0(o.sro_odmena),mesicu:monthsSince(o.sro_od)});
+    const naj=nf.filter(a=>kc0(a.najem)&&owner(a)===k).reduce((s,a)=>s+n0(a.najem),0)||(kc0(p.pronajem)||0);
+    if(naj)inc.push({typ:"pronajem",castka:naj,zdroj:Z.najem_zdroj||""});
+    if(i===0&&yes(Z.pronajem)&&kc0(Z.najem_budouci))inc.push({typ:"pronajem",castka:kc0(Z.najem_budouci),zdroj:"budouci"});
+    (pl.docasne||[]).filter(r=>kc0(r.castka)&&owner(r)===k).forEach(r=>{
+      if(r.typ==="materska"||r.typ==="rodicovska")inc.push({typ:"rodic",castka:kc0(r.castka),do:ymDay(r.do)});
+      else if(r.typ==="vyzivne")inc.push({typ:"vyzivne",castka:kc0(r.castka)});
+      else inc.push({typ:"jiny",castka:kc0(r.castka),popis:"dočasný příjem"+(r.do?" do "+r.do.split("-").reverse().join("/"):"")})});
+    if(kc0(p.pasiv))inc.push(p.prace==="duchodce"?{typ:"duchod",druh:"starobni",castka:kc0(p.pasiv)}:{typ:"jiny",castka:kc0(p.pasiv),popis:"pasivní příjmy (dividendy, úroky, renty)"});
+    if(kc0(o.diety))inc.push({typ:"diety",castka:kc0(o.diety),mesicu:""});
+    return {jmeno:p.jmeno||"",narozen:p.narozen||"",...(i?{vztah:married?"manzel":"partner"}:{}),stav:PL_STAV[kt.stav]||"",obc:o.obc||"",pobyt:o.obc&&o.obc!=="cz"?o.pobyt||"":"",
+      vzdelani:o.vzdelani||"",bydleni:o.bydleni||"",adresa:o.adresa||"",pep:yn(o.pep),usa:yn(o.usa),zmena:yn(o.zmena),zmenaText:o.zmena===true?o.zmena_text||"":"",prijmy:inc}});
+  const ul=pl.uvery||[],refI=ok(Z.ref_idx)&&Z.ref_idx!==""&&ul[+Z.ref_idx]?+Z.ref_idx:-1;
+  const zav=ul.map((u,j)=>({u,j})).filter(({u})=>kc0(u.zustatek)||kc0(u.splatka)||kc0(u.limit)).map(({u,j})=>{const t=PL_DEBT[u.typ]||"jine",spl=yn(u.splatit)||(j===refI?"ano":"");
+    return t==="kk"?{typ:"kk",banka:u.nazev||"",limit:kc0(u.limit)||kc0(u.zustatek),zustatek:kc0(u.zustatek),splatit:spl}:{typ:t,banka:u.nazev||"",splatka:kc0(u.splatka),zustatek:kc0(u.zustatek),splatit:spl}});
+  if(Z.vyzivne===true&&kc0(Z.vyzivne_kc))zav.push({typ:"vyzivne",banka:"",splatka:kc0(Z.vyzivne_kc),zustatek:"",splatit:""});
+  if(Z.ruceni===true)zav.push({typ:"ruceni",banka:Z.ruceni_kde||"",splatka:kc0(Z.ruceni_splatka),zustatek:kc0(Z.ruceni_zustatek),splatit:""});
+  const R=refI>=0?ul[refI]:null,typ=Z.typ||"hypo",ucel=typ==="hypo"?Z.ucel||"":"";
+  const zIdx=ok(Z.zaj_idx)&&Z.zaj_idx!==""&&Z.zaj_idx!=="jiny"&&nf[+Z.zaj_idx]?+Z.zaj_idx:-1;
+  const deti=pl.deti||[],vek=deti.map(d=>ageAt(d.narozen)).filter(isFinite);
+  const spol=!!(Pa&&Pa.zapnuto)&&!(pl.fin&&pl.fin.spolecne===false)&&kc0((pl.vydaje||{}).domacnost);
+  const ziv=spol?kc0(pl.vydaje.domacnost):people.reduce((s,[,p])=>s+n0(p.vydaje_osobni),0);
+  const q={typ,ucel,predmet:Z.predmet||"",prodavajici:Z.prodavajici||"",lokalita:Z.lokalita||"",inzerat:Z.inzerat||"",vybrano:yn(Z.vybrano),
+    ucelText:Z.ucelText||"",bydleni:yn(Z.bydleni),bydUcel:Z.bydUcel||"",
+    cena:kc0(Z.cena)||(R&&ucel==="refinancovani"?kc0(R.zustatek):""),odhad:kc0(Z.odhad)||(typ==="amer"&&zIdx>=0?kc0(nf[zIdx].hodnota):""),vlastni:nr(Z.vlastni),uver:kc0(Z.uver),navyseni:kc0(Z.navyseni),
+    zdroje:Array.isArray(Z.zdroje)?Z.zdroje.slice():[],termin:ymDay(Z.termin),rezervace:yn(Z.rezervace),pronajem:yn(Z.pronajem),nemovitosti:nr(Z.nemovitosti),penb:Z.penb||"",
+    zatizeni:(Z.zatizeni||[]).filter(x=>x!=="nevim"&&x!=="zadne"),zajisteni:Z.zajisteni||"",zajHodnota:zIdx>=0?kc0(nf[zIdx].hodnota):kc0(Z.zaj_hodnota),
+    refBanka:Z.refBanka||(R&&R.nazev)||"",refSazba:nr(Z.refSazba),refFixDo:ymDay(Z.refFixDo||(R&&R.fixace_do)),refSplatka:kc0(Z.refSplatka)||(R?kc0(R.splatka):""),refZmena:yn(Z.refZmena),
+    povoleni:Z.povoleni||"",rozpPol:yn(Z.rozpPol),stavi:Z.stavi||"",dokonceni:ymDay(Z.dokonceni),vypor:Z.vypor||"",
+    splatnost:nr(Z.splatnost),fixace:Z.fixace&&Z.fixace!=="?"?+Z.fixace:"",splatkaMax:kc0(Z.splatkaMax),priority:(Z.priority||[]).slice(0,2),ucty:(Z.ucty||[]).slice(),nechce:(Z.nechce||[]).slice(),
+    pss:Z.pss||"",predVkladem:yn(Z.predVkladem),registry:Z.registry||"",exekuce:yn(Z.exekuce),insolvence:yn(Z.insolvence),dane:yn(Z.dane),
+    zivotni:ziv||"",deti:deti.length||"",detiVek:vek.join(" a "),zad,zav,pozn:Z.pozn||""};
+  if(isHypoLike(typ)&&!q.zajisteni)q.zajisteni=ucel==="druzstvo"?"jina":"kupovana";
+  if(ucel==="refinancovani"&&!q.uver&&n0(q.navyseni)&&n0(q.cena))q.uver=n0(q.cena)+n0(q.navyseni);   /* úvěr = zůstatek + navýšení (metrics bere navýšení jen přes q.uver) */
+  return q}
+/* doplní do případu jen prázdná pole (i u žadatelů podle pořadí); vrátí počet doplněných údajů */
+function mergeQ(q,f){let n=0;const empty=v=>v==null||v===""||(Array.isArray(v)&&!v.length);
+  Object.keys(f||{}).forEach(k=>{if(k==="zad"||k==="zav")return;if(empty(q[k])&&!empty(f[k])){q[k]=clone(f[k]);n++}});
+  if(Array.isArray(f.zad)&&f.zad.length){if(!Array.isArray(q.zad))q.zad=[];
+    f.zad.forEach((z,i)=>{const t=q.zad[i];if(!t){q.zad.push(clone(z));n++;return}
+      Object.keys(z).forEach(k=>{if(k==="prijmy"){if(empty(t.prijmy)&&!empty(z.prijmy)){t.prijmy=clone(z.prijmy);n++}return}if(empty(t[k])&&!empty(z[k])){t[k]=z[k];n++}})})}
+  if(empty(q.zav)&&!empty(f.zav)){q.zav=clone(f.zav);n++}
+  return n}
+
 /* ================= vzhled (jen barvy ZFP: oranžová, černá, bílá, šedé) ================= */
 const CSS=`
 .uv{color:var(--ink);font-size:var(--fs-m);font-variant-numeric:tabular-nums}
@@ -768,6 +841,8 @@ function mount(root,opts={}){
   const entries=()=>{try{return clientsFn().slice()}catch(e){return[]}};
   const entryOf=c=>{if(!c)return null;const E=entries();return E.find(e=>c.cid&&e.rec&&e.rec.id===c.cid)||E.find(e=>c.lid&&e.lead&&e.lead.id===c.lid)||E.find(e=>c.eid&&e.id===c.eid)||null};
   const sign=()=>{try{return opts.sign?opts.sign():""}catch(e){return""}};
+  /* finanční plán klienta (z Pipeline) – podle něj se předvyplní dotazník */
+  const planOf=e=>{try{return e&&opts.planFor?opts.planFor(e)||null:null}catch(err){return null}};
 
   if(store){
     store.collection("uvery").onSnapshot(s=>{cases=s.docs.map(d=>({id:d.id,...d.data()}));onCases()});
@@ -893,6 +968,12 @@ function mount(root,opts={}){
       stage:"poptavka",stageAt:{poptavka:now},createdAt:now,updatedAt:Date.now(),nextStep:"Vyplnit dotazník",nextDate:todayStr(),
       q:{typ:newSt.typ,ucel:isHypoLike(newSt.typ)?"koupe":"",predmet:isHypoLike(newSt.typ)?"byt":"",zajisteni:"kupovana",zad:[z0],zav:[],priority:[],fixace:isHypoLike(newSt.typ)?3:"",splatnost:newSt.typ==="amer"?20:isHypoLike(newSt.typ)?30:8},
       docs:{},tasks:{},offers:[],dates:{},log:[{d:now,t:"Případ založen"}]};
+    /* klient má finanční plán → dotazník se předvyplní z něj (osoby, příjmy, děti, úvěry; z části „Hypotéka a úvěr“ i účel, nemovitost a údaje k žádosti) */
+    const pl=planOf(e);
+    if(pl){const f=fromPlan(pl),emp=v=>v==null||v===""||(Array.isArray(v)&&!v.length);let n=0;
+      Object.keys(f).forEach(k=>{if(k==="typ"||emp(f[k]))return;d.q[k]=clone(f[k]);n++});
+      if(isHypoLike(newSt.typ)&&!d.q.zajisteni)d.q.zajisteni="kupovana";
+      if(n){d.log.push({d:now,t:"Dotazník předvyplněný z finančního plánu"});d.fromPlan=now}}
     if(!store){toast("Úložiště není připravené");return}
     const r=await store.collection("uvery").add(d);newSt={q:"",pick:null,typ:"hypo",name:""};
     cases=cases.filter(c=>c.id!==r.id).concat([{id:r.id,...d}]);openCase(r.id,"dotaznik");ui.step=0;keepUi();draw();
@@ -926,6 +1007,7 @@ function mount(root,opts={}){
         <div class="tt"><h2>${esc(c.name||"Bez jména")}</h2><div class="sub">${esc(sub)}</div></div>
         <select class="field uv-wauto" data-a="stage" aria-label="Fáze případu">${STAGES.map(s=>`<option value="${s.k}"${s.k===c.stage?" selected":""}>${esc(s.t)}</option>`).join("")}</select>
         ${e&&opts.openClient?`<button type="button" class="btn btn--secondary" data-a="client">Karta klienta</button>`:""}
+        <button type="button" class="btn btn--secondary" data-a="zadost">Údaje k žádosti</button>
         <button type="button" class="btn btn--secondary" data-a="print">Tisk / PDF</button></div>
       <div class="uv-steps" aria-hidden="true">${STAGES.filter(s=>ACTIVE(s.k)||s.k==="cerpano").map((s,i)=>`<span class="${i<=idx&&ACTIVE(c.stage)||c.stage==="cerpano"?"on":""}"></span>`).join("")}</div>
       <div class="uv-next"><div class="uv-f"><label for="uv_nextStep">Další krok</label><input class="field" id="uv_nextStep" data-k="nextStep" data-t="t" value="${esc(c.nextStep||"")}" placeholder="např. Doložit potvrzení o příjmu"></div>
@@ -938,8 +1020,9 @@ function mount(root,opts={}){
   /* ---------- dotazník ---------- */
   function wizardHTML(){
     const q=cur.q,t=q.typ||"hypo",s=Math.max(0,Math.min(STEPS.length-1,ui.step||0));
-    const done=i=>stepDone(q,i);
+    const done=i=>stepDone(q,i),pl=s===0&&planOf(entryOf(cur));
     return `<div class="uv-wiz"><div>
+      ${pl?`<div class="uv-note gray uv-mt0">Klient má finanční plán${pl.zadost&&pl.zadost.ma===true?" s vyplněnou částí Hypotéka a úvěr":""}. <button type="button" class="btn btn--ghost btn--s" data-a="fromfp">Doplnit z finančního plánu</button> <span class="uv-small">doplní jen prázdná pole</span></div>`:""}
       <div class="uv-wsteps chips" role="tablist" aria-label="Kroky dotazníku">${STEPS.map((x,i)=>`<button type="button" class="chip${done(i)&&i!==s?" done":""}" data-a="step" data-v="${i}"${i===s?' aria-current="step"':""}>${i+1}. ${x}</button>`).join("")}</div>
       <div class="uv-box">${[step0,step1,step2,step3,step4,step5][s]()}</div>
       <div class="uv-wnav">${s>0?`<button type="button" class="btn btn--secondary" data-a="step" data-v="${s-1}">‹ ${STEPS[s-1]}</button>`:"<span></span>"}
@@ -987,12 +1070,15 @@ function mount(root,opts={}){
   function drawLive(){const b=root.querySelector("#uvLive");if(b)b.innerHTML=liveHTML()}
   root.addEventListener("toggle",e=>{const d=e.target;if(d&&d.classList&&d.classList.contains("uv-lv")){if(!narrow()&&!d.open){d.open=true;return}if(narrow())lvOpen=d.open}},true);
 
+  function u0(q){return q.ucel||"koupe"}
   function step0(){const q=cur.q,t=q.typ||"hypo",hypo=isHypoLike(t);
     const cenaHint=hypo?"":"";
     return `<div class="uv-grid">
       ${fChips("q.typ","Typ úvěru",TYPES,{big:true})}
       ${hypo&&t!=="amer"?fChips("q.ucel","Účel",PURPOSES):""}
       ${hypo?fChips("q.predmet",t==="amer"?"Zastavovaná nemovitost":"Nemovitost",PROPS):""}
+      ${hypo&&["koupe","pozvyst","druzstvo"].includes(q.ucel||"koupe")&&t!=="amer"?fYn("q.vybrano","Nemovitost už má vybranou",{hint:q.vybrano==="ne"?"Bez vybrané nemovitosti: hypotéka bez nemovitosti / předsjednaný rámec – sazba se zafixuje hned, na nalezení nemovitosti je 1–3 roky (podle banky). Rámec dimenzuj s rezervou – většina bank umožní část nedočerpat.":""}):""}
+      ${hypo&&q.vybrano!=="ne"&&t!=="amer"&&u0(q)!=="refinancovani"?fTxt("q.inzerat","Odkaz na inzerát / projekt",{ph:"https://…",wide:true}):""}
       ${hypo&&["koupe","pozvyst"].includes(q.ucel||"koupe")&&t!=="amer"?fChips("q.prodavajici","Kupuje od",SELLERS,{hint:q.prodavajici==="pribuzny"?"Prodej v rodině pod cenou: LTV se počítá z odhadu, rozdíl ceny a odhadu nahradí vlastní zdroje.":q.prodavajici==="drazba"?"Dražba: peníze musí být do lhůty k doplacení nejvyššího podání – úvěr připrav předem.":""}):""}
       ${t==="amer"||!hypo?fTxt("q.ucelText","Na co peníze použije",{ph:t==="konsol"?"sloučení úvěrů":"např. auto, vybavení, rezerva",wide:true}):""}
       ${t==="spotr"?fYn("q.bydleni","Peníze jdou na bydlení",{hint:"Účelový úvěr na bydlení bez zástavy (stavební spořitelny, Rekopůjčka, ČSOB Půjčka na lepší bydlení, UniCredit PRESTO na bydlení): vyšší částky (2,5–3,5 mil.), delší splatnost a nižší sazba než neúčelová půjčka."}):""}
@@ -1016,7 +1102,9 @@ function mount(root,opts={}){
       ${u!=="refinancovani"?fKc("q.vlastni","Vlastní zdroje",{ph:"0"}):""}
       ${fKc("q.uver","Požadovaný úvěr",{ph:sugg?fmt0(sugg):""})}
       ${u!=="refinancovani"&&t!=="amer"?fChips("q.zdroje","Odkud jsou vlastní zdroje (AML)",OWN_SRC,{multi:true}):""}
-      ${u==="refinancovani"?fTxt("q.refBanka","Stávající banka")+fNum("q.refSazba","Stávající sazba",{suf:"%"})+fDate("q.refFixDo","Konec fixace")+fKc("q.refSplatka","Stávající splátka"):""}
+      ${u==="refinancovani"?fTxt("q.refBanka","Stávající banka")+fNum("q.refSazba","Stávající sazba",{suf:"%"})+fDate("q.refFixDo","Konec fixace")+fKc("q.refSplatka","Stávající splátka")+fYn("q.refZmena","Mění se dlužníci (rozvod, přibírá / odchází spoludlužník)",{hint:"Nová smlouva = nové posouzení bonity všech, kdo v úvěru zůstávají."}):""}
+      ${["vystavba","pozvyst","rekonstrukce"].includes(u)&&t!=="amer"?fChips("q.povoleni","Stavební povolení",POVOL,{hint:u==="rekonstrukce"?"Povolení / ohlášení jen u změny stavby (nosné zdi, přístavba).":"Banky ho chtějí pravomocné před prvním čerpáním."})+fYn("q.rozpPol","Položkový rozpočet")+fChips("q.stavi","Kdo staví",STAVI,{hint:q.stavi==="svepomoc"?"Svépomoc: ne každá banka – a vlastní práci uzná jen omezeně; počítej s rezervou 10–20 %.":""})+fDate("q.dokonceni","Plánované dokončení"):""}
+      ${u==="vyporadani"&&t!=="amer"?fChips("q.vypor","Co se vypořádává",VYPOR):""}
       ${fChips("q.zajisteni","Zajištění",COLLAT,{hint:q.zajisteni==="treti"?"Zástavce podepisuje zástavní smlouvu; po 3–5 letech jde dozajištění vyvázat.":""})}
       ${["jina","obe","treti"].includes(q.zajisteni)?fKc("q.zajHodnota","Hodnota další zastavované nemovitosti"):""}
       ${fChips("q.zatizeni","Zatížení nemovitosti",BURDENS,{multi:true})}
@@ -1032,7 +1120,10 @@ function mount(root,opts={}){
         <div class="uv-grid">${fTxt(p+"jmeno","Jméno a příjmení")}${fDate(p+"narozen","Datum narození",{hint:i===0?"Rozhoduje o LTV 90 % (do 36 let) a o max. splatnosti.":""})}
           ${i>0?fSel(p+"vztah","Vztah k 1. žadateli",RELS):""}${fSel(p+"stav","Rodinný stav",MARITAL)}
           ${fChips(p+"obc","Občanství",CITIZEN,{wide:false})}${z.obc&&z.obc!=="cz"?fChips(p+"pobyt","Pobyt v ČR",RESID,{wide:false}):""}
-          ${i>0?fYn(p+"dom2","Žije v jiné domácnosti (např. rodiče)"):""}</div></div>`}).join("")+
+          ${i>0?fYn(p+"dom2","Žije v jiné domácnosti (např. rodiče)"):""}
+          ${fSel(p+"vzdelani","Nejvyšší vzdělání",EDU,{hint:z.vzdelani==="vs"?"S VŠ berou některé banky smlouvu na dobu určitou jako neurčitou.":""})}${fSel(p+"bydleni","Teď bydlí",BYDL)}
+          ${fTxt(p+"adresa","Adresa trvalého bydliště",{wide:true,ph:"ulice a číslo, obec, PSČ"})}
+          ${fYn(p+"pep","Politicky exponovaná osoba (i blízký příbuzný)")}${fYn(p+"usa","Daňový rezident USA / jiné země než ČR")}</div></div>`}).join("")+
       `${zad.length<4?`<button type="button" class="btn btn--secondary" data-a="zadd">+ Přidat spolužadatele</button>`:""}
       ${married&&!spouse&&zad.some(z=>z.stav==="manzel")?`<div class="uv-note uv-mt3">Ženatý / vdaná bez manžela v žádosti: banky chtějí manžela jako spoludlužníka (SJM). Výjimka jen při zúženém SJM (notářský zápis).</div>`:""}
       <div class="uv-grid uv-mt3">${fNum("q.deti","Vyživované děti",{ph:"0"})}${fTxt("q.detiVek","Věk dětí",{ph:"např. 3 a 7"})}</div>`}
@@ -1043,6 +1134,7 @@ function mount(root,opts={}){
           const fields=T.f.filter(f=>!f[4]||Object.entries(f[4]).every(([k,v])=>(x[k]||(k==="rezim"?"pausal":""))===v)).map(f=>{const k=p+f[0];
             return f[2]==="kc"?fKc(k,f[1]):f[2]==="n"?fNum(k,f[1]):f[2]==="sel"?fSel(k,f[1],f[3]):f[2]==="yn"?fYn(k,f[1]):f[2]==="date"?fDate(k,f[1]):fTxt(k,f[1])}).join("");
           return `<div class="uv-sub uv-sub2"><div class="uv-subh"><span>${esc(T.t)}</span><button type="button" class="btn btn--danger btn--s" data-a="pdel" data-i="${i}" data-j="${j}">Odebrat</button></div><div class="uv-grid">${fields}</div>${incHint(x)}</div>`}).join("")}
+        <div class="uv-grid uv-mb3">${fYn("q.zad."+i+".zmena","Změna příjmu v příštích 12 měsících",{hint:z.zmena==="ano"?"Nová práce, konec smlouvy, mateřská nebo důchod: žádost podat ještě před změnou, nebo počkat na konec zkušební doby.":""})}${z.zmena==="ano"?fTxt("q.zad."+i+".zmenaText","Jaká změna",{ph:"např. od 3/2027 rodičovská"}):""}</div>
         <div class="uv-row"><select class="field" data-a="padd" data-i="${i}" aria-label="Přidat příjem"><option value="">+ Přidat příjem…</option>${Object.entries(INC).map(([k,v])=>`<option value="${k}">${esc(v.t)}</option>`).join("")}</select></div></div>`}).join("")+
       (gen.income?`<p class="uv-foot">Obecně započitatelný příjem domácnosti ≈ <b>${kc(gen.income)}</b> měsíčně. Každá banka počítá jinak – přesně v záložce Banky.</p>`:"");
   }
@@ -1063,6 +1155,7 @@ function mount(root,opts={}){
       <div class="uv-grid uv-mt3">
         ${fChips("q.registry","Úvěrové registry (BRKI, NRKI, SOLUS)",[["ok","Čisté"],["problem","Záznam / prodlení"],["nevim","Nevím"]],{hint:"Banky koukají ~5 let zpět; prodlení za posledních 3–6 měsíců je problém. Při „Nevím“ si klient zažádá o výpis z registrů."})}
         ${fYn("q.exekuce","Exekuce")}${fYn("q.insolvence","Insolvence / oddlužení")}
+        ${applicants(q).some(z=>(z.prijmy||[]).some(x=>x.typ==="osvc"||x.typ==="sro"))?fYn("q.dane","Nedoplatky na daních / sociálním / zdravotním",{hint:"Banky u OSVČ často chtějí potvrzení o bezdlužnosti – nedoplatek nejdřív vyrovnat."}):""}
         ${fKc("q.zivotni","Životní náklady domácnosti měsíčně",{ph:"nepovinné",hint:"Jen pro tvou kontrolu rezervy – banky si počítají vlastní normativy."})}
       </div>`}
   function step5(){const q=cur.q,B=banks().filter(b=>!b.off&&b.kind!=="ss"&&b.kind!=="spec").map(b=>[b.id,b.s]);
@@ -1356,7 +1449,7 @@ function mount(root,opts={}){
   function printDoc(title,body){
     const html=`<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
       body{font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;color:#1A1A1A;padding:28px;max-width:820px;margin:auto;font-size:13.5px;line-height:1.45}
-      h1{font-size:21px;margin:0 0 2px}h2{font-size:15px;margin:20px 0 6px;border-bottom:2px solid #E8571A;padding-bottom:3px}.sub{color:#5C5C60;margin-bottom:12px}
+      h1{font-size:21px;margin:0 0 2px}h3{font-size:13.5px;margin:14px 0 2px}h2{font-size:15px;margin:20px 0 6px;border-bottom:2px solid #E8571A;padding-bottom:3px}.sub{color:#5C5C60;margin-bottom:12px}
       table{width:100%;border-collapse:collapse;margin:6px 0}td,th{padding:6px 7px;border-bottom:1px solid #E6E6E8;text-align:left;vertical-align:top}th{font-size:12px;color:#5C5C60}td.r,th.r{text-align:right}th.k{width:38%}.n{font-size:12px;color:#5C5C60}
       .ft{margin-top:22px;font-size:11px;color:#5C5C60;border-top:1px solid #E6E6E8;padding-top:8px}ul{padding-left:18px}li{margin:3px 0}.box{border:1px solid #E6E6E8;border-radius:8px;padding:10px 12px}
       .sig{display:flex;gap:40px;margin-top:40px}.sig div{flex:1;border-top:1px solid #8A8A8E;padding-top:4px;font-size:12px;color:#5C5C60}@media print{body{padding:0}}</style></head><body>${body}
@@ -1375,6 +1468,40 @@ function mount(root,opts={}){
       ${docs.length?`<h2>Co prosím připravit</h2><ul>${docs.map(d=>`<li>${esc(d.c)}</li>`).join("")}</ul>`:""}
       <h2>Jak to půjde dál</h2><ol><li>Podklady a odhad nemovitosti</li><li>Podání žádosti a schválení (obvykle 1–3 týdny)</li><li>Podpis úvěrové a zástavní smlouvy, kupní smlouva s úschovou</li><li>Návrh na vklad na katastr, pojištění nemovitosti, čerpání</li></ol>
       <div class="ft">Orientační výpočet podle průměrných sazeb (${esc(RATES.source||"")} ${esc(String(RATES.period||""))}); závazné jsou až podmínky banky ve smlouvě. ${esc(sign())}</div>`);
+  }
+  /* všechny údaje z dotazníku na jednu stránku – podle ní se vyplní žádost v bance / HypoUP (interní podklad) */
+  function printApplication(){
+    const c=cur,q=c.q||{},t=q.typ||"hypo",M=metrics(q,RATES),hypo=isHypoLike(t),u=q.ucel||"koupe",B=banks();
+    const L=(A,v)=>{const m=(A||[]).find(x=>String(x[0])===String(v));return m?m[1]:(v==null?"":String(v))};
+    const LM=(A,a)=>(Array.isArray(a)?a:[]).map(v=>L(A,v)).join(", ");
+    const ynT=v=>v==="ano"?"ano":v==="ne"?"ne":"";
+    const kcx=v=>n0(v)?kc(n0(v)):"";
+    const tr=(k,v)=>v===""||v==null?"":`<tr><th class="k">${esc(k)}</th><td>${esc(v)}</td></tr>`;
+    const tab=rows=>{const h=rows.join("");return h?`<table>${h}</table>`:`<p class="n">—</p>`};
+    const bn=a=>(a||[]).map(id=>(B.find(b=>b.id===id)||{}).name||id).join(", ");
+    const uver=[tr("Typ úvěru",TYPE_T[t]),hypo&&t!=="amer"?tr("Účel",PURP_T[u]):"",tr("Na co",q.ucelText),tr("Výše úvěru",M.loan?kc(M.loan):""),tr(u==="refinancovani"?"Zůstatek stávajícího úvěru":"Cena / rozpočet",kcx(q.cena)),tr("Odhadní hodnota",kcx(q.odhad)),
+      tr("Vlastní zdroje",q.vlastni!==""&&isFinite(num(q.vlastni))?kc(n0(q.vlastni)):""),tr("Původ vlastních zdrojů",LM(OWN_SRC,q.zdroje)),tr("Navýšení",kcx(q.navyseni)),tr("Splatnost",q.splatnost?q.splatnost+" let":""),
+      hypo&&q.fixace?tr("Fixace",q.fixace+" "+plural(+q.fixace,"rok","roky","let")):"",tr("Max. splátka",kcx(q.splatkaMax)),tr("Do kdy peníze",fmtD(q.termin)),tr("Rezervační smlouva",ynT(q.rezervace)),tr("Čerpat před zápisem zástavy",ynT(q.predVkladem)),
+      hypo&&isFinite(M.ltv)?tr("LTV / limit",pct(M.ltv,1)+" / "+M.ltvLimit+" %"):"",tr("Orientační splátka",M.pay?kc(M.pay)+" při ~"+fmtR(M.rate):"")];
+    const nem=hypo?[tr("Nemovitost",PROP_T[q.predmet]),tr("Vybraná",ynT(q.vybrano)),tr("Lokalita",q.lokalita),tr("Inzerát",q.inzerat),tr("Kupuje od",L(SELLERS,q.prodavajici)),tr("Bude pronajímat",ynT(q.pronajem)),
+      tr("Obytných nemovitostí už vlastní",q.nemovitosti===""||q.nemovitosti==null?"":String(q.nemovitosti)),tr("PENB",q.penb==="EFG"?"E–G":q.penb==="?"?"neví":q.penb),tr("Zatížení",LM(BURDENS,q.zatizeni)),tr("Zajištění",L(COLLAT,q.zajisteni)),tr("Hodnota další zástavy",kcx(q.zajHodnota)),
+      tr("Stavební povolení",L(POVOL,q.povoleni)),tr("Položkový rozpočet",ynT(q.rozpPol)),tr("Kdo staví",L(STAVI,q.stavi)),tr("Dokončení",fmtD(q.dokonceni)),tr("Vypořádání",L(VYPOR,q.vypor)),
+      tr("Stávající banka",q.refBanka),tr("Stávající sazba",q.refSazba!==""&&isFinite(num(q.refSazba))?fmtR(num(q.refSazba)):""),tr("Konec fixace",fmtD(q.refFixDo)),tr("Stávající splátka",kcx(q.refSplatka)),tr("Mění se dlužníci",ynT(q.refZmena))]:[];
+    const zad=applicants(q).map((z,i)=>{const age=ageAt(z.narozen);
+      const inc=(z.prijmy||[]).map(x=>{const T=INC[x.typ]||INC.jiny,v=T.f.map(f=>{const w=x[f[0]];if(w===""||w==null)return"";const s=f[2]==="kc"?(n0(w)?kc(n0(w)):""):f[2]==="sel"?L(f[3],w):f[2]==="yn"?ynT(w):f[2]==="date"?fmtD(w):String(w);return s?f[1]+": "+s:""}).filter(Boolean).join(" · ");return tr(T.t,v||"–")}).join("");
+      return `<h3>${i+1}. žadatel${z.jmeno?" – "+esc(z.jmeno):""}</h3>${tab([tr("Datum narození",z.narozen?fmtD(z.narozen)+(isFinite(age)?" ("+age+" let)":""):""),i?tr("Vztah k 1. žadateli",L(RELS,z.vztah)):"",tr("Rodinný stav",L(MARITAL,z.stav)),tr("Občanství",L(CITIZEN,z.obc)),tr("Pobyt v ČR",L(RESID,z.pobyt)),
+        tr("Vzdělání",L(EDU,z.vzdelani)),tr("Teď bydlí",L(BYDL,z.bydleni)),tr("Adresa trvalého bydliště",z.adresa),tr("Politicky exponovaná osoba",ynT(z.pep)),tr("Daňový rezident USA / jiné země",ynT(z.usa)),tr("Změna příjmu do 12 měsíců",z.zmena==="ano"?"ano"+(z.zmenaText?" – "+z.zmenaText:""):ynT(z.zmena))])}
+        ${inc?`<table>${inc}</table>`:`<p class="n">Příjmy nezadané</p>`}`}).join("");
+    const zav=(q.zav||[]).map(d=>tr(DEBT_T[d.typ]||"Závazek",[d.banka,n0(d.limit)?"limit "+kc(n0(d.limit)):"",n0(d.splatka)?"splátka "+kc(n0(d.splatka)):"",n0(d.zustatek)?"zůstatek "+kc(n0(d.zustatek)):"",yes(d.splatit)?"splatit / zrušit z úvěru":""].filter(Boolean).join(" · ")||"–"));
+    const reg=[tr("Úvěrové registry",{ok:"čisté",problem:"záznam / prodlení",nevim:"neví"}[q.registry]||""),tr("Exekuce",ynT(q.exekuce)),tr("Insolvence / oddlužení",ynT(q.insolvence)),tr("Nedoplatky FÚ / ČSSZ / ZP",ynT(q.dane)),
+      tr("Vyživované děti",n0(q.deti)?q.deti+(q.detiVek?" ("+q.detiVek+" let)":""):""),tr("Životní náklady domácnosti",kcx(q.zivotni))];
+    const pref=[tr("Co je nejdůležitější",LM(PRIORITIES,q.priority)),tr("Účty u bank",bn(q.ucty)),tr("Banky, které nechce",bn(q.nechce)),tr("Pojištění schopnosti splácet",{ano:"chce",ne:"nechce",nevim:"probrat"}[q.pss]||""),tr("Poznámka",q.pozn)];
+    const miss=missing(q);
+    printDoc("Údaje k žádosti – "+(c.name||""),`<h1>Údaje k žádosti o úvěr – ${esc(c.name||"")}</h1><div class="sub">${esc(fmtD(todayStr()))}${c.phone?" · "+esc(c.phone):""}${c.email?" · "+esc(c.email):""}</div>
+      ${miss.length?`<p class="box"><b>Ještě chybí:</b> ${esc(miss.join(", "))}</p>`:""}
+      <h2>Úvěr</h2>${tab(uver)}${nem.length?`<h2>Nemovitost a zajištění</h2>${tab(nem)}`:""}<h2>Žadatelé a příjmy</h2>${zad}
+      <h2>Závazky</h2>${tab(zav)}<h2>Registry a domácnost</h2>${tab(reg)}<h2>Preference klienta</h2>${tab(pref)}
+      <div class="ft">Interní podklad poradce k vyplnění žádosti – obsahuje osobní údaje, nepředávat dál. ${esc(sign())}</div>`);
   }
   function printOffers(){
     const c=cur,O=c.offers||[],sp=isSp();
@@ -1454,6 +1581,9 @@ function mount(root,opts={}){
     if(a==="setstage"){moveStage(c,v);save(true);return draw()}
     if(a==="client"){const e=entryOf(c);if(e&&opts.openClient)opts.openClient(e);return}
     if(a==="print")return printSummary();
+    if(a==="zadost")return printApplication();
+    if(a==="fromfp"){const pl=planOf(entryOf(c));if(!pl)return toast("Finanční plán klienta se nenašel");const n=mergeQ(c.q||(c.q={}),fromPlan(pl));
+      if(n){logAdd(c,"Doplněno z finančního plánu ("+n+" "+plural(n,"údaj","údaje","údajů")+")");save(true);draw()}toast(n?"Doplněno "+n+" "+plural(n,"údaj","údaje","údajů")+" z finančního plánu":"Z finančního plánu už není co doplnit");return}
     if(a==="pickbank"){c.bank=c.bank===v?"":v;if(c.bank)logAdd(c,"Vybraná banka: "+(bankById(v)||{}).name);save();return draw()}
     if(a==="offeradd"){(c.offers||(c.offers=[])).push(offerFor(v||c.bank||(recommend(q,banks(),RATES).list.find(r=>!r.ko.length)||{}).id||banks()[0].id));save();ui.tab="nabidky";keepUi();return draw()}
     if(a==="offertop"){const have=new Set((c.offers||[]).map(o=>o.bank));const top=recommend(q,banks(),RATES).list.filter(r=>!r.ko.length&&!r.na&&r.verdict!=="excl"&&!have.has(r.id)).slice(0,Math.max(0,3-(c.offers||[]).length)||3);
@@ -1722,5 +1852,5 @@ const BANKS=[
 ];
 /* stavební spořitelny a spotřebitelské společnosti nemají hypoteční LTV pravidla – u spotřebitelských úvěrů se LTV neřeší */
 
-window.Uvery={GLOSS,mount,math:{payment,balanceAfter,principalFor,fixCost,marketRate,osvcNet,incomeFor,incomeTotal,metrics,ltvLimit,isInvest,evalBank,recommend,docsList,clientDocsText,caseTags,ageAt,setRates:r=>{if(r&&r.fix)RATES=r}},BANKS,STAGES,TYPES,INC,VERSION};
+window.Uvery={GLOSS,mount,math:{payment,balanceAfter,principalFor,fixCost,marketRate,osvcNet,incomeFor,incomeTotal,metrics,ltvLimit,isInvest,evalBank,recommend,docsList,clientDocsText,caseTags,ageAt,fromPlan,mergeQ,setRates:r=>{if(r&&r.fix)RATES=r}},BANKS,STAGES,TYPES,INC,VERSION};
 })();

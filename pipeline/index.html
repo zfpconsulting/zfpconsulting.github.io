@@ -2312,10 +2312,11 @@ function renderUv(then){
   const go=()=>{uvLoading=false;if(!window.Uvery){$("uvBox").textContent="Záložku Úvěry se nepodařilo načíst – zkontroluj připojení.";return}
     uvUI=Uvery.mount($("uvBox"),{store:db,toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),ensure:ensureClient,
       openClient:e=>openClient(e),docsFor:e=>docSection(e),saveProduct:uvSaveProduct,sign:()=>settings.sign||"",
+      planFor:e=>{const rec=e&&e.rec?e.rec:e&&e.lead?fpLeadTarget(e.lead).rec:null,f=rec&&fpPlanOf(rec);return f&&f.plan&&f.plan.klient?f.plan:null},
       openLead:(e,c)=>{const l=e&&e.lead&&leads.find(x=>x.id===e.lead.id);if(l){openEdit(l);toast("Přidej k leadu produkt Hypotéka / Úvěr – body se spočítají podle provizní přílohy");return}
         openEdit(null);$("f_name").value=c.name||"";$("f_phone").value=c.phone||"";$("f_email").value=c.email||"";toast("Nový lead – přidej produkt Hypotéka / Úvěr, body se spočítají samy")}});fire()};
   if(window.Uvery)return go();
-  uvLoading=true;const sc=document.createElement("script");sc.src="uvery.js?v=5";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  uvLoading=true;uvLib().then(go,go);
 }
 /* úvěr z načerpaného případu → produkt v kartě klienta (hlídání konce fixace v „Co tě dneska čeká“); stejný případ se jen aktualizuje */
 async function uvSaveProduct(e,p){
@@ -2440,6 +2441,7 @@ function dzMerge(I,D){const val=v=>v!==""&&v!=null&&!(typeof v==="number"&&isNaN
   ["klient","partner","kontakt","renta","renta2","pojisteni.zivotni","fin","hypo","vydaje"].forEach(path=>{const src=path.split(".").reduce((a,k)=>a&&a[k],D);if(!src||typeof src!=="object")return;
     Object.entries(src).forEach(([k,v])=>{if(typeof v==="object"&&v!==null)return;if(typeof v==="boolean"&&k==="zapnuto"&&!v)return;if(val(v))setp(I,path+"."+k,v)})});
   ["motivace","poznamka"].forEach(k=>{if(val(D[k]))I[k]=D[k]});if(D.ioldp)I.ioldp=D.ioldp;
+  if(D.zadost&&typeof D.zadost==="object"&&D.zadost.ma!=null)I.zadost=JSON.parse(JSON.stringify(D.zadost));
   ["deti","docasne","majetek","nefin","uvery","cile"].forEach(k=>{const L=(D[k]||[]).filter(r=>r&&Object.values(r).some(val));if(L.length)I[k]=JSON.parse(JSON.stringify(L))});
   if(I.partner&&I.partner.zapnuto&&I.klient)I.klient.bez_partnera=false;return I}
 async function dzImport(x){
@@ -2454,8 +2456,28 @@ async function dzImport(x){
   await db.doc("fplan/"+key).set({clientId:key,name,plan,updatedAt:Date.now()});
   const files=(x.files||[]).filter(z=>z&&z.data).map(z=>new File([DzCrypto.unb64u(z.data)],"IOLDP – "+(z.who==="partner"?((pl.partner||{}).jmeno||"partner"):name)+(/\.pdf$/i.test(z.name||"")||!z.name?".pdf":z.name.replace(/^.*(\.[a-z0-9]+)$/i,"$1")),{type:z.type||"application/pdf"}));
   if(files.length&&window.Docs)try{await Docs.add(docOwnerLead(cur),files)}catch(e){console.warn("soubory",e)}
-  dzNotify({ic:"dz",t:"Nový vyplněný dotazník",s:name+" – lead, finanční plán"+(files.length?" a IOLDP":"")+" jsou připravené",lead:l.id,plan:1});
+  let uv=null;if(pl.zadost&&pl.zadost.ma===true)try{uv=await dzUvCase(cur,plan,name,kt)}catch(e){console.warn("úvěrový případ",e)}
+  const hot=["lead","finanční plán"].concat(files.length?["IOLDP"]:[],uv&&uv.nove?["úvěrový případ (Úvěry)"]:[]);
+  dzNotify({ic:"dz",t:"Nový vyplněný dotazník",s:name+" – "+hot.slice(0,-1).join(", ")+" a "+hot.at(-1)+" jsou připravené"+(uv&&!uv.nove?" · do rozjednaného úvěru doplněno "+uv.n+" "+(uv.n===1?"údaj":uv.n>1&&uv.n<5?"údaje":"údajů"):""),lead:l.id,plan:1});
 }
+/* modul Úvěry (uvery.js) jako knihovna – i bez otevřené záložky (převod finančního plánu na úvěrový případ) */
+let uvLibP=null;
+function uvLib(){if(window.Uvery)return Promise.resolve(window.Uvery);
+  if(!uvLibP)uvLibP=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="uvery.js?v=6";sc.onload=()=>window.Uvery?res(window.Uvery):rej(new Error("uvery.js"));sc.onerror=()=>{uvLibP=null;rej(new Error("uvery.js"))};document.head.append(sc)});
+  return uvLibP}
+/* dotazník s vyplněnou částí „Hypotéka a úvěr“ → úvěrový případ ve fázi Analýza (dotazník předvyplněný z plánu, podklady a pořadí bank hned k dispozici).
+   Rozjednaný případ téhož klienta se nezakládá znovu – doplní se do něj jen prázdná pole (co poradce přepsal, zůstává). */
+async function dzUvCase(l,plan,name,kt){
+  const U=await uvLib(),f=U.math.fromPlan(plan),now=new Date().toISOString(),END=["cerpano","odlozeno","zamitnuto"];
+  const t=fpLeadTarget(l),cid=t.rec&&!t.rec.pseudo?t.rec.id:null,hypo=["hypo","amer","ss"].includes(f.typ);
+  const ex=Object.entries(LStore.docs()).filter(([k,v])=>k.startsWith("uvery/")&&k.indexOf("/",6)<0&&v&&!v._del&&!END.includes(v.stage)&&(v.lid===l.id||(cid&&v.cid===cid)))
+    .map(([k,v])=>({id:k.slice(6),...v})).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+  if(ex){const q=JSON.parse(JSON.stringify(ex.q||{})),n=U.math.mergeQ(q,f);
+    await db.doc("uvery/"+ex.id).update({q,updatedAt:Date.now(),log:[...(ex.log||[]),{d:now,t:"Klient poslal dotazník k finančnímu plánu – doplněno "+n+" "+(n===1?"údaj":n>1&&n<5?"údaje":"údajů")}].slice(-200)});return {id:ex.id,nove:false,n}}
+  if(hypo&&f.typ==="hypo"&&!f.ucel)f.ucel="koupe";if(hypo&&!f.predmet)f.predmet="byt";if(!f.splatnost)f.splatnost=f.typ==="amer"?20:hypo?30:8;if(hypo&&!f.fixace)f.fixace=3;
+  const d={name,cid,lid:l.id,eid:null,phone:kt.telefon||l.phone||"",email:kt.email||l.email||"",stage:"analyza",stageAt:{poptavka:now,analyza:now},createdAt:now,updatedAt:Date.now(),
+    nextStep:"Zkontrolovat dotazník od klienta a vyhodnotit banky",nextDate:todayStr(),q:f,docs:{},tasks:{},offers:[],dates:{},fromPlan:now,log:[{d:now,t:"Případ založen z dotazníku k finančnímu plánu"}]};
+  const r=await db.collection("uvery").add(d);return {id:r.id,nove:true}}
 /* klient si po odeslání dotazníku zarezervoval 2. konzultaci → schůzka do kalendáře „VK: Jméno Příjmení (online)“ + lead ve fázi Schůzka */
 async function dzBooking(x){
   const name=String(x.name||"").trim()||"Klient z dotazníku",start=new Date(x.start),online=!!x.online,now=new Date().toISOString();

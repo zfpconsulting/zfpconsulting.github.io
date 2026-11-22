@@ -136,6 +136,9 @@ a{color:var(--accent-text)}
 .gdpr{margin:22px 0 0;border:1px solid var(--line);border-radius:var(--r-l);padding:0 14px;font-size:var(--fs-s);color:var(--ink-2);line-height:1.55;background:var(--surface)}
 .gdpr summary{cursor:pointer;font-weight:600;color:var(--ink);min-height:var(--h-m);display:flex;align-items:center}
 .gdpr ul{margin:var(--sp-2) 0 var(--sp-3);padding-left:18px}.gdpr li{margin:var(--sp-1) 0}
+.chips.zch{gap:8px}.chips.zch .chip{white-space:normal;text-align:left;min-height:40px;font-size:var(--fs-m)}.chips.zch.err{box-shadow:0 0 0 3px var(--accent-soft);border-radius:var(--r-m)}
+.zlive table{width:100%;border-collapse:collapse;margin-top:6px;font-size:var(--fs-s)}.zlive th{text-align:left;font-weight:500;color:var(--ink-2);padding:4px 8px 4px 0;width:45%}.zlive td{padding:4px 0}.zlive td.bad{color:var(--accent-text);font-weight:700}
+.zdocs ul{margin:4px 0 10px;padding-left:18px}.zdocs li{margin:3px 0;font-size:var(--fs-s)}.zdocs .zg{display:block;font-size:var(--fs-s);font-weight:600;color:var(--ink-2);margin-top:8px}
 .note{border:1px solid var(--line);border-radius:var(--r-l);padding:14px;margin:10px 0;font-size:var(--fs-m);background:var(--surface)}
 .ctr{text-align:center}
 </style>
@@ -267,6 +270,174 @@ const kdoMiss=(M,path)=>{if(odd())(P[path]||[]).forEach((r,i)=>{if(!r.kdo)M(`${p
 /* riziková skupina NN – jen pro poradce (v plánu), klientovi se neukazuje */
 const rsHint=k=>{if(!EMB||!window.NNRS)return "";const o=NNRS.osoba(PO(k));return `<p class="hint full"><b>Riziková skupina NN: ${NNRS.RS_TXT(o.rs)}</b>${o.pov?" · povolání "+esc(o.pov.nazev)+" ("+NNRS.RS_TXT(o.pov.rs)+")":""}${o.sporty.length?" · "+o.sporty.map(s=>esc(s.nazev)+" "+(s.rs?NNRS.RS_TXT(s.rs):"?")).join(", "):""}${o.pozn.length?"<br>"+o.pozn.map(esc).join("<br>"):""}</p>`};
 const renta1=(p,lbl)=>`${lbl?`<span class="who">${esc(lbl)}</span>`:""}<div class="g">${money("Kolik měsíčně (dnešní ceny)",p+".mesicne",{h:"státní důchod do toho započítáme"})}${num("Od kolika let",p+".od_veku",{ph:"prázdné = od důchodu"})}</div>`;
+/* ---------- hypotéka a úvěr (plan.zadost): všechno, co banka chce k žádosti o úvěr ----------
+   Pipeline z toho po přijetí dotazníku rovnou založí úvěrový případ (záložka Úvěry) s předvyplněným dotazníkem, pořadím bank a podklady.
+   Číselníky odpovídají modulu Úvěry (uvery.js – fromPlan). Seznam podkladů a orientační výpočet (jen pro poradce) bere uvery.js, který se načte, až je část zapnutá. */
+const ZTYP=[["hypo","Hypotéka"],["amer","Americká hypotéka (peníze na cokoli, ručím nemovitostí)"],["spotr","Půjčka"],["konsol","Sloučení úvěrů"],["podnik","Úvěr na podnikání"]];
+const ZUCEL=[["koupe","Koupě nemovitosti"],["vystavba","Stavba domu (pozemek mám)"],["pozvyst","Koupě pozemku a stavba"],["rekonstrukce","Rekonstrukce / modernizace"],["refinancovani","Refinancování hypotéky"],["vyporadani","Vypořádání (rozvod, dědictví, spoluvlastník)"],["druzstvo","Družstevní byt"],["jine","Něco jiného"]];
+const ZPRED=[["byt","Byt (osobní vlastnictví)"],["rd","Rodinný dům"],["pozemek","Pozemek"],["rekreace","Chata / chalupa"],["druzstevni","Družstevní byt"],["nebytovy","Ateliér / nebytový prostor"]];
+const ZPROD=[["fo","Od majitele (přímo nebo přes realitku)"],["developer","Od developera (novostavba)"],["pribuzny","Od příbuzného"],["po","Od firmy"],["drazba","V dražbě"]];
+const ZZDR=[["uspory","Úspory na účtu"],["ss","Stavební spoření"],["investice","Investice"],["dar","Dar od rodiny"],["prodej","Prodej jiné nemovitosti"],["uver","Půjčka / jiný úvěr"]];
+const ZZAJ=[["kupovana","Jen nemovitostí, kterou kupuji / financuji"],["obe","Kupovanou + další svojí nemovitostí"],["jina","Jinou svojí nemovitostí"],["treti","Nemovitostí rodičů / příbuzných"]];
+const ZZAT=[["zastava","Zástava banky prodávajícího"],["vb","Věcné břemeno"],["pp","Předkupní právo"],["exekuce","Exekuce na prodávajícím"],["zaplava","Záplavová zóna"],["zadne","Nic z toho"],["nevim","Nevím"]];
+const ZPOV=[["ma","Mám pravomocné povolení"],["rizeni","Je v řízení"],["ohlaseni","Stačí ohlášení / není potřeba"],["nemam","Zatím nemám"]];
+const ZSTAVI=[["firma","Stavební firma (na klíč)"],["svepomoc","Svépomocí"],["kombinace","Kombinace"]];
+const ZVYP=[["sjm","Vypořádání po rozvodu (SJM)"],["dedictvi","Dědictví"],["spoluvl","Vyplacení spoluvlastníka"]];
+const ZFIX=[["1","1 rok"],["3","3 roky"],["5","5 let"],["7","7 let"],["10","10 let"],["?","Poraďte mi"]];
+const ZPRIO=[["splatka","Co nejnižší splátka"],["sazba","Co nejnižší úrok"],["flex","Splácet dřív / mimořádně"],["vyse","Půjčit si co nejvíc"],["rychlost","Rychlé vyřízení"],["online","Vyřídit vše online"]];
+const ZPSS=[["ano","Ano"],["ne","Ne"],["nevim","Poraďte mi"]];
+const ZREG=[["ok","Ne, platím vždy včas"],["problem","Ano, měl/a jsem zpoždění"],["nevim","Nevím"]];
+const ZOBC=[["cz","Česká republika"],["eu","Jiná země EU"],["mimo","Mimo EU"]];
+const ZPOB=[["trvaly","Trvalý pobyt"],["prechodny","Přechodný pobyt"]];
+const ZVZD=[["zs","Základní"],["vyuc","Vyučen/a"],["ss","Střední s maturitou"],["vos","Vyšší odborné"],["vs","Vysokoškolské"]];
+const ZBYD=[["vlastni","Ve vlastním"],["najem","V nájmu"],["rodice","U rodičů / příbuzných"],["druzstevni","V družstevním"],["jine","Jinak (služební, ubytovna…)"]];
+const ZSML=[["neurcita","Na dobu neurčitou"],["urcita","Na dobu určitou"],["dpc","Dohoda o pracovní činnosti (DPČ)"],["dpp","Dohoda o provedení práce (DPP)"]];
+const ZREZ=[["pausal","Výdajovým paušálem"],["skutecne","Skutečnými výdaji (účetnictví / evidence)"],["pausaldan","Paušální daní"]];
+const ZPAU=[["80","80 % (řemesla, zemědělství)"],["60","60 % (ostatní živnosti)"],["40","40 % (svobodná povolání)"],["30","30 % (pronájem)"]];
+const ZPAS=[["1","1. pásmo"],["2","2. pásmo"],["3","3. pásmo"]];
+const ZOBOR=[["it","IT / software"],["svobodne","Svobodné povolání (advokát, lékař, architekt…)"],["sluzby","Služby (poradenství, marketing, reality)"],["remeslo","Řemeslo / stavebnictví"],["obchod","Obchod / výroba"],["jine","Jiné"]];
+const ZZEME=[["DE","Německo"],["AT","Rakousko"],["SK","Slovensko"],["PL","Polsko"],["EU","Jiná země EU"],["X","Mimo EU"]];
+const ZCENA={koupe:"Kupní cena",vystavba:"Rozpočet stavby",pozvyst:"Pozemek + stavba celkem",rekonstrukce:"Rozpočet rekonstrukce",refinancovani:"Kolik zbývá doplatit",vyporadani:"Kolik potřebujete vyplatit",druzstvo:"Cena družstevního podílu",jine:"Kolik potřebujete"};
+const Zv=()=>P.zadost||{};
+const zo=k=>get(P,"zadost.osoby."+k)||{};
+const zZam=k=>["zam","zam_osvc"].includes(PO(k).prace)||+PO(k).zam>0;
+const zOsvc=k=>["osvc","zam_osvc"].includes(PO(k).prace)||+PO(k).podnik>0;
+const zOsvcAny=()=>ppl().some(k=>zOsvc(k)||zo(k).sro===true);
+const zEmpty=v=>v===""||v==null||(Array.isArray(v)&&!v.length);
+const zHypU=()=>(P.uvery||[]).map((x,j)=>[x,j]).filter(([x])=>/Hypot|stavebního/.test(x.typ||""));
+/* jedna volba z více možností (dlaždice, zalamují se) a více voleb najednou */
+const pick=(q,p,opts,o={})=>`<div class="ask full"><span class="qq">${q}</span><div class="chips zch${ec(p)}" role="group" data-segp="${p}">${opts.map(([v,t])=>{const on=get(P,p)===v;return `<button type="button" class="chip" data-seg="${p}" data-v="${esc(JSON.stringify(v))}" aria-pressed="${on}">${esc(t)}</button>`}).join("")}</div>${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</div>`;
+const mult=(q,p,opts,o={})=>{const a=get(P,p)||[];return `<div class="ask full"><span class="qq">${q}</span><div class="chips zch${ec(p)}" role="group" data-segp="${p}">${opts.map(([v,t])=>`<button type="button" class="chip" data-mseg="${p}" data-v="${esc(v)}"${o.max?` data-max="${o.max}"`:""} aria-pressed="${a.includes(v)}">${esc(t)}</button>`).join("")}</div>${o.h?`<span class="hint">${o.h}</span>`:""}${em(p)}</div>`};
+/* uvery.js (číselník bank, podklady, orientační výpočet) – načte se, až klient část zapne; na krátkém odkazu (/dotaznik/<kód>/) ze stejné složky jako dzcrypto.js */
+let UVQ=0;
+function uvNeed(){if(window.Uvery||UVQ)return;UVQ=1;const ds=document.querySelector('script[src*="dzcrypto.js"]'),base=ds?ds.src.replace(/dzcrypto\.js.*$/,""):"";
+  const sc=document.createElement("script");sc.src=base+"uvery.js?v=6";sc.onload=()=>{if(!sent)render()};sc.onerror=()=>{UVQ=0};document.head.append(sc)}
+const zBanky=()=>window.Uvery?Uvery.BANKS.filter(b=>!b.off&&b.kind!=="ss"&&b.kind!=="spec").map(b=>[b.id,b.s||b.name]):[];
+/* proč se ptáme: koupě do 2 let nebo konec fixace do 18 měsíců */
+function zSoon(){const h=P.hypo||{},t=[],lim=new Date();lim.setMonth(lim.getMonth()+18);
+  if(K().hypo_ma===true&&h.za_let!==""&&h.za_let!=null&&+h.za_let<=2)t.push("plánujete koupi bydlení do 2 let");
+  (P.uvery||[]).forEach(u=>{const m=/^(\d{4})-(\d{2})/.exec(u.fixace_do||"");if(m&&new Date(+m[1],+m[2]-1,1)<=lim)t.push((/Hypot/.test(u.typ||"")?"hypotéce":"úvěru")+(u.nazev?" ("+u.nazev+")":"")+" končí fixace "+ +m[2]+"/"+m[1])});
+  return t.length?`<p class="hint">${esc(t.join(" a ").replace(/^./,c=>c.toUpperCase()))} – financování se vyplatí řešit s předstihem.</p>`:""}
+function zOsoba(k){const b="zadost.osoby."+k+".",o=zo(k);
+  let h=`<span class="who" data-who="${k}">${esc(pNm(k))}</span><div class="g">${pick("Státní občanství",b+"obc",ZOBC)}${o.obc&&o.obc!=="cz"?sel("Pobyt v ČR",b+"pobyt",[["","Vyberte…"],...ZPOB]):""}
+   ${sel("Nejvyšší dosažené vzdělání",b+"vzdelani",[["","Vyberte…"],...ZVZD])}${sel("Kde teď bydlíte",b+"bydleni",[["","Vyberte…"],...ZBYD])}
+   ${txt("Adresa trvalého bydliště",b+"adresa",{full:1,ph:"ulice a číslo, obec, PSČ",ac:"street-address"})}</div>
+   <div class="g">${ask("Jste politicky exponovaná osoba?",b+"pep")}${ask("Jste daňovým rezidentem USA nebo jiné země než ČR?",b+"usa")}</div>`;
+  if(zZam(k))h+=`<div class="g">${txt("Zaměstnavatel",b+"zamestnavatel",{ph:"název firmy"})}${txt("U zaměstnavatele od",b+"zam_od",{type:"month"})}
+   ${sel("Typ smlouvy",b+"smlouva",[["","Vyberte…"],...ZSML])}${o.smlouva==="urcita"?txt("Smlouva platí do",b+"smlouva_do",{type:"month"}):"<span></span>"}</div>
+   <div class="g">${ask("Jste ve zkušební době?",b+"zkusebni")}${ask("Je některá strana ve výpovědní lhůtě?",b+"vypoved")}</div>
+   <div class="g">${ask("Pracujete v zahraničí nebo dostáváte mzdu v cizí měně?",b+"zahr")}${o.zahr===true?sel("Kde",b+"zeme",[["","Vyberte…"],...ZZEME]):""}</div>
+   <div class="g">${money("Diety / cestovní náhrady (nepovinné)",b+"diety",{h:"průměr za měsíc, pokud je dostáváte pravidelně"})}</div>`;
+  if(zOsvc(k))h+=`<div class="g">${txt("Podnikáte od",b+"osvc_od",{type:"month"})}${sel("Obor podnikání",b+"obor",[["","Vyberte…"],...ZOBOR])}
+   ${sel("Jak daníte",b+"rezim",[["","Vyberte…"],...ZREZ])}${o.rezim==="pausal"?sel("Výdajový paušál",b+"pausal",[["","Vyberte…"],...ZPAU]):o.rezim==="pausaldan"?sel("Pásmo paušální daně",b+"pasmo",[["","Vyberte…"],...ZPAS]):"<span></span>"}
+   ${money(o.rezim==="pausaldan"?"Příjmy (obrat) za posledních 12 měsíců":"Příjmy (obrat) za poslední rok",b+"obrat",{u:"Kč/rok",h:o.rezim==="pausaldan"?"":"řádek 101 daňového přiznání"})}
+   ${o.rezim==="skutecne"?money("Výdaje za poslední rok",b+"vydaje",{u:"Kč/rok",h:"řádek 102 daňového přiznání"}):"<span></span>"}
+   ${num("Kolik daňových přiznání z podnikání už máte podaných",b+"dp",{ph:"např. 2"})}</div>`;
+  if(pracuje(k))h+=`<div class="g">${ask("Vlastníte firmu (s.r.o.), ze které máte příjem?",b+"sro")}</div>`+(o.sro===true?`<div class="g">${num("Váš podíl ve firmě (%)",b+"sro_podil")}${txt("Firma funguje od",b+"sro_od",{type:"month"})}
+   ${money("Zisk firmy po zdanění za poslední rok",b+"sro_zisk",{u:"Kč/rok"})}${money("Vaše mzda / odměna jednatele",b+"sro_odmena")}${ask("Vyplácíte si podíl na zisku (dividendy)?",b+"sro_vyplata")}</div>`:"");
+  h+=`<div class="g">${ask("Čeká vás v příštích 12 měsících změna příjmu? (nová práce, konec smlouvy, mateřská, důchod)",b+"zmena")}</div>${o.zmena===true?`<div class="g">${txt("Jaká změna a od kdy",b+"zmena_text",{full:1,ph:"např. od března rodičovská"})}</div>`:""}`;
+  return h}
+/* jen pro poradce (v plánu): orientační úvěr, LTV, splátka, DSTI, DTI, věk a nejlepší banky – stejný výpočet jako záložka Úvěry */
+function zLive(){if(!window.Uvery)return `<p class="hint">Načítám výpočet…</p>`;
+  /* v plánu má rodič (fp.html) uvery.js s aktuálními sazbami ze sazby.json (dotazník je kvůli CSP sám nestahuje) */
+  let U=window.Uvery;try{if(EMB&&parent.Uvery&&parent.Uvery.math)U=parent.Uvery}catch(e){}
+  try{const q=U.math.fromPlan(P),R=U.math.recommend(q,U.BANKS),M=R.M,good=R.list.filter(x=>!x.ko.length&&isFinite(x.rate)).slice(0,3),f=x=>isFinite(x)?fmtIn(Math.round(x)):"–";
+    const pc=x=>isFinite(x)?String(Math.round(x*10)/10).replace(".",","):"–",row=(k,v,bad)=>`<tr><th>${esc(k)}</th><td${bad?' class="bad"':""}>${v}</td></tr>`;
+    return `<div class="note zlive"><b>Orientačně</b><table>${row("Úvěr",M.loan?f(M.loan)+" Kč":"–")}${isFinite(M.ltv)?row("LTV / limit",pc(M.ltv)+" % / "+M.ltvLimit+" %",M.ltv>M.ltvLimit+0.05):""}${row("Splátka",M.pay?f(M.pay)+" Kč při ~"+pc(M.rate)+" %":"–")}
+      ${row("DSTI",isFinite(M.dsti)?pc(M.dsti)+" %":"–",M.dsti>50)}${isFinite(M.dti)?row("DTI",pc(M.dti)+"×",M.dti>(M.invest?7:9)):""}${row("Věk při splatnosti",isFinite(M.ageEnd)?M.ageEnd+" let":"–",M.ageEnd>70)}
+      ${row("Banky",good.length?good.map(b=>esc(b.name)+" ~"+pc(b.rate)+" %").join(", "):"žádná bez překážky – detail v Úvěrech")}</table>
+      ${M.invest?`<p class="hint">Investiční nemovitost – od 1. 4. 2026 LTV max. 70 % a DTI max. 7 (doporučení ČNB).</p>`:""}
+      <p class="hint">Po odeslání dotazníku klientem se v Pipeline sám založí úvěrový případ (Úvěry). Když vyplňuješ ty, založ ho v Úvěrech → Nový případ – předvyplní se z tohoto plánu.</p></div>`}
+  catch(e){console.warn(e);return ""}}
+/* co si klient připraví – podle odpovědí (stejný seznam jako v záložce Úvěry, bez interních dokumentů poradce) */
+function zDocs(){if(!window.Uvery)return "";let L=[];try{L=Uvery.math.docsList(Uvery.math.fromPlan(P)).filter(d=>d.c&&!/^ZFPA/.test(d.g))}catch(e){return ""}
+  if(!L.length)return "";const G=[...new Set(L.map(d=>d.g))];
+  return `<div class="note zdocs"><b>Co si k žádosti připravte</b><p class="hint">Teď nic nenahrávejte – stačí mít to po ruce, až se domluvíme na dalším kroku.</p>${G.map(g=>`<span class="zg">${esc(g)}</span><ul>${L.filter(d=>d.g===g).map(d=>`<li>${esc(d.c)}</li>`).join("")}</ul>`).join("")}</div>`}
+function zadostH(){const Z=Zv(),typ=Z.typ||"",hyp=typ==="hypo"||typ==="amer",u=typ==="hypo"?Z.ucel||"":"";
+  let o=`<div class="g">${ask("Chcete s námi rovnou vyřešit hypotéku nebo jiný úvěr?","zadost.ma")}</div>${zSoon()}`;
+  if(Z.ma!==true)return o;
+  uvNeed();
+  o+=`<h3>Co budeme financovat</h3><div class="g">${pick("Jaký úvěr","zadost.typ",ZTYP)}${typ==="hypo"?pick("Na co","zadost.ucel",ZUCEL):""}</div>`;
+  if(!typ||(typ==="hypo"&&!u))return o;
+  const bez=typ==="hypo"&&["koupe","pozvyst","druzstvo"].includes(u),vyb=!bez||Z.vybrano===true;
+  if(hyp){
+    o+=`<div class="g">${sel(u==="refinancovani"?"Jakou nemovitostí hypotéka ručí":typ==="amer"?"Jakou nemovitostí budete ručit":"Typ nemovitosti","zadost.predmet",[["","Vyberte…"],...ZPRED])}<span></span></div>`;
+    if(bez)o+=`<div class="g">${ask("Máte už konkrétní nemovitost vybranou?","zadost.vybrano")}</div>${Z.vybrano===false?`<p class="hint">Nevadí – hypotéku jde vyřídit dopředu (hypotéka bez nemovitosti): úrok se zafixuje hned a na hledání máte 1–3 roky. Při koupi pak máte financování hotové, což je silný argument u prodávajícího.</p>`:""}`;
+    if(typ==="hypo"&&["koupe","pozvyst"].includes(u)&&vyb)o+=`<div class="g">${sel("Od koho kupujete","zadost.prodavajici",[["","Vyberte…"],...ZPROD])}${txt("Odkaz na inzerát / projekt (nepovinné)","zadost.inzerat",{ph:"https://…"})}</div>`;
+    o+=`<div class="g">${txt(vyb?"Kde nemovitost je (obec, část)":"Kde hledáte (nepovinné)","zadost.lokalita",{ph:"např. Brno-Žabovřesky"})}${bez&&vyb?ask("Máte podepsanou rezervační smlouvu?","zadost.rezervace"):"<span></span>"}
+      ${typ==="hypo"&&u!=="refinancovani"?txt("Do kdy musí být peníze (nepovinné)","zadost.termin",{type:"date",h:"termín z rezervační / kupní smlouvy – vyřízení trvá obvykle 3–6 týdnů"}):""}</div>`;
+    if(u==="refinancovani"){const H=zHypU();
+      o+=`<div class="g">${H.length?sel("Kterou hypotéku refinancujeme","zadost.ref_idx",[["","Vyberte…"],...H.map(([x,j])=>[String(j),(x.typ||"Úvěr")+(x.nazev?" – "+x.nazev:"")+(+x.zustatek>0?" ("+fmtIn(x.zustatek)+" Kč)":"")]),["jina","Jinou (vyplním)"]]):""}
+        ${!H.length||Z.ref_idx==="jina"?txt("U které banky ji máte","zadost.refBanka")+money("Měsíční splátka","zadost.refSplatka")+txt("Kdy končí fixace","zadost.refFixDo",{type:"month"}):""}
+        ${num("Úroková sazba (nepovinné)","zadost.refSazba",{ph:"např. 2,19",h:"v % – najdete ve smlouvě nebo v internetovém bankovnictví"})}</div>
+        <div class="g">${ask("Mění se dlužníci? (např. po rozvodu někdo z úvěru odchází)","zadost.refZmena")}</div>`}
+    o+=`<div class="g">${money(typ==="amer"?"Kolik potřebujete":ZCENA[u]||"Částka","zadost.cena",{u:"Kč",h:u==="refinancovani"&&Z.ref_idx!==""&&Z.ref_idx!=null&&Z.ref_idx!=="jina"?"předvyplněno z části Úvěry – opravte, pokud nesedí":""})}
+      ${typ==="amer"?money("Hodnota nemovitosti, kterou ručíte","zadost.odhad",{u:"Kč"}):["vystavba","pozvyst","rekonstrukce"].includes(u)?money("Hodnota nemovitosti po dokončení (nepovinné)","zadost.odhad",{u:"Kč",h:"odhad – z ní banka počítá, kolik půjčí"}):""}
+      ${typ==="hypo"&&u!=="refinancovani"?money("Kolik dáte z vlastních peněz","zadost.vlastni",{u:"Kč",h:"může být i 0 – pak se ručí další nemovitostí"}):""}
+      ${u==="refinancovani"?money("Chcete si půjčit něco navíc? (nepovinné)","zadost.navyseni",{u:"Kč",h:"např. na rekonstrukci nebo splacení jiných úvěrů"}):""}</div>`;
+    if(typ==="hypo"&&u!=="refinancovani")o+=mult("Odkud vlastní peníze jsou","zadost.zdroje",ZZDR,{h:"banka musí znát původ peněz (zákon proti praní peněz) – při 0 nechte prázdné"});
+    if(["vystavba","pozvyst","rekonstrukce"].includes(u))o+=`<div class="g">${sel("Stavební povolení","zadost.povoleni",[["","Vyberte…"],...ZPOV])}${sel("Kdo bude stavět","zadost.stavi",[["","Vyberte…"],...ZSTAVI])}
+      ${ask("Máte rozpočet po položkách?","zadost.rozpPol")}${txt("Plánované dokončení (nepovinné)","zadost.dokonceni",{type:"month"})}</div>`;
+    if(u==="vyporadani")o+=`<div class="g">${sel("Co vypořádáváte","zadost.vypor",[["","Vyberte…"],...ZVYP])}<span></span></div>`;
+    if(typ==="hypo")o+=`<div class="g">${ask("Budete nemovitost pronajímat?","zadost.pronajem")}${num("Kolik bytů a domů už vlastníte?","zadost.nemovitosti",{ph:"0",h:"i družstevní a v zahraničí, bez chat – od 3. nemovitosti platí přísnější pravidla ČNB"})}</div>
+      ${Z.pronajem===true?`<div class="g">${money("Očekávaný nájem bez služeb (nepovinné)","zadost.najem_budouci")}</div>`:""}`;
+    if(u!=="refinancovani")o+=`<div class="g">${sel("Energetický štítek (PENB)","zadost.penb",[["","Nevím"],["A","A"],["B","B"],["C","C"],["D","D"],["EFG","E–G"]],{h:"třídy A a B mají u některých bank nižší úrok"})}<span></span></div>`;
+    if(bez&&vyb)o+=mult("Je na nemovitosti něco zapsané? (list vlastnictví)","zadost.zatizeni",ZZAT,{h:"zástava banky prodávajícího je běžná – vyplatí se z kupní ceny"});
+    if(typ==="hypo"){const N=(P.nefin||[]).map((a,j)=>[a,j]).filter(([a])=>/Nemovitost|Pozemek|Rekreační/.test(a.typ||""));
+      o+=`<div class="g">${sel("Čím budete ručit","zadost.zajisteni",[["","Vyberte…"],...ZZAJ])}
+        ${["jina","obe"].includes(Z.zajisteni)&&N.length?sel("Kterou nemovitostí","zadost.zaj_idx",[["","Vyberte…"],...N.map(([a,j])=>[String(j),(a.nazev||a.typ)+(+a.hodnota>0?" ("+fmtIn(a.hodnota)+" Kč)":"")]),["jiny","Jinou"]]):"<span></span>"}
+        ${Z.zajisteni==="treti"||(["jina","obe"].includes(Z.zajisteni)&&(!N.length||Z.zaj_idx==="jiny"))?money(Z.zajisteni==="treti"?"Hodnota nemovitosti příbuzných":"Hodnota té nemovitosti","zadost.zaj_hodnota",{u:"Kč",h:Z.zajisteni==="treti"?"vlastník podepíše zástavní smlouvu – po splacení části úvěru jde nemovitost vyvázat":""}):""}</div>`}
+  }else{
+    o+=`<div class="g">${money("Kolik si chcete půjčit","zadost.uver",{u:"Kč"})}${txt(typ==="konsol"?"Co chcete sloučit (nepovinné)":"Na co peníze použijete","zadost.ucelText",{ph:typ==="konsol"?"úvěry k doplacení zaškrtněte níže":"např. auto, vybavení bytu"})}</div>`;
+    if(typ==="spotr")o+=`<div class="g">${ask("Jdou peníze na bydlení? (rekonstrukce, vybavení, družstevní byt)","zadost.bydleni")}${Z.bydleni===true?sel("Na co v bydlení","zadost.bydUcel",[["","Vyberte…"],["reko","Rekonstrukce / vybavení"],["druz","Družstevní byt"],["vyp","Vypořádání / dědictví"],["jine","Koupě, splacení úvěru na bydlení"]]):""}</div>`}
+  const B=zBanky();
+  o+=`<h3>Jak chcete splácet</h3><div class="g">${num("Na kolik let (nepovinné)","zadost.splatnost",{ph:hyp?"30":"8",h:hyp?"nejčastěji 30 let – splatit dřív jde vždycky":""})}${money("Nejvyšší splátka, kterou chcete platit (nepovinné)","zadost.splatkaMax")}</div>
+    ${hyp?pick("Na jak dlouho zafixovat úrok (nepovinné)","zadost.fixace",ZFIX):""}${mult("Co je pro vás nejdůležitější (nejvýš 2, nepovinné)","zadost.priority",ZPRIO,{max:2})}
+    ${B.length?mult("U kterých bank máte účet (nepovinné)","zadost.ucty",B,{h:"účet u banky bývá argument pro slevu"}):""}
+    ${hyp?pick("Chcete k úvěru pojištění schopnosti splácet? (nepovinné)","zadost.pss",ZPSS,{h:"sleví úrok, ale většinou stojí víc, než ušetří – probereme"}):""}`;
+  o+=`<h3>Údaje pro banku</h3><p class="hint">Na tohle se ptá každá banka ze zákona. Politicky exponovaná osoba = politik, vysoký úředník, soudce, člen vedení státní firmy nebo jejich blízký příbuzný.</p>`+ppl().map(zOsoba).join("");
+  if(!ma()&&K().stav==="zenaty")o+=`<p class="hint">Jste v manželství – banka bude chtít manžela / manželku jako spoludlužníka. Jeho / její údaje doplníme na schůzce (nebo v první části zvolte „Pro nás dva“).</p>`;
+  if((P.nefin||[]).some(a=>+a.najem>0))o+=`<div class="g">${sel("Příjem z pronájmu máte v daňovém přiznání?","zadost.najem_zdroj",[["","Vyberte…"],["dp","Ano, v daňovém přiznání"],["vypisy","Ne – doložím nájemní smlouvu a výpisy"]])}<span></span></div>`;
+  const U=P.uvery||[];
+  o+=`<h3>Závazky a registry</h3>`;
+  if(U.length)o+=`<p class="hint">Vaše úvěry z části Úvěry – zaškrtněte, co chcete s novým úvěrem doplatit nebo zrušit. Kreditky a kontokorenty snižují, kolik vám banka půjčí, i když je nečerpáte.</p><div class="rows">${U.map((x,j)=>`<div class="erow"><b>${esc((x.typ||"Úvěr")+(x.nazev?" – "+x.nazev:""))}</b>${/Kreditní/.test(x.typ||"")?`<div class="g">${money("Limit karty / kontokorentu","uvery."+j+".limit",{u:"Kč"})}</div>`:""}${chk("Doplatit / zrušit s novým úvěrem","uvery."+j+".splatit")}</div>`).join("")}</div>`;
+  o+=`<div class="g mt">${ask("Ručíte za cizí úvěr nebo jste spoludlužník u úvěru, který tu není?","zadost.ruceni")}${ask("Platíte výživné?","zadost.vyzivne")}</div>
+    ${Z.ruceni===true?`<div class="g">${txt("Za koho / u které banky","zadost.ruceni_kde")}${money("Splátka toho úvěru","zadost.ruceni_splatka")}${money("Zbývá doplatit (nepovinné)","zadost.ruceni_zustatek",{u:"Kč"})}</div>`:""}
+    ${Z.vyzivne===true?`<div class="g">${money("Kolik měsíčně","zadost.vyzivne_kc")}<span></span></div>`:""}
+    <div class="g">${pick("Měl/a jste za posledních 5 let zpoždění se splátkou?","zadost.registry",ZREG,{h:"banky to vidí v úvěrových registrech (SOLUS, BRKI, NRKI)"})}</div>
+    <div class="g">${ask("Máte nebo jste měl/a exekuci?","zadost.exekuce")}${ask("Prošel/a jste insolvencí (oddlužením)?","zadost.insolvence")}</div>
+    ${zOsvcAny()?`<div class="g">${ask("Máte nedoplatky na daních, sociálním nebo zdravotním pojištění?","zadost.dane")}</div>`:""}
+    <div class="g">${area("Cokoli dalšího k úvěru (nepovinné)","zadost.pozn",{rows:3})}</div>`;
+  if(EMB)o+=`<h3>Pro poradce</h3><div class="g">${ask("Čerpat ještě před zápisem zástavy do katastru?","zadost.predVkladem")}</div>${B.length?mult("Banky, které klient nechce","zadost.nechce",B):""}${hyp?zLive():""}`;
+  return o+zDocs()}
+function zadostMiss(M){const Z=Zv();if(Z.ma==null){M("zadost.ma","Odpovězte prosím");return}if(Z.ma!==true)return;
+  const r=(p,t)=>{if(zEmpty(get(P,"zadost."+p)))M("zadost."+p,t)},typ=Z.typ,hyp=typ==="hypo"||typ==="amer",u=typ==="hypo"?Z.ucel:"";
+  r("typ","Vyberte");if(!typ)return;if(typ==="hypo"){r("ucel","Vyberte");if(!u)return}
+  if(hyp){const bez=typ==="hypo"&&["koupe","pozvyst","druzstvo"].includes(u),vyb=!bez||Z.vybrano===true;
+    r("predmet","Vyberte");if(bez)r("vybrano","Odpovězte prosím");if(typ==="hypo"&&["koupe","pozvyst"].includes(u)&&vyb)r("prodavajici","Vyberte");if(vyb)r("lokalita","Obec");if(bez&&vyb)r("rezervace","Odpovězte prosím");
+    const R=u==="refinancovani"&&Z.ref_idx!==""&&Z.ref_idx!=null&&Z.ref_idx!=="jina"?(P.uvery||[])[+Z.ref_idx]:null;
+    if(!(+Z.cena>0)&&!(R&&+R.zustatek>0))M("zadost.cena","Částka");
+    if(typ==="amer"&&!(+Z.odhad>0))M("zadost.odhad","Hodnota nemovitosti");
+    if(typ==="hypo"&&u!=="refinancovani"){if(Z.vlastni===""||Z.vlastni==null)M("zadost.vlastni","Částka (může být 0)");if(+Z.vlastni>0)r("zdroje","Vyberte aspoň jeden zdroj")}
+    if(u==="refinancovani"){const H=zHypU().length;if(H)r("ref_idx","Vyberte");if(!H||Z.ref_idx==="jina"){r("refBanka","Banka");r("refFixDo","Konec fixace")}r("refZmena","Odpovězte prosím")}
+    if(["vystavba","pozvyst"].includes(u)){r("povoleni","Vyberte");r("stavi","Vyberte")}
+    if(u==="vyporadani")r("vypor","Vyberte");
+    if(typ==="hypo"){r("pronajem","Odpovězte prosím");if(Z.nemovitosti===""||Z.nemovitosti==null)M("zadost.nemovitosti","Počet (může být 0)");r("zajisteni","Vyberte");
+      const N=(P.nefin||[]).some(a=>/Nemovitost|Pozemek|Rekreační/.test(a.typ||""));
+      if(["jina","obe"].includes(Z.zajisteni)&&N)r("zaj_idx","Vyberte");
+      if((Z.zajisteni==="treti"||(["jina","obe"].includes(Z.zajisteni)&&(!N||Z.zaj_idx==="jiny")))&&!(+Z.zaj_hodnota>0))M("zadost.zaj_hodnota","Hodnota")}}
+  else{if(!(+Z.uver>0))M("zadost.uver","Částka");if(typ!=="konsol")r("ucelText","Na co")}
+  ppl().forEach(k=>{const b="osoby."+k+".",o=zo(k);
+    r(b+"obc","Vyberte");if(o.obc&&o.obc!=="cz")r(b+"pobyt","Vyberte");r(b+"vzdelani","Vyberte");r(b+"bydleni","Vyberte");r(b+"adresa","Adresa");r(b+"pep","Odpovězte prosím");r(b+"usa","Odpovězte prosím");
+    if(zZam(k)){r(b+"zamestnavatel","Zaměstnavatel");r(b+"zam_od","Od kdy");r(b+"smlouva","Vyberte");if(o.smlouva==="urcita")r(b+"smlouva_do","Do kdy");r(b+"zkusebni","Odpovězte prosím");r(b+"vypoved","Odpovězte prosím");r(b+"zahr","Odpovězte prosím");if(o.zahr===true)r(b+"zeme","Vyberte")}
+    if(zOsvc(k)){r(b+"osvc_od","Od kdy");r(b+"obor","Vyberte");r(b+"rezim","Vyberte");if(o.rezim==="pausal")r(b+"pausal","Vyberte");if(o.rezim==="pausaldan")r(b+"pasmo","Vyberte");
+      if(!(+o.obrat>0))M("zadost."+b+"obrat","Příjmy za rok");if(o.rezim==="skutecne"&&!(+o.vydaje>0))M("zadost."+b+"vydaje","Výdaje za rok");if(o.dp===""||o.dp==null)M("zadost."+b+"dp","Počet (může být 0)")}
+    if(["osvc","zam_osvc"].includes(PO(k).prace))r(b+"sro","Odpovězte prosím");if(o.sro===true&&!(+o.sro_zisk>0)&&!(+o.sro_odmena>0))M("zadost."+b+"sro_zisk","Zisk nebo odměna");
+    r(b+"zmena","Odpovězte prosím");if(o.zmena===true)r(b+"zmena_text","Jaká změna")});
+  if((P.nefin||[]).some(a=>+a.najem>0))r("najem_zdroj","Vyberte");
+  r("ruceni","Odpovězte prosím");if(Z.ruceni===true&&!(+Z.ruceni_splatka>0))M("zadost.ruceni_splatka","Splátka");
+  r("vyzivne","Odpovězte prosím");if(Z.vyzivne===true&&!(+Z.vyzivne_kc>0))M("zadost.vyzivne_kc","Částka");
+  r("registry","Odpovězte prosím");r("exekuce","Odpovězte prosím");r("insolvence","Odpovězte prosím");if(zOsvcAny())r("dane","Odpovězte prosím")}
 let SEC=[
  {id:"motivace",t:"Co je pro vás důležité",why:"Vaše slova dáme na začátek plánu – podle nich stavíme priority.",
   h:()=>`<div class="g">${area("Co je pro vás v životě nejdůležitější? Čeho chcete finančním plánem dosáhnout?","motivace",{ph:"Např. Chci, aby rodina měla jistotu, a jednou bydlet ve vlastním bez velké hypotéky."})}</div>
@@ -342,6 +513,8 @@ let SEC=[
     if(ma()){if(!/\S+\s+\S+/.test(P.partner.jmeno||""))M("partner.jmeno","Jméno i příjmení");if(!P.partner.narozen)M("partner.narozen","Datum narození")}
     if(K().deti_ma==null)M("kontakt.deti_ma","Odpovězte prosím");
     if(yes("deti_ma")){if(!(P.deti||[]).length)M("deti","Přidejte dítě");(P.deti||[]).forEach((d,i)=>{if(!d.jmeno)M(`deti.${i}.jmeno`,"Jméno");if(!d.narozen)M(`deti.${i}.narozen`,"Datum narození")})}}},
+ {id:"zadost",t:"Hypotéka a úvěr",why:"Řešíte koupi, stavbu, rekonstrukci nebo refinancování? Tady je všechno, co po nás chce banka k žádosti o úvěr – vyplníte to jednou a nic nebudeme dohledávat dvakrát.",
+  h:zadostH,miss:zadostMiss},
  {id:"pozn",t:"Něco dalšího?",why:"Cokoli, co bychom měli vědět – plánované změny v práci, dědictví, péče o rodiče… (nepovinné)",optional:1,
   h:()=>`<div class="g">${area("Doplňující poznámky (nepovinné)","poznamka",{rows:4})}</div>`,miss:()=>{}},
  /* identifikace: v plánu (poradce) ji nevyplňujeme – klienta už máme; v odkazu pro klienta až na konec, ať víme, od koho dotazník je */
@@ -360,7 +533,7 @@ function adv(){let a={};try{a=JSON.parse(localStorage.getItem(ADV)||"{}")||{}}ca
 const LOCK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>';
 /* informace o zpracování osobních údajů (čl. 13 GDPR) – u dotazníku i u rezervace */
 function gdprBox(){const A=adv(),who=A.n?esc(A.n):"váš finanční poradce",kon=[A.e?`<a href="mailto:${esc(A.e)}">${esc(A.e)}</a>`:"",A.t?esc(A.t):""].filter(Boolean).join(", ");
-  const co=ONLY?"jméno, e-mail, telefon a zvolený termín konzultace":"kontaktní údaje, údaje o rodině a dětech, příjmy, výdaje, majetek, závazky, pojištění, cíle, případně výpis z ČSSZ (IOLDP) a zvolený termín konzultace";
+  const co=ONLY?"jméno, e-mail, telefon a zvolený termín konzultace":"kontaktní údaje, údaje o rodině a dětech, příjmy, výdaje, majetek, závazky, pojištění, cíle, případně výpis z ČSSZ (IOLDP), údaje k žádosti o úvěr (adresa, vzdělání, zaměstnání, daňová rezidence, záznamy v úvěrových registrech) a zvolený termín konzultace";
   return `<details class="gdpr" id="gdprBox"><summary>Jak nakládám s vašimi osobními údaji</summary><ul>
    <li><b>Kdo údaje zpracovává:</b> ${who}, finanční poradce spolupracující se ZFP Consulting${kon?" ("+kon+")":""}.</li>
    <li><b>Proč:</b> abych vám připravil finanční analýzu a plán a domluvil s vámi konzultaci. Právním základem je jednání o smlouvě na vaši žádost (čl. 6 odst. 1 písm. b GDPR). Vyplnění je dobrovolné, bez údajů ale plán připravit nejde.</li>
@@ -473,12 +646,18 @@ function goMissing(){const per=check();const i=per.findIndex(l=>l.length);if(i<0
   (el.closest("label,.ask,.file")||el).scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>{try{el.focus&&el.focus({preventScroll:true})}catch(e){}},350);
   toast("Ještě chybí: "+MISS.get(p)+" ("+SEC[i].t+")");return true}
 
+/* hypotéka a úvěr: rozumné předvyplnění z toho, co už v dotazníku je (nic vyplněného se nepřepisuje) */
+function zAuto(p,v){const Z=P.zadost;if(!Z)return;
+  if(p==="zadost.ma"&&v===true){if(!Z.typ&&(K().hypo_ma===true||zHypU().length)){Z.typ="hypo";if(!Z.ucel&&K().hypo_ma===true)Z.ucel="koupe"}
+    if(zEmpty(Z.cena)&&Z.ucel==="koupe"&&+(P.hypo||{}).cena>0)Z.cena=+P.hypo.cena}
+  if(p==="zadost.ref_idx"&&v!==""&&v!=="jina"){const x=(P.uvery||[])[+v];if(x&&+x.zustatek>0&&zEmpty(Z.cena))Z.cena=+x.zustatek}
+  if(p==="zadost.ucel"&&v==="refinancovani"&&zEmpty(Z.ref_idx)){const H=zHypU();if(H.length===1){Z.ref_idx=String(H[0][1]);if(zEmpty(Z.cena)&&+H[0][0].zustatek>0)Z.cena=+H[0][0].zustatek}}}
 /* ---------- ukládání ---------- */
 let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>{
   if(EMB)parent.postMessage({type:"dz:change",plan:P},location.origin);
   else if(!sent)try{localStorage.setItem(DRAFT,JSON.stringify({at:Date.now(),plan:P,rv:REV?REV.id:""}))}catch(e){}},EMB?250:400)}
-const needsRender=p=>/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu|\w+\.prace|hypo\.stavajici|vydaje\.vcetne)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|majetek\.\d+\.typ|kontakt\.stav)$/.test(p)||(EMB&&/^\w+\.sporty\.\d+\.uroven$/.test(p));
+const needsRender=p=>/^zadost\.(predmet|zajisteni|zaj_idx|ref_idx|bydUcel|osoby\.\w+\.(smlouva|rezim|pobyt))$/.test(p)||/^(partner\.zapnuto|klient\.bez_partnera|ioldp\.\w+\.pozdeji|\w+\.bez_prijmu|\w+\.prace|hypo\.stavajici|vydaje\.vcetne)$/.test(p)||/^(docasne\.\d+\.(typ|dite)|uvery\.\d+\.typ|majetek\.\d+\.typ|kontakt\.stav)$/.test(p)||(EMB&&/^\w+\.sporty\.\d+\.uroven$/.test(p));
 function autoDo(p){const m=/^docasne\.(\d+)\.(typ|dite|castka)$/.exec(p);if(!m)return false;const r=P.docasne[+m[1]];if(r.typ!=="materska"&&r.typ!=="rodicovska")return false;const c=docasneDo(r);r.do=c?c.do:"";
   const h=document.querySelector(`[data-p="docasne.${m[1]}.do"]`),hint=h&&h.parentElement.querySelector(".hint");if(hint)hint.innerHTML=c?`<span class="calc">${esc(c.why)}</span>`:"spočítá se z částky a data narození dítěte";return true}
 document.addEventListener("input",e=>{const t=e.target;
@@ -486,7 +665,7 @@ document.addEventListener("input",e=>{const t=e.target;
   let v=t.type==="checkbox"?t.checked:t.value;
   if(t.dataset.num){v=parseIn(t.value);const pos=t.selectionStart||0,dig=t.value.slice(0,pos).replace(/[^\d,.-]/g,"").length,keep=/[,.]$/.test(t.value)?",":"";
     const f=v===""?"":fmtIn(v)+keep;if(f!==t.value){t.value=f;let k=0,c=0;while(c<f.length&&k<dig){if(/[\d,.-]/.test(f[c]))k++;c++}try{t.setSelectionRange(c,c)}catch(err){}}}
-  set(P,p,v);
+  set(P,p,v);zAuto(p,v);
   if(p==="kontakt.stav"&&v){if(v==="zenaty"||v==="partner")P.klient.bez_partnera=false;else if(P.klient.bez_partnera==null&&!ma())P.klient.bez_partnera=true}
   const ad=autoDo(p);
   if(needsRender(p)||ad&&t.tagName==="SELECT")render();
@@ -496,7 +675,9 @@ document.addEventListener("input",e=>{const t=e.target;
 /* hrubá mzda se ukáže, až je vyplněný příjem ze zaměstnání (po opuštění pole, ať se nepřekresluje při psaní) */
 document.addEventListener("change",e=>{const t=e.target;if(EMB&&t.dataset&&/^\w+\.(povolani|sporty\.\d+\.nazev)$/.test(t.dataset.p||"")){render();return}if(t.dataset&&/\.zam$/.test(t.dataset.p||"")){const has=!!document.querySelector(`[data-p="${t.dataset.p.replace(/zam$/,"hruba")}"]`);if(has!==(+get(P,t.dataset.p)>0))render()}});
 document.addEventListener("click",e=>{
-  const sg=e.target.closest("[data-seg]");if(sg){const p=sg.dataset.seg,v=JSON.parse(sg.dataset.v);set(P,p,v);if(p==="klient.bez_partnera"&&v===true)P.partner={...(P.partner||{}),zapnuto:false};
+  const ms=e.target.closest("[data-mseg]");if(ms){const p=ms.dataset.mseg,v=ms.dataset.v,mx=+ms.dataset.max||0;let a=(get(P,p)||[]).slice();
+    if(a.includes(v))a=a.filter(x=>x!==v);else{a.push(v);if(v==="zadne"||v==="nevim")a=[v];else a=a.filter(x=>x!=="zadne"&&x!=="nevim");if(mx&&a.length>mx)a.shift()}set(P,p,a);render();save();return}
+  const sg=e.target.closest("[data-seg]");if(sg){const p=sg.dataset.seg,v=JSON.parse(sg.dataset.v);set(P,p,v);zAuto(p,v);if(p==="klient.bez_partnera"&&v===true)P.partner={...(P.partner||{}),zapnuto:false};
     /* pro koho je plán: partnera jen zapne / vypne – jeho vyplněné údaje zůstanou */
     if(p==="kontakt.plan_pro"){P.partner={...(P.partner||{}),zapnuto:v==="dva"};if(v==="dva")P.klient.bez_partnera=false}
     if(p==="kontakt.hypo_ma")P.hypo={...(P.hypo||{}),zapnuto:!!v};
