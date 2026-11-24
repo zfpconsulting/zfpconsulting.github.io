@@ -1362,6 +1362,7 @@ b.acc{color:var(--accent-text)}
             <button type="button" class="btn btn--secondary" id="callYes">Hovor proběhl</button>
             <button type="button" class="btn btn--secondary" id="msgBtn">Zpráva</button>
           </div>
+          <div class="calls" id="meetOutRow" hidden style="padding-top:0"></div>
           <div id="logList"></div>
           <div class="frow logadd"><input id="f_log" placeholder="Co proběhlo? (nebral, schůzka…)" aria-label="Zápis kontaktu"><button type="button" id="logBtn" class="btn btn--ghost btn--s">Zapsat</button></div>
         </div>
@@ -4753,9 +4754,13 @@ function openToday(preserve){
   if(blockIds.length)btns.push(el("button",{type:"button",onclick:()=>openCallBlock(callBlockIds())},ico("phone"),"Začít volat ("+blockIds.length+")"));
   if(dow===5||dow===6||dow===0)btns.push(el("button",{type:"button",class:"sec",onclick:weekReportPDF},ico("doc"),"PDF týdne pro nadřízeného"));
   if(btns.length)nodes.push(el("div",{class:"tdbtns"},btns));
-  nodes.push(...tdSection("Dnešní schůzky",D.meets.map(ev=>{const row=tdRow(ev.name||ev.title||"Schůzka",fmtMeet(ev.start)+(ev.online?" · online":""),new Date(ev.start)<new Date()?"proběhla":"dnes","green",()=>{const l=leads.find(l=>(l.meetings||[]).some(m=>m.id===ev.id))||leads.find(l=>evMatches(ev,l));if(l){$("edDlg").close();openEdit(l)}});
-    if(!ev.online)return row;row.style.flex="1";row.style.minWidth="0";
-    return el("div",{style:"display:flex;align-items:center;gap:8px;padding-right:10px"},row,el("button",{type:"button",class:"btn btn--primary btn--s",onclick:()=>joinMeet(ev.id)},ico("video"),"Připojit"))}),calState==="ok"?"Dnes nemáš žádnou schůzku.":"Kalendář se ještě načítá nebo není připojený."));
+  nodes.push(...tdSection("Dnešní schůzky",D.meets.map(ev=>{const L=leads.find(l=>(l.meetings||[]).some(m=>m.id===ev.id))||leads.find(l=>evMatches(ev,l)),out=L&&meetOutOf(L,ev.id);
+    const row=tdRow(ev.name||ev.title||"Schůzka",fmtMeet(ev.start)+(ev.online?" · online":""),out?MEET_OUT[out.k].toLowerCase():new Date(ev.start)<new Date()?"proběhla":"dnes",out?"red":"green",()=>{if(L){$("edDlg").close();openEdit(L)}});
+    const acts=[];
+    if(ev.online&&!out)acts.push(el("button",{type:"button",class:"btn btn--primary btn--s",onclick:()=>joinMeet(ev.id)},ico("video"),"Připojit"));
+    if(L&&!L.shared&&!out)acts.push(el("button",{type:"button",class:"btn btn--ghost btn--s",title:"Klient zrušil / nedošel",onclick:()=>openMeetOutcome(L,(L.meetings||[]).find(m=>m.id===ev.id)||{id:ev.id,start:ev.start,title:ev.title||""})},"Zrušil / nedošel"));
+    if(!acts.length)return row;row.style.flex="1";row.style.minWidth="0";
+    return el("div",{style:"display:flex;align-items:center;gap:8px;padding-right:10px"},row,...acts)}),calState==="ok"?"Dnes nemáš žádnou schůzku.":"Kalendář se ještě načítá nebo není připojený."));
   if(D.bday.length)nodes.push(...tdTasks("Narozeniny dnes",D.bday.map(e=>tdTask("bday:"+e.id+":"+t.slice(0,4),true,e.name,e.phone?fmtPhone(e.phone):"popřej mu k narozeninám","popřát ›","orange",()=>{$("edDlg").close();openMsg({name:e.name,phone:e.phone,email:e.rec?.email||e.lead?.email||""},"narozeniny",()=>setTodo("bday:"+e.id+":"+t.slice(0,4),{s:"done",d:todayStr()}))})),""));
   const pk=p=>(p.id||p.no||p.type)+"";
   const tmr=addDaysFrom(t,1),hor=addDaysFrom(t,14),soon=st=>st.slice(0,10)===tmr||(st.slice(0,10)===t&&new Date(st)>new Date());
@@ -5633,6 +5638,7 @@ function openRecruit(r0,isNew){
 const TPL_DEF=[{id:"potvrzeni",name:"Potvrzení schůzky",text:"Dobrý den, {osloveni}, potvrzuji naši schůzku {den} {datum} {vcas}{kde}. Kdyby se Vám cokoli změnilo, dejte mi prosím vědět. Děkuji a těším se.\n{podpis}"},
   {id:"zitra",name:"Připomenutí zítřejší schůzky",text:"Dobrý den, {osloveni}, jen připomínám naši zítřejší schůzku {vcas}{kde}. Budu se těšit.\n{podpis}"},
   {id:"rezervace",name:"Rezervace schůzky",text:"Dobrý den, {osloveni}, termín konzultace si můžete vybrat zde: {rezervace}. Stačí zvolit den, čas a jestli se potkáme osobně, nebo online. Děkuji a těším se.\n{podpis}"},
+  {id:"nedosel",name:"Nedošel na schůzku – nový termín",text:"Dobrý den, {osloveni}, {den} {datum} {vcas} jsme měli domluvenou schůzku, bohužel jsme se nepotkali. Nic se neděje, nový termín si můžete vybrat sami (osobně i online) – stačí zvolit den a čas v odkazu níže. Kdyby už konzultace nebyla aktuální, dejte mi prosím vědět.\n{podpis}\n\n{rezervace}"},
   {id:"nezvedl",name:"Nezvedl – dotaz na nabídku",text:"Dobrý den, {osloveni},\n\npoté, co jsem Vám zaslal nabídku, se mi Vás opakovaně nedaří zastihnout. Moje kapacita je omezená, proto potřebuji vědět, zda máte zájem pokračovat. Stačí mi do pátku odepsat ano, ne, nebo termín krátkého hovoru. Pokud se neozvete, budu záležitost považovat za uzavřenou.\n\nS pozdravem,\nVojtěch Kudlička"},
   {id:"nezvedl2",name:"Nezvedl – uzavření",text:"Dobrý den, {osloveni}, protože jsem se Vám nedovolal, beru to tak, že teď nabídku řešit nechcete, a nebudu Vás dál obtěžovat. Nabídka zůstává k dispozici, kdykoli se ozvěte a navážeme.\n{podpis}"},
   {id:"vyroci",name:"Výroční schůzka",text:"Dobrý den, {osloveni},\n\nuž je to {odKonzultace} od naší poslední konzultace. Abych měl jistotu, že jsou Vaše produkty stále aktuální a v souladu s Vaším finančním plánem, rád bych se s Vámi domluvil na výroční konzultaci. Zabere zhruba 45 minut.\n\nTermín, který Vám nejvíc vyhovuje, si prosím zvolte v odkazu níže (osobně i online). Děkuji a přeji hezký den.\n\nS pozdravem,\nVojtěch Kudlička\n\n{rezervace}"},
@@ -5650,7 +5656,7 @@ function isConfTpl(t){return !!t&&t.id!=="zitra"&&(t.id==="potvrzeni"||/potvrz/i
 const OLD_MEET_RE=/Na Vaši (?:e-)?mailovou adresu Vám v den konzultace zašlu\s+odkaz pro připojení\.?/;
 function tpls(){let L=settings.tpls&&settings.tpls.length?settings.tpls:TPL_DEF;
   /* nové výchozí šablony „Nezvedl“ se k uloženým šablonám přidají jednou (po prvním uložení šablon už je lze smazat) */
-  if(L!==TPL_DEF)L=L.concat(TPL_DEF.filter(d=>(d.id==="nezvedl"||(!settings.tplNezvedl&&/^nezvedl/.test(d.id))||(d.id==="vyroci"&&!settings.tplVyroci))&&!L.some(t=>t.id===d.id)));
+  if(L!==TPL_DEF)L=L.concat(TPL_DEF.filter(d=>(d.id==="nezvedl"||(!settings.tplNezvedl&&/^nezvedl/.test(d.id))||(d.id==="vyroci"&&!settings.tplVyroci)||(d.id==="nedosel"&&!settings.tplNedosel))&&!L.some(t=>t.id===d.id)));
   /* první verze šablony „Nezvedl“ (před finálním zněním) se přepíše novým výchozím textem, pokud ji nikdo neupravil */
   L=L.map(t=>t.id==="nezvedl"&&/^Dobrý den, \{osloveni\}, zkoušel jsem se Vám dovolat/.test(t.text||"")?{...t,text:TPL_DEF.find(d=>d.id==="nezvedl").text,name:TPL_DEF.find(d=>d.id==="nezvedl").name}:t);
   /* první verze „Výroční schůzky“ měla odkaz uprostřed – Zprávy na iPhonu ukážou náhled jen u odkazu na konci, tak se přepíše novým výchozím textem */
@@ -5711,7 +5717,7 @@ function fillTpl(text,c){const p=parseName(c.name),d=c.start?new Date(c.start):n
     odKonzultace:/\{odKonzultace\}/.test(text)?sinceMeetTxt(c.name):"",rezervace:dzLinkSync(true)||"[odkaz na rezervaci – přihlas se Googlem]",dotaznik:dzLinkSync(false)||"[odkaz na dotazník – přihlas se Googlem]"};
   return text.replace(/\{(\w+)\}/g,(m,k)=>k in V?V[k]:m).replace(/\n\s*$/,"").replace(/ ,/g,",").replace(/ {2,}/g," ")}
 function contactFor(ev){const l=ev?leads.find(l=>(l.meetings||[]).some(m=>m.id===ev.id))||leads.find(l=>evMatches(ev,l)):null;const c=!l?.phone&&ev?clients.find(c=>!c.hidden&&c.phone&&sameSurname(c.calKey||surnameOf(c.name),ev.key)):null;return {lead:l||null,client:c||null,phone:l?.phone||c?.phone||"",email:l?.email||c?.email||"",name:l?.name||c?.name||ev?.name||""}}
-function leadMsgCtx(l,mid){const now=new Date().toISOString(),ms=(l.meetings||[]).filter(x=>x.start&&x.start>=now).sort((a,b)=>a.start.localeCompare(b.start));
+function leadMsgCtx(l,mid){const now=new Date().toISOString(),ms=(l.meetings||[]).filter(x=>x.start&&x.start>=now&&!(l.meetOut||{})[x.id]).sort((a,b)=>a.start.localeCompare(b.start));
   const m=ms.find(x=>x.id===mid)||ms[0],info=x=>{const ev=(calEvents||[]).find(e=>e.id===x.id);return {id:x.id,start:x.start,online:ev?ev.online:/online/i.test(x.title||""),place:ev?.place||"",title:x.title||""}};
   const I=m?info(m):null;return {name:l.name,phone:l.phone,email:l.email,start:I?.start||null,online:I?.online||false,place:I?.place||"",meetId:I?.id||null,meets:ms.map(info),leadRef:l}}
 /* dvě zprávy ke schůzce: potvrzení hned po domluvení (conf:) a připomenutí den předem (rem:); připomenutí splňuje i potvrzení */
@@ -5721,6 +5727,46 @@ async function logLeadMsg(l,r){const now=new Date().toISOString(),cur=leads.find
   /* zpráva s odkazem na rezervaci → hlídat, jestli si klient do 3 dnů opravdu vybere termín */
   const bk=(()=>{try{const T=tpls().find(t=>t.id===r.tplId);return !!(T&&/\{rezervace\}/.test(T.text))}catch(e){return false}})();
   try{await db.doc("leads/"+cur.id).update(bk?{log,lastContact:now,updatedAt:now,bookSentAt:now}:{log,lastContact:now,updatedAt:now})}catch(e){}}
+/* schůzka, která nevyšla: „Klient zrušil“ (domlouváme nový termín → zpět do Osloven) × „Nedošel a nedal vědět“ (→ Zamrzlý + SMS s odkazem na rezervaci).
+   Vyřízená schůzka se uloží do l.meetOut[id] a appka ji dál nepočítá (ani jako proběhlou, ani jako budoucí). */
+const MEET_OUT={zrusil:"Zrušil",nedosel:"Nedošel"};
+function meetOutOf(l,mid){return (l&&l.meetOut||{})[mid]||null}
+/* kterou schůzku volba míří: zrušení = nejbližší budoucí (nebo ta, která právě začala), „nedošel“ = poslední, která už začala (do 14 dní) */
+function meetOutTarget(l,kind){if(!l||l.shared)return null;const now=Date.now(),hid=new Set(l.hidMeet||[]),ms=(l.meetings||[]).filter(m=>m.start&&!meetOutOf(l,m.id)&&!hid.has(m.id)).sort((a,b)=>a.start.localeCompare(b.start));
+  if(kind==="zrusil")return ms.find(m=>new Date(m.start).getTime()>=now-3*36e5)||null;
+  return ms.filter(m=>{const t=new Date(m.start).getTime();return t<=now&&t>=now-14*864e5}).pop()||null}
+function syncFormFields(map){try{const skip="#fpLeadBox,#docsBox,#logBox,#dealBox",els=[...$("form").querySelectorAll("input,select,textarea")].filter(e=>e.type!=="file"&&!e.closest(skip)),B=JSON.parse(dlgBase);
+  for(const [id,v] of Object.entries(map)){const e=$(id);if(!e)continue;const i=els.indexOf(e),was=e.value;e.value=v;if(i>=0&&B[0]&&B[0][i]===was)B[0][i]=v}dlgBase=JSON.stringify(B)}catch(e){}}
+async function meetOutcome(l,m,kind){
+  if(!db||!l||!m)return false;
+  if(l.shared){toast("Schůzku sdíleného obchodu nastavuje jen "+(l.shared.oName||"poradce, který ti ho sdílí"));return false}
+  const cur=leads.find(x=>x.id===l.id)||l,when=fmtMeet(m.start);
+  let frozen=false;
+  if(kind==="nedosel"&&ACTIVE(cur.stage)){await moveTo(cur,"zamrzly");frozen=true}
+  const now=new Date().toISOString();
+  const other=(cur.meetings||[]).some(x=>x.id!==m.id&&x.start>now&&!meetOutOf(cur,x.id));
+  const patch={meetOut:{...(cur.meetOut||{}),[m.id]:{k:kind,d:now}},summaryDueAt:null,updatedAt:now,lastContact:[cur.lastContact||"",now].sort().pop(),
+    log:[...(cur.log||[]),{d:now,t:kind==="zrusil"?"Klient zrušil schůzku "+when+" · domlouváme nový termín":"Klient nedošel na schůzku "+when+" a nedal vědět · zamrzlý, SMS s odkazem na rezervaci",out:kind}].slice(-100)};
+  const form={};
+  if(kind==="zrusil"&&!other){
+    if(["schuzka","probehla"].includes(cur.stage)){patch.stage="kontaktovan";patch.stageAt=now;form.f_stage="kontaktovan"}
+    if(ACTIVE(cur.stage)){patch.nextStep="Domluvit nový termín";patch.nextDate=todayStr();form.f_next=patch.nextStep;form.f_date=patch.nextDate}}
+  if(frozen){patch.nextStep="";patch.nextDate=null;form.f_stage="zamrzly";form.f_next="";form.f_date=""}
+  try{await db.doc("leads/"+cur.id).update(patch)}catch(e){toast("Nepodařilo se uložit");return false}
+  const next={...cur,...patch};
+  if(typeof editing!=="undefined"&&editing&&editing.id===cur.id&&$("dlg").open){editing={...editing,...patch};syncFormFields(form);renderLog(editing)}
+  if(kind==="zrusil"){toast("Zrušeno · "+(patch.stage?"zpět v Osloven, ":"")+"domluv nový termín");return true}
+  if(!next.phone&&!next.email){toast("Nedošel · zamrzlý · lead nemá telefon ani e-mail na SMS");return true}
+  toast("Nedošel · přesunuto do Zamrzlý");
+  openMsg({name:next.name,phone:next.phone,email:next.email,start:m.start,online:false,place:"",meetId:null,leadRef:next},"nedosel",r=>logLeadMsg(next,r));
+  return true}
+/* z „Co tě dneska čeká“: jedno tlačítko → výběr zrušil / nedošel */
+function openMeetOutcome(l,m){
+  openSheet(l.name+" · "+fmtMeet(m.start),[el("div",{style:"display:grid;gap:10px"},
+    el("button",{type:"button",class:"btn btn--secondary btn--block",onclick:async()=>{if(await meetOutcome(l,m,"zrusil"))$("edDlg").close()}},ico("undo"),"Klient zrušil – domlouváme nový termín"),
+    el("p",{class:"hint",style:"margin:-4px 0 4px"},"Lead se vrátí do Osloven, další krok „Domluvit nový termín“ na dnes. Událost v kalendáři zůstává, appka ji ignoruje."),
+    el("button",{type:"button",class:"btn btn--secondary btn--block",onclick:()=>meetOutcome(l,m,"nedosel")},ico("x"),"Nedošel a nedal vědět – SMS s rezervací"),
+    el("p",{class:"hint",style:"margin:-4px 0 0"},"Lead přejde do Zamrzlý a otevře se SMS ze vzoru „Nedošel na schůzku – nový termín“ s odkazem na rezervaci. Když si klient termín vybere, vrátí se do Schůzka domluvena."))])}
 function openMsg(ctx,tplId,onSent){
   if(!tplId&&ctx.start){const dd=dDiff(ctx.start.slice(0,10),todayStr());tplId=dd===1?"zitra":"potvrzeni"}
   const T=tpls(),cur=T.find(t=>t.id===tplId)||T[0];const ta=el("textarea",{"aria-label":"Text zprávy"});
@@ -5776,7 +5822,7 @@ function renderMailConf(){const box=$("mailConfList");if(!box)return;
     return el("div",{class:"tpl"},el("b",{style:"font-size:13px;color:var(--ink-2)"},"E-mail – potvrzení "+lbl.toLowerCase()),s,x,
       same?null:el("button",{type:"button",class:"del",style:"color:var(--ink-2)",onclick:()=>{mc[k]={...def};save().then(renderMailConf)}},"Vrátit výchozí text"))}))}
 function renderTpls(){const box=$("tplList");if(!box)return;const list=tpls().map(t=>({...t}));
-  const save=async()=>{try{await db.doc("settings/main").set({...settings,tpls:list,tplNezvedl:true,tplVyroci:true});toast("Šablony uloženy")}catch(e){toast("Nepodařilo se uložit")}};
+  const save=async()=>{try{await db.doc("settings/main").set({...settings,tpls:list,tplNezvedl:true,tplVyroci:true,tplNedosel:true});toast("Šablony uloženy")}catch(e){toast("Nepodařilo se uložit")}};
   box.replaceChildren(...list.map((t,i)=>{const n=el("input",{value:t.name,"aria-label":"Název šablony"});n.value=t.name;n.onchange=()=>{t.name=n.value.trim()||"Šablona";save()};
     const x=el("textarea",{"aria-label":"Text šablony"});x.value=t.text;x.onchange=()=>{t.text=x.value;save()};
     return el("div",{class:"tpl"},n,x,el("button",{type:"button",class:"del",onclick:()=>{list.splice(i,1);save().then(renderTpls)}},"Smazat"))}));
@@ -6053,8 +6099,8 @@ function evMatches(ev,l){const sn=surnameOf(l.name);if(sn.length<3)return false;
 function fmtMeet(iso){const d=new Date(iso);const z=n=>String(n).padStart(2,"0");return ["ne","po","út","st","čt","pá","so"][d.getDay()]+" "+d.getDate()+". "+(d.getMonth()+1)+". "+z(d.getHours())+":"+z(d.getMinutes())}
 const CAL_SVG='<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M1.5 6.5h13M5 1v3M11 1v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 function calIcon(){const s=document.createElement("span");s.innerHTML=CAL_SVG;return s.firstChild}
-function nextMeeting(l){const now=new Date().toISOString();return (l.meetings||[]).filter(m=>m.start>=now).sort((a,b)=>a.start.localeCompare(b.start))[0]}
-function lastMeeting(l){const now=new Date().toISOString();return (l.meetings||[]).filter(m=>m.start<now).sort((a,b)=>b.start.localeCompare(a.start))[0]}
+function nextMeeting(l){const now=new Date().toISOString();return (l.meetings||[]).filter(m=>m.start>=now&&!(l.meetOut||{})[m.id]).sort((a,b)=>a.start.localeCompare(b.start))[0]}
+function lastMeeting(l){const now=new Date().toISOString();return (l.meetings||[]).filter(m=>m.start<now&&!(l.meetOut||{})[m.id]).sort((a,b)=>b.start.localeCompare(a.start))[0]}
 
 let syncTimer=null, syncing=false;
 function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncCalendar,800)}
@@ -6080,9 +6126,11 @@ async function syncCalendar(){
       }}catch(e){}
       const sig=arr=>arr.map(m=>[m.id,m.start,m.title,!!m.online,!!m.podpis].join("|")).sort().join("~");
       if(sig(merged)!==sig(old))patch.meetings=merged;
-      const fut=merged.filter(m=>m.start>=now)[0], past=merged.filter(m=>m.start<now).pop();
+      const lv=merged.filter(m=>!(l.meetOut||{})[m.id]), fut=lv.filter(m=>m.start>=now)[0], past=lv.filter(m=>m.start<now).pop();
+      const ndAt=Object.values(l.meetOut||{}).filter(o=>o.k==="nedosel").map(o=>o.d).sort().pop();
       if(fut&&["novy","kontaktovan"].includes(l.stage)){patch.stage="schuzka";patch.nextDate=fut.start.slice(0,10);patch.nextStep=fut.podpis?"Podpis":"Schůzka"+(fut.online?" online":"")}
       else if(fut&&ACTIVE(l.stage)&&(!l.nextDate||l.nextDate>fut.start.slice(0,10)||l.nextDate<todayStr())){patch.nextDate=fut.start.slice(0,10);patch.nextStep=fut.podpis?"Podpis":"Schůzka"+(fut.online?" online":"")}
+      else if(fut&&l.stage==="zamrzly"&&ndAt&&(l.stageAt||"")<=ndAt){patch.stage="schuzka";patch.nextDate=fut.start.slice(0,10);patch.nextStep=fut.podpis?"Podpis":"Schůzka"+(fut.online?" online":"")}
       else if(!fut&&past&&l.stage==="schuzka"&&(!l.stageAt||past.start>l.stageAt)){patch.stage="probehla";patch.nextDate=null;patch.nextStep="";patch.summaryDueAt=addDaysFrom(past.start.slice(0,10),1);patch.summaryOnline=!!past.online}
       if(Object.keys(patch).length){
         if(patch.stage)patch.stageAt=now;
@@ -6867,13 +6915,19 @@ function updCalc(){
 }
 $("f_points").addEventListener("input",updCalc);
 
+function renderMeetOut(l){const row=$("meetOutRow");if(!row)return;
+  const mk=(kind,lbl,ico_)=>{const m=meetOutTarget(l,kind),b=el("button",{type:"button",class:"btn btn--secondary",disabled:m?undefined:"",title:m?"Schůzka "+fmtMeet(m.start):"Není schůzka, které by se to týkalo"},ico(ico_),m?lbl+" · "+fmtMeet(m.start):lbl);
+    if(m)b.onclick=()=>meetOutcome(editing&&editing.id===l.id?editing:l,m,kind);return b};
+  const a=l?[mk("zrusil","Klient zrušil","undo"),mk("nedosel","Nedošel","x")]:[];
+  row.replaceChildren(...a);row.hidden=!l||l.shared||a.every(b=>b.disabled)}
 function renderLog(l){
+  try{renderMeetOut(l)}catch(e){console.warn("schůzka nevyšla",e)}
   const hid=new Set(l?.hidMeet||[]);
   const log=[...(l?.log||[]),...(l?.meetings||[]).filter(m=>!hid.has(m.id)).map(m=>({d:m.start,t:m.title.replace(prefixRe()||/^$/,""),cal:true,mid:m.id}))].sort((a,b)=>(b.d||"").localeCompare(a.d||""));
   $("logList").replaceChildren(...log.map(x=>{
     const del=el("button",{type:"button",class:"icon-btn icon-btn--plain logdel","aria-label":x.cal?"Skrýt z historie":"Odstranit záznam",title:x.cal?"Skrýt z historie (v kalendáři zůstane)":"Odstranit záznam"},ico("x"));
     del.onclick=async()=>{if(await confirmSheet(x.cal?"Skrýt schůzku z historie? V kalendáři zůstane.":"Odstranit záznam „"+x.t+"“?",{okLabel:x.cal?"Skrýt":"Odstranit",danger:true}))delLog(x)};
-    return el("div",{class:"row"},el("span",{class:"main"},x.cal?el("span",{class:"src-cal"},x.d>new Date().toISOString()?"Naplánováno":"Kalendář"):null,x.t),el("span",{class:"d"},fmtDT(x.d)),del)}));
+    return el("div",{class:"row"},el("span",{class:"main"},x.cal?el("span",{class:"src-cal"},meetOutOf(l,x.mid)?MEET_OUT[meetOutOf(l,x.mid).k]:x.d>new Date().toISOString()?"Naplánováno":"Kalendář"):null,x.t),el("span",{class:"d"},fmtDT(x.d)),del)}));
 }
 async function delLog(x){
   if(!editing||!db)return;const now=new Date().toISOString(), patch={updatedAt:now};

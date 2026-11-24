@@ -874,4 +874,44 @@ export default {
     eq(errors, [], "chyby");
     await ctx.close();
   },
+  /* schůzka nevyšla: zrušil → zpět do Osloven; nedošel → Zamrzlý + SMS s rezervací; vyřízená schůzka se dál nepočítá */
+  async "schůzka nevyšla: Klient zrušil / Nedošel (stav, SMS s odkazem na konci, ignorování v kalendáři, návrat po nové rezervaci)"(env) {
+    const at = h => new Date(Date.now() + h * 3600e3).toISOString();
+    const store = { ...STORE,
+      "leads/z1": { name: "Jan Zrušil", stage: "schuzka", items: [], phone: "777111222", meetings: [{ id: "mz1", start: at(30), title: "VK: Zrušil" }], nextStep: "Schůzka", nextDate: "2099-01-01", log: [], _u: 1 },
+      "leads/z2": { name: "Eva Nedošla", stage: "schuzka", items: [], phone: "777333444", meetings: [{ id: "mz2", start: at(-2), title: "VK: Nedošla" }], log: [], _u: 1 },
+      "leads/z3": { name: "Karel Podepsaný", stage: "podpis", signedAt: "2026-11-01", items: [], phone: "777555666", meetings: [{ id: "mz3", start: at(-3), title: "VK: Podepsaný" }], log: [], _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store });
+    const doc = id => page.evaluate(id => LStore.docs()["leads/" + id], id);
+    /* vzor SMS: odkaz na rezervaci na úplném konci, ve zprávě den a čas schůzky */
+    const txt = await page.evaluate(() => fillTpl(tpls().find(t => t.id === "nedosel").text, { name: "Eva Nedošla", start: new Date(Date.now() - 36e5).toISOString() }));
+    assert(/jsme měli domluvenou schůzku, bohužel jsme se nepotkali/.test(txt) && /\n\n(https?:\/\/\S+|\[odkaz na rezervaci[^\]]*\])$/.test(txt), "vzor SMS: " + txt);
+    /* detail leadu: dvě tlačítka, každé míří na svou schůzku */
+    await page.evaluate(() => openEdit(leads.find(l => l.id === "z1")));
+    eq(await page.evaluate(() => { const r = document.getElementById("meetOutRow"); return [r.hidden, [...r.querySelectorAll("button")].map(b => b.disabled)]; }), [false, [false, true]], "u budoucí schůzky jde jen Klient zrušil");
+    await page.click("#meetOutRow button:first-child"); await page.waitForTimeout(300);
+    const z1 = await doc("z1");
+    eq([z1.stage, z1.nextStep, z1.nextDate === new Date().toISOString().slice(0, 10) || z1.nextDate === (await page.evaluate(() => todayStr())), !!z1.meetOut.mz1, z1.meetOut.mz1.k], ["kontaktovan", "Domluvit nový termín", true, true, "zrusil"], "zrušil → Osloven + další krok");
+    assert(/Klient zrušil schůzku/.test(z1.log.at(-1).t), "zápis do historie");
+    assert(await page.evaluate(() => nextMeeting(leads.find(l => l.id === "z1"))) == null, "zrušená schůzka už není „příští“");
+    await page.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
+    /* nedošel: zamrzlý + otevře SMS ze vzoru */
+    await page.evaluate(() => { const l = leads.find(l => l.id === "z2"); return meetOutcome(l, l.meetings[0], "nedosel"); }); await page.waitForTimeout(300);
+    const z2 = await doc("z2");
+    eq([z2.stage, z2.meetOut.mz2.k, z2.summaryDueAt ?? null, z2.nextDate ?? null], ["zamrzly", "nedosel", null, null], "nedošel → Zamrzlý");
+    const sms = await page.evaluate(() => { const t = document.querySelector("#edDlg textarea"); return t ? t.value : null; });
+    assert(sms && /nepotkali/.test(sms) && /Eva Nedošla|Dobrý den/.test(sms), "otevřela se SMS: " + sms);
+    await page.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
+    /* podepsaný obchod se kvůli „nedošel“ nezmrazí */
+    await page.evaluate(() => { const l = leads.find(l => l.id === "z3"); return meetOutcome(l, l.meetings[0], "nedosel"); }); await page.waitForTimeout(300);
+    eq((await doc("z3")).stage, "podpis", "podepsaný zůstává podepsaný");
+    await page.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
+    /* kalendář: vyřízená schůzka se neřeší, nová rezervace vrátí zamrzlého do Schůzka domluvena */
+    await page.evaluate(h => { settings = { ...settings, calPrefix: "VK:" }; calEvents = [{ id: "mz2", start: new Date(Date.now() - 2 * 36e5).toISOString(), title: "VK: Nedošla", name: "Nedošla", keys: ["nedosla"], key: "nedosla", online: false }]; return syncCalendar(); }); await page.waitForTimeout(300);
+    eq((await doc("z2")).stage, "zamrzly", "stará (vyřízená) schůzka zamrzlého nevrací");
+    await page.evaluate(() => { calEvents = [{ id: "mnew", start: new Date(Date.now() + 48 * 36e5).toISOString(), title: "VK: Nedošla", name: "Nedošla", keys: ["nedosla"], key: "nedosla", online: false }]; return syncCalendar(); }); await page.waitForTimeout(300);
+    eq((await doc("z2")).stage, "schuzka", "po nové rezervaci zpět do Schůzka domluvena");
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
 };
