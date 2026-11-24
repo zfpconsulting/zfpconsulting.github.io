@@ -16,7 +16,7 @@ Klíče: cnum newcnum surname firstname fullname fullnameRev title rc birth rcbi
        „date@d“ / „date@m“ / „date@y“ = den / měsíc / rok.
        Poradce (volba v záložce, údaje v šifrovaném bloku appky): advfirm advseat advico (obchodní zástupce – firma, sídlo, IČO),
        advname advicop advcode advphone advemail (poradce – jméno, IČO, osobní kód, telefon, e-mail),
-       advstreetcp advcity advpsc advcountry (trvalé bydliště poradce).
+       advaddr (adresa poradce v jednom poli), advstreetcp advcity advpsc advcountry (trvalé bydliště poradce).
 Potřebuje: pdftotext (poppler-utils), qpdf, python3-pypdf."""
 # Heuristické mapování polí AcroForm → klíče údajů klienta (jméno, RČ, adresa, číslo smlouvy …)
 import pypdf, subprocess, re, sys, json, unicodedata, html
@@ -180,7 +180,7 @@ OVERRIDES={
    "obchodni_zastupce_PA":"advfirm","investicni_konzultant_PA":"advname","ICO_(inv_kon)_PA":"advicop","osobni_kod_PA":"advcode","telefon_obchodniho_zastupce_PA":"advphone","e-mail_obchodniho_zastupce_PA":"advemail"},
  "conseq/oznameni-o-zmene-udaju":{"Text_OZ-2404_1":"fullname","Text_OZ-2404_2":"rc","Text_OZ-2404_3":"streetcp","Text_OZ-2404_4":"city","Text_OZ-2404_5":"psc",**{"Text_OZ-2404_%d"%i:None for i in range(6,60)},
    "Text_OZ-2404_47":"advfirm","Text_OZ-2404_48":"advseat","Text_OZ-2404_49":"advico","Text_OZ-2404_50":"advname","Text_OZ-2404_51":"advicop","Text_OZ-2404_52":"advcode","Text_OZ-2404_54":"advphone","Text_OZ-2404_55":"advemail"},
- "conseq/oznameni-o-zmene-obchodniho-zastupce":{"OZOZ_2404_1":"fullname","OZOZ_2404_2":"rc","OZOZ_2404_3":"streetcp","OZOZ_2404_4":"city","OZOZ_2404_5":"psc","OZOZ_2404_7":"cnum","OZOZ_2404_54":"place",
+ "conseq/oznameni-o-zmene-obchodniho-zastupce":{"OZOZ_2404_37":"advaddr","OZOZ_2404_1":"fullname","OZOZ_2404_2":"rc","OZOZ_2404_3":"streetcp","OZOZ_2404_4":"city","OZOZ_2404_5":"psc","OZOZ_2404_7":"cnum","OZOZ_2404_54":"place",
    "OZOZ_2404_32":"advfirm","OZOZ_2404_56":"advseat","OZOZ_2404_33":"advico","OZOZ_2404_34":"advname","OZOZ_2404_35":"advicop","OZOZ_2404_36":"advcode","OZOZ_2404_38":"advphone","OZOZ_2404_39":"advemail"},
  "conseq/plna-moc":{"Jmeno_prijmeni_zmocnitel_PLM":"fullname","Datum_narození_zmocnitel_PLM":"birth","RC_zmocnitel_PLM":"rc","Trvale_bydliste_zmocnitel_PLM":"addr","V_zmocnitel_PLM":"place","Dne_zmocnitel_PLM":"date"},
  # ZFP Investments

@@ -2302,7 +2302,7 @@ function renderFrm(){
   const go=()=>{frmLoading=false;if(!window.Formulare){$("frmBox").textContent="Záložku Formuláře se nepodařilo načíst – zkontroluj připojení.";return}
     frmUI=Formulare.mount($("frmBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),birthOf:e=>(e.lead&&leadBirthOf(e.lead.id))||"",saveClient:frmSaveClient,advisors:()=>typeof FRM_ADV!=="undefined"?FRM_ADV:null})};
   if(window.Formulare)return go();
-  frmLoading=true;const sc=document.createElement("script");sc.src="formulare.js?v=7";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  frmLoading=true;const sc=document.createElement("script");sc.src="formulare.js?v=8";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 function renderUv(then){
   if(then)uvPending=then;
