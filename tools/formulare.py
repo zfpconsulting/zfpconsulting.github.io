@@ -15,7 +15,8 @@ Klíče: cnum newcnum surname firstname fullname fullnameRev title rc birth rcbi
        Části hodnoty: „cnum@3“ = 4. znak čísla smlouvy (políčka po jednom znaku), „cnum@3/8“ = 4. znak z posledních 8 znaků,
        „date@d“ / „date@m“ / „date@y“ = den / měsíc / rok.
        Poradce (volba v záložce, údaje v šifrovaném bloku appky): advfirm advseat advico (obchodní zástupce – firma, sídlo, IČO),
-       advname advicop advcode advphone advemail (poradce – jméno, IČO, osobní kód, telefon, e-mail).
+       advname advicop advcode advphone advemail (poradce – jméno, IČO, osobní kód, telefon, e-mail),
+       advstreetcp advcity advpsc advcountry (trvalé bydliště poradce).
 Potřebuje: pdftotext (poppler-utils), qpdf, python3-pypdf."""
 # Heuristické mapování polí AcroForm → klíče údajů klienta (jméno, RČ, adresa, číslo smlouvy …)
 import pypdf, subprocess, re, sys, json, unicodedata, html
@@ -173,9 +174,9 @@ OVERRIDES={
  "conseqps/vyplata-jednorazoveho-vyrovnani-pp":{**{"Text%d_PP_TF"%(i+1):"cnum@%d/8"%i for i in range(8)},"Text30":"place","Text31":"date"},
  "conseqps/vyplata-dozivotni-penze-pp":{**{"Text%d"%(101+i):"cnum@%d/8"%i for i in range(8)},"Text7":"rc","Text30":"place","Text31":"date"},
  # Conseq Investment Management
- "conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu":{"Příjmení_MTPN":"fullname","rodne_cislo_ICO_MTPN":"rc","Telefon_e-mail_MTPN":None,"Ulice_smluvni_strana_MTPN":"streetcp","Místo_MTPN":"place","Datum_MTPN":"date",
+ "conseq/zadost-o-zmenu-zrizeni-trvaleho-pokynu-k-nakupu":{"Ulice_zastupce_MTPN":"advstreetcp","Mesto_zastupce_MTPN":"advcity","PSC_zastupce_MTPN":"advpsc","Zeme_zastupce_MTPN":"advcountry","Příjmení_MTPN":"fullname","rodne_cislo_ICO_MTPN":"rc","Telefon_e-mail_MTPN":None,"Ulice_smluvni_strana_MTPN":"streetcp","Místo_MTPN":"place","Datum_MTPN":"date",
    "Obchodi_zastupce_MTPN":"advfirm","Investiční_konsultant_OZ_MTPN":"advname","Ičo_OZ_MTPN":"advicop","Osobní_kod_OZ_MTPN":"advcode","Telefon_OZ_MTPN":"advphone","Email_OZ_MTPN":"advemail"},
- "conseq/pokyn-avizo":{"Ulice_smluvni_strana_PA":"streetcp","bankovni_spojeni_pro_odeslani_vytezku_PA":"account","misto_PA":"place","datum_prohlaseni_klienta_PA":"date",
+ "conseq/pokyn-avizo":{"ulice_trvaleho_bydliste_zastupce_PA":"advstreetcp","mesto_trvaleho_bydliste_zastupce_PA":"advcity","PSC_trvalehobydliste_zastupce_PA":"advpsc","Zeme_trvaleho_bydliste_zastupce_PA":"advcountry","Ulice_smluvni_strana_PA":"streetcp","bankovni_spojeni_pro_odeslani_vytezku_PA":"account","misto_PA":"place","datum_prohlaseni_klienta_PA":"date",
    "obchodni_zastupce_PA":"advfirm","investicni_konzultant_PA":"advname","ICO_(inv_kon)_PA":"advicop","osobni_kod_PA":"advcode","telefon_obchodniho_zastupce_PA":"advphone","e-mail_obchodniho_zastupce_PA":"advemail"},
  "conseq/oznameni-o-zmene-udaju":{"Text_OZ-2404_1":"fullname","Text_OZ-2404_2":"rc","Text_OZ-2404_3":"streetcp","Text_OZ-2404_4":"city","Text_OZ-2404_5":"psc",**{"Text_OZ-2404_%d"%i:None for i in range(6,60)},
    "Text_OZ-2404_47":"advfirm","Text_OZ-2404_48":"advseat","Text_OZ-2404_49":"advico","Text_OZ-2404_50":"advname","Text_OZ-2404_51":"advicop","Text_OZ-2404_52":"advcode","Text_OZ-2404_54":"advphone","Text_OZ-2404_55":"advemail"},

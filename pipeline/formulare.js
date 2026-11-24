@@ -178,7 +178,8 @@ const payOn=(form,g,S)=>(form.kind==="vyp"||form.kind==="navaz")&&(((g==="poj"||
 /* údaje poradce: adv = {firm, p} (vybraný poradce) nebo null = nevyplňovat */
 function advVals(adv){
   if(!adv||!adv.p)return {};const f=adv.firm||{},p=adv.p;
-  return {advfirm:T(f.name),advseat:T(f.seat),advico:T(f.ico),advname:T(p.name),advicop:T(p.ico),advcode:T(p.code),advphone:T(p.phone),advemail:T(p.email)};
+  const pa=parseAddr(p.addr);
+  return {advfirm:T(f.name),advseat:T(f.seat),advico:T(f.ico),advname:T(p.name),advicop:T(p.ico),advcode:T(p.code),advphone:T(p.phone),advemail:T(p.email),advstreetcp:pa.streetcp,advcity:pa.city,advpsc:pa.psc,advcountry:p.addr?"CZ":""};
 }
 function values(S,form,inst,adv){
   const n=splitName(S.name),a=parseAddr(S.addr),acc=parseAcc(S.ucet),keys=fkeys(form);
@@ -214,7 +215,7 @@ function pick(V,key){
 }
 const baseKey=k=>{k=String(k).split("@")[0];return k};
 const KEYLAB={cnum:"číslo smlouvy",newcnum:"nová smlouva",surname:"příjmení",firstname:"jméno",fullname:"jméno a příjmení",fullnameRev:"příjmení a jméno",title:"titul",rc:"rodné číslo",birth:"datum narození",rcbirth:"RČ / datum narození",street:"ulice",streetcp:"ulice a č. p.",cp:"č. p.",city:"obec",psc:"PSČ",addr:"adresa",phone:"telefon",email:"e-mail",account:"číslo účtu",accpre:"předčíslí",bank:"kód banky",vs:"VS",ss:"SS",date:"datum",place:"místo",placedate:"místo a datum",country:"země",
-  advfirm:"obchodní zástupce",advseat:"sídlo zástupce",advico:"IČO zástupce",advname:"poradce",advicop:"IČO poradce",advcode:"kód poradce",advphone:"telefon poradce",advemail:"e-mail poradce"};
+  advfirm:"obchodní zástupce",advseat:"sídlo zástupce",advico:"IČO zástupce",advname:"poradce",advicop:"IČO poradce",advcode:"kód poradce",advphone:"telefon poradce",advemail:"e-mail poradce",advstreetcp:"ulice poradce",advcity:"obec poradce",advpsc:"PSČ poradce",advcountry:"země poradce"};
 
 /* ---------- líné načítání knihoven ---------- */
 const libs={};
