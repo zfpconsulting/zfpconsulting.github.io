@@ -148,7 +148,7 @@ OVERRIDES={
  "koop/zadost-o-ukonceni-pojistne-smlouvy":{"B3":None,"B.0":"rc","B.1":"fullname","B4":"streetcp","PSC B":"psc","B5":"city","D1":"accpre","D2":"account","D3":"bank","D4":"newcnum","F1":None,"F3":None},
  "koop/oznameni-o-odstoupeni-od-pojistne-smlouvy":{"B.0":"rc","B.1":"fullname","B4":"streetcp","PSC B":"psc","B5":"city"},
  "koop/zadost-o-zmenu-administrativni":{"B.0":"rc","B.1":"fullname","B4":"streetcp","PSC B":"psc","B5":"city"},
- "koop/zadost-o-zavedeni-ci-zmenu-prispevku-zamestnavatele":{"CP HIP":None,"B13":None},
+ "koop/zadost-o-zavedeni-ci-zmenu-prispevku-zamestnavatele":{"CP HIP":None,"B13":None,"C10":None},
  "genps/zadost-o-ukonceni-smlouvy-a-prevod-prostredku-do-generali-ps":{"Titul":"firstname","undefined_2":"title","comb_6":"street","comb_7":"cp","comb_5":None,"comb_12":None,"Místo":"city","Místo_2":None,"undefined_6":None},
  "nnps/vypoved-a-zadost-o-prevod-prostredku-do-nn-ps":{"Text3":"cnum","Text4":"newcnum","Text5":"surname","Text6":"firstname","Text7":"title","Text8":"rc","Text9":"birth","Text10":"streetcp","Text11":"psc","Text12":"city","Text14":None,"Text15":None,"Text16":None,"Text18":"place","Text19":"date"},
  "nnps/vypoved-pp-a-zadost-o-prevod-prostredku-do-penzijni-spolecno":{"Text3":"cnum","Text4":"newcnum","Text5":"surname","Text6":"firstname","Text7":"title","Text8":"rc","Text9":"birth","Text10":"streetcp","Text11":"psc","Text12":"city","Text14":None,"Text15":None,"Text16":None,"Text18":"place","Text19":"date"},
