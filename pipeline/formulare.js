@@ -78,12 +78,16 @@ function parseAddr(a){
   const parts=String(a||"").split(/[\n,]+/).map(T).filter(Boolean);
   let psc="",city="",street="",cp="";const rest=[];
   for(const p of parts){
+    const only=/^(\d{3})\s?(\d{2})$/.exec(p);               /* „62500“ samo – formát Brno, část, ulice č., PSČ */
+    if(only&&!psc){psc=only[1]+" "+only[2];continue}
     const m=/^(\d{3})\s?(\d{2})\s+(.+)$/.exec(p)||/^(.+?)\s+(\d{3})\s?(\d{2})$/.exec(p);
     if(m&&!psc){if(/^\d/.test(p)){psc=m[1]+" "+m[2];city=T(m[3])}else{city=T(m[1]);psc=m[2]+" "+m[3]}}else rest.push(p);
   }
-  const s0=rest[0]||"";const mm=/^(.*?)\s+(\d+[a-zA-Z]?(?:\/\d+[a-zA-Z]?)?)$/.exec(s0);
+  const NUM=/^(.*?)\s+(\d+[a-zA-Z]?(?:\/\d+[a-zA-Z]?)?)$/;
+  let si=rest.findIndex(x=>NUM.test(x));if(si<0)si=0;
+  const s0=rest[si]||"";const mm=NUM.exec(s0);
   if(mm){street=mm[1];cp=mm[2]}else street=s0;
-  if(!city&&rest.length>1)city=rest[rest.length-1];
+  if(!city&&rest.length>1)city=si>0?rest[0]:rest[rest.length-1];
   return {street,cp,streetcp:T(street+" "+cp),psc,city,line:parts.join(", ")};
 }
 
@@ -186,7 +190,7 @@ function values(S,form,inst,adv){
     fullnameRev:T([n.last,n.first].filter(Boolean).join(" ")+(tit?", "+tit:"")),
     rc:T(S.rc),birth:dshort(S.birth),rcbirth:T(S.rc)||dshort(S.birth),
     street:a.street,streetcp:a.streetcp,cp:a.cp,city:a.city,psc:a.psc,addr:a.line,
-    phone:T(S.phone),email:T(S.email),date:dshort(S.fdate||todayISO()),place:T(S.place)
+    phone:T(S.phone),email:T(S.email),date:dshort(todayISO()),place:""
   };
   V.placedate=[V.place,V.date].filter(Boolean).join(", ");
   Object.assign(V,advVals(adv));
@@ -360,6 +364,12 @@ function mount(root,opts){
     return e;
   }
   const sechead=(t,extra)=>h("div",{class:"section-head"},h("h3",{text:t}),extra||null);
+  /* údaje zadané ve formuláři se rovnou uloží do karty vybraného klienta (rodné číslo se neukládá) */
+  const CLIENT_KEYS=["addr","birth","phone","email"];
+  function pushToClient(key){
+    if(!S.cid||!opts.saveClient)return;
+    try{Promise.resolve(opts.saveClient(S.cid,{key,value:T(S[key])})).then(id=>{if(id&&id!==S.cid){S.cid=id;save();if(refs.fillClients)refs.fillClients()}}).catch(()=>{})}catch(e){}
+  }
   function save(){const keep=Object.assign({},S);delete keep.rc;delete keep.date;delete keep.fdate;try{ls.set(LS_STATE,keep)}catch(e){}}
   /* řádek s popiskem vlevo a polem vpravo (iOS list); col = popisek nad polem */
   function frow(label,key,o){
@@ -367,6 +377,7 @@ function mount(root,opts){
     const i=o.area?h("textarea",{id,rows:o.rows||2,placeholder:o.ph||"",class:"autoh"}):h("input",{id,type:o.type||"text",placeholder:o.ph||"",inputmode:o.im||null,autocomplete:"off"});
     i.value=S[key]||"";
     i.addEventListener("input",()=>{S[key]=i.value;if(o.on)o.on();changed(o.light)});
+    if(CLIENT_KEYS.includes(key))i.addEventListener("change",()=>pushToClient(key));
     const r=h("div",{class:"frow"+(o.area?" col":"")},h("label",{for:id,text:label}),i);
     r.input=i;return r;
   }
@@ -399,7 +410,7 @@ function mount(root,opts){
     const g=h("div",{class:"group"},
       h("div",{class:"frow"},h("label",{for:"frm-cid",text:"Klient"}),sel),
       frow("Jméno a příjmení","name",{ph:"i s titulem"}),
-      frow("Adresa trvalého bydliště","addr",{area:true,ph:"Ulice 1, 602 00 Brno"}),
+      frow("Adresa trvalého bydliště","addr",{area:true,ph:"Brno, Starý Lískovec, Krymská 379/15, 62500"}),
       frow("Datum narození","birth",{ph:"31. 1. 1990"}),
       S.mode==="off"?frow("Rodné číslo","rc",{ph:"neukládá se",im:"numeric"}):null,
       S.mode==="off"?frow("Telefon","phone",{type:"tel"}):null,
@@ -430,7 +441,6 @@ function mount(root,opts){
     let birth=rec.birth||lead.birth||"";
     if(!birth&&opts.birthOf){try{birth=opts.birthOf(e)||""}catch(x){}}
     S.name=e.name||"";S.addr=rec.address||lead.address||"";S.birth=dshort(birth);S.phone=e.phone||rec.phone||lead.phone||"";S.email=rec.email||lead.email||"";S.rc="";
-    if(!S.place){const a=parseAddr(S.addr);if(a.city)S.place=a.city.replace(/\s+\d+$/,"")}
     const miss=[!S.addr&&"adresa",!S.birth&&"datum narození"].filter(Boolean);
     if(miss.length)toast("V kartě klienta chybí: "+miss.join(", ")+" – doplň tady ručně");
     save();renderAll();
@@ -535,8 +545,6 @@ function mount(root,opts){
       const sel=advOf();
       if(sel)g.append(h("div",{class:"frow sub"},h("span",{class:"lab"}),h("span",{class:"pst",text:[sel.p.name,sel.p.code&&"kód "+sel.p.code,sel.p.phone].filter(Boolean).join(" · ")})));
     }
-    if(keys.has("place"))g.append(frow("Místo podpisu","place",{ph:"Brno"}));
-    if(keys.has("date"))g.append(frow("Datum podpisu","fdate",{type:"date"}));
     return h("div",{class:"blk"},sechead("Údaje do formuláře"),g);
   }
   /* „Je tam odkupné?“ + platební údaje (VS/SS jen když jsou vyplněné) */
@@ -586,7 +594,7 @@ function mount(root,opts){
     }
     const reg=h("input",{type:"checkbox",class:"switch",role:"switch",id:"frm-reg"});reg.checked=!!S.reg;
     reg.addEventListener("change",()=>{S.reg=reg.checked;changed()});
-    const og2=h("div",{class:"group"},h("div",{class:"frow"},h("label",{for:"frm-reg",text:"Doporučeně"}),h("span",{style:"flex:1"}),reg),frow("Datum dopisu","date",{type:"date"}));
+    const og2=h("div",{class:"group"},h("div",{class:"frow"},h("label",{for:"frm-reg",text:"Doporučeně"}),h("span",{style:"flex:1"}),reg));
     out.push(h("div",{class:"blk"},sechead("Výstup"),og2));
     return out;
   }
@@ -635,7 +643,7 @@ function mount(root,opts){
       const done=pvState.done;
       if(pvState.err)m.append(h("p",{class:"hint",text:"Předvyplnit se nepodařilo ("+pvState.err+") – otevři prázdný formulář."}));
       else m.append(h("p",{class:"hint",text:done.length?"Předvyplněno: "+done.map(k=>KEYLAB[k]||k).join(", ")+". Zkontroluj a zbytek doplň v PDF nebo rukou.":"Zatím není co předvyplnit – vyber klienta nebo doplň údaje."}));
-      const missing=all.filter(k=>!done.includes(k)&&!["accpre","bank","newcnum","account","vs","ss"].includes(k)&&!k.startsWith("adv"));
+      const missing=all.filter(k=>!done.includes(k)&&!["accpre","bank","newcnum","account","vs","ss","place"].includes(k)&&!k.startsWith("adv"));
       if(missing.length&&done.length)m.append(h("p",{class:"hint dim",text:"Formulář umí i: "+missing.map(k=>KEYLAB[k]||k).join(", ")+" – doplň vlevo."}));
     }else m.append(h("p",{class:"hint",text:"Formulář nemá vyplnitelná pole – vytiskni ho a vyplň rukou."}));
     m.append(h("p",{class:"hint dim",text:"Staženo z webu instituce"+(f.got?" "+dshort(f.got):"")+". Před odesláním mrkni, jestli nevyšla novější verze."}));

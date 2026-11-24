@@ -155,14 +155,13 @@ const T = {
     // ZFP WI – výpověď je PDF bez polí: údaje se dopíší do stránky
     await chipInst(page, "ZFP WI");
     await page.click(".flist .row-btn:has-text('Výpověď rámcové smlouvy a výběr')");
-    await page.fill(".frow:has-text('Místo podpisu') input", "Brno");
-    await page.waitForFunction(() => ["fullname", "addr", "account", "place", "date"].every(k => F.filled().done.includes(k)), null, { timeout: 20000 });
+    await page.waitForFunction(() => ["fullname", "addr", "account", "date"].every(k => F.filled().done.includes(k)), null, { timeout: 20000 });
     const txt = await page.evaluate(async () => {
       const lib = await import("./vendor/pdf.min.mjs"); lib.GlobalWorkerOptions.workerSrc = "./vendor/pdf.worker.min.mjs";
       const doc = await lib.getDocument({ data: new Uint8Array(await (await fetch(F.filled().url)).arrayBuffer()) }).promise;
       return (await (await doc.getPage(1)).getTextContent()).items.map(i => i.str).join(" ");
     });
-    for (const t of ["Ing. Jana Nováková", "Květinová 5, 602 00 Brno", "19-2000145399/0800", "Brno"]) assert(txt.includes(t), "v PDF je dopsáno: " + t);
+    for (const t of ["Ing. Jana Nováková", "Květinová 5, 602 00 Brno", "19-2000145399/0800"]) assert(txt.includes(t), "v PDF je dopsáno: " + t);
     assert((await page.textContent(".pv-meta")).includes("jméno a příjmení"), "přehled předvyplněných údajů");
     eq(errors, [], "chyby"); await ctx.close();
   },

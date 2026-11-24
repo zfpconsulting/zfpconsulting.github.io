@@ -2300,9 +2300,9 @@ function renderFrm(){
   if(frmUI){frmUI.refreshClients();return}
   if(frmLoading)return;
   const go=()=>{frmLoading=false;if(!window.Formulare){$("frmBox").textContent="Záložku Formuláře se nepodařilo načíst – zkontroluj připojení.";return}
-    frmUI=Formulare.mount($("frmBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),birthOf:e=>(e.lead&&leadBirthOf(e.lead.id))||"",advisors:()=>typeof FRM_ADV!=="undefined"?FRM_ADV:null})};
+    frmUI=Formulare.mount($("frmBox"),{toast,ls:{get:k=>lsGet(k),set:(k,v)=>lsSet(k,v)},clients:()=>clientEntries(),birthOf:e=>(e.lead&&leadBirthOf(e.lead.id))||"",saveClient:frmSaveClient,advisors:()=>typeof FRM_ADV!=="undefined"?FRM_ADV:null})};
   if(window.Formulare)return go();
-  frmLoading=true;const sc=document.createElement("script");sc.src="formulare.js?v=4";sc.onload=go;sc.onerror=go;document.head.append(sc);
+  frmLoading=true;const sc=document.createElement("script");sc.src="formulare.js?v=5";sc.onload=go;sc.onerror=go;document.head.append(sc);
 }
 function renderUv(then){
   if(then)uvPending=then;
@@ -4473,6 +4473,17 @@ async function ensureClient(e){
   if(e.rec)return e.rec;
   const data={name:e.name,phone:e.phone||"",email:e.lead?.email||"",address:e.lead?.address||"",...(e.lead?.birth?{birth:e.lead.birth}:{}),note:e.lead?.note||"",calKey:e.cal?.key||e.key||surnameOf(e.name),leadId:e.lead?.id||null,products:(e.products||[]).map(p=>({...p,id:newId()})),log:[],createdAt:new Date().toISOString()};
   const r=await db.collection("clients").add(data);const rec={id:r.id,...data};e.rec=rec;e.id="c:"+r.id;return rec;
+}
+/* záložka Formuláře: údaj zadaný ve formuláři (adresa, datum narození, telefon, e-mail) se uloží rovnou do karty klienta; vrací id klienta (po prvním uložení se může změnit) */
+async function frmSaveClient(cid,{key,value}){
+  const e=clientEntries().find(x=>x.id===cid);if(!e)return cid;
+  const map={addr:"address",birth:"birth",phone:"phone",email:"email"},f=map[key];if(!f)return cid;
+  let v=String(value||"").trim();
+  if(f==="birth"){if(v===""){v=""}else{const iso=dmyParse(v);if(!iso){toast("Datum narození zadej jako DD.MM.RRRR – u klienta se neuložilo");return cid}v=iso}}
+  const cur=f==="birth"?(e.rec?.birth||""):f==="address"?(e.rec?.address||e.lead?.address||""):f==="phone"?(e.phone||e.rec?.phone||""):(e.rec?.email||e.lead?.email||"");
+  if(cur===v)return cid;
+  try{const rec=await ensureClient(e);const patch={[f]:v};await db.doc("clients/"+rec.id).update(patch);Object.assign(rec,patch);linkPushToLeads(rec,patch);toast("Uloženo u klienta")}catch(err){toast("U klienta se nepodařilo uložit")}
+  return e.id;
 }
 async function srvCall(e,ok){
   try{const rec=await ensureClient(e);const now=new Date().toISOString(), n=(rec.log||[]).filter(x=>x.call==="no").length+1;
