@@ -914,4 +914,25 @@ export default {
     eq(errors, [], "chyby v konzoli");
     await ctx.close();
   },
+  /* termín a čas řečený v textu úkolu („v úterý okolo 11“) → deadline s časem, ať cinkne upozornění; statistika Spolehlivost schůzek */
+  async "úkol s časem v textu (v úterý okolo 11) dostane deadline + čas; statistika Spolehlivost schůzek"(env) {
+    const at = h => new Date(Date.now() + h * 3600e3).toISOString();
+    const store = { ...STORE,
+      "leads/s1": { name: "Jan Spolehlivý", stage: "probehla", items: [], source: "Cold call", meetings: [{ id: "a1", start: at(-50), title: "VK: Spolehlivý" }, { id: "a2", start: at(-30), title: "VK: Spolehlivý" }, { id: "a3", start: at(-5), title: "VK: Spolehlivý" }, { id: "a4", start: at(-3), title: "VK: Spolehlivý" }], meetOut: { a3: { k: "zrusil", d: at(-4) }, a4: { k: "nedosel", d: at(-2) } }, log: [], _u: 1 } };
+    const { ctx, page, errors } = await openApp(env, { store });
+    const r = await page.evaluate(() => {
+      const f = (t, b) => tkNatural(t, new Date(b));
+      return [f("ozvat se v úterý okolo 11", "2026-11-23T15:00"), f("ozvat se v úterý okolo 11", "2026-11-24T09:00"), f("ozvat se v úterý okolo 11", "2026-11-24T12:00"),
+        f("zítra ve 14:30 zavolat", "2026-11-24T09:00"), f("ozvat se v úterý", "2026-11-23T15:00"), f("nedovolal se mu, okolo 11 zkusit", "2026-11-23T15:00"), f("poslat nabídku v pátek za 11 000 Kč", "2026-11-23T15:00")]; });
+    eq(r, [{ due: "2026-11-24", time: "11:00" }, { due: "2026-11-24", time: "11:00" }, { due: "2026-12-01", time: "11:00" }, { due: "2026-11-25", time: "14:30" }, null, null, null], "přirozený termín v textu úkolu");
+    /* uložení úkolu: čas z textu jde do pole dueTime (z něj se plánuje push) */
+    await page.evaluate(() => addClientTask({ text: "ozvat se zítra okolo 9", client: "František Kocourek", due: taskDefDue() })); await page.waitForTimeout(300);
+    const tk = await page.evaluate(() => { const d = Object.values(LStore.docs()).find(d => d && d.text === "ozvat se zítra okolo 9"); return d && [d.dueTime, d.due === addDaysFrom(todayStr(), 1)]; });
+    eq(tk, ["09:00", true], "úkol má deadline zítra a čas 09:00");
+    /* statistika: 2 proběhly, 1 zrušil, 1 nedošel → 50 % */
+    const txt = await page.evaluate(() => { renderStats(); return document.getElementById("stGrid").innerText; });
+    assert(/Spolehlivost schůzek/.test(txt) && /50 %/.test(txt) && /Klient zrušil/.test(txt) && /Nedošel/.test(txt), "statistika: " + txt.slice(0, 400));
+    eq(errors, [], "chyby v konzoli");
+    await ctx.close();
+  },
 };
