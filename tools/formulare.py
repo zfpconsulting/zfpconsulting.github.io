@@ -11,7 +11,7 @@ bezztrátově je zmenší (qpdf) a heuristicky namapuje vyplnitelná pole (AcroF
 
 Ruční opravy mapování: OVERRIDES níže ({"<instituce>/<soubor bez přípony>": {"název pole": "klíč" | None}}).
 Klíče: cnum newcnum surname firstname fullname fullnameRev title rc birth rcbirth street streetcp cp city psc addr phone email
-       account accpre bank vs ss date place placedate („Brno, 21. 11. 2026“ do jednoho pole).
+       account accpre bank vs ss date place placedate country („Brno, 21. 11. 2026“ do jednoho pole).
        Části hodnoty: „cnum@3“ = 4. znak čísla smlouvy (políčka po jednom znaku), „cnum@3/8“ = 4. znak z posledních 8 znaků,
        „date@d“ / „date@m“ / „date@y“ = den / měsíc / rok.
        Poradce (volba v záložce, údaje v šifrovaném bloku appky): advfirm advseat advico (obchodní zástupce – firma, sídlo, IČO),
@@ -36,6 +36,7 @@ def classify(h):
     if re.search(r'nov[aeyou]* (pojistn[aeé] )?smlouv|nove smlouv|nova smlouva|cislo nove|^smlouvu c|pojistnou smlouvu c|smlouvu u .{0,40}cisl|prevod.{0,30}smlouv',h): return 'newcnum'
     if re.search(r'rodne ?cislo.{0,6}datum|rodne ?cislo ?/? ?ico|rodne cisloico',h): return 'rcbirth'
     if re.search(r'^obec|\bobec\b',h) and not re.search(r'narozeni|koresp|kontakt|zastupc|zprostred',h): return 'city'
+    if re.search(r'(^|\b)(zeme|stat)\b',h) and not re.search(r'narozeni|obcanstv|koresp|kontakt|zastupc|zprostred|statni|ucet|bank|vydal|platn|pojisteny 2|2\. pojist|dite|ditet|zakonn|opravnen|dedic|obmysl',h): return 'country'
     if EXCL.search(h): return None
     if re.search(r'nov[aeéyou]* (pojistn[aeé] )?smlouv|nove smlouv|nova smlouva|cislo nove|^smlouvu c|pojistnou smlouvu c|smlouvu u .{0,40}cisl|prevod.{0,30}smlouv',h): return 'newcnum'
     if re.search(r'predcisli a cislo|predcisli.{0,3}cislo uctu',h): return 'account'
@@ -143,6 +144,7 @@ def analyse(pdf,ovkey=''):
     return res,fill
 
 OVERRIDES={
+ "koop/zadost-o-zavedeni-ci-zmenu-prispevku-zamestnavatele":{"B13":None},
  "allianz/pokyn-pro-vyplatu-odkupneho-odbytneho":{"Textové pole5":None,"Textové pole40":"fullname","Textové pole42":"email","Textové pole52":None,"Textové pole53":None,"Textové pole50":None,"Textové pole51":None},
  "koop/zadost-o-ukonceni-pojistne-smlouvy":{"B3":None,"B.0":"rc","B.1":"fullname","B4":"streetcp","PSC B":"psc","B5":"city","D1":"accpre","D2":"account","D3":"bank","D4":"newcnum","F1":None,"F3":None},
  "koop/oznameni-o-odstoupeni-od-pojistne-smlouvy":{"B.0":"rc","B.1":"fullname","B4":"streetcp","PSC B":"psc","B5":"city"},

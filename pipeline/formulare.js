@@ -190,7 +190,7 @@ function values(S,form,inst,adv){
     fullnameRev:T([n.last,n.first].filter(Boolean).join(" ")+(tit?", "+tit:"")),
     rc:T(S.rc),birth:dshort(S.birth),rcbirth:T(S.rc)||dshort(S.birth),
     street:a.street,streetcp:a.streetcp,cp:a.cp,city:a.city,psc:a.psc,addr:a.line,
-    phone:T(S.phone),email:T(S.email),date:dshort(todayISO()),place:""
+    country:"CZ",phone:T(S.phone),email:T(S.email),date:dshort(todayISO()),place:""
   };
   V.placedate=[V.place,V.date].filter(Boolean).join(", ");
   Object.assign(V,advVals(adv));
@@ -213,7 +213,7 @@ function pick(V,key){
   return c.charAt(+m[1])||"";
 }
 const baseKey=k=>{k=String(k).split("@")[0];return k};
-const KEYLAB={cnum:"číslo smlouvy",newcnum:"nová smlouva",surname:"příjmení",firstname:"jméno",fullname:"jméno a příjmení",fullnameRev:"příjmení a jméno",title:"titul",rc:"rodné číslo",birth:"datum narození",rcbirth:"RČ / datum narození",street:"ulice",streetcp:"ulice a č. p.",cp:"č. p.",city:"obec",psc:"PSČ",addr:"adresa",phone:"telefon",email:"e-mail",account:"číslo účtu",accpre:"předčíslí",bank:"kód banky",vs:"VS",ss:"SS",date:"datum",place:"místo",placedate:"místo a datum",
+const KEYLAB={cnum:"číslo smlouvy",newcnum:"nová smlouva",surname:"příjmení",firstname:"jméno",fullname:"jméno a příjmení",fullnameRev:"příjmení a jméno",title:"titul",rc:"rodné číslo",birth:"datum narození",rcbirth:"RČ / datum narození",street:"ulice",streetcp:"ulice a č. p.",cp:"č. p.",city:"obec",psc:"PSČ",addr:"adresa",phone:"telefon",email:"e-mail",account:"číslo účtu",accpre:"předčíslí",bank:"kód banky",vs:"VS",ss:"SS",date:"datum",place:"místo",placedate:"místo a datum",country:"země",
   advfirm:"obchodní zástupce",advseat:"sídlo zástupce",advico:"IČO zástupce",advname:"poradce",advicop:"IČO poradce",advcode:"kód poradce",advphone:"telefon poradce",advemail:"e-mail poradce"};
 
 /* ---------- líné načítání knihoven ---------- */
