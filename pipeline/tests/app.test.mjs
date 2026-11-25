@@ -101,7 +101,7 @@ export default {
     await ctx.close();
   },
 
-  async "úkoly s časem deadlinu: push notifikace v čas / X min předem, hotové a bez času ne"(env) {
+  async "úkoly s časem deadlinu: push notifikace vždy v čas deadlinu, hotové a bez času ne"(env) {
     const { ctx, page } = await openApp(env);
     const r = await page.evaluate(() => {
       const d = new Date(); d.setDate(d.getDate() + 1); const due = ymd(d);
@@ -114,7 +114,7 @@ export default {
       const pl = pushPlan(Date.now()).filter(x => x.pl.tag.startsWith("task-"));
       const at = (h, m) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m).getTime();
       const tag = asDueTag({ due, time: "14:30", st: "nový" });
-      return { n: pl.length, ats: pl.map(x => x.at), want: [at(9, 0), at(14, 15)], t0: pl[0] && pl[0].pl.t, b1: pl[1] && pl[1].pl.b, tag: tag && tag.txt.endsWith("14:30") };
+      return { n: pl.length, ats: pl.map(x => x.at), want: [at(9, 0), at(14, 30)], t0: pl[0] && pl[0].pl.t, b1: pl[1] && pl[1].pl.b, tag: tag && tag.txt.endsWith("14:30") };
     });
     eq(r.n, 2, "počet naplánovaných notifikací úkolů");
     eq(r.ats, r.want, "časy notifikací");
@@ -122,6 +122,125 @@ export default {
     assert(/Novák/.test(r.b1) && /14:30/.test(r.b1), "tělo s klientem a časem");
     assert(r.tag, "štítek s časem u úkolu");
     await ctx.close();
+  },
+
+  async "plocha jako widgety: Upravit plochu – bloky a dlaždice přetáhnout, ⊖ odebrat, přejmenovat, polovina, poznámka, + přidat, výchozí"(env) {
+    const { ctx, page, errors } = await openApp(env, { width: 1440, height: 1000 });
+    await page.evaluate(() => setView("pipe")); await page.waitForTimeout(300);
+    const order = () => page.evaluate(() => wgList($("view_pipe")).filter(w => !w.classList.contains("wg-off")).map(w => w.dataset.wg));
+    eq(await order(), ["perBar", "tiles", "todaySec", "calSec", "cols"], "výchozí bloky Pipeline");
+    eq(await page.evaluate(() => settings.widgets || null), null, "nic uloženo");
+    await page.click("#view_pipe .wgfoot button");
+    assert(await page.evaluate(() => document.body.classList.contains("wg-edit") && !!document.querySelector(".wgbar") && document.querySelectorAll("#view_pipe .wg>.wgx").length === 5), "režim úprav: lišta a ⊖ u bloků");
+    eq(await page.$eval("#view_pipe .wg[data-wg=todaySec]", e => getComputedStyle(e).animationName), "wgjig", "bloky se kývají");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    /* přetažení bloku: Dnes udělat nad dlaždice */
+    const bx = async sel => (await page.$(sel)).boundingBox();
+    const drag = async (a, b, dy = 0) => { await page.mouse.move(a.x + a.width / 2, a.y + 12); await page.mouse.down();
+      for (let i = 1; i <= 14; i++) await page.mouse.move(a.x + a.width / 2 + (b.x + b.width / 2 - (a.x + a.width / 2)) * i / 14, a.y + 12 + (b.y + dy - (a.y + 12)) * i / 14);
+      await page.mouse.up(); await page.waitForTimeout(500); };
+    await drag(await bx("#view_pipe .wg[data-wg=todaySec]"), await bx("#view_pipe .wg[data-wg=tiles]"), 4);
+    eq(await order(), ["perBar", "todaySec", "tiles", "calSec", "cols"], "Dnes udělat nad dlaždicemi");
+    eq(await page.evaluate(() => settings.widgets.pipe.o.slice(0, 3)), ["perBar", "todaySec", "tiles"], "pořadí uložené");
+    assert(await page.evaluate(() => !$("edDlg").open && !$("dlg").open), "přetažení neotevřelo nic v appce");
+    /* dlaždice: první za druhou */
+    const tk = () => page.evaluate(() => wgTileList($("tiles")).filter(t => !t.classList.contains("wg-off")).map(t => t.dataset.wgk));
+    const k0 = await tk();
+    const t1 = await bx("#tiles>.tile:nth-child(1)"), t2 = await bx("#tiles>.tile:nth-child(2)");
+    await page.mouse.move(t1.x + t1.width / 2, t1.y + t1.height / 2); await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(t1.x + t1.width / 2 + (t2.x + t2.width * 0.8 - (t1.x + t1.width / 2)) * i / 10, t1.y + t1.height / 2);
+    await page.mouse.up(); await page.waitForTimeout(400);
+    eq((await tk()).slice(0, 2), [k0[1], k0[0]], "dlaždice prohozené");
+    /* ⊖ na dlaždici a na bloku */
+    await page.click("#tiles>.tile:nth-child(1) .wgx"); await page.waitForTimeout(300);
+    eq((await tk()).includes(k0[1]), false, "dlaždice skrytá");
+    await page.click("#view_pipe .wg[data-wg=calSec]>.wgx"); await page.waitForTimeout(300);
+    eq((await order()).includes("calSec"), false, "blok odebraný");
+    /* re-render dlaždic (nová data) drží pořadí i skrytí */
+    await page.evaluate(() => render()); await page.waitForTimeout(300);
+    eq((await tk())[0], k0[0], "po překreslení dlaždic pořadí drží"); eq((await tk()).includes(k0[1]), false, "po překreslení skrytá dlaždice zůstává skrytá");
+    /* klepnutí na blok: název a polovina */
+    await page.click("#view_pipe .wg[data-wg=perBar]", { position: { x: 200, y: 10 } }); await page.waitForTimeout(450);
+    eq(await page.textContent("#edTitle"), "Období", "úprava bloku");
+    await page.fill('#edBody input[aria-label="Název bloku"]', "Moje období");
+    await page.click('#edBody .seg button:text-is("Polovina")'); await page.click("#edClose"); await page.waitForTimeout(450);
+    eq(await page.evaluate(() => [$("view_pipe").querySelector(".wg[data-wg=perBar]>.wg-h")?.textContent, $("view_pipe").querySelector(".wg[data-wg=perBar]").classList.contains("half"), $("view_pipe").classList.contains("wg-grid")]), ["Moje období", true, true], "nadpis a polovina šířky");
+    /* klepnutí na dlaždici: název */
+    await page.click("#tiles>.tile:not(.wg-off)", { position: { x: 20, y: 30 } }); await page.waitForTimeout(450);
+    eq(await page.textContent("#edTitle"), "Dlaždice", "úprava dlaždice");
+    await page.fill('#edBody input[aria-label="Název dlaždice"]', "Moje dlaždice"); await page.click("#edClose"); await page.waitForTimeout(400);
+    assert(/Moje dlaždice/.test(await page.textContent("#tiles>.tile:not(.wg-off) .k")), "dlaždice přejmenovaná");
+    /* + Přidat: skryté a poznámka */
+    await page.click('.wgbar button:text-is("+ Přidat")'); await page.waitForTimeout(400);
+    const gal = await page.textContent("#edBody");
+    assert(/Skryté bloky/.test(gal) && /Z kalendáře/.test(gal) && /Skryté dlaždice/.test(gal) && /Poznámka/.test(gal), "galerie: " + gal.slice(0, 200));
+    await page.click('#edBody .row-btn:has-text("Z kalendáře")'); await page.waitForTimeout(400);
+    eq((await order()).at(-1), "calSec", "vrácený blok na konci");
+    await page.click('.wgbar button:text-is("+ Přidat")'); await page.waitForTimeout(400);
+    await page.click('#edBody .row-btn:has-text("Poznámka")'); await page.waitForTimeout(900);
+    eq(await page.textContent("#edTitle"), "Poznámka", "nová poznámka se otevře k úpravě");
+    await page.fill('#edBody input[aria-label="Nadpis poznámky"]', "Cíl týdne"); await page.fill('#edBody textarea[aria-label="Text poznámky"]', "10 schůzek");
+    await page.click("#edClose"); await page.waitForTimeout(400);
+    assert(/Cíl týdne/.test(await page.textContent("#view_pipe .wg-note")) && /10 schůzek/.test(await page.textContent("#view_pipe .wg-note")), "poznámka na ploše");
+    /* Hotovo: konec úprav, rozložení drží, klik na dlaždici zase funguje normálně */
+    await page.click('.wgbar button:text-is("Hotovo")'); await page.waitForTimeout(300);
+    assert(await page.evaluate(() => !document.body.classList.contains("wg-edit") && !document.querySelector(".wgbar") && !document.querySelector("#view_pipe .wgx")), "konec úprav");
+    eq((await order()).slice(0, 3), ["perBar", "todaySec", "tiles"], "pořadí po úpravách");
+    await page.waitForTimeout(500);
+    const saved = await page.evaluate(() => LStore.docs()["settings/main"].widgets.pipe);
+    assert(saved.off.includes("calSec") === false && saved.half.includes("perBar") && saved.nm.perBar === "Moje období" && saved.n.length === 1 && saved.t.tiles.off.length === 1, "uloženo v nastavení: " + JSON.stringify(saved));
+    /* jiná záložka: Upravit plochu, odchod ze záložky úpravu ukončí */
+    await page.evaluate(() => setView("money")); await page.waitForTimeout(300);
+    await page.click("#view_money .wgfoot button"); await page.evaluate(() => setView("cli")); await page.waitForTimeout(300);
+    assert(await page.evaluate(() => !document.body.classList.contains("wg-edit")), "přepnutí záložky úpravu ukončí");
+    /* Výchozí */
+    await page.evaluate(() => setView("pipe")); await page.waitForTimeout(300); await page.click("#view_pipe .wgfoot button");
+    await page.click('.wgbar button:text-is("Výchozí")'); await page.waitForSelector("dialog.cfm"); await page.click('dialog.cfm button:text-is("Vrátit")'); await page.waitForTimeout(600);
+    eq(await order(), ["perBar", "tiles", "todaySec", "calSec", "cols"], "výchozí rozložení");
+    assert(await page.evaluate(() => !document.querySelector("#view_pipe .wg-note") && !document.querySelector("#view_pipe .wg-h") && !$("view_pipe").classList.contains("wg-grid")), "bez poznámky, nadpisu a poloviny");
+    eq(errors, [], "bez chyb"); await ctx.close();
+  },
+
+  async "deadline úkolu: minikalendář → den → čas po půlhodinách 8:00–19:00, uloží se due + dueTime, notifikace v čas"(env) {
+    const { ctx, page, errors } = await openApp(env);
+    await page.evaluate(() => asNewTask()); await page.waitForSelector("#edBody .dlbtn");
+    eq(await page.evaluate(() => [...$("edBody").querySelectorAll('input[type=date],input[type=time],select[aria-label="Upozornění"]')].length), 0, "žádná systémová pole data a času ani výběr upozornění");
+    await page.click("#edBody .dlbtn"); await page.waitForSelector("#edBody .dlpan .dlgrid button");
+    eq(await page.textContent("#edBody .dlhd b"), await page.evaluate(() => { const d = new Date(taskDefDue() + "T12:00:00"); return DL_MON[d.getMonth()] + " " + d.getFullYear(); }), "kalendář otevřený na měsíci deadlinu");
+    if (await page.isEnabled('#edBody .dlhd button[aria-label="Předchozí měsíc"]')) await page.click('#edBody .dlhd button[aria-label="Předchozí měsíc"]');
+    assert(await page.isDisabled('#edBody .dlhd button[aria-label="Předchozí měsíc"]'), "do minulých měsíců nejde");
+    const cal = await page.evaluate(() => { const b = [...document.querySelectorAll("#edBody .dlgrid button")], t = new Date();
+      return { n: b.length, today: b.find(x => x.classList.contains("today"))?.textContent, pastOff: b.filter(x => +x.textContent < t.getDate()).every(x => x.disabled), wd: document.querySelector("#edBody .dlwd").textContent }; });
+    eq(cal.today, String(new Date().getDate()), "dnešek zvýrazněný");
+    assert(cal.pastOff && cal.wd === "PoÚtStČtPáSoNe", "minulé dny nejdou vybrat, týden od pondělí: " + JSON.stringify(cal));
+    assert(!/null|undefined/.test(await page.textContent("#edBody .dlpan")), "v panelu žádné null/undefined");
+    /* den za týden (případně v dalším měsíci) */
+    const tgt = await page.evaluate(() => addDaysFrom(todayStr(), 7));
+    if (tgt.slice(0, 7) !== (await page.evaluate(() => todayStr())).slice(0, 7)) await page.click('#edBody .dlhd button[aria-label="Další měsíc"]');
+    await page.click(`#edBody .dlgrid button:text-is("${+tgt.slice(8)}")`);
+    const slots = await page.$$eval("#edBody .dltimes button", b => b.map(x => x.textContent));
+    eq([slots.length, slots[0], slots[1], slots[slots.length - 1]], [23, "08:00", "08:30", "19:00"], "čas po půlhodinách 8:00–19:00");
+    await page.click('#edBody .dltimes button:text-is("10:30")');
+    assert(await page.evaluate(() => document.querySelector("#edBody .dlpan").hidden), "po výběru času se panel zavře");
+    assert(/10:30/.test(await page.textContent("#edBody .dlbtn")), "hodnota v řádku Deadline");
+    await page.fill('#edBody textarea[aria-label="Text úkolu"]', "Poslat modelaci"); await page.click("#edClose"); await page.waitForTimeout(500);
+    const t = await page.evaluate(() => { const x = myTasks.find(t => t.text === "Poslat modelaci"); return x && [x.due, x.dueTime, +x.remind || 0]; });
+    eq(t, [tgt, "10:30", 0], "uložený deadline s časem, upozornění v čas");
+    /* úprava úkolu: změna času se uloží hned */
+    await page.evaluate(() => asOpenMine(asAllTasks().find(t => t.text === "Poslat modelaci"))); await page.waitForSelector("#edBody .dlbtn");
+    await page.click("#edBody .dlbtn"); await page.click(`#edBody .dlgrid button:text-is("${+tgt.slice(8)}")`).catch(async () => { await page.click('#edBody .dlhd button[aria-label="Další měsíc"]'); await page.click(`#edBody .dlgrid button:text-is("${+tgt.slice(8)}")`); });
+    assert(await page.$eval('#edBody .dltimes button:text-is("10:30")', b => b.classList.contains("sel")), "aktuální čas vybraný");
+    await page.click('#edBody .dltimes button:text-is("16:00")'); await page.waitForTimeout(400);
+    eq(await page.evaluate(() => myTasks.find(t => t.text === "Poslat modelaci").dueTime), "16:00", "změna času uložená");
+    const at = await page.evaluate(tg => { const p = pushPlan(Date.now()).find(x => /Poslat modelaci/.test(x.pl.t)); return p && p.at === new Date(tg + "T16:00:00").getTime(); }, tgt);
+    assert(at, "push notifikace přesně v čas deadlinu");
+    /* dnes: časy, které už minuly, nejdou vybrat */
+    await page.click("#edBody .dlbtn");
+    if (await page.isEnabled('#edBody .dlhd button[aria-label="Předchozí měsíc"]')) await page.click('#edBody .dlhd button[aria-label="Předchozí měsíc"]');
+    await page.click("#edBody .dlgrid button.today");
+    const past = await page.evaluate(() => { const n = new Date(), m = n.getHours() * 60 + n.getMinutes(); return [...document.querySelectorAll("#edBody .dltimes button")].every(b => { const [h, mm] = b.textContent.split(":").map(Number); return b.disabled === (h * 60 + mm <= m); }); });
+    assert(past, "dnešní uplynulé časy zakázané");
+    eq(errors, [], "bez chyb"); await ctx.close();
   },
 
   async "nahrávka: lead s překlepem ve jménu se sloučí do klienta, termín z textu do Deadline/Čas; pole úkolu podle textu"(env) {

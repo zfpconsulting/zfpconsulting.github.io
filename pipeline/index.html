@@ -463,6 +463,54 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 .noans button{flex:none;border:0;border-radius:var(--r-s);min-height:36px;padding:0 var(--sp-3);font:inherit;font-weight:700;background:transparent;color:#FF8A4C;cursor:pointer}
 .noans button:hover{background:rgba(255,255,255,.12)}
 .noans button.sec{color:var(--canvas);opacity:.75;font-weight:500}
+
+
+/* plocha jako widgety */
+.wgfoot{display:flex;justify-content:center;margin:var(--sp-5) 0 0}
+section.wg-grid:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:var(--sp-5);align-items:start}
+section.wg-grid>*{grid-column:1/-1;min-width:0}section.wg-grid>.wg.half{grid-column:auto}
+@media (max-width:760px){section.wg-grid:not([hidden]){display:block}}
+.wg.wg-off,.tile.wg-off{display:none!important}
+.wg-note .wgnx{white-space:pre-wrap;overflow-wrap:anywhere;font-size:var(--fs-m);line-height:1.5;margin-bottom:var(--sp-6)}
+.wg-note .section-head h3{margin:0}
+body.wg-edit .wgfoot{display:none}
+@keyframes wgjig{0%{transform:rotate(-.22deg)}50%{transform:rotate(.22deg)}100%{transform:rotate(-.22deg)}}
+@keyframes wgjigt{0%{transform:rotate(-1deg)}50%{transform:rotate(1deg)}100%{transform:rotate(-1deg)}}
+.wg-editing .wg{position:relative;border-radius:var(--r-l);outline:1.5px dashed color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:6px;margin-bottom:var(--sp-5);cursor:grab;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;animation:wgjig .36s ease-in-out infinite;animation-delay:var(--jd,0s)}
+.wg-editing .wg *{pointer-events:none}
+.wg-editing .wg .tiles>.tile{pointer-events:auto;position:relative;cursor:grab;animation:wgjigt .3s ease-in-out infinite;animation-delay:var(--jd,0s)}
+.wg-editing .wg .tiles>.tile *{pointer-events:none}
+.wg-editing .wg>.wgx,.wg-editing .wg .tiles>.tile>.wgx{pointer-events:auto}
+.wg-editing.wg-dragging .wg,.wg-editing.wg-dragging .tile{animation:none}
+.wg-editing .wg-ghost{opacity:.35;outline:2px dashed var(--accent)!important}
+.wgx{position:absolute;left:-11px;top:-11px;z-index:6;width:26px;height:26px;border-radius:50%;border:0;padding:0;background:#8e8e93;color:#fff;font:700 20px/1 -apple-system,"Helvetica Neue",Arial,sans-serif;display:grid;place-items:center;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.wgx:hover{background:#d93a2b}.wg-editing .wg>.wgx{left:-17px;top:-17px}.wg-editing .tiles>.tile>.wgx{left:auto;right:-9px;top:-9px;width:24px;height:24px;font-size:18px}
+.wgchip{position:fixed;z-index:500;pointer-events:none;transform:translate(-50%,-120%) scale(1.04);padding:10px 16px;border-radius:var(--r-m);background:var(--surface);color:var(--ink);font-weight:600;font-size:var(--fs-m);box-shadow:var(--shadow-pop);border:1px solid var(--accent);white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis}
+.wgbar{position:fixed;left:50%;transform:translateX(-50%);bottom:var(--wgb,16px);z-index:300;display:flex;gap:var(--sp-2);padding:var(--sp-2);border-radius:var(--r-pill);background:var(--bar-bg);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border:.5px solid var(--line);box-shadow:var(--shadow-pop)}
+.wgbar .btn{border-radius:var(--r-pill)}
+body.wg-edit .wrap{padding-bottom:140px}
+.wgseg{padding:0 4px}.wghint{margin:-4px 4px 0}
+.wgtr input[type=text]{text-align:left!important}.wgtr .icon-btn{flex:none}
+.wgplus{flex:none;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:20px;line-height:1}
+@media (prefers-reduced-motion:reduce){.wg-editing .wg,.wg-editing .wg .tiles>.tile{animation:none}}
+/* výběr deadlinu (minikalendář → čas) */
+.dlbtn{flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;min-height:var(--h-m);background:transparent;border:0;padding:0;color:var(--ink);font:inherit;font-size:16px;cursor:pointer}
+.dlbtn .dlv{color:var(--accent-text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dlbtn .dlv.dlnone{color:var(--ink-2);font-weight:400}
+.dlbtn .chev{flex:none;transition:transform .2s}.dlbtn[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.dlpan{padding:var(--sp-2) var(--sp-3) var(--sp-3);border-top:.5px solid var(--line);animation:dlIn .18s ease}
+@keyframes dlIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.dlhd{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);min-height:44px}.dlhd b{font-size:var(--fs-m);font-weight:600;text-align:center;flex:1}.dlhd b::first-letter{text-transform:uppercase}.dlhd .dlsp{width:64px}
+.dlhd .icon-btn span{font-size:22px;line-height:1}
+.dlwd,.dlgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center}
+.dlwd{font-size:var(--fs-xs);color:var(--ink-3);font-weight:600;padding:2px 0 4px}
+.dlgrid{row-gap:2px}.dlgrid button{width:40px;height:40px;margin:auto;border-radius:50%;border:0;background:transparent;color:var(--ink);font:inherit;font-size:var(--fs-m);font-variant-numeric:tabular-nums;cursor:pointer}
+.dlgrid button:hover:not(:disabled){background:var(--fill)}.dlgrid button.we{color:var(--ink-2)}.dlgrid button.today{color:var(--accent-text);font-weight:700}
+.dlgrid button.sel{background:var(--accent);color:#fff;font-weight:700}.dlgrid button:disabled{opacity:.3;cursor:default}
+.dltimes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:var(--sp-1)}
+.dltimes button{min-height:40px;border-radius:var(--r-s);border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:var(--fs-m);font-variant-numeric:tabular-nums;cursor:pointer}
+.dltimes button:hover:not(:disabled){border-color:var(--accent)}.dltimes button.sel{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}.dltimes button:disabled{opacity:.3;cursor:default}
+.dlpan .dlhint{margin:var(--sp-2) 0 0}.dlpan .dlclr{margin-top:var(--sp-2)}
+@media (prefers-reduced-motion:reduce){.dlpan{animation:none}}
 /* ---------- odezva na klepnutí + přepínání sekcí ---------- */
 button,.chipbtn,.btn,.row-btn,.ohit,.oadd,.card,summary{transition:transform .12s cubic-bezier(.3,.7,.4,1),opacity .12s ease,box-shadow .15s ease,background .15s ease}
 button:not(:disabled):active,.chipbtn:not(:disabled):active,.row-btn:active,.ohit:active,.card:active{transform:scale(.97);opacity:.88}
@@ -1172,7 +1220,7 @@ b.acc{color:var(--accent-text)}
   <!-- DANĚ -->
   <section id="view_tax" hidden>
     <div class="seg xyear" id="xYear" role="tablist" aria-label="Rok"></div><p class="hint xyearnote" id="xYearNote"></p>
-    <div class="tiles" id="xTiles"></div>
+    <div class="tiles" id="xTiles" data-wgj></div>
     <div class="xgrid">
       <div>
         <div class="section-head"><h3>Příjem</h3></div><div class="group" id="xInc"></div>
@@ -1252,21 +1300,21 @@ b.acc{color:var(--accent-text)}
         <button type="button" class="btn btn--secondary btn--s" id="ctNewBtn" aria-label="Nová událost" hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Událost</span></button>
       </div>
     </div>
-    <div class="calweek card" id="ctWeekWrap">
+    <div class="calweek card" id="ctWeekWrap" data-wgj>
       <div class="cwhead"><div class="cwgutter"></div><div class="cwdays" id="cwDays"></div></div>
       <div class="cwallday" id="cwAllDayWrap" hidden><div class="cwad-gutter">celý den</div><div class="cwad-days" id="cwAllDay"></div></div>
       <div class="cwbody"><div class="cwhours" id="cwHours"></div><div class="cwgrid" id="cwGrid"></div></div>
     </div>
-    <div class="group calgrid" id="ctMonthWrap" hidden>
+    <div class="group calgrid" id="ctMonthWrap" data-wgj hidden>
       <div class="calwd" id="ctWd"></div>
       <div class="calcells" id="ctCells"></div>
     </div>
-    <div id="ctList"></div>
+    <div id="ctList" data-wgj></div>
     <p class="secfoot" id="ctFoot"></p>
   </section>
   <section id="view_fp" hidden>
     <div class="pfadd pfsearch"><input id="fpSearchI" class="field" type="search" placeholder="Hledat plán nebo jméno klienta…" autocomplete="off" aria-label="Hledat finanční plán nebo klienta, pro kterého ho vytvořit"><span class="fplink"><button type="button" id="fpLinkBtn" class="btn btn--secondary" aria-haspopup="true" aria-expanded="false">Odkaz pro klienta<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><span class="fplinkmenu" id="fpLinkMenu" hidden role="menu"><button type="button" role="menuitem" id="fpDzBtn" title="Odkaz na vstupní dotazník – klient ho vyplní a odešle, přijde ti zašifrovaný sem"><b>Dotazník</b><small>klient vyplní podklady k plánu a vybere termín</small></button><button type="button" role="menuitem" id="fpBkBtn" title="Odkaz jen na rezervaci schůzky (bez dotazníku) – klient si vybere volný blok, osobně nebo online"><b>Rezervace</b><small>jen výběr termínu schůzky, bez dotazníku</small></button></span></span></div>
-    <div id="fpBox"></div>
+    <div id="fpBox" data-wgj></div>
     <p class="secfoot">Živý finanční plán: upravíš vstupy a prezentace se okamžitě přepočítá. Plán se ukládá ke klientovi (nebo k leadu z pipeline).</p>
   </section>
   <section id="view_frm" hidden>
@@ -1281,7 +1329,7 @@ b.acc{color:var(--accent-text)}
   </section>
   <section id="view_pf" hidden>
     <div class="pfadd pfsearch"><input id="pfSearchI" class="field" type="search" placeholder="Hledat klienta, fond, model…" autocomplete="off" aria-label="Hledat v Portfoliích"></div>
-    <div id="pfBox"></div>
+    <div id="pfBox" data-wgj></div>
     <p class="secfoot">Data z conseq.cz, zfpwi.cz a zfpinvest.com. Obnovují se samy, kdykoli otevřeš Portfolia a data jsou starší než 6 hodin. Minulá výkonnost nezaručuje budoucí výnosy.</p>
   </section>
   <section id="view_db" hidden>
@@ -2265,7 +2313,166 @@ function render(){
   else if(view==="db"){$("bigTitle").textContent="Databáze";$("sub").textContent="Smlouvy načtené z PDF ze Stely – jen v tomto zařízení";renderDb()}
   else if(view==="users"){$("bigTitle").textContent="Uživatelé";$("sub").textContent="Kdo appku používá a kalkulačka příjmu";if(typeof renderUsersTab==="function")renderUsersTab()}
   else{$("bigTitle").textContent="Sazebník";$("sub").textContent="Jak se počítají body u tvých produktů";renderPP()}
+  try{wgApply(view)}catch(e){console.warn("plocha",e)}
 }
+/* ---------- plocha jako widgety (každá záložka) ----------
+   Bloky záložky (dlaždice, sekce, karty) jde přetáhnout, upravit, odebrat a přidat zpět – jako widgety na iPhonu; dlaždice i jednotlivě.
+   „Upravit plochu“ dole na záložce: vše se kývá, ⊖ odebere, klepnutí = úprava (název, šířka, dlaždice), přetažení = pořadí
+   (myš hned, dotyk podržet), „+ Přidat“ = skryté bloky a dlaždice nebo nová poznámka. Ukládá se do nastavení (widgets[pohled]).
+   Skupiny bloků: nadpis + vše pod ním až k dalšímu nadpisu; bez nadpisu každý prvek zvlášť (poznámka pod čarou a „Víc“ patří k předchozímu,
+   data-wgj = patří k předchozímu bloku). Bloky se obalí <div class="wg"> – JS záložek plní obsah přes id, na pořadí nezáleží. */
+const WG_VIEWS=["pipe","money","cli","tax","akv","net","pp","calc","duch","cal","fp","frm","uv","pf"];
+const WG_NAME={perBar:"Období",tiles:"Dlaždice",cols:"Sloupce pipeline",careerBar:"Kariéra",mPrevM:"Výdělek a cena bodu",cTiles:"Dlaždice",cli:"Klienti a servis",xYear:"Rok a dlaždice",akvTiles:"Dlaždice",nTiles:"Dlaždice",ppList:"Sazebník",calcBox:"Kalkulačka",
+  duchBox:"Důchodová kalkulačka",ctTiles:"Dlaždice",ctModeSeg:"Kalendář",fpSearchI:"Finanční plány",frmBox:"Formuláře",uvBox:"Úvěry",pfSearchI:"Portfolia",mOstEdit:"Ostatní příjmy",shareBox:"Sdílení",cliSearch:"Klienti a servis",xInc:"Výpočet daně",akvImpBtn:"Firmy a kolegové"};
+const wgSlug=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40);
+/* nadpis bloku = jen nadpis úplně nahoře (případně v první sekci); nadpis karty uprostřed bloku se nepočítá */
+function wgHeadEl(w){const x=w.querySelector(":scope>.wg-h");if(x)return x;const f=w.firstElementChild;if(!f)return null;
+  const H=e=>e&&(e.matches("h2,h3")?e:e.matches(".section-head")?e.querySelector("h3,h2")||e:null);return H(f)||H(f.firstElementChild)}
+function wgState(v,make){const W=settings.widgets||{};if(!W[v]&&make){settings.widgets={...W,[v]:{}};return settings.widgets[v]}return W[v]||{}}
+let wgSaveT=0;
+function wgSave(){clearTimeout(wgSaveT);wgSaveT=setTimeout(async()=>{const W={};Object.entries(settings.widgets||{}).forEach(([v,S])=>{if(S&&Object.keys(S).some(k=>Array.isArray(S[k])?S[k].length:S[k]&&typeof S[k]==="object"?Object.keys(S[k]).length:S[k]))W[v]=S});
+  try{await db.doc("settings/main").update({widgets:W})}catch(e){try{await db.doc("settings/main").set({...settings,widgets:W})}catch(e2){toast("Plochu se nepodařilo uložit")}}},350)}
+const wgList=sec=>[...sec.children].filter(x=>x.classList.contains("wg"));
+function wgName(w){const v=w.closest("section[id^=view_]").id.slice(5),S=wgState(v),id=w.dataset.wg,n=(S.nm||{})[id];if(n)return n;if(w.classList.contains("wg-note")){const x=(S.n||[]).find(y=>y.id===id);return (x&&x.t)||"Poznámka"}
+  if(WG_NAME[id])return WG_NAME[id];const h=wgHeadEl(w);if(h&&!h.classList.contains("wg-h")){const tn=[...h.childNodes].find(x=>x.nodeType===3&&x.textContent.trim());return (h.dataset.wgo||(tn?tn.textContent:h.textContent)).trim()}return w.querySelector(".tiles")?"Dlaždice":"Blok"}
+/* jednorázově: obalit skupiny prvků záložky do .wg, přidat „Upravit plochu“, hlídat překreslení dlaždic */
+function wgInit(sec){if(sec._wg)return;sec._wg=1;
+  const kids=[...sec.children],isHead=e=>e.matches(".section-head,h2,h3"),isAtt=e=>e.matches(".secfoot,details.more,input[type=file],[data-wgj],.hint");
+  const G=[];let cur=null;
+  kids.forEach(e=>{if(isHead(e)){cur={head:e,els:[e]};G.push(cur)}else if(cur&&(cur.head||isAtt(e)))cur.els.push(e);else{cur={head:null,els:[e]};G.push(cur)}});
+  const used=new Set();
+  G.forEach((g,i)=>{const f=g.els[0],w=document.createElement("div");w.className="wg";
+    let id=f.id||(g.head?"h-"+wgSlug(g.head.textContent):"")||((f.querySelector&&f.querySelector("[id]"))||{}).id||((f.classList[0]||"b")+"-"+i);if(used.has(id))id+="-"+i;used.add(id);
+    w.dataset.wg=id;w.dataset.wgi=String(i);sec.insertBefore(w,f);g.els.forEach(x=>w.append(x))});
+  const ft=el("div",{class:"wgfoot"},el("button",{type:"button",class:"btn btn--ghost btn--s",onclick:()=>wgEdit(true)},"Upravit plochu"));sec.append(ft);
+  sec.querySelectorAll(".tiles[id]").forEach(c=>{new MutationObserver(()=>{if(c._wgBusy)return;const v=sec.id.slice(5);wgTiles(c,(wgState(v).t||{})[c.id]);if(WGE&&WGE.sec===sec)wgDecorate()}).observe(c,{childList:true})})}
+function wgTileKey(t){if(!t.dataset.wgk){const k=t.querySelector(".k")||t.querySelector(".h")||t;let x=String(k.textContent||"").toLowerCase().replace(/\bq\d\b|\d+/g," ").replace(/[^a-zÀ-ſ ]+/gi," ").replace(/\s+/g," ").trim()||"tile";t.dataset.wgk=x}return t.dataset.wgk}
+const wgTileList=c=>[...c.children].filter(x=>x.classList.contains("tile"));
+function wgTileName(t){const k=t.querySelector(".k");if(!k)return t.dataset.wgk||"Dlaždice";const n=[...k.childNodes].find(x=>x.nodeType===3&&x.textContent.trim());return ((t.dataset.wgl!=null?t.dataset.wgl:n?n.textContent:k.textContent)||"").trim()||"Dlaždice"}
+function wgTiles(c,T){T=T||{};c._wgBusy=1;try{
+  const ts=wgTileList(c),seen={};ts.forEach(t=>{let k=wgTileKey(t);if(seen[k]&&!t.dataset.wgd){t.dataset.wgk=k+"#"+(++seen[k]);t.dataset.wgd=1}else seen[k]=seen[k]||1});
+  const off=new Set(T.off||[]),nm=T.nm||{};
+  ts.forEach(t=>{const k=t.dataset.wgk;t.classList.toggle("wg-off",off.has(k));const kk=t.querySelector(".k");
+    if(kk){const n=[...kk.childNodes].find(x=>x.nodeType===3&&x.textContent.trim());if(t.dataset.wgl==null)t.dataset.wgl=n?n.textContent:"";
+      const want=nm[k]||t.dataset.wgl;if(n){if(n.textContent!==want)n.textContent=want}else if(want)kk.prepend(document.createTextNode(want))}});
+  if(T.o&&T.o.length){const pos=k=>{const i=T.o.indexOf(k);return i<0?1e3+ts.findIndex(t=>t.dataset.wgk===k):i};
+    const want=ts.slice().sort((a,b)=>pos(a.dataset.wgk)-pos(b.dataset.wgk));if(want.some((t,i)=>t!==ts[i]))want.forEach(t=>c.append(t))}}finally{c._wgBusy=0}}
+function wgNoteFill(w,n){const h=el("div",{class:"section-head"},el("h3",{},n.t||"Poznámka")),b=el("div",{class:"card cpad wgnx"},n.x||"");w.replaceChildren(h,b)}
+function wgApply(v){
+  const sec=$("view_"+v);if(!sec||!WG_VIEWS.includes(v)||(WGE&&WGE.P&&WGE.P.drag))return;wgInit(sec);
+  const S=wgState(v),ft=sec.querySelector(".wgfoot"),notes=S.n||[];
+  notes.forEach(n=>{let w=wgList(sec).find(x=>x.dataset.wg===n.id);if(!w){w=el("div",{class:"wg wg-note","data-wg":n.id,"data-wgi":"999"});sec.insertBefore(w,ft)}wgNoteFill(w,n)});
+  wgList(sec).filter(w=>w.classList.contains("wg-note")&&!notes.some(n=>n.id===w.dataset.wg)).forEach(w=>w.remove());
+  const ws=wgList(sec),o=S.o||[],pos=w=>{const i=o.indexOf(w.dataset.wg);return i<0?1e3+(+w.dataset.wgi||0):i};
+  const want=ws.slice().sort((a,b)=>pos(a)-pos(b)||(+a.dataset.wgi||0)-(+b.dataset.wgi||0));
+  want.forEach((w,i)=>{const at=wgList(sec)[i];if(at!==w)sec.insertBefore(w,at)});
+  const off=new Set(S.off||[]),half=new Set(S.half||[]),nm=S.nm||{};
+  want.forEach(w=>{const id=w.dataset.wg;w.classList.toggle("wg-off",off.has(id));w.classList.toggle("half",half.has(id));
+    if(!w.classList.contains("wg-note")){const h=wgHeadEl(w),cn=nm[id];
+      if(h&&!h.classList.contains("wg-h")){const tn=[...h.childNodes].find(x=>x.nodeType===3&&x.textContent.trim());if(h.dataset.wgo==null)h.dataset.wgo=tn?tn.textContent:h.textContent;
+        const tx=cn||h.dataset.wgo;if(tn){if(tn.textContent!==tx)tn.textContent=tx}else if(h.textContent!==tx)h.textContent=tx}
+      else if(cn){if(h)h.textContent=cn;else w.prepend(el("h3",{class:"section-head wg-h"},cn))}else if(h)h.remove()}
+    w.querySelectorAll(".tiles[id]").forEach(c=>wgTiles(c,(S.t||{})[c.id]))});
+  sec.classList.toggle("wg-grid",want.some(w=>half.has(w.dataset.wg)&&!off.has(w.dataset.wg)));
+  if(WGE&&WGE.sec===sec)wgDecorate()}
+/* ---- režim úprav ---- */
+let WGE=null;
+function wgDecorate(){if(!WGE)return;const sec=WGE.sec;
+  wgList(sec).forEach((w,i)=>{w.style.setProperty("--jd",(-(i*0.13)%0.34).toFixed(2)+"s");if(!w.querySelector(":scope>.wgx"))w.append(el("button",{type:"button",class:"wgx","aria-label":"Odebrat z plochy: "+wgName(w)},"−"))});
+  sec.querySelectorAll(".wg .tiles[id]>.tile").forEach((t,i)=>{t.style.setProperty("--jd",(-(i*0.09)%0.3).toFixed(2)+"s");if(!t.querySelector(":scope>.wgx"))t.append(el("button",{type:"button",class:"wgx","aria-label":"Skrýt dlaždici: "+wgTileName(t)},"−"))})}
+function wgUndecorate(sec){sec.querySelectorAll(".wgx").forEach(x=>x.remove())}
+function wgBarPos(){const tb=$("tabBottom"),h=tb&&!tb.hidden&&getComputedStyle(tb).display!=="none"?tb.getBoundingClientRect().height:0;document.documentElement.style.setProperty("--wgb",(h+16)+"px")}
+function wgEdit(on){
+  if(!on){if(!WGE)return;const {sec,bar,off}=WGE;off();bar.remove();sec.classList.remove("wg-editing");document.body.classList.remove("wg-edit");wgUndecorate(sec);WGE=null;render();return}
+  if(WGE)wgEdit(false);const v=view,sec=$("view_"+v);if(!sec||!WG_VIEWS.includes(v))return;wgInit(sec);
+  const bar=el("div",{class:"wgbar",role:"toolbar","aria-label":"Úprava plochy"},
+    el("button",{type:"button",class:"btn btn--secondary btn--s",onclick:()=>wgGallery(v)},"+ Přidat"),
+    el("button",{type:"button",class:"btn btn--ghost btn--s",onclick:async()=>{if(!await confirmSheet("Vrátit plochu „"+(tabName(v)||v)+"“ do původního stavu?",{okLabel:"Vrátit"}))return;
+      const W={...(settings.widgets||{})};delete W[v];settings.widgets=W;wgSave();wgList(sec).forEach(w=>{if(!w.classList.contains("wg-note"))return;w.remove()});wgApply(v);toast("Plocha je zase výchozí")}},"Výchozí"),
+    el("button",{type:"button",class:"btn btn--primary btn--s",onclick:()=>wgEdit(false)},"Hotovo"));
+  document.body.append(bar);wgBarPos();
+  WGE={v,sec,bar,P:null,off:()=>{}};sec.classList.add("wg-editing");document.body.classList.add("wg-edit");wgApply(v);wgDecorate();
+  const S=()=>wgState(v,true);
+  const blocks=()=>wgList(sec).filter(w=>!w.classList.contains("wg-off"));
+  const chip=t=>el("div",{class:"wgchip"},t);
+  let raf=0,lastY=0;
+  const auto=()=>{raf=0;if(!WGE||!WGE.P||!WGE.P.drag)return;const y=lastY,H=innerHeight,e=90;let d=0;if(y<e)d=-Math.ceil((e-y)/6);else if(y>H-e)d=Math.ceil((y-(H-e))/6);if(d){scrollBy(0,d);move(WGE.P.x,WGE.P.y)}raf=requestAnimationFrame(auto)};
+  const start=()=>{const P=WGE.P;P.drag=true;P.el.classList.add("wg-ghost");sec.classList.add("wg-dragging");P.ch=chip(P.kind==="t"?wgTileName(P.el):wgName(P.el));document.body.append(P.ch);
+    try{navigator.vibrate&&P.touch&&navigator.vibrate(10)}catch(e){}move(P.x,P.y);if(!raf)raf=requestAnimationFrame(auto)};
+  const move=(x,y)=>{const P=WGE.P;P.x=x;P.y=y;lastY=y;P.ch.style.left=x+"px";P.ch.style.top=y+"px";
+    const me=P.el.getBoundingClientRect();if(x>=me.left&&x<=me.right&&y>=me.top&&y<=me.bottom)return;
+    if(P.kind==="t"){const sib=wgTileList(P.el.parentElement).filter(t=>t!==P.el&&!t.classList.contains("wg-off"));
+      for(const t of sib){const r=t.getBoundingClientRect();if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom){const ref=x>r.left+r.width/2?t.nextElementSibling:t;if(ref!==P.el)P.el.parentElement.insertBefore(P.el,ref);return}}return}
+    const sib=blocks().filter(w=>w!==P.el);if(!sib.length)return;let tg=null,after=false;
+    for(const w of sib){const r=w.getBoundingClientRect();if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom){tg=w;after=w.classList.contains("half")&&sec.classList.contains("wg-grid")&&getComputedStyle(sec).display==="grid"?x>r.left+r.width/2:y>r.top+r.height/2;break}}
+    if(!tg){const above=sib.filter(w=>w.getBoundingClientRect().top<y);tg=above.length?above[above.length-1]:sib[0];after=!!above.length}
+    const ref=after?tg.nextElementSibling:tg;if(ref!==P.el)sec.insertBefore(P.el,ref)};
+  const drop=()=>{const P=WGE.P;WGE.P=null;P.el.classList.remove("wg-ghost");sec.classList.remove("wg-dragging");if(P.ch)P.ch.remove();
+    if(P.kind==="t"){const c=P.el.parentElement,T=(S().t=S().t||{})[c.id]=S().t[c.id]||{};T.o=wgTileList(c).map(t=>t.dataset.wgk)}
+    else S().o=wgList(sec).map(w=>w.dataset.wg);
+    wgSave();wgApply(v)};
+  const tap=P=>{if(P.kind==="t")wgTileSheet(v,P.el);else wgBlockSheet(v,P.el)};
+  const pd=e=>{if(e.button>0||WGE.P)return;if(!sec.contains(e.target))return;const x=e.target.closest(".wgx");
+    if(x){e.preventDefault();e.stopPropagation();const t=x.parentElement;return t.classList.contains("tile")?wgHideTile(v,t):wgHideBlock(v,t)}
+    const t=e.target.closest(".wg .tiles[id]>.tile"),w=e.target.closest(".wg");if(!w)return;e.stopPropagation();if(e.pointerType==="mouse")e.preventDefault();
+    WGE.P={kind:t?"t":"b",el:t||w,x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,touch:e.pointerType!=="mouse",drag:false,tm:0};
+    if(WGE.P.touch)WGE.P.tm=setTimeout(()=>{if(WGE&&WGE.P&&!WGE.P.drag)start()},280)};
+  const pm=e=>{const P=WGE&&WGE.P;if(!P)return;const d=Math.hypot(e.clientX-P.x0,e.clientY-P.y0);
+    if(!P.drag){if(P.touch){if(d>8){clearTimeout(P.tm);WGE.P=null}return}if(d<5)return;P.x=e.clientX;P.y=e.clientY;start()}
+    e.preventDefault();move(e.clientX,e.clientY)};
+  const pu=()=>{const P=WGE&&WGE.P;if(!P)return;clearTimeout(P.tm);if(P.drag)drop();else{WGE.P=null;tap(P)}};
+  const pc=()=>{const P=WGE&&WGE.P;if(!P)return;clearTimeout(P.tm);if(P.drag)drop();else WGE.P=null};
+  const ck=e=>{if(sec.contains(e.target)){e.preventDefault();e.stopPropagation()}};
+  const tm=e=>{if(WGE&&WGE.P&&WGE.P.drag)e.preventDefault()};
+  const ky=e=>{if(e.key==="Escape"&&!document.querySelector("dialog[open]"))wgEdit(false)};
+  const cm=e=>{if(sec.contains(e.target))e.preventDefault()};
+  document.addEventListener("pointerdown",pd,true);addEventListener("pointermove",pm,{passive:false});addEventListener("pointerup",pu);addEventListener("pointercancel",pc);
+  document.addEventListener("click",ck,true);document.addEventListener("touchmove",tm,{passive:false});addEventListener("keydown",ky);document.addEventListener("contextmenu",cm,true);addEventListener("resize",wgBarPos);
+  WGE.off=()=>{document.removeEventListener("pointerdown",pd,true);removeEventListener("pointermove",pm);removeEventListener("pointerup",pu);removeEventListener("pointercancel",pc);
+    document.removeEventListener("click",ck,true);document.removeEventListener("touchmove",tm);removeEventListener("keydown",ky);document.removeEventListener("contextmenu",cm,true);removeEventListener("resize",wgBarPos);cancelAnimationFrame(raf)}}
+function wgHideBlock(v,w){const S=wgState(v,true),id=w.dataset.wg,nm=wgName(w);
+  if(w.classList.contains("wg-note")){const n=(S.n||[]).find(x=>x.id===id);S.n=(S.n||[]).filter(x=>x.id!==id);wgSave();wgApply(v);toast("Poznámka smazána",{action:["Vrátit",()=>{S.n=(S.n||[]).concat(n?[n]:[]);wgSave();wgApply(v)}]});return}
+  S.off=[...new Set((S.off||[]).concat(id))];wgSave();wgApply(v);toast("„"+nm+"“ odebráno z plochy",{action:["Vrátit",()=>{S.off=(S.off||[]).filter(x=>x!==id);wgSave();wgApply(v)}]})}
+function wgHideTile(v,t){const S=wgState(v,true),c=t.parentElement,k=t.dataset.wgk,nm=wgTileName(t),T=(S.t=S.t||{})[c.id]=S.t[c.id]||{};
+  T.off=[...new Set((T.off||[]).concat(k))];wgSave();wgApply(v);toast("Dlaždice „"+nm+"“ skrytá",{action:["Vrátit",()=>{T.off=(T.off||[]).filter(x=>x!==k);wgSave();wgApply(v)}]})}
+/* úprava bloku: název, šířka, dlaždice (zobrazit / název / pořadí); poznámka: nadpis a text */
+function wgBlockSheet(v,w){const S=wgState(v,true),id=w.dataset.wg;
+  if(w.classList.contains("wg-note")){const n=(S.n||[]).find(x=>x.id===id);if(!n)return;
+    const t=el("input",{type:"text","aria-label":"Nadpis poznámky",placeholder:"Poznámka"});t.value=n.t||"";t.oninput=()=>{n.t=t.value;wgSave();wgApply(v)};
+    const x=el("textarea",{rows:"5","aria-label":"Text poznámky",placeholder:"Text poznámky"});x.value=n.x||"";autoH(x);x.oninput=()=>{n.x=x.value;wgSave();wgApply(v)};
+    openSheet("Poznámka",[el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Nadpis"),t),el("div",{class:"frow col"},el("label",{},"Text"),x)),wgWidthGroup(v,id),
+      el("div",{class:"group"},el("button",{type:"button",class:"danger-row",onclick:()=>{$("edDlg").close();wgHideBlock(v,w)}},"Smazat poznámku"))]);return}
+  const nm=el("input",{type:"text","aria-label":"Název bloku",placeholder:wgName(w)});nm.value=(S.nm||{})[id]||"";
+  nm.oninput=()=>{S.nm={...(S.nm||{})};if(nm.value.trim())S.nm[id]=nm.value.trim();else delete S.nm[id];wgSave();wgApply(v)};
+  const tl=[...w.querySelectorAll(".tiles[id]")].map(c=>wgTilesEditor(v,c)).flat();
+  openSheet(wgName(w),[el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Název"),nm)),wgWidthGroup(v,id),...tl,
+    el("div",{class:"group"},el("button",{type:"button",class:"danger-row",onclick:()=>{$("edDlg").close();wgHideBlock(v,w)}},"Odebrat z plochy"))])}
+function wgWidthGroup(v,id){const S=wgState(v,true),seg=el("div",{class:"seg seg--block",role:"tablist","aria-label":"Šířka"});
+  const draw=()=>{const h=(S.half||[]).includes(id);seg.replaceChildren(...[["Celá šířka",false],["Polovina",true]].map(([t,on])=>el("button",{type:"button",role:"tab","aria-selected":String(h===on),onclick:()=>{S.half=(S.half||[]).filter(x=>x!==id);if(on)S.half.push(id);wgSave();wgApply(v);draw()}},t)))};draw();
+  return [el("h3",{class:"sechead"},"Šířka"),el("div",{class:"wgseg"},seg),el("p",{class:"hint wghint"},"Dva bloky na polovinu stojí vedle sebe. Na iPhonu je vše přes celou šířku.")]}
+function wgTilesEditor(v,c){const S=wgState(v,true),box=el("div",{class:"group"});
+  const draw=()=>{const T=(S.t=S.t||{})[c.id]=S.t[c.id]||{},ts=wgTileList(c),off=new Set(T.off||[]);
+    box.replaceChildren(...ts.map((t,i)=>{const k=t.dataset.wgk,inp=el("input",{type:"text","aria-label":"Název dlaždice",placeholder:t.dataset.wgl||wgTileName(t)});inp.value=(T.nm||{})[k]||"";
+      inp.oninput=()=>{T.nm={...(T.nm||{})};if(inp.value.trim())T.nm[k]=inp.value.trim();else delete T.nm[k];wgSave();wgTiles(c,T)};
+      const sw=el("input",{type:"checkbox",role:"switch",class:"switch","aria-label":"Zobrazit dlaždici "+wgTileName(t)});sw.checked=!off.has(k);
+      sw.onchange=()=>{T.off=(T.off||[]).filter(x=>x!==k);if(!sw.checked)T.off.push(k);wgSave();wgTiles(c,T)};
+      const mv=d=>{const ks=wgTileList(c).map(x=>x.dataset.wgk),j=i+d;if(j<0||j>=ks.length)return;[ks[i],ks[j]]=[ks[j],ks[i]];T.o=ks;wgSave();wgTiles(c,T);draw()};
+      return el("div",{class:"frow wgtr"},inp,el("button",{type:"button",class:"icon-btn icon-btn--plain","aria-label":"Posunout výš",disabled:i===0,onclick:()=>mv(-1)},"↑"),el("button",{type:"button",class:"icon-btn icon-btn--plain","aria-label":"Posunout níž",disabled:i===ts.length-1,onclick:()=>mv(1)},"↓"),sw)}))};
+  draw();return [el("h3",{class:"sechead"},"Dlaždice"),box]}
+function wgTileSheet(v,t){const c=t.parentElement,S=wgState(v,true),T=(S.t=S.t||{})[c.id]=S.t[c.id]||{},k=t.dataset.wgk;
+  const inp=el("input",{type:"text","aria-label":"Název dlaždice",placeholder:t.dataset.wgl||wgTileName(t)});inp.value=(T.nm||{})[k]||"";
+  inp.oninput=()=>{T.nm={...(T.nm||{})};if(inp.value.trim())T.nm[k]=inp.value.trim();else delete T.nm[k];wgSave();wgTiles(c,T)};
+  openSheet("Dlaždice",[el("div",{class:"group"},el("div",{class:"frow"},el("label",{},"Název"),inp)),el("p",{class:"hint"},"Prázdné = původní název. Hodnota se dál počítá sama."),
+    el("div",{class:"group"},el("button",{type:"button",class:"danger-row",onclick:()=>{$("edDlg").close();wgHideTile(v,t)}},"Skrýt dlaždici"))])}
+/* + Přidat: skryté bloky a dlaždice, nová poznámka */
+function wgGallery(v){const sec=$("view_"+v),S=wgState(v,true);
+  const row=(t,s,on)=>el("button",{type:"button",class:"row row-btn",onclick:()=>{on();$("edDlg").close()}},el("span",{class:"main"},el("div",{class:"t"},t),s?el("div",{class:"s"},s):null),el("span",{class:"wgplus","aria-hidden":"true"},"+"));
+  const hb=wgList(sec).filter(w=>w.classList.contains("wg-off")).map(w=>row(wgName(w),"blok",()=>{S.off=(S.off||[]).filter(x=>x!==w.dataset.wg);S.o=wgList(sec).map(x=>x.dataset.wg).filter(x=>x!==w.dataset.wg).concat(w.dataset.wg);wgSave();wgApply(v);setTimeout(()=>w.scrollIntoView({behavior:"smooth",block:"center"}),80)}));
+  const ht=[];sec.querySelectorAll(".wg .tiles[id]").forEach(c=>wgTileList(c).filter(t=>t.classList.contains("wg-off")).forEach(t=>ht.push(row(wgTileName(t),"dlaždice · "+wgName(c.closest(".wg")),()=>{const T=S.t[c.id];T.off=(T.off||[]).filter(x=>x!==t.dataset.wgk);wgSave();wgApply(v)}))));
+  const note=row("Poznámka","vlastní nadpis a text – připomínka, cíl, postup…",()=>{const n={id:"n"+Date.now().toString(36),t:"Poznámka",x:""};S.n=(S.n||[]).concat(n);S.o=wgList(sec).map(x=>x.dataset.wg).concat(n.id);wgSave();wgApply(v);
+    const w=wgList(sec).find(x=>x.dataset.wg===n.id);if(w){w.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>wgBlockSheet(v,w),360)}});
+  openSheet("Přidat na plochu",[hb.length?[el("h3",{class:"sechead"},"Skryté bloky"),el("div",{class:"group"},...hb)]:null,ht.length?[el("h3",{class:"sechead"},"Skryté dlaždice"),el("div",{class:"group"},...ht)]:null,
+    el("h3",{class:"sechead"},"Nové"),el("div",{class:"group"},note),!hb.length&&!ht.length?el("p",{class:"hint"},"Nic skrytého tu není – bloky a dlaždice odebrané přes ⊖ se objeví tady."):null])}
 /* záložka Kalkulačka – modul fincalc.js se načte až při prvním otevření */
 let calcUI=null,calcLoading=false;
 function renderCalc(){
@@ -2786,7 +2993,7 @@ function pushPlan(now){
       if(+X.afterS)add(st+ +X.afterS*60000,pxAfter(x,+X.afterS));
       {const nc=pxNewConf(x,now);if(nc&&nc.at<lim)out.push(nc)}})}
   /* úkoly s deadlinem a časem: upozornění v čas (nebo X min před) – jen otevřené */
-  try{if(typeof myTasks!=="undefined")myTasks.filter(x=>!x.hidden&&!x.done).forEach(x=>{const a=taskAt({due:x.due,time:x.dueTime});if(!a)return;const rm=+x.remind||0,tx=String(x.text||"").replace(/\s+/g," ").trim().slice(0,90);
+  try{if(typeof myTasks!=="undefined")myTasks.filter(x=>!x.hidden&&!x.done).forEach(x=>{const a=taskAt({due:x.due,time:x.dueTime});if(!a)return;const rm=0,tx=String(x.text||"").replace(/\s+/g," ").trim().slice(0,90);
     add(a-rm*60000,{t:"Úkol"+(rm?" za "+(rm>=1440?"den":rm>=60?rm/60+" h":rm+" min"):" – termín teď")+": "+tx,b:(x.client?x.client+" · ":"")+"deadline "+x.dueTime,u:"./?push=task",tag:"task-"+String(x.id).replace(/[^A-Za-z0-9]/g,"").slice(-24)})})}catch(e){}
   /* denní cíl jen pro dnešek – na budoucí dny ještě nevíme, kolik toho domluvíš */
   if(X.goal&&pxWork(t))add(pxAt(t,X.goal),pxGoal(t));
@@ -2826,7 +3033,7 @@ function afterMeetWho(o){
   if(!l&&!c&&name){const h=leads.filter(x=>sameName(x.name,name));if(h.length===1)l=h[0]}
   return {l,c,name:(c&&c.name)||(l&&l.name)||name,start:o.start||(ev&&ev.start)||""}}
 const meetDateTxt=s=>{const d=s?new Date(s):new Date();return d.getDate()+". "+(d.getMonth()+1)+". "+d.getFullYear()};
-async function afterMeetSave(o,noteTxt,taskTxt,due){
+async function afterMeetSave(o,noteTxt,taskTxt,due,time){
   const W=afterMeetWho(o),now=new Date().toISOString(),out={note:false,tasks:0};
   const txt=String(noteTxt||"").trim();
   if(txt){const head="Schůzka "+meetDateTxt(W.start),block=head+"\n"+txt;
@@ -2835,7 +3042,7 @@ async function afterMeetSave(o,noteTxt,taskTxt,due){
     else if(W.l){await db.doc("leads/"+W.l.id).update({note,updatedAt:now});await linkPushToClient(W.l.id,{note});out.note=true}
     if(W.l){const cl=leads.find(x=>x.id===W.l.id)||W.l;try{await db.doc("leads/"+cl.id).update({log:[...(cl.log||[]),{d:now,t:"Zápis ze schůzky "+meetDateTxt(W.start)}].slice(-100),lastContact:now})}catch(e){}}}
   {const TL=String(taskTxt||"").split(/\n+/).map(x=>x.replace(/^\s*([-•*–]|\d+[.)])\s*/,"").trim()).filter(Boolean).filter(t=>!(o.tasks&&t===String(o.tasks).trim()));/* úkol z okna úkolu už existuje – nezakládat znovu */
-    if(TL.length){await addClientTask({text:tkMerge(TL),client:W.name||"",due:due||"",leadId:W.l?W.l.id:""});out.tasks=TL.length}}
+    if(TL.length){await addClientTask({text:tkMerge(TL),client:W.name||"",due:due||"",leadId:W.l?W.l.id:"",dueTime:due&&time?time:"",remind:0});if(due&&time)try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}out.tasks=TL.length}}
   return {...out,who:W}}
 /* poznámky z bodů → hotové shrnutí pro klienta: odrážky očištěné, věty s velkým písmenem a tečkou, úkoly jako „Další kroky“ */
 function summaryMailText(name,start,notes,tasks,due){
@@ -2850,29 +3057,29 @@ function afterMeetSheet(o){
   const W=afterMeetWho(o),when=W.start?meetDateTxt(W.start)+(W.start.length>10?" · "+fmtHM(W.start):""):"";
   const notes=el("textarea",{rows:"6",placeholder:"Co jsme probrali, co klient chce, na co nezapomenout…","aria-label":"Poznámky ze schůzky"});
   const tasks=el("textarea",{rows:"4",placeholder:"Každý řádek = jeden úkol\nnapř. Poslat modelaci ŽP\nZavolat kvůli odhadu nemovitosti","aria-label":"Úkoly ze schůzky"});
-  const due=el("input",{type:"date","aria-label":"Deadline úkolů"});due.value=o.due||taskDefDue();
+  const dP=dlPick({due:o.due||taskDefDue(),time:"",label:"Deadline"});
   if(o.tasks)tasks.value=o.tasks;/* z okna úkolu: text úkolu rovnou jako „Další krok“ */
   const save=el("button",{type:"button",class:"g"},"Uložit");
   const target=W.c?"ke klientovi "+W.c.name:W.l?"k leadu "+W.l.name:null;
   save.onclick=async()=>{if(!notes.value.trim()&&!tasks.value.trim()){toast("Napiš poznámky nebo úkoly");notes.focus();return}
     if(notes.value.trim()&&!target){toast("Klienta se nepodařilo najít – poznámku nemám kam uložit");return}
     save.disabled=true;
-    try{const r=await afterMeetSave(o,notes.value,tasks.value,due.value);$("edDlg").close();
+    try{const r=await afterMeetSave(o,notes.value,tasks.value,dP.due,dP.time);$("edDlg").close();
       toast([r.note?"Poznámka uložena":"",r.tasks?pxN(r.tasks,"úkol","úkoly","úkolů")+" přidáno":""].filter(Boolean).join(" · ")||"Uloženo")}
     catch(e){save.disabled=false;toast("Nepodařilo se uložit")}};
   const mail=(W.l&&W.l.email)||(W.c&&W.c.email)||"";
   const sm=el("button",{type:"button",class:"chipbtn",style:"background:var(--accent);color:#fff"},"Uložit a poslat shrnutí e-mailem");
   sm.onclick=async()=>{if(!notes.value.trim()){toast("Napiš poznámky – ze samotných úkolů shrnutí nevznikne");notes.focus();return}
     if(!mail){toast("Klient nemá e-mail – doplň ho v kartě");return}
-    const M=summaryMailText(W.name,W.start,notes.value,tasks.value,due.value);sm.disabled=true;
-    try{await afterMeetSave(o,notes.value,tasks.value,due.value)}catch(e){sm.disabled=false;toast("Nepodařilo se uložit");return}
+    const M=summaryMailText(W.name,W.start,notes.value,tasks.value,dP.due);sm.disabled=true;
+    try{await afterMeetSave(o,notes.value,tasks.value,dP.due,dP.time)}catch(e){sm.disabled=false;toast("Nepodařilo se uložit");return}
     try{await navigator.clipboard.writeText(M.body)}catch(e){}
     const cl=W.l&&leads.find(x=>x.id===W.l.id);if(cl)try{logLeadMsg(cl,{ch:"E-mail",tpl:"Shrnutí schůzky",start:W.start})}catch(e){}
     $("edDlg").close();location.href="mailto:"+encodeURIComponent(mail)+"?subject="+encodeURIComponent(M.subject)+"&body="+encodeURIComponent(M.body)};
   openSheet("Schůzka: "+(W.name||"klient"),[
     when||target?el("p",{class:"hint"},[when,target?"poznámka se uloží "+target+" s nadpisem „Schůzka "+meetDateTxt(W.start)+"“":"klient nenalezen – uloží se jen úkoly"].filter(Boolean).join(" · ")):null,
     el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Poznámky"),notes)),
-    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkoly"),tasks),el("div",{class:"frow"},el("label",{},"Deadline"),due)),
+    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkoly"),tasks),dP.row,dP.pan),
     el("div",{class:"chips"},sm,W.l?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();setTimeout(()=>openEdit(leads.find(x=>x.id===W.l.id)||W.l),340)}},"Otevřít lead"):null)],{save:()=>save.onclick()});
   setTimeout(()=>{try{notes.focus()}catch(e){}},350)}
 /* klepnutí na notifikaci → rovnou na správné místo */
@@ -8723,6 +8930,7 @@ function renderTabsConfig(){
 function goTab(k){if(TAB_SUBS[k]&&tabOf(view)!==k){const last=lsGet("sub_"+k);if(last&&subsOf(k).includes(last))k=last}setView(k)}
 function viewOk(v){return visibleViews().includes(v)||(v==="users"&&isAdminUser())}
 function setView(v){
+  if(WGE&&WGE.v!==v)wgEdit(false);
   if(!viewOk(v)){const g=tabOf(v);v=visibleTabs().includes(g)&&TAB_SUBS[g]?subsOf(g)[0]:visibleTabs()[0]}
   if(v==="money"&&view!=="money")mixSpinPending=true;
   view=v;const g=tabOf(v);if(TAB_SUBS[g])lsSet("sub_"+g,v);
@@ -9479,6 +9687,37 @@ function asTaskRow(t){
 }
 async function asMyDone(t){try{const done=t.st!=="hotovo";await db.doc("mytasks/"+t.rid).update({done:done?new Date().toISOString():""});if(done)await leadFromTask(t,{done:true})}catch(e){toast("Nepodařilo se uložit")}}
 
+/* ---------- výběr deadlinu úkolu: minikalendář → den → čas (po půlhodinách 8:00–19:00) ----------
+   dlPick({due,time,label,clear,onPick}) → {row, pan, due, time}: řádek .frow s hodnotou, pod ním rozbalovací panel ve stejné skupině.
+   Výběrem času se zároveň zapnou push notifikace na tomto zařízení (upozornění je vždy v čas deadlinu). */
+const DL_SLOTS=(()=>{const a=[];for(let m=8*60;m<=19*60;m+=30)a.push(String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"));return a})();
+const DL_MON=["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
+const dlYmd=(y,m,d)=>y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+function dlTxt(due,time){if(!due)return "Vybrat termín";const d=new Date(due+"T12:00:00");return d.toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"})+(time?" · "+time:" · vyber čas")}
+/* push vždy: bez povolení / odběru na tomto zařízení se zapne (klepnutí na čas = gesto uživatele, iPhone ho pro povolení potřebuje) */
+function taskPushEnsure(){try{if(DEMO||!PUSH_URL||!pushCan()||!GAuth.token())return;const P=Notification.permission;if(P==="denied")return;
+  if(P!=="granted"){pushEnable();return}
+  pushSub().then(sub=>{if(!sub||!settings.pushOn)pushEnable();else pushSyncReminders(false,true).catch(()=>{})}).catch(()=>{})}catch(e){}}
+function dlPick(o){
+  let due=o.due||"",time=o.time||"",pd="",ym="";
+  const val=el("span",{class:"dlv"}),btn=el("button",{type:"button",class:"dlbtn","aria-expanded":"false"},val,ico("chevron","chev"));
+  const row=el("div",{class:"frow dlrow"},el("label",{},o.label||"Deadline"),btn),pan=el("div",{class:"dlpan",hidden:true});
+  const show=()=>{val.textContent=dlTxt(due,time);val.classList.toggle("dlnone",!due||!time);btn.setAttribute("aria-label",(o.label||"Deadline")+": "+dlTxt(due,time))};
+  const close=()=>{pan.hidden=true;btn.setAttribute("aria-expanded","false")};
+  const cal=()=>{const [y,m]=ym.split("-").map(Number),mi=m-1,first=(new Date(y,mi,1).getDay()+6)%7,n=new Date(y,mi+1,0).getDate(),t=todayStr(),cur=t.slice(0,7);
+    const nav=(d,lbl,dis)=>el("button",{type:"button",class:"icon-btn icon-btn--plain","aria-label":lbl,disabled:dis,onclick:()=>{const x=new Date(y,mi+d,1);ym=x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0");cal()}},el("span",{"aria-hidden":"true"},d<0?"‹":"›"));
+    const cells=[];for(let i=0;i<first;i++)cells.push(el("span"));
+    for(let d=1;d<=n;d++){const k=dlYmd(y,mi,d),wd=(first+d-1)%7;cells.push(el("button",{type:"button",class:(wd>4?"we":"")+(k===t?" today":"")+(k===(pd||due)?" sel":""),disabled:k<t,"aria-label":new Date(y,mi,d).toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"long"}),onclick:()=>{pd=k;times()}},String(d)))}
+    pan.replaceChildren(el("div",{class:"dlhd"},nav(-1,"Předchozí měsíc",ym<=cur),el("b",{},DL_MON[mi]+" "+y),nav(1,"Další měsíc",false)),
+      el("div",{class:"dlwd","aria-hidden":"true"},...["Po","Út","St","Čt","Pá","So","Ne"].map(x=>el("span",{},x))),el("div",{class:"dlgrid"},...cells),
+      ...(o.clear&&due?[el("button",{type:"button",class:"btn btn--ghost btn--s dlclr",onclick:()=>{due="";time="";pd="";show();close();o.onPick&&o.onPick("","")}},"Odebrat termín")]:[]))};
+  const times=()=>{const t=todayStr(),now=new Date(),nm=now.getHours()*60+now.getMinutes();
+    pan.replaceChildren(el("div",{class:"dlhd"},el("button",{type:"button",class:"btn btn--ghost btn--s",onclick:cal},"‹ Den"),el("b",{},new Date(pd+"T12:00:00").toLocaleDateString("cs-CZ",{weekday:"long",day:"numeric",month:"long"})),el("span",{class:"dlsp"})),
+      el("div",{class:"dltimes",role:"group","aria-label":"Čas deadlinu"},...DL_SLOTS.map(s=>{const [h,mm]=s.split(":").map(Number);
+        return el("button",{type:"button",class:pd===due&&s===time?"sel":"",disabled:pd===t&&h*60+mm<=nm,onclick:()=>{due=pd;time=s;show();close();taskPushEnsure();o.onPick&&o.onPick(due,time)}},s)})),
+      el("p",{class:"hint dlhint"},"Push notifikace přijde přesně v čas deadlinu."))};
+  btn.onclick=()=>{if(!pan.hidden)return close();pd="";ym=(due||todayStr()).slice(0,7);cal();pan.hidden=false;btn.setAttribute("aria-expanded","true");try{pan.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}};
+  show();return {row,pan,get due(){return due},get time(){return time}}}
 /* nový vlastní úkol */
 /* pole úkolu je vždy přesně tak vysoké, aby se do něj vešel celý text – ne víc, ne míň */
 function autoH(ta){ta.classList.add("autoh");ta.rows=1;const fit=()=>{if(!ta.isConnected)return;ta.style.height="auto";ta.style.height=ta.scrollHeight+"px"};
@@ -9487,9 +9726,7 @@ function autoH(ta){ta.classList.add("autoh");ta.rows=1;const fit=()=>{if(!ta.isC
 function asNewTask(preset){
   preset=preset||{};
   const text=el("textarea",{placeholder:"Co je potřeba udělat?","aria-label":"Text úkolu",rows:"1"});text.value=preset.text||"";autoH(text);
-  const due=el("input",{type:"date","aria-label":"Deadline"});due.value=preset.due||taskDefDue();
-  const tm=el("input",{type:"time","aria-label":"Čas deadlinu"});tm.value=preset.time||"";
-  const rmSel=el("select",{"aria-label":"Upozornění"},TASK_REMS.map(([v,l])=>el("option",{value:String(v)},l)));
+  const dP=dlPick({due:preset.due||taskDefDue(),time:preset.time||""});
   let client=preset.client?{n:preset.client}:null;
   const pk=asClientPicker(asAdvisorClients(),preset.client||"",c=>{client=c});
   let busy=false;
@@ -9497,24 +9734,21 @@ function asNewTask(preset){
   const save=async()=>{
     const tx=text.value.trim();if(!tx){$("edDlg").close();return}
     if(busy)return;busy=true;
-    try{await addClientTask({text:tx,client:client?client.n:"",due:due.value||"",dueTime:due.value&&tm.value?tm.value:"",remind:due.value&&tm.value?+rmSel.value:0});$("edDlg").close();toast(due.value&&tm.value?"Úkol uložen · upozorním "+(+rmSel.value?rmSel.options[rmSel.selectedIndex].text.toLowerCase():"v "+tm.value):"Úkol uložen");try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}}catch(e){toast("Nepodařilo se uložit")}finally{busy=false}
+    try{await addClientTask({text:tx,client:client?client.n:"",due:dP.due||"",dueTime:dP.due&&dP.time?dP.time:"",remind:0});$("edDlg").close();toast(dP.due&&dP.time?"Úkol uložen · push notifikace "+dlTxt(dP.due,dP.time):"Úkol uložen");try{pushSyncReminders(false,true).catch(()=>{})}catch(e){}}catch(e){toast("Nepodařilo se uložit")}finally{busy=false}
   };
   openSheet("Nový úkol",[
-    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),text),el("div",{class:"frow"},el("label",{},"Deadline"),due),el("div",{class:"frow"},el("label",{},"Čas"),tm),el("div",{class:"frow"},el("label",{},"Upozornit"),rmSel)),
+    el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),text),dP.row,dP.pan),
     el("h3",{class:"sechead"},"Klient"),pk.node],{save});
 }
 function asOpenMine(t){
   const tx=el("textarea",{rows:"1","aria-label":"Text úkolu"});tx.value=t.text;autoH(tx);tx.onchange=async()=>{try{const v=tx.value.trim()||t.text;await db.doc("mytasks/"+t.rid).update({text:v});await leadFromTask(t,{text:v});toast("Uloženo")}catch(e){toast("Nepodařilo se uložit")}};
-  const dd=el("input",{type:"date","aria-label":"Deadline"});dd.value=t.due||"";dd.onchange=async()=>{try{await db.doc("mytasks/"+t.rid).update({due:dd.value,...(dd.value?{}:{dueTime:"",remind:0})});await leadFromTask(t,{due:dd.value});toast("Uloženo")}catch(e){}};
-  const tt=el("input",{type:"time","aria-label":"Čas deadlinu"});tt.value=t.time||"";
-  const rs=el("select",{"aria-label":"Upozornění"},TASK_REMS.map(([v,l])=>el("option",{value:String(v)},l)));rs.value=String(t.rm||0);if(rs.value!==String(t.rm||0))rs.value="0";
-  const saveTime=async()=>{if(tt.value&&!dd.value){toast("Nejdřív nastav deadline (datum)");tt.value="";return}try{await db.doc("mytasks/"+t.rid).update({dueTime:tt.value||"",remind:tt.value?+rs.value:0});toast(tt.value?"Upozorním "+(+rs.value?rs.options[rs.selectedIndex].text.toLowerCase():"v "+tt.value):"Čas odstraněn");pushSyncReminders(false,true).catch(()=>{})}catch(e){toast("Nepodařilo se uložit")}};
-  tt.onchange=saveTime;rs.onchange=saveTime;
+  const dP=dlPick({due:t.due||"",time:t.time||"",clear:true,onPick:async(d,tm)=>{try{await db.doc("mytasks/"+t.rid).update({due:d,dueTime:d?tm:"",remind:0});await leadFromTask(t,{due:d});
+    toast(d&&tm?"Uloženo · push notifikace "+dlTxt(d,tm):"Termín odebrán");pushSyncReminders(false,true).catch(()=>{})}catch(e){toast("Nepodařilo se uložit")}}});
   const cl=t.client?(leads.find(l=>asNorm(l.name)===asNorm(t.client))||null):null;
   const del=el("button",{type:"button",class:"danger-row"},"Smazat úkol");
   del.onclick=async()=>{if(!await confirmSheet("Opravdu smazat?",{okLabel:"Smazat",danger:true}))return;try{if(String(t.rid).startsWith("auto_"))await db.doc("mytasks/"+t.rid).update({hidden:true});/* automatický úkol jen skrýt – jinak by ho další krok leadu založil znovu */
       else await db.doc("mytasks/"+t.rid).delete();$("edDlg").close();toast("Smazáno")}catch(e){}};
-  openSheet("Můj úkol",[el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),tx),el("div",{class:"frow"},el("label",{},"Deadline"),dd),el("div",{class:"frow"},el("label",{},"Čas"),tt),el("div",{class:"frow"},el("label",{},"Upozornit"),rs),
+  openSheet("Můj úkol",[el("div",{class:"group"},el("div",{class:"frow col"},el("label",{},"Úkol"),tx),dP.row,dP.pan,
       t.client?el("div",{class:"frow"},el("label",{},"Klient"),cl?el("button",{type:"button",class:"chipbtn",onclick:()=>{$("edDlg").close();openEdit(cl)}},t.client+" ›"):el("span",{class:"mrate"},t.client)):null),
     el("div",{class:"chips"},el("button",{type:"button",class:"chipbtn ok",onclick:async()=>{await asMyDone(t);$("edDlg").close()}},t.st==="hotovo"?"Znovu otevřít":"Označit jako hotové"),
       t.client?el("button",{type:"button",class:"chipbtn",style:"background:var(--accent);color:#fff",onclick:()=>{$("edDlg").close();setTimeout(()=>afterMeetSheet({name:t.client,leadId:cl&&cl.id,tasks:t.st==="hotovo"?"":t.text,due:t.due||""}),340)}},"Poslat shrnutí e-mailem"):null),
