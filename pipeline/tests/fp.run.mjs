@@ -107,6 +107,105 @@ const tests = {
     eq(errors, [], "bez chyb ve stránce");
     await ctx.close();
   },
+  async "upravit pojištění: připojištění přidat/odebrat, změna pojistných částek a měsíčního pojistného se promítne do shrnutí PDF, zpět na modelaci"() {
+    const { ctx, page, errors } = await open();
+    await page.evaluate(() => { window.__pr = 0; window.print = () => { window.__pr++; }; });
+    const sum = async () => { const n = await page.evaluate(() => window.__pr); await page.click("#bSum"); await page.waitForFunction(n => window.__pr === n + 1, n); const t = await page.$eval("#print", e => e.textContent); await page.evaluate(() => window.dispatchEvent(new Event("afterprint"))); return t; };
+    const before = await page.evaluate(() => ({ n: insCardList().length, mes: insCardList()[0].mes, rows: sumRows(insCardList()[0]).length }));
+    assert(before.n >= 1 && before.rows >= 2, "výchozí pojištění z modelace");
+    eq(await page.evaluate(() => inp().sum_poj || null), null, "nic se nezapsalo samo");
+    await page.evaluate(() => openPojEdit()); await page.waitForSelector("dialog.mdlg .pcard");
+    const c0 = "dialog.mdlg .pcard:nth-of-type(1)";
+    eq(await page.$$eval(c0 + " .pjr", r => r.length), before.rows, "řádek ke každému riziku");
+    /* změna pojistné částky prvního rizika + měsíčního pojistného */
+    await page.fill(c0 + " .pjr:nth-child(1) [data-f=pc]", "2 500 000"); await page.fill(c0 + " [data-f=mes]", "1 234");
+    /* přidání připojištění */
+    await page.click(c0 + " [data-a=add]");
+    await page.fill(c0 + " .pjr:last-child [data-f=nazev]", "Zvláštní připojištění XY"); await page.fill(c0 + " .pjr:last-child [data-f=pc]", "800000");
+    const o = await page.evaluate(() => { const c = insCardList()[0]; return { mes: c.mes, rows: sumRows(c) }; });
+    eq(o.mes, 1234, "měsíční pojistné přepsáno"); eq(o.rows.length, before.rows + 1, "přibylo připojištění");
+    eq(o.rows[0].pc, 2500000, "změněna pojistná částka"); eq(o.rows.at(-1), { nazev: "Zvláštní připojištění XY", pc: 800000, jedn: "Kč", typ: "" }, "nové připojištění");
+    await page.click("dialog.mdlg [data-a=pdf]"); await page.waitForFunction(() => window.__pr === 1);
+    let t = await page.$eval("#print", e => e.textContent); await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+    assert(/Zvláštní připojištění XY/.test(t) && /2\s?500\s?000/.test(t) && /1\s?234/.test(t), "ve shrnutí: nové připojištění, částka i pojistné");
+    eq(await page.evaluate(() => platbyRows().find(r => r.typ === "poj").mesicne), 1234, "platební údaje berou upravené pojistné");
+    /* uloženo do plánu */
+    assert(await page.evaluate(() => !!inp().sum_poj && Object.keys(inp().sum_poj).length === 1), "uloženo do plánu (sum_poj)");
+    /* odebrání řádku a návrat na modelaci */
+    await page.evaluate(() => openPojEdit()); await page.waitForSelector("dialog.mdlg .pcard");
+    await page.click(c0 + " .pjr:last-child [data-a=del]");
+    eq(await page.evaluate(() => sumRows(insCardList()[0]).length), before.rows, "připojištění odebráno");
+    await page.click(c0 + " [data-a=reset]");
+    eq(await page.evaluate(() => [inp().sum_poj && Object.keys(inp().sum_poj).length, insCardList()[0].mes]), [0, before.mes], "zpět na modelaci");
+    await page.click("dialog.mdlg [data-a=x]");
+    t = await sum(); assert(!/Zvláštní připojištění XY/.test(t), "po návratu na modelaci ve shrnutí není");
+    eq(errors, [], "bez chyb ve stránce"); await ctx.close();
+  },
+  async "upravit shrnutí (widgety): přetáhnout pole, ⊖ odebrat, + přidat skryté i vlastní text/dlaždice, úprava dlaždic a kroků, polovina šířky, výchozí rozložení"() {
+    const { ctx, page, errors } = await open();
+    const raw = ctx.pages()[0];
+    await page.evaluate(() => { window.__pr = 0; window.print = () => { window.__pr++; }; });
+    const sum = async () => { const n = await page.evaluate(() => window.__pr); await page.click("#bSum"); await page.waitForFunction(n => window.__pr === n + 1, n); const t = await page.$eval("#print", e => e.textContent); await page.evaluate(() => window.dispatchEvent(new Event("afterprint"))); return t; };
+    const order = () => page.$$eval("dialog.sedlg .sepi .cz > .blk[data-b]:not(.sedrag)", e => e.map(x => x.dataset.b));
+    const D = "dialog.sedlg";
+    await page.click("#bSumEd"); await page.waitForSelector(D + " .sepi .blk[data-b]");
+    eq(await order(), ["hodn", "kpi", "cile", "inv", "poj", "kroky"], "výchozí pořadí polí");
+    eq(await page.evaluate(() => inp().sum_layout || null), null, "otevření nic nezapíše");
+    eq(await page.$eval(D + " .sepi .blk[data-b=kpi]", e => getComputedStyle(e).animationName), "sejig", "pole se kývají jako widgety");
+    await raw.emulateMedia({ reducedMotion: "reduce" });   /* klikání v testu: Playwright čeká na nehybný prvek */
+    eq(await page.$eval(D + " .sepi .blk[data-b=kpi]", e => getComputedStyle(e).animationName), "none", "omezení pohybu kývání vypne");
+    /* přetažení myší: Další kroky nad Cíle */
+    const box = async id => (await page.$(`${D} .sepi .blk[data-b="${id}"]`)).boundingBox();
+    const a = await box("kroky"), b = await box("cile");
+    await raw.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await raw.mouse.down();
+    for (let i = 1; i <= 12; i++) await raw.mouse.move(a.x + a.width / 2, a.y + a.height / 2 + (b.y + 4 - (a.y + a.height / 2)) * i / 12);
+    await raw.mouse.up();
+    await page.waitForFunction(() => !document.querySelector("dialog.sedlg .sedrag"));
+    eq(await order(), ["hodn", "kpi", "kroky", "cile", "inv", "poj"], "kroky přetažené nad cíle");
+    eq(await page.evaluate(() => inp().sum_layout.bloky.map(x => x.id)), ["hodn", "kpi", "kroky", "cile", "inv", "poj"], "pořadí uloženo do plánu");
+    /* ⊖ odebere pole, + Přidat pole ho vrátí */
+    await page.click(`${D} .sepi .blk[data-b="inv"] .sebx`);
+    eq((await order()).includes("inv"), false, "investice odebrané");
+    await page.click(`${D} [data-a=add]`); await page.waitForSelector(`${D} .sepn [data-a=show][data-id=inv]`);
+    /* vlastní text */
+    await page.click(`${D} .sepn [data-a=new][data-t=text]`);
+    await page.fill(`${D} .sepn [data-f=nadpis]`, "Poznámka poradce"); await page.fill(`${D} .sepn [data-f=text]`, "Podpis smluv v úterý 10:00");
+    /* dlaždice s čísly */
+    await page.click(`${D} [data-a=add]`); await page.click(`${D} .sepn [data-a=new][data-t=dlazdice]`);
+    await page.fill(`${D} .sepn .selr:nth-of-type(1) [data-f="it.t"]`, "Daňová úspora"); await page.fill(`${D} .sepn .selr:nth-of-type(1) [data-f="it.v"]`, "7 200 Kč");
+    /* úprava KPI: hodnota první dlaždice, odebrání třetí */
+    await page.click(`${D} .sepi .blk[data-b="kpi"]`, { position: { x: 30, y: 30 } }); await page.waitForSelector(`${D} .sepn .selr`);
+    await page.fill(`${D} .sepn .selr:nth-of-type(1) [data-f="it.v"]`, "1 111 111 Kč");
+    await page.click(`${D} .sepn .selr:nth-of-type(3) [data-a=del]`);
+    /* kroky: vlastní krok, polovina šířky */
+    await page.click(`${D} .sepi .blk[data-b="kroky"]`, { position: { x: 30, y: 10 } }); await page.waitForSelector(`${D} .sepn [data-a=w2]`);
+    await page.click(`${D} .sepn [data-a=addi]`); await page.fill(`${D} .sepn .selr:last-of-type [data-f="it.s"]`, "Doložit výpis z účtu");
+    await page.click(`${D} .sepn [data-a=w2]`);
+    await page.waitForFunction(() => document.querySelector('dialog.sedlg .sepi .blk[data-b="kroky"]').classList.contains("half"));
+    const L = await page.evaluate(() => inp().sum_layout.bloky);
+    eq(L.find(x => x.id === "inv").off, true, "skryté pole v plánu");
+    assert(L.some(x => x.typ === "text" && x.text === "Podpis smluv v úterý 10:00") && L.some(x => x.typ === "dlazdice"), "vlastní pole v plánu");
+    eq(L.find(x => x.id === "kpi").items.map(x => x.k || "").join(), "maj,cf", "KPI bez třetí dlaždice");
+    await page.click(`${D} [data-a=x]`);
+    let t = await sum();
+    for (const w of ["Poznámka poradce", "Podpis smluv v úterý 10:00", "Daňová úspora", "7 200 Kč", "1 111 111 Kč", "Doložit výpis z účtu", "Volné cash flow"]) assert(t.includes(w), "ve shrnutí chybí: " + w);
+    assert(!t.includes("Investice a produkty") && !t.includes("Pravidelně měsíčně"), "odebrané pole / dlaždice ve shrnutí nejsou");
+    assert(t.indexOf("Další kroky") < t.indexOf("Cíle a jejich splnění"), "pořadí polí i v PDF");
+    assert(!/undefined|NaN|\[object/.test(t), "čistý text");
+    /* vrácení skrytého pole a výchozí rozložení */
+    await page.click("#bSumEd"); await page.waitForSelector(D + " .sepi .blk[data-b]");
+    await page.click(`${D} [data-a=add]`); await page.click(`${D} .sepn [data-a=show][data-id=inv]`);
+    assert((await order()).includes("inv"), "investice vrácené");
+    await page.click(`${D} [data-a=def]`); await page.click(`${D} [data-a=def]`);
+    eq(await order(), ["hodn", "kpi", "cile", "inv", "poj", "kroky"], "výchozí rozložení");
+    eq(await page.evaluate(() => inp().sum_layout || null), null, "výchozí = nic v plánu");
+    /* pole Pojištění otevře úpravu pojištění */
+    await page.click(`${D} .sepi .blk[data-b="poj"]`, { position: { x: 30, y: 10 } }); await page.click(`${D} .sepn [data-a=poj]`);
+    await page.waitForSelector("dialog.mdlg .pcard .pjr");
+    await page.click("dialog.mdlg [data-a=x]"); await page.click(`${D} [data-a=x]`);
+    t = await sum(); assert(t.includes("Investice a produkty") && !t.includes("Poznámka poradce"), "po výchozím rozložení je shrnutí podle plánu");
+    eq(errors, [], "bez chyb ve stránce"); await ctx.close();
+  },
   async "platební údaje: kontrola účtu (modulo 11, IBAN), QR jen z ověřených údajů, domluveno řídí 1. stranu, 2. strana s QR"() {
     const { ctx, page, errors } = await open();
     await page.evaluate(() => { window.__pr = 0; window.print = () => { window.__pr++; }; });
@@ -1528,7 +1627,7 @@ tests["mobil: přepínač Editor / Náhled, menu ⋯ (Shrnutí PDF, PDF, PowerPo
   await page.click('.mtabs [data-mt="view"]');
   eq(await page.evaluate(() => [!!$("#ed").offsetParent, document.getElementById("box").getBoundingClientRect().top < 400]), [false, true], "náhled hned nahoře");
   await page.click("#bMore");
-  eq(await page.$$eval("#moreMenu button", b => b.filter(x => x.offsetParent).map(x => x.id)), ["bDzM", "bPayM", "bSumM", "bPdf", "bPptx", "bExp"], "menu ⋯");
+  eq(await page.$$eval("#moreMenu button", b => b.filter(x => x.offsetParent).map(x => x.id)), ["bDzM", "bPayM", "bSumEdM", "bSumM", "bPdf", "bPptx", "bExp"], "menu ⋯");
   await page.evaluate(() => document.body.click()); eq(await page.evaluate(() => $("#moreMenu").hidden), true, "klepnutí vedle menu zavře");
   await page.click('.mtabs [data-mt="ed"]');
   await page.evaluate(() => goStep(3));

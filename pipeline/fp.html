@@ -139,9 +139,45 @@ dialog.mdlg{width:min(760px,100vw)}
 .mdlg .pck{display:flex;gap:var(--sp-2);align-items:center;font-size:var(--fs-m);cursor:pointer}
 .mdlg .pam{font-size:var(--fs-s);color:var(--ink-2)}
 .mdlg .pg{display:grid;grid-template-columns:2fr 1fr 1fr;gap:var(--sp-2)}.mdlg .pg2{grid-template-columns:1fr 1fr}
+.mdlg .pjr{grid-template-columns:2fr 1.2fr .8fr auto;align-items:end}.mdlg .pjrows{display:flex;flex-direction:column;gap:var(--sp-2)}.mdlg .pg2{align-items:end}
 .mdlg .pst{font-size:var(--fs-s);color:var(--ink-2);min-height:1.3em}.mdlg .pst.bad{color:var(--accent-text);font-weight:600}
 @media (max-width:640px){.mdlg .pg{grid-template-columns:1fr 1fr}.mdlg .pg>label:first-child{grid-column:1/-1}}
 .dzov{position:fixed;inset:0;z-index:200;background:var(--canvas)}
+/* Upravit shrnutí (widgety) */
+dialog.sedlg{width:min(1200px,100vw);height:min(94vh,100%)}
+.sedlg .sheet{height:100%}
+.sebody{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 380px}
+.sepv{display:flex;flex-direction:column;min-height:0;padding:var(--sp-3) var(--sp-4);gap:var(--sp-3)}
+.setb{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}.sehint{font-size:var(--fs-s);color:var(--ink-2)}
+.sewrap{flex:1;min-height:0;display:flex;justify-content:center;align-items:flex-start;overflow:hidden}
+.sepg{position:relative;flex:none;border-radius:6px;overflow:hidden;box-shadow:var(--shadow-pop);background:#161616}
+.sepi{position:absolute;left:0;top:0;width:794px;height:1123px;transform-origin:0 0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.sepn{border-left:.5px solid var(--line);overflow:auto;padding:var(--sp-4);display:flex;flex-direction:column;gap:var(--sp-3);background:var(--surface)}
+.sepn .sehd{display:flex;align-items:center;gap:var(--sp-2)}.sepn .sehd b{font-size:var(--fs-l);font-weight:600}.sepn .sp{flex:1}
+.sepn .sefl{display:flex;flex-direction:column;gap:6px;font-size:var(--fs-s);color:var(--ink-2)}
+.sepn .sechk{display:flex;gap:var(--sp-2);align-items:center;min-height:36px;font-size:var(--fs-m);color:var(--ink);cursor:pointer}.sepn .sechk input{width:20px;height:20px;margin:0;accent-color:var(--accent)}
+.sepn .selist{display:flex;flex-direction:column;gap:var(--sp-2)}
+.sepn .selr{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2);border:1px solid var(--line);border-radius:var(--r-m);padding:var(--sp-2) var(--sp-3) var(--sp-3)}
+.sepn .selr .seh{grid-column:1/-1;display:flex;align-items:center;gap:4px;font-size:var(--fs-s);color:var(--ink-2)}.sepn .selr .icon-btn{width:32px;height:32px}.sepn .selr .icon-btn[disabled]{opacity:.3}
+.sepn .selr label.f.w{grid-column:1/-1}
+.sepn .sefoot{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-2)}
+.sepn .segal{display:flex;flex-direction:column;gap:var(--sp-2);margin-bottom:var(--sp-3)}
+.sepn .segi{display:flex;align-items:center;gap:var(--sp-3);text-align:left;padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-m);background:var(--canvas);color:var(--ink);cursor:pointer}
+.sepn .segi:hover{border-color:var(--accent)}.sepn .segi>span{flex:1;display:flex;flex-direction:column;gap:2px}.sepn .segi small{color:var(--ink-2);font-size:var(--fs-s)}
+.sepn .segi i{font-style:normal;flex:none;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:20px;line-height:1}
+@media (max-width:899px){.sebody{display:block;overflow:auto}.sewrap{overflow:visible}.sepn{border-left:0;border-top:.5px solid var(--line)}}
+@keyframes sejig{0%{transform:rotate(-.3deg)}50%{transform:rotate(.3deg)}100%{transform:rotate(-.3deg)}}
+.sepi .blk{position:relative;cursor:grab;touch-action:pan-y;border-radius:8px}
+.sepi:not(.dragging) .blk{animation:sejig .34s ease-in-out infinite;animation-delay:var(--jd,0s)}
+.sepi .blk.sesel{outline:calc(2.5px*var(--is,1)) solid #F37520;outline-offset:calc(4px*var(--is,1))}
+.sepi.dragging,.sepi.dragging .blk{cursor:grabbing}
+.sepi .blk.seghost{opacity:.25}
+.sepi .blk.sedrag{position:absolute;z-index:5;pointer-events:none;transform:scale(1.03);box-shadow:0 18px 44px rgba(0,0,0,.65);background:#161616;outline:1px solid #F37520}
+.sepi .sebx{position:absolute;left:calc(-10px*var(--is,1));top:calc(-10px*var(--is,1));width:calc(26px*var(--is,1));height:calc(26px*var(--is,1));border-radius:50%;border:0;padding:0;background:#8e8e93;color:#fff;font:700 calc(20px*var(--is,1))/1 -apple-system,"Helvetica Neue",Arial,sans-serif;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.sepi .sebx:hover{background:#d93a2b}
+.sepi .blk>.sh:first-child,.sepi .blk>.q:first-child{padding-left:calc(18px*var(--is,1))}
+@media (prefers-reduced-motion:reduce){.sepi .blk{animation:none!important}}
+
 .dzov iframe{border:0;width:100%;height:100%;display:block}
 .off{padding:var(--sp-6);font-size:var(--fs-l)}
 
@@ -223,7 +259,7 @@ table.tcf th{padding:6px 12px}table.tcf td{padding:5px 12px}
 @media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);height:auto}.ed{border-right:0;overflow:visible;min-width:0}
   /* mobil: Editor / Náhled přepínačem (.seg) místo 2 600 px editoru nad náhledem */
   .top{padding:var(--sp-2) var(--sp-3);gap:var(--sp-1)}.top .tt,.top #bDz,.top .lt{display:none}
-  .top #bSum,.top #bPay{display:none}.top #bMail{width:44px;padding:0}.top .icon-btn{width:44px;height:44px}.menu .mob{display:flex}
+  .top #bSum,.top #bPay,.top #bSumEd{display:none}.top #bMail{width:44px;padding:0}.top .icon-btn{width:44px;height:44px}.menu .mob{display:flex}
   .mtabs{display:block;position:sticky;top:60px;z-index:15;padding:var(--sp-2) var(--sp-4);background:var(--bar-bg);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
   .mtabs .seg>button{min-height:40px}
   .wrap.m-ed .view,.wrap.m-view .ed{display:none}
@@ -252,9 +288,10 @@ table.tcf th{padding:6px 12px}table.tcf td{padding:5px 12px}
   <button class="btn btn--secondary" id="bMail" title="Shrnutí plánu pro klienta – text podle toho, co je v prezentaci (vynechané slidy se nepíšou)" aria-label="Poslat shrnutí"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="mail"></svg><span class="lt">Poslat shrnutí</span></button>
   <button class="btn btn--secondary" id="bSum" title="Celý plán na jedné stránce A4 (cíle, splnění, investice, DIP, produkty, pojištění) – uložit jako PDF" aria-label="Shrnutí PDF"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="lt">Shrnutí PDF</span></button>
   <button class="btn btn--secondary" id="bPay" title="Platební údaje k produktům (účet, VS, SS, částka) a „domluveno“ – přidá se druhá strana shrnutí s QR kódy" aria-label="Platební údaje"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="lt">Platební údaje</span></button>
+  <button class="btn btn--secondary" id="bSumEd" title="Upravit shrnutí PDF jako widgety – pole přetáhnout, upravit, odebrat nebo přidat (i pojištění: připojištění, částky, pojistné)" aria-label="Upravit shrnutí"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="lt">Upravit shrnutí</span></button>
   <button class="btn btn--primary" id="bPres"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="present"></svg>Prezentovat</button>
   <div class="more"><button class="icon-btn" id="bMore" aria-haspopup="true" aria-expanded="false" aria-label="Další možnosti" title="Další možnosti"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="more"></svg></button>
-   <div class="menu group" id="moreMenu" hidden role="menu"><button role="menuitem" class="row row-btn mob" id="bDzM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Dotazník</span></button><button role="menuitem" class="row row-btn mob" id="bPayM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Platební údaje</span></button><button role="menuitem" class="row row-btn mob" id="bSumM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Shrnutí PDF (A4)</span></button><button role="menuitem" class="row row-btn" id="bPdf"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="print"></svg><span class="main">PDF</span></button><button role="menuitem" class="row row-btn" id="bPptx" title="Export do PowerPointu s přechody Morph"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="present"></svg><span class="main">PowerPoint</span></button><button role="menuitem" class="row row-btn" id="bExp" title="Plán jako soubor .json (záloha)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="download"></svg><span class="main">Export plánu (.json)</span></button></div></div>
+   <div class="menu group" id="moreMenu" hidden role="menu"><button role="menuitem" class="row row-btn mob" id="bDzM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Dotazník</span></button><button role="menuitem" class="row row-btn mob" id="bPayM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Platební údaje</span></button><button role="menuitem" class="row row-btn mob" id="bSumEdM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Upravit shrnutí</span></button><button role="menuitem" class="row row-btn mob" id="bSumM"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="doc"></svg><span class="main">Shrnutí PDF (A4)</span></button><button role="menuitem" class="row row-btn" id="bPdf"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="print"></svg><span class="main">PDF</span></button><button role="menuitem" class="row row-btn" id="bPptx" title="Export do PowerPointu s přechody Morph"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="present"></svg><span class="main">PowerPoint</span></button><button role="menuitem" class="row row-btn" id="bExp" title="Plán jako soubor .json (záloha)"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" data-i="download"></svg><span class="main">Export plánu (.json)</span></button></div></div>
   <button class="done" id="bClose">Hotovo</button>
 </div>
 <div class="mtabs"><div class="seg seg--block" role="tablist"><button role="tab" data-mt="ed" aria-selected="true">Editor</button><button role="tab" data-mt="view" aria-selected="false">Náhled</button></div></div>
@@ -5988,27 +6025,46 @@ addEventListener("beforeunload",()=>{try{SCR.win&&!SCR.win.closed&&SCR.win.close
 $("#bPdf").onclick=()=>{flushUpdate();const p=$("#print");p.innerHTML=visFR().map(f=>`<div class="pp"><div class="stage"><div class="sl">${f.h}</div></div></div>`).join("");setTimeout(()=>window.print(),300)};
 /* Shrnutí PDF: celý plán na jedné stránce A4 (vzhled prezentace: tmavé pozadí, oranžová) – tlačítko „Shrnutí PDF“, tisk → uložit jako PDF.
    Bere stejná data jako slidy (R) a respektuje „vynechat slide“: sekce, jejíž slidy jsou vynechané, na stránce není. */
+/* pole (bloky) první strany shrnutí jako widgety: pořadí, skrytí, šířka, nadpis a obsah – „Upravit shrnutí“; v plánu jako sum_layout.bloky
+   Výchozí bloky mají id podle obsahu, vlastní (typ text / dlazdice) id "x…". Výchozí blok, který v uloženém rozložení chybí, se přidá na konec. */
+const SUM_BLK={hodn:"Hodnoty a motivace",kpi:"Přehled v číslech",cile:"Cíle a jejich splnění",inv:"Investice a produkty",poj:"Pojištění",kroky:"Další kroky"};
+const SUM_DESC={hodn:"motto klienta a tři hodnoty",kpi:"majetek v plánu, volné cash flow, měsíční platba",cile:"tabulka cílů a jejich splnění",inv:"struktura nyní → nově, produkty, DIP",poj:"karty pojištění po osobách",kroky:"očíslované následné kroky"};
+const SUM_NEW={text:"Vlastní text",dlazdice:"Dlaždice s čísly"};
+const sumCanHalf=t=>/^(hodn|kpi|poj|kroky|text|dlazdice)$/.test(t);
+const sumName=b=>(b&&String(b.nadpis||"").trim())||SUM_BLK[b.id]||SUM_NEW[b.typ]||"Pole";
+let SUM_D={};
+function sumLayout(){
+  const raw=((inp().sum_layout||{}).bloky)||[],seen=new Set(),L=[];
+  raw.forEach(b=>{if(!b||!b.id||seen.has(b.id))return;if(b.typ?!SUM_NEW[b.typ]:!SUM_BLK[b.id])return;seen.add(b.id);L.push(JSON.parse(JSON.stringify(b)))});
+  Object.keys(SUM_BLK).forEach(id=>{if(!seen.has(id))L.push({id})});return L}
+function setSumLayout(L){
+  const I=inp(),ids=Object.keys(SUM_BLK),out=L.map(b=>{const o={};Object.keys(b).forEach(k=>{const v=b[k];if(v==null||v===false||v===""||(k==="skryt"&&!v.length))return;o[k]=v});return o});
+  if(out.length===ids.length&&out.every((b,i)=>b.id===ids[i]&&Object.keys(b).length===1))delete I.sum_layout;else I.sum_layout={bloky:out};
+  save()}
 const SUM_KONTAKT="Vojtěch Kudlička · ZFP Consulting · 774 222 617 · vojtech.kudlicka@zfpa.cz · www.zfpconsulting.cz";
-function summaryHTML(){
+function summaryHTML(opts){opts=opts||{};
   const I=inp(),K=R.persons[0],noIns=!!((I.nastaveni||{}).bez_pojisteni);
+  const LY=sumLayout(),LB={};LY.forEach(b=>LB[b.id]=b);const ttlOf=(b,d)=>(b&&String(b.nadpis||"").trim())||d;
   /* „Domluveno“ (Platební údaje): co není domluvené, na první straně není – ani v tabulce produktů, DIP, krocích, pojištění a měsíční platbě */
   const PR=platbyRows(),agr=key=>((I.platby||{})[key]||{}).ok!==false,isOff=ref=>PR.some(r=>r.ref===ref&&!agr(r.key)),anyOff=PR.some(r=>!agr(r.key));
   const offMes=PR.filter(r=>r.typ==="inv"&&!agr(r.key)).reduce((a,r)=>a+r.ref.mesicne-(r.ref.dipExtra||0),0);
-  const cardsAll=insCardList(),cardsOn=cardsAll.filter(c=>agr(c.key)),pojSum=cardsOn.length===cardsAll.length?R.pojNove:cardsOn.reduce((a,c)=>a+c.mes,0);
+  const cardsAll=insCardList(),cardsOn=cardsAll.filter(c=>agr(c.key)),pojSum=cardsOn.length===cardsAll.length&&!cardsAll.some(c=>c.mes0!=null)?R.pojNove:cardsOn.reduce((a,c)=>a+c.mes,0);
   const vg=re=>FR.some(f=>!f.skip&&re.test(f.g.replace(/^o\d/,"")));
   const parts=R.odd?R.odd.map(o=>({jm:o.jmeno.split(" ")[0],R:o.R})):[{jm:"",R}],multi=parts.length>1,pre=p=>multi?p.jm+": ":"";
   const sum=f=>parts.reduce((a,p)=>a+(+f(p.R)||0),0),r1000=x=>Math.round(x/1000)*1000;
   const ttl=(K.titul?K.titul+" ":""),names=R.persons.length>1?R.persons.map(p=>p.jmeno.split(" ")[0]).join(" a "):ttl+K.jmeno;
   const dt=new Date().toLocaleDateString("cs-CZ",{day:"numeric",month:"long",year:"numeric"});
   const sec=(t,r)=>`<div class="sh"><span>${t}</span><i></i>${r?`<b>${r}</b>`:""}</div>`;
-  /* hodnoty z první schůzky */
-  let hodn="";
-  if(vg(/^h$/)&&(I.motivace||"").trim()){
-    const hv=I.hodnoty_vlastni?(I.hodnoty||[]).concat([{},{},{}]).slice(0,3).map((v,i)=>({t:v.t||R.motivace[i].t,d:v.d||R.motivace[i].d})):R.motivace;
-    hodn=`<div class="q"><span>„</span>${esc(I.motivace)}</div><div class="vals">${hv.map(v=>`<div><b>${esc(v.t||"")}</b><small>${esc(v.d||"")}</small></div>`).join("")}</div>`}
-  /* KPI */
-  const jednor=sum(Q=>Q.pozice.reduce((a,p)=>a+p.jednor,0)),pmt=Math.max(0,sum(Q=>Q.pmtCelkem)-offMes);
-  const kpi=[["Do plánu použito",kc(sum(Q=>Q.majCelkem)),"veškerý finanční majetek – i to, co zůstává beze změny"],["Volné cash flow",kcm(sum(Q=>Q.cf)),"měsíčně k dispozici"],["Pravidelně měsíčně",kcm(pmt),"investice z cash flow"+(pojSum>0&&!noIns&&vg(/^(zp\d|deti)$/)?" + pojištění "+kc(pojSum):"")]];
+  /* hodnoty z první schůzky (v „Upravit shrnutí“ jde přepsat motto i hodnoty) */
+  const RM=R.motivace||[],hv0=I.hodnoty_vlastni?(I.hodnoty||[]).concat([{},{},{}]).slice(0,3).map((v,i)=>({t:v.t||(RM[i]||{}).t,d:v.d||(RM[i]||{}).d})):RM;
+  let hodn="";{const b=LB.hodn,mot=String(b.motto!=null&&String(b.motto).trim()?b.motto:I.motivace||"").trim(),hv=(b.items||hv0).filter(v=>v&&(String(v.t||"").trim()||String(v.d||"").trim()));
+    if(mot&&(vg(/^h$/)||b.motto!=null||b.items))hodn=(b.nadpis?sec(esc(b.nadpis)):"")+`<div class="q"><span>„</span>${esc(mot)}</div>`+(hv.length?`<div class="vals" style="grid-template-columns:repeat(${hv.length},minmax(0,1fr))">${hv.map(v=>`<div><b>${esc(v.t||"")}</b><small>${esc(v.d||"")}</small></div>`).join("")}</div>`:"")}
+  /* KPI: výchozí dlaždice mají klíč (k) – co poradce nepřepíše, bere se pořád z plánu */
+  const pmt=Math.max(0,sum(Q=>Q.pmtCelkem)-offMes);
+  const KPI0={maj:["Do plánu použito",kc(sum(Q=>Q.majCelkem)),"veškerý finanční majetek – i to, co zůstává beze změny"],cf:["Volné cash flow",kcm(sum(Q=>Q.cf)),"měsíčně k dispozici"],pmt:["Pravidelně měsíčně",kcm(pmt),"investice z cash flow"+(pojSum>0&&!noIns&&vg(/^(zp\d|deti)$/)?" + pojištění "+kc(pojSum):"")]};
+  const tileVals=items=>items.map(t=>{const d=KPI0[t.k]||["","",""],g=f=>t[f]!=null&&String(t[f]).trim()!==""?String(t[f]):null;return [g("t")!=null?g("t"):d[0],g("v")!=null?g("v"):d[1],g("d")!=null?g("d"):d[2]]}).filter(x=>x[0]||x[1]);
+  const tilesHTML=(arr,ttl)=>arr.length?(ttl?sec(esc(ttl)):"")+`<div class="kp" style="grid-template-columns:repeat(${arr.length},minmax(0,1fr))">${arr.map(k=>`<div><span>${esc(k[0])}</span><b>${esc(k[1])}</b><small>${esc(k[2])}</small></div>`).join("")}</div>`:"";
+  const kpiHTML=tilesHTML(tileVals(LB.kpi.items||Object.keys(KPI0).map(k=>({k}))),LB.kpi.nadpis);
   /* cíle a splnění */
   const rows=[];
   parts.forEach(p=>{const Q=p.R,pr=pre(p);
@@ -6016,10 +6072,12 @@ function summaryHTML(){
     Q.cile.forEach(c=>rows.push({n:pr+c.nazev,kdy:Math.round(c.months/12)+" let",cil:kc(c.kraceno?c.dosazitelne:c.castka),cil0:c.kraceno?c.castka:0,vys:kc(c.splneni>=0.995&&c.splneni<1.08?c.castka:r1000(c.vysledek)),v:c.vklad,p:c.pmt,s:c.kraceno?100:splPct(c.splneni)}));
     if(Q.renta){const r=Q.renta;rows.push({n:pr+"Renta",sub:rentaTxt(r),kdy:Math.round(r.months/12)+" let",cil:kc(r1000(r.kap)),vys:kc(r1000(r.splneni>=0.995&&r.splneni<1.08?r.kap:r.vysledek)),v:(r.vklad||0)+(r.dpsVal||0),p:r.pmt+(Q.keepMes||0)+(Q.prispVlastni||0),s:r.kraceno?100:splPct(r.splneni)})}});
   const kaskada=parts.some(p=>p.R.cile.concat(p.R.renta?[p.R.renta]:[]).some(g=>g.flowTake>0.5)||(p.R.rez.flowTake>0.5));
-  const goalsHTML=!rows.length||!vg(/^p2?$/)?"":sec("Cíle a jejich splnění",`celkem měsíčně ${kcm(rows.reduce((a,r)=>a+r.p,0))}`)+
+  const rowsAll=rows.slice(),skr=new Set(LB.cile.skryt||[]);rows.splice(0,rows.length,...rowsAll.filter(r=>!skr.has(r.n)));
+  const cileNt="Cíle v dnešních cenách; vstupní poplatky produktů jsou započteny v každém vkladu."+(kaskada?" Platba splněného cíle se přelévá do dalšího cíle.":"");
+  const goalsHTML=!rows.length||!vg(/^p2?$/)?"":sec(esc(ttlOf(LB.cile,"Cíle a jejich splnění")),`celkem měsíčně ${kcm(rows.reduce((a,r)=>a+r.p,0))}`)+
     `<div class="gt"><div class="gh"><span>Co</span><span>Kdy</span><span class="r">Cíl</span><span class="r">Jedn. vklad</span><span class="r">Prav. platba</span><span class="r">Výsledek</span><span class="r">Splnění</span></div>`+
     rows.map(r=>`<div class="gr"><span class="n"><b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:""}</span><span class="c">${esc(r.kdy)}</span><span class="r">${r.cil}${r.cil0?`<small>původně ${kc(r.cil0)}</small>`:""}</span><span class="r o">${r.v>0.5?kc(r.v):"–"}</span><span class="r o">${r.p>0.5?kcm(r.p):"–"}</span><span class="r">${r.vys}</span><span class="pb"><i style="width:${Math.max(0,Math.min(100,r.s))}%"></i><em>${r.s} %</em></span></div>`).join("")+`</div>`+
-    `<div class="nt">Cíle v dnešních cenách; vstupní poplatky produktů jsou započteny v každém vkladu.${kaskada?" Platba splněného cíle se přelévá do dalšího cíle.":""}</div>`;
+    `<div class="nt">${esc(String(LB.cile.pozn||"").trim()||cileNt)}</div>`;
   /* investice: alokace nyní → nově, produkty, DIP */
   const inv=vg(/^(a|st|tx|to|r2|pf)$/)&&parts.some(p=>p.R.pozice.length);
   let invHTML="";
@@ -6031,17 +6089,18 @@ function summaryHTML(){
     pos.sort((a,b)=>(b.jednor+b.mesicne*12)-(a.jednor+a.mesicne*12));
     const keep=[];parts.forEach(p=>(p.R.produkty||[]).filter(x=>!x.novy&&x.zust>0.5).forEach(x=>keep.push(pre(p)+x.nazev+" "+kc(x.zust))));
     const dipM=pos.filter(x=>x.dip).reduce((a,x)=>a+x.mesicne,0),dan=R.S.dan||0.15,capM=R.S.dip_strop||4000;
-    invHTML=sec("Investice a produkty")+`<div class="iv"><div><div class="legend">${NM.map((n,i)=>`<span><i style="background:${COL[i]}"></i>${n}</span>`).join("")}</div>${bar("Nyní",ted)}${bar("Nově",nove)}
-      ${keep.length?`<div class="nt" style="margin-top:6px">Ponecháno (v plánu se s tím počítá): ${esc(keep.join(" · "))}</div>`:""}</div>
+    const bA=!!LB.inv.bezAlok;
+    invHTML=sec(esc(ttlOf(LB.inv,"Investice a produkty")))+`<div class="iv"${bA?' style="grid-template-columns:1fr"':""}>${bA?"":`<div><div class="legend">${NM.map((n,i)=>`<span><i style="background:${COL[i]}"></i>${n}</span>`).join("")}</div>${bar("Nyní",ted)}${bar("Nově",nove)}
+      ${keep.length?`<div class="nt" style="margin-top:6px">Ponecháno (v plánu se s tím počítá): ${esc(keep.join(" · "))}</div>`:""}</div>`}
       <div class="pt"><div class="ph"><span>Produkt</span><span class="r">Jednorázově</span><span class="r">Měsíčně</span></div>${pos.map(x=>`<div class="pr"><span>${esc(x.pre+x.nazev)}</span><span class="r o">${x.jednor>.5?kc(x.jednor):"–"}</span><span class="r o">${x.mesicne>.5?kc(x.mesicne):"–"}</span></div>`).join("")||`<div class="pr"><span>Zatím nic domluveno</span><span></span><span></span></div>`}${anyOff?`<div class="nt">Jen to, na čem jsme se domluvili.</div>`:""}</div></div>`+
-      (dipM>0?`<div class="dip"><b>DIP – dlouhodobý investiční produkt</b><span>${kcm(dipM)} → daňová úspora asi <b>${kc(Math.round(dipM*12*dan))}</b> ročně. Vklady do ${kc(capM*12)} ročně (${kcm(capM)}) si odečtete od základu daně (${Math.round(dan*100)} %).</span></div>`:"")}
+      (dipM>0&&!LB.inv.bezDip?`<div class="dip"><b>DIP – dlouhodobý investiční produkt</b><span>${kcm(dipM)} → daňová úspora asi <b>${kc(Math.round(dipM*12*dan))}</b> ročně. Vklady do ${kc(capM*12)} ročně (${kcm(capM)}) si odečtete od základu daně (${Math.round(dan*100)} %).</span></div>`:"")}
   /* pojištění */
   let insHTML="";const N=R.nn;
   if(!noIns&&R.pojNove>0&&N&&vg(/^(zp\d|deti)$/)){
     const pi0=pojInfo(N);
-    const card=(o,mes,t)=>{const rs=nnRows(o);return `<div class="ic"><div class="ih"><b>${esc(t)}</b><span>${kcm(mes)}</span></div>${rs.map(r=>`<div class="ir"><span>${esc(r.nazev)}</span><b>${r.typ==="poplatek"?"–":r.jedn==="Kč/den"?fmt(r.pc)+NB+"Kč/den":kc(r.pc)}</b></div>`).join("")}</div>`};
-    const cards=cardsOn.map(c=>card(c.o,c.mes,c.t));
-    if(cards.length)insHTML=sec("Pojištění",`<img src="${pi0.logo()}" alt="${esc(pi0.alt)}"> celkem ${kcm(pojSum)}`)+`<div class="ig" style="grid-template-columns:repeat(${cards.length<=3?cards.length:2},minmax(0,1fr))">${cards.join("")}</div>`+
+    const card=c=>{const mes=c.mes,t=c.t,rs=sumRows(c);return `<div class="ic"><div class="ih"><b>${esc(t)}</b><span>${kcm(mes)}</span></div>${rs.map(r=>`<div class="ir"><span>${esc(r.nazev)}</span><b>${r.typ==="poplatek"?"–":r.jedn==="Kč/den"?fmt(r.pc)+NB+"Kč/den":kc(r.pc)}</b></div>`).join("")}</div>`};
+    const cards=cardsOn.map(card);
+    if(cards.length)insHTML=sec(esc(ttlOf(LB.poj,"Pojištění")),`<img src="${pi0.logo()}" alt="${esc(pi0.alt)}"> celkem ${kcm(pojSum)}`)+`<div class="ig" style="grid-template-columns:repeat(${cards.length<=3?cards.length:2},minmax(0,1fr))">${cards.join("")}</div>`+
       (R.nnFit&&R.nnFit.celkem>0&&R.nn.celkem>R.nnFit.celkem&&R.fitPlan?`<div class="nt">V plánu počítáme s cenou po slevě (${N.pojistovna==="koop"?"zdravý životní styl":"FitSport"}).</div>`:"")}
   /* následné kroky */
   const Ks=[];
@@ -6049,12 +6108,25 @@ function summaryHTML(){
   if(insHTML){const ma=(R.poj&&R.poj[0]&&R.poj[0].stav>0)||(I.majetek||[]).some(a=>/Životní pojištění/.test(a.typ||""));Ks.push(ma?"Zrušení stávajícího životního pojištění – realizace nového":"Sjednání životního pojištění")}
   parts.forEach(p=>(p.R.produkty||[]).filter(x=>/Vypov/.test(x.pozn||"")).forEach(x=>Ks.push(pre(p)+"Výpověď: "+x.nazev+" – peníze jdou do plánu")));
   if(parts.some(p=>p.R.transakce.some(t=>t.bezpoplatku)))Ks.push("Převod penzijního připojištění do DPS");
-  const stepsHTML=Ks.length&&vg(/^(z|tx|to)$/)?sec("Další kroky")+`<div class="ks">${Ks.map((k,i)=>`<div><b>${i+1}</b><span>${esc(k)}</span></div>`).join("")}</div>`:"";
+  const kb=LB.kroky,Ku=kb.items?kb.items.map(x=>String((x&&x.s)||"").trim()).filter(Boolean):null,Kv=Ku||(vg(/^(z|tx|to)$/)?Ks:[]);
+  const stepsHTML=Kv.length?sec(esc(ttlOf(kb,"Další kroky")))+`<div class="ks">${Kv.map((k,i)=>`<div><b>${i+1}</b><span>${esc(k)}</span></div>`).join("")}</div>`:"";
+  /* výchozí obsah pro editor („Upravit shrnutí“) */
+  SUM_D={kpi:KPI0,hodn:hv0.map(v=>({t:v.t||"",d:v.d||""})),motto:I.motivace||"",kroky:Ks.slice(),cile:rowsAll.map(r=>r.n),cileNt};
+  const BH={hodn,kpi:kpiHTML,cile:goalsHTML,inv:invHTML,poj:insHTML,kroky:stepsHTML};
+  const own=b=>b.typ==="text"?(String(b.nadpis||"").trim()||String(b.text||"").trim()?(String(b.nadpis||"").trim()?sec(esc(b.nadpis)):"")+(String(b.text||"").trim()?`<div class="tx">${esc(String(b.text).trim())}</div>`:""):"")
+    :b.typ==="dlazdice"?tilesHTML(tileVals(b.items||[]),String(b.nadpis||"").trim()):"";
+  const blk=LY.filter(b=>!b.off).map(b=>{const t=b.typ||b.id;let h=b.typ?own(b):BH[b.id]||"",emp=!h;if(emp&&!opts.edit)return "";
+    if(emp)h=sec(esc(sumName(b)))+`<div class="nt">Bez obsahu${b.typ?"":" (vynechané slidy nebo chybí data)"} – do PDF se nedostane.</div>`;
+    return `<div class="blk${b.half&&sumCanHalf(t)?" half":""}${emp?" emp":""}" data-b="${esc(b.id)}">${h}</div>`}).join("");
   const css=`<style>
 .a4pg{width:210mm;height:296mm;position:relative;overflow:hidden;background:#161616;break-after:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .a4s{position:absolute;left:0;top:0;width:794px;height:1123px;box-sizing:border-box;padding:30px 30px 0;color:#efefef;font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,"Segoe UI",sans-serif;font-size:10px;line-height:1.45;background:#161616}
 .a4s *{box-sizing:border-box}.a4s b{font-weight:700}.a4s small{display:block;font-size:8px;color:#9a9a9a;font-weight:400}.a4s .r{text-align:right}.a4s .o{color:#F37520;font-weight:700}
-.a4s .cz{zoom:1}.a4s.dn .vals{display:none}.a4s.dn .gr{padding:2.5px 0}.a4s.dn .gr .n small{display:none}.a4s.dn .pr{padding:2px 0}.a4s.dn .ks{gap:3px 14px}.a4s.dn .ir{padding:1px 0}.a4s.dn .kp{margin:8px 0 2px}.a4s.dn .sh{margin:8px 0 4px}.a4s .tp{position:absolute;left:0;top:0;width:100%;height:9px;background:#F37520}
+.a4s .cz{zoom:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14px;align-items:start;position:relative}
+.a4s .blk{grid-column:1/-1;min-width:0}.a4s .blk.half{grid-column:auto}.a4s .blk.emp{opacity:.45}
+.a4s .blk.half .ig,.a4s .blk.half .vals{grid-template-columns:minmax(0,1fr)!important}.a4s .blk.half .ks{grid-template-columns:1fr}.a4s .blk.half .kp{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))!important}
+.a4s .tx{background:#202020;border:1px solid #2e2e2e;border-radius:8px;padding:7px 10px;font-size:10px;color:#d6d6d6;white-space:pre-wrap;overflow-wrap:anywhere}
+.a4s.dn .vals{display:none}.a4s.dn .gr{padding:2.5px 0}.a4s.dn .gr .n small{display:none}.a4s.dn .pr{padding:2px 0}.a4s.dn .ks{gap:3px 14px}.a4s.dn .ir{padding:1px 0}.a4s.dn .kp{margin:8px 0 2px}.a4s.dn .sh{margin:8px 0 4px}.a4s .tp{position:absolute;left:0;top:0;width:100%;height:9px;background:#F37520}
 .a4s .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-top:4px}.a4s .hd .l{color:#F37520;font-weight:700;font-size:10px;letter-spacing:1.2px}
 .a4s .hd h1{margin:4px 0 2px;font-size:30px;line-height:1.08;font-weight:700;letter-spacing:-.4px}.a4s .hd p{margin:0;color:#b4b4b4;font-style:italic;font-size:11px}.a4s .hd img{width:104px;margin-top:2px}
 .a4s .q{margin:10px 0 6px;font-style:italic;color:#d6d6d6;font-size:10.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.a4s .q span{color:#F37520;font-weight:700;font-size:16px;line-height:0;margin-right:4px}
@@ -6080,11 +6152,10 @@ ${PAY_CSS}
 </style>`;
   return css+`<div class="a4pg"><div class="a4s${rows.length>7?" dn":""}"><div class="tp"></div>
    <div class="hd"><div><div class="l">FINANČNÍ PLÁN · SHRNUTÍ</div><h1>${esc(names)}</h1><p>Komplexní strategie pro Vaše finanční cíle</p></div><img src="${LOGO_URL}" alt=""></div>
-   ${hodn}<div class="kp">${kpi.map(k=>`<div><span>${k[0]}</span><b>${k[1]}</b><small>${k[2]}</small></div>`).join("")}</div>
-   <div class="cz">${goalsHTML}${invHTML}${insHTML}${stepsHTML}</div>
-   <div class="ft"><span>${esc(SUM_KONTAKT)}</span><span>Shrnutí k ${dt}. Nejde o záruku výnosu.</span></div></div></div>`+payPagesHTML(names,dt)}
+   <div class="cz">${blk}</div>
+   <div class="ft"><span>${esc(SUM_KONTAKT)}</span><span>Shrnutí k ${dt}. Nejde o záruku výnosu.</span></div></div></div>`+(opts.noPay?"":payPagesHTML(names,dt))}
 /* stránka se přiblíží (zoom) tak, aby obsah vyplnil A4 – u krátkého plánu větší písmo, u dlouhého se mírně zmenší */
-function summaryFitted(){const h=summaryHTML(),host=document.createElement("div");host.style.cssText="position:fixed;left:-30000px;top:0;width:794px;visibility:hidden;pointer-events:none";host.innerHTML=h;document.body.appendChild(host);
+function summaryFitted(opts){const h=summaryHTML(opts),host=document.createElement("div");host.style.cssText="position:fixed;left:-30000px;top:0;width:794px;visibility:hidden;pointer-events:none";host.innerHTML=h;document.body.appendChild(host);
   let z=1;try{const cz=host.querySelector(".cz");if(cz){const top=cz.offsetTop,avail=1123-46-top;for(let i=0;i<5;i++){cz.style.zoom=z;const ch=cz.getBoundingClientRect().height;if(!ch)break;const nz=Math.max(.7,Math.min(1.22,z*avail/ch));if(Math.abs(nz-z)<.005){z=nz;break}z=nz}
       cz.style.zoom=z;if(cz.getBoundingClientRect().height>avail+1)z=Math.max(.6,z*avail/cz.getBoundingClientRect().height)}}finally{host.remove()}
   return h.replace('<div class="cz">',`<div class="cz" style="zoom:${z.toFixed(3)}">`)}
@@ -6127,7 +6198,13 @@ function insCardList(){
   const PO=R.pojOs,multiNN=N.osoby.filter(o=>o.celkem>0).length>1,out=[];
   (N.dospeli||[]).forEach((o,i)=>{if(o.celkem>0)out.push({key:"nn~d"+i,o,t:o.jmeno,mes:PO&&PO.dosp[i]!=null?PO.dosp[i]:(multiNN?o.celkem:R.pojNove)})});
   (N.deti||[]).filter(o=>o.celkem>0).forEach((o,i)=>out.push({key:"nn~k"+i,o,t:o.jmeno+" (dítě)",mes:PO&&PO.deti&&PO.deti[i]!=null?PO.deti[i]:o.celkem}));
+  /* ruční úprava pojištění ve shrnutí (dialog „Upravit pojištění“): vlastní měsíční pojistné a rizika */
+  out.forEach(c=>{const ov=(I.sum_poj||{})[c.key];if(ov&&ov.mes>0){c.mes0=c.mes;c.mes=ov.mes;c.ov=true}if(ov&&ov.rows)c.ov=true});
   return out}
+/* rizika karty pojištění ve shrnutí: ručně upravená (ov.rows), jinak z modelace */
+function sumRows(c){const ov=(inp().sum_poj||{})[c.key];
+  if(ov&&Array.isArray(ov.rows))return ov.rows.filter(r=>String(r.nazev||"").trim()).map(r=>({nazev:String(r.nazev).trim(),pc:+r.pc||0,jedn:r.jedn||"Kč",typ:r.typ||""}));
+  return nnRows(c.o)}
 /* všechny položky, ke kterým se zadávají platební údaje (produkty plánu + pojištění); klíč je stabilní a bez teček */
 function platbyRows(){
   const parts=R.odd?R.odd.map(o=>({jm:o.jmeno.split(" ")[0],R:o.R})):[{jm:"",R}],multi=parts.length>1,out=[],seen={};
@@ -6178,6 +6255,153 @@ const PAY_CSS=`
 .a4s .pzr .td{font-style:normal;font-weight:700;font-size:9px;color:#ff8a80;border:1px dashed #ff8a80;border-radius:4px;padding:1px 5px;display:inline-block;line-height:1.3}
 .a4s .pq{display:flex;justify-content:flex-end}.a4s .pq svg{display:block;border-radius:3px;width:var(--qs,76px);height:var(--qs,76px)}.a4s .nq{width:var(--qs,76px);height:var(--qs,76px);border:1px dashed #5a5a5a;border-radius:3px;color:#8a8a8a;font-size:8px;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.3}
 .a4s .pzn{margin-top:10px;border:1px solid #3a3a3a;border-radius:8px;padding:7px 10px;font-size:8.5px;color:#b4b4b4;line-height:1.5}.a4s .pzn b{color:#F37520}`;
+/* dialog „Upravit pojištění“: ruční úprava pojištění ve shrnutí PDF – připojištění (přidat / odebrat / přejmenovat), pojistné částky a měsíční pojistné.
+   Ukládá se do plánu (sum_poj) a platí pro shrnutí PDF, měsíční platby i platební údaje; „Zpět na modelaci“ vrátí hodnoty z plánu. Modelace ani slidy se nemění. */
+function openPojEdit(onClose){
+  flushUpdate();if(!R)return;
+  const I=inp(),cards=insCardList();
+  const ov=document.createElement("dialog");ov.className="mdlg";ov.setAttribute("aria-label","Upravit pojištění");
+  const rowsOf=c=>{const o=(I.sum_poj||{})[c.key];return o&&Array.isArray(o.rows)?o.rows:nnRows(c.o).map(r=>({nazev:r.nazev,pc:r.pc,jedn:r.jedn==="Kč/den"?"Kč/den":"Kč",typ:r.typ||""}))};
+  const rec=c=>{const m=I.sum_poj=I.sum_poj||{};return m[c.key]=m[c.key]||{}};
+  const rowH=(r,i)=>`<div class="pg pjr" data-i="${i}"><label class="f">Připojištění / riziko<input data-f="nazev" list="pjn" autocomplete="off" value="${esc(r.nazev||"")}"></label>
+     <label class="f">Pojistná částka<input data-f="pc" inputmode="decimal" autocomplete="off" value="${r.typ==="poplatek"?"":esc(r.pc||"")}" placeholder="${r.typ==="poplatek"?"–":""}"></label>
+     <label class="f">Jednotka<select data-f="jedn"><option${r.jedn!=="Kč/den"?" selected":""}>Kč</option><option${r.jedn==="Kč/den"?" selected":""}>Kč/den</option></select></label>
+     <button type="button" class="btn btn--secondary" data-a="del" title="Odebrat řádek" aria-label="Odebrat řádek">✕</button></div>`;
+  const cardH=(c,ci)=>{const o=(I.sum_poj||{})[c.key]||{},calc=c.mes0!=null?c.mes0:c.mes;
+    return `<div class="pcard" data-k="${esc(c.key)}" data-ci="${ci}"><b>${esc(c.t)}</b>
+     <div class="pam">Z plánu: měsíčně ${kc(calc)}${c.ov?" · upraveno ručně":""}</div>
+     <div class="pjrows">${rowsOf(c).map(rowH).join("")}</div>
+     <div class="pg pg2"><button type="button" class="btn btn--secondary" data-a="add">+ Přidat připojištění</button>
+      <label class="f">Měsíční pojistné (Kč)<input data-f="mes" inputmode="decimal" autocomplete="off" placeholder="${Math.round(calc)}" value="${o.mes>0?esc(o.mes):""}"></label></div>
+     <div><button type="button" class="btn btn--secondary" data-a="reset">Zpět na modelaci</button></div></div>`};
+  const names=[...new Set(cards.flatMap(c=>c.o.rizika.map(r=>r.nazev)))];
+  ov.innerHTML=`<div class="sheet"><div class="sbar"><button class="l" data-a="x">Zavřít</button><h2>Upravit pojištění</h2><button class="r" data-a="pdf">Shrnutí PDF</button></div><div class="sbody">
+   ${cards.length?cards.map(cardH).join(""):`<div class="hint">V plánu zatím není pojištění k úpravě.</div>`}
+   <datalist id="pjn">${names.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+   <div class="hint">Úpravy se promítnou jen do shrnutí PDF (karta pojištění, „pojištění“ v pravidelné platbě, platební údaje). Prázdné měsíční pojistné = hodnota z plánu. Částky piš v Kč (u denního odškodného v Kč/den).</div></div></div>`;
+  document.body.append(ov);try{ov.showModal()}catch(e){ov.setAttribute("open","")}
+  const close=()=>{try{ov.close()}catch(e){}ov.remove();update();if(onClose)onClose()};ov.addEventListener("cancel",e=>{e.preventDefault();close()});
+  ov.addEventListener("click",e=>{if(e.target===ov)close()});
+  ov.querySelector("[data-a=x]").onclick=close;ov.querySelector("[data-a=pdf]").onclick=()=>{close();if(!onClose)$("#bSum").click()};
+  const cardOf=el=>{const d=el.closest(".pcard");return d&&{d,c:cards[+d.dataset.ci]}};
+  const ensure=c=>{const o=rec(c);if(!Array.isArray(o.rows))o.rows=rowsOf(c).map(r=>Object.assign({},r));return o};
+  const redraw=x=>{x.d.querySelector(".pjrows").innerHTML=rowsOf(x.c).map(rowH).join("")};
+  ov.addEventListener("input",e=>{const el=e.target.closest("[data-f]"),x=el&&cardOf(el);if(!x)return;const f=el.dataset.f;
+    if(f==="mes"){const o=rec(x.c),v=parseAmt(el.value);if(el.value.trim()===""||!(v>0))delete o.mes;else o.mes=v;save();return}
+    const i=+el.closest(".pjr").dataset.i,o=ensure(x.c),r=o.rows[i];if(!r)return;
+    if(f==="pc"){const v=parseAmt(el.value);r.pc=el.value.trim()===""?0:(isNaN(v)?r.pc:v);if(r.typ==="poplatek")r.typ=""}else r[f]=el.value;
+    save()});
+  ov.addEventListener("click",e=>{const b=e.target.closest("[data-a]"),x=b&&cardOf(b);if(!x)return;const a=b.dataset.a;
+    if(a==="add"){const o=ensure(x.c);o.rows.push({nazev:"",pc:0,jedn:"Kč",typ:""});save();redraw(x);const ins=x.d.querySelectorAll(".pjr [data-f=nazev]");ins[ins.length-1].focus()}
+    else if(a==="del"){const o=ensure(x.c);o.rows.splice(+b.closest(".pjr").dataset.i,1);save();redraw(x)}
+    else if(a==="reset"){if(I.sum_poj)delete I.sum_poj[x.c.key];save();x.d.outerHTML=cardH(Object.assign({},x.c,{ov:false,mes:x.c.mes0!=null?x.c.mes0:x.c.mes,mes0:null}),+x.d.dataset.ci)}})}
+/* „Upravit shrnutí“: náhled první strany A4, pole se kývají jako widgety na iPhonu.
+   Přetáhnout = změna pořadí (myš hned, na dotyku podržet), klepnutí = úprava v panelu, ⊖ = odebrat, „+ Přidat pole“ = skrytá pole nebo vlastní text / dlaždice. */
+function openSumEdit(){
+  flushUpdate();if(!R)return;
+  let L=sumLayout(),sel=null,sc=1,P=null,drawT=0,armT=0;
+  const ov=document.createElement("dialog");ov.className="sedlg";ov.setAttribute("aria-label","Upravit shrnutí");
+  ov.innerHTML=`<div class="sheet"><div class="sbar"><button class="l" data-a="x">Zavřít</button><h2>Upravit shrnutí</h2><button class="r" data-a="pdf">Shrnutí PDF</button></div>
+   <div class="sebody"><div class="sepv"><div class="setb"><button type="button" class="btn btn--secondary btn--s" data-a="add">+ Přidat pole</button><button type="button" class="btn btn--ghost btn--s" data-a="def">Výchozí rozložení</button><span class="sehint">Přetáhni pole (na dotyku podrž), klepnutím uprav, ⊖ odebere.</span></div>
+    <div class="sewrap"><div class="sepg"><div class="sepi"></div></div></div></div><div class="sepn"></div></div></div>`;
+  document.body.append(ov);try{ov.showModal()}catch(e){ov.setAttribute("open","")}
+  const wrapE=ov.querySelector(".sewrap"),pg=ov.querySelector(".sepg"),pi=ov.querySelector(".sepi"),pn=ov.querySelector(".sepn"),byId=id=>L.find(b=>b.id===id);
+  const fit=()=>{const w=wrapE.clientWidth,h=wrapE.clientHeight,wide=matchMedia("(min-width:900px)").matches;sc=Math.max(.2,wide&&h>200?Math.min(w/794,h/1123):w/794);
+    pg.style.width=794*sc+"px";pg.style.height=1123*sc+"px";pi.style.transform=`scale(${sc})`;pi.style.setProperty("--is",String(1/sc))};
+  const draw=()=>{clearTimeout(drawT);let h;try{h=summaryFitted({edit:true,noPay:true})}catch(e){console.error(e);h=`<div style="padding:40px;color:#fff;background:#161616;height:100%">Shrnutí se nepovedlo: ${esc(e.message)}</div>`}
+    pi.innerHTML=h;pi.querySelectorAll(".blk[data-b]").forEach((el,i)=>{const b=byId(el.dataset.b),x=document.createElement("button");x.type="button";x.className="sebx";x.dataset.x=el.dataset.b;x.textContent="−";x.setAttribute("aria-label","Odebrat pole "+sumName(b||{}));el.append(x);
+      el.classList.toggle("sesel",el.dataset.b===sel);el.style.setProperty("--jd",(-(i*0.11)%0.3).toFixed(2)+"s")})};
+  const drawSoon=()=>{clearTimeout(drawT);drawT=setTimeout(draw,220)};
+  const commit=()=>setSumLayout(L);
+  const lst=(b,kind)=>{const it=b.items||(kind==="kpi"?Object.keys(SUM_D.kpi||{}).map(k=>({k})):kind==="hodn"?(SUM_D.hodn||[]):kind==="kroky"?(SUM_D.kroky||[]).map(x=>({s:x})):[]),max=kind==="kroky"?12:kind==="hodn"?3:4;
+    const F=kind==="kroky"?[["s","Krok",1]]:kind==="hodn"?[["t","Hodnota",1],["d","Popis",1]]:[["t","Popisek",0],["v","Hodnota",0],["d","Popis pod hodnotou",1]];
+    const nm=kind==="kroky"?"Krok":kind==="hodn"?"Hodnota":"Dlaždice";
+    return `<div class="selist">${it.map((x,i)=>{const d=(SUM_D.kpi||{})[x.k]||[];return `<div class="selr" data-i="${i}"><div class="seh"><span>${nm} ${i+1}${x.k?" · z plánu":""}</span><span class="sp"></span>
+      <button type="button" class="icon-btn" data-a="up" aria-label="Posunout výš"${i?"":" disabled"}>↑</button><button type="button" class="icon-btn" data-a="dn" aria-label="Posunout níž"${i<it.length-1?"":" disabled"}>↓</button><button type="button" class="icon-btn" data-a="del" aria-label="Odebrat">✕</button></div>
+      ${F.map(([f,lb,w],fi)=>`<label class="f${w?" w":""}">${lb}<input data-f="it.${f}" autocomplete="off" value="${esc(x[f]==null?"":x[f])}" placeholder="${esc(d[f==="t"?0:f==="v"?1:2]||"")}"></label>`).join("")}</div>`}).join("")}
+     ${it.length<max?`<button type="button" class="btn btn--secondary btn--s" data-a="addi">+ Přidat: ${nm.toLowerCase()}</button>`:""}</div>`};
+  const ensure=(b,kind)=>{if(!b.items)b.items=kind==="kpi"?Object.keys(SUM_D.kpi||{}).map(k=>({k})):kind==="hodn"?(SUM_D.hodn||[]).map(v=>({t:v.t,d:v.d})):kind==="kroky"?(SUM_D.kroky||[]).map(x=>({s:x})):[];return b.items};
+  const panel=()=>{
+    if(sel==="+"){const hid=L.filter(b=>b.off&&!b.typ);
+      pn.innerHTML=`<div class="sehd"><b>Přidat pole</b><span class="sp"></span><button type="button" class="btn btn--ghost btn--s" data-a="close">Hotovo</button></div>
+       ${hid.length?`<div class="section-head">Skrytá pole</div><div class="segal">${hid.map(b=>`<button type="button" class="segi" data-a="show" data-id="${esc(b.id)}"><span><b>${esc(sumName(b))}</b><small>${esc(SUM_DESC[b.id]||"")}</small></span><i>+</i></button>`).join("")}</div>`:""}
+       <div class="section-head">Nové pole</div><div class="segal"><button type="button" class="segi" data-a="new" data-t="text"><span><b>Vlastní text</b><small>nadpis a libovolný text – poznámka, doporučení, termín podpisu…</small></span><i>+</i></button>
+       <button type="button" class="segi" data-a="new" data-t="dlazdice"><span><b>Dlaždice s čísly</b><small>až 4 dlaždice: popisek, hodnota, popis</small></span><i>+</i></button></div>`;return}
+    const b=byId(sel);
+    if(!b||b.off){sel=null;pn.innerHTML=`<div class="hint">Klepni na pole v náhledu a uprav ho. Pořadí změníš přetažením, ⊖ pole odebere a „+ Přidat pole“ vrátí skryté nebo přidá vlastní text či dlaždice. Vše se hned ukládá do plánu.</div>`;return}
+    const t=b.typ||b.id,opt=/^(hodn|kpi|dlazdice)$/.test(t);
+    let h=`<div class="sehd"><b>${esc(sumName(b))}</b><span class="sp"></span><button type="button" class="btn btn--ghost btn--s" data-a="close">Hotovo</button></div>
+     <label class="f">Nadpis${opt?" (nepovinný)":""}<input data-f="nadpis" autocomplete="off" value="${esc(b.nadpis||"")}" placeholder="${esc(SUM_BLK[b.id]&&!opt?SUM_BLK[b.id]:"")}"></label>`;
+    if(sumCanHalf(t))h+=`<div class="sefl"><span>Šířka</span><div class="seg seg--block" role="tablist"><button type="button" role="tab" data-a="w1" aria-selected="${!b.half}">Celá šířka</button><button type="button" role="tab" data-a="w2" aria-selected="${!!b.half}">Polovina</button></div></div>`;
+    if(t==="hodn")h+=`<label class="f">Motto klienta<textarea data-f="motto" placeholder="${esc(SUM_D.motto||"")}">${esc(b.motto||"")}</textarea></label>`+lst(b,"hodn");
+    else if(t==="kpi"||t==="dlazdice")h+=lst(b,t==="kpi"?"kpi":"dlazdice")+(t==="kpi"?`<div class="hint">Prázdné pole = hodnota z plánu (mění se s plánem).</div>`:"");
+    else if(t==="kroky")h+=lst(b,"kroky")+(b.items?`<div class="hint">Kroky jsou upravené ručně – s plánem se už nemění. „Obnovit z plánu“ je vrátí.</div>`:`<div class="hint">Kroky se skládají z plánu. Jakmile je upravíš, zůstanou podle tebe.</div>`);
+    else if(t==="cile"){const sk=new Set(b.skryt||[]);h+=`<div class="sefl"><span>Zobrazit cíle</span>${(SUM_D.cile||[]).map(n=>`<label class="sechk"><input type="checkbox" data-f="cil" value="${esc(n)}"${sk.has(n)?"":" checked"}>${esc(n)}</label>`).join("")||`<div class="hint">V plánu nejsou cíle.</div>`}</div>
+      <label class="f">Poznámka pod tabulkou<textarea data-f="pozn" placeholder="${esc(SUM_D.cileNt||"")}">${esc(b.pozn||"")}</textarea></label>`}
+    else if(t==="inv")h+=`<div class="sefl"><span>Zobrazit</span><label class="sechk"><input type="checkbox" data-f="alok"${b.bezAlok?"":" checked"}>Struktura Nyní → Nově</label><label class="sechk"><input type="checkbox" data-f="dip"${b.bezDip?"":" checked"}>DIP – daňová úspora</label></div>`;
+    else if(t==="poj")h+=`<button type="button" class="btn btn--secondary" data-a="poj">Upravit pojištění – připojištění, částky, pojistné</button>`;
+    else if(t==="text")h+=`<label class="f">Text<textarea data-f="text" rows="6">${esc(b.text||"")}</textarea></label>`;
+    h+=`<div class="sefoot">${b.typ?"":`<button type="button" class="btn btn--secondary btn--s" data-a="reset">Obnovit z plánu</button>`}<button type="button" class="btn btn--danger btn--s" data-a="rm">${b.typ?"Smazat pole":"Odebrat pole"}</button></div>`;
+    pn.innerHTML=h};
+  const select=id=>{sel=id;panel();pi.querySelectorAll(".blk[data-b]").forEach(el=>el.classList.toggle("sesel",el.dataset.b===sel));
+    if(id&&!matchMedia("(min-width:900px)").matches)pn.scrollIntoView({behavior:"smooth",block:"start"})};
+  const remove=id=>{const b=byId(id);if(!b)return;const nm=sumName(b);if(b.typ)L=L.filter(x=>x!==b);else b.off=true;if(sel===id)sel=null;commit();draw();panel();
+    toast(b.typ?`„${nm}“ smazáno`:`„${nm}“ odebráno – vrátíš ho přes + Přidat pole`)};
+  const close=()=>{clearTimeout(drawT);ro.disconnect();removeEventListener("pointermove",pm);removeEventListener("pointerup",pu);removeEventListener("pointercancel",pc);try{ov.close()}catch(e){}ov.remove()};
+  ov.addEventListener("cancel",e=>{e.preventDefault();close()});
+  /* panel */
+  const onField=e=>{const el=e.target.closest("[data-f]");if(!el||!pn.contains(el))return;const b=byId(sel);if(!b)return;const f=el.dataset.f;
+    if(f==="cil")b.skryt=[...pn.querySelectorAll("[data-f=cil]")].filter(x=>!x.checked).map(x=>x.value);
+    else if(f==="alok")b.bezAlok=!el.checked;else if(f==="dip")b.bezDip=!el.checked;
+    else if(f.startsWith("it.")){const t=b.typ||b.id,items=ensure(b,t==="dlazdice"?"dlazdice":t),r=items[+el.closest(".selr").dataset.i];if(!r)return;r[f.slice(3)]=el.value}
+    else b[f]=el.value;
+    commit();if(f==="nadpis")pn.querySelector(".sehd b").textContent=sumName(b);drawSoon()};
+  pn.addEventListener("input",onField);pn.addEventListener("change",e=>{if(e.target.type==="checkbox")onField(e)});
+  ov.addEventListener("click",e=>{const a=e.target.closest("[data-a]");if(!a||!ov.contains(a))return;const A=a.dataset.a,b=byId(sel);
+    if(A==="x")return close();
+    if(A==="pdf"){close();return $("#bSum").click()}
+    if(A==="add")return select("+");
+    if(A==="close")return select(null);
+    if(A==="def"){if(!armT){a.textContent="Opravdu? Klepni znovu";armT=setTimeout(()=>{armT=0;a.textContent="Výchozí rozložení"},3000);return}
+      clearTimeout(armT);armT=0;a.textContent="Výchozí rozložení";delete inp().sum_layout;save();L=sumLayout();sel=null;draw();panel();return toast("Shrnutí je zase podle plánu")}
+    if(A==="show"){const x=byId(a.dataset.id);if(!x)return;delete x.off;L=L.filter(y=>y!==x);const li=L.map(y=>!y.off).lastIndexOf(true);L.splice(li+1,0,x);commit();draw();return select(x.id)}
+    if(A==="new"){const t=a.dataset.t,x={id:"x"+Date.now().toString(36),typ:t,nadpis:t==="text"?"Poznámka":""};if(t==="text")x.text="";else x.items=[{t:"",v:"",d:""}];
+      const li=L.map(y=>!y.off).lastIndexOf(true);L.splice(li+1,0,x);commit();draw();select(x.id);const f=pn.querySelector(t==="text"?"[data-f=text]":"[data-f='it.t']");if(f)f.focus();return}
+    if(!b)return;const t=b.typ||b.id,kind=t==="dlazdice"?"dlazdice":t;
+    if(A==="w1"||A==="w2"){b.half=A==="w2";commit();draw();return panel()}
+    if(A==="rm")return remove(b.id);
+    if(A==="reset"){Object.keys(b).forEach(k=>{if(!/^(id|half)$/.test(k))delete b[k]});commit();draw();return panel()}
+    if(A==="poj")return openPojEdit(()=>draw());
+    if(A==="addi"){ensure(b,kind).push(kind==="kroky"?{s:""}:kind==="hodn"?{t:"",d:""}:{t:"",v:"",d:""});commit();draw();panel();const ins=pn.querySelectorAll(".selr");const last=ins[ins.length-1];if(last)last.querySelector("input").focus();return}
+    if(A==="up"||A==="dn"||A==="del"){const items=ensure(b,kind),i=+a.closest(".selr").dataset.i;
+      if(A==="del")items.splice(i,1);else{const j=A==="up"?i-1:i+1;if(j<0||j>=items.length)return;[items[i],items[j]]=[items[j],items[i]]}
+      commit();draw();return panel()}});
+  /* náhled: ⊖, klepnutí, přetažení */
+  const blocks=cz=>[...cz.children].filter(c=>c.matches(".blk[data-b]")&&!c.classList.contains("sedrag"));
+  const startDrag=()=>{const el=P.el,cz=el.parentElement,r=el.getBoundingClientRect();P.k=sc*(parseFloat(cz.style.zoom)||1);P.cz=cz;P.gx=(P.x-r.left)/P.k;P.gy=(P.y-r.top)/P.k;
+    const cl=el.cloneNode(true);cl.classList.add("sedrag");cl.classList.remove("sesel");const bx=cl.querySelector(".sebx");if(bx)bx.remove();cl.style.width=r.width/P.k+"px";cz.append(cl);P.cl=cl;
+    el.classList.add("seghost");P.drag=true;pi.classList.add("dragging");try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}dragTo(P.x,P.y)};
+  const dragTo=(x,y)=>{const cr=P.cz.getBoundingClientRect();P.cl.style.left=((x-cr.left)/P.k-P.gx)+"px";P.cl.style.top=((y-cr.top)/P.k-P.gy)+"px";
+    const me=P.el.getBoundingClientRect();if(x>=me.left&&x<=me.right&&y>=me.top&&y<=me.bottom)return;
+    const sib=blocks(P.cz).filter(c=>c!==P.el);if(!sib.length)return;let tg=null,after=false;
+    for(const c of sib){const r=c.getBoundingClientRect();if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom){tg=c;after=c.classList.contains("half")?x>r.left+r.width/2:y>r.top+r.height/2;break}}
+    if(!tg){const r0=sib[0].getBoundingClientRect();if(y<r0.top){tg=sib[0];after=false}else{const below=sib.filter(c=>c.getBoundingClientRect().top<=y);tg=below[below.length-1]||sib[sib.length-1];after=true}}
+    const ref=after?tg.nextElementSibling:tg;if(ref!==P.el)P.cz.insertBefore(P.el,ref)};
+  const drop=()=>{const ids=blocks(P.cz).map(c=>c.dataset.b),vis=ids.map(byId).filter(Boolean);P.cl.remove();P.el.classList.remove("seghost");pi.classList.remove("dragging");
+    const before=L.map(b=>b.id).join();L=vis.concat(L.filter(b=>!ids.includes(b.id)));if(L.map(b=>b.id).join()!==before)commit();draw()};
+  pi.addEventListener("pointerdown",e=>{if(e.button>0||P)return;const x=e.target.closest(".sebx");if(x){e.preventDefault();return remove(x.dataset.x)}
+    const el=e.target.closest(".blk[data-b]");if(!el)return;if(e.pointerType==="mouse")e.preventDefault();
+    P={el,id:el.dataset.b,x:e.clientX,y:e.clientY,touch:e.pointerType!=="mouse",drag:false,tm:0};
+    if(P.touch)P.tm=setTimeout(()=>{if(P&&!P.drag)startDrag()},300)});
+  const pm=e=>{if(!P)return;const d=Math.hypot(e.clientX-P.x,e.clientY-P.y);
+    if(!P.drag){if(P.touch){if(d>8){clearTimeout(P.tm);P=null}return}if(d<5)return;startDrag()}
+    e.preventDefault();dragTo(e.clientX,e.clientY)};
+  const pu=()=>{if(!P)return;clearTimeout(P.tm);const p=P;P=null;if(p.drag){P=p;drop();P=null}else select(p.id===sel?null:p.id)};
+  const pc=()=>{if(!P)return;clearTimeout(P.tm);if(P.drag)drop();P=null};
+  addEventListener("pointermove",pm,{passive:false});addEventListener("pointerup",pu);addEventListener("pointercancel",pc);
+  pi.addEventListener("touchmove",e=>{if(P&&P.drag)e.preventDefault()},{passive:false});
+  pi.addEventListener("contextmenu",e=>e.preventDefault());
+  const ro=new ResizeObserver(fit);ro.observe(wrapE);fit();draw();panel()}
 /* dialog „Platební údaje“: u každého produktu účet, VS, SS, částky a „Domluveno“ (ovlivní i 1. stranu shrnutí); ukládá se hned do plánu */
 function openPlatby(){
   flushUpdate();if(!R)return;
@@ -6318,7 +6542,7 @@ function openMail(){flushUpdate();if(!R)return;
 $("#bMail").onclick=openMail;
 /* menu ⋯ (PDF, PowerPoint, Export) */
 {const mb=$("#bMore"),mm=$("#moreMenu"),tog=on=>{mm.hidden=!on;mb.setAttribute("aria-expanded",on)};
-  mb.onclick=e=>{e.stopPropagation();tog(mm.hidden)};$("#bDzM").onclick=()=>$("#bDz").click();$("#bSumM").onclick=()=>$("#bSum").click();$("#bPay").onclick=openPlatby;$("#bPayM").onclick=openPlatby;mm.addEventListener("click",()=>tog(false));
+  mb.onclick=e=>{e.stopPropagation();tog(mm.hidden)};$("#bDzM").onclick=()=>$("#bDz").click();$("#bSumM").onclick=()=>$("#bSum").click();$("#bPay").onclick=openPlatby;$("#bPayM").onclick=openPlatby;$("#bSumEd").onclick=openSumEdit;$("#bSumEdM").onclick=openSumEdit;mm.addEventListener("click",()=>tog(false));
   document.addEventListener("click",e=>{if(!mm.hidden&&!e.target.closest(".more"))tog(false)});addEventListener("keydown",e=>{if(e.key==="Escape")tog(false)})}
 /* mobil: Editor / Náhled */
 let MT="ed";
