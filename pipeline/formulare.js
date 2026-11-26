@@ -316,6 +316,10 @@ function mount(root,opts){
   .frm2 .frm-top .upd{font-size:var(--fs-s);color:var(--ink-2)}
   .frm2 .frm-grid{display:grid;grid-template-columns:minmax(320px,440px) minmax(0,1fr);gap:var(--sp-5);align-items:start}
   @media(max-width:960px){.frm2 .frm-grid{grid-template-columns:1fr}}
+  .frm2 .fl-sug{position:absolute;left:0;right:0;top:100%;z-index:30;max-height:280px;overflow:auto;background:var(--card,#fff);border:1px solid var(--line,#ddd);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px}
+  .frm2 .fl-opt{display:block;width:100%;text-align:left;border:0;background:none;padding:10px 12px;border-radius:8px;font:inherit;color:var(--ink);cursor:pointer}
+  .frm2 .fl-opt:hover,.frm2 .fl-opt:focus{background:rgba(232,96,10,.1)} .frm2 .fl-opt.mut{color:var(--ink-2)}
+  .frm2 .fl-none{padding:10px 12px;color:var(--ink-2)}
   .frm2 .frm-col{display:grid;gap:var(--sp-5);min-width:0}
   .frm2 .blk{display:grid;gap:var(--sp-2);min-width:0}
   .frm2 .group .frow>label{width:40%;font-size:var(--fs-m);color:var(--ink)}
@@ -402,14 +406,29 @@ function mount(root,opts){
 
   /* ===== Klient ===== */
   function clientBlock(){
-    const sel=h("select",{id:"frm-cid","aria-label":"Klient"});
-    const fill=()=>{sel.textContent="";sel.append(h("option",{value:"",text:"— bez klienta (vyplním ručně) —"}));
-      getClients().slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"cs")).forEach(e=>sel.append(h("option",{value:e.id,text:e.name})));
-      sel.value=[...sel.options].some(o=>o.value===S.cid)?S.cid:""};
+    /* vyhledávací pole místo výběru: píšeš jméno (bez diakritiky a na pořadí slov nezáleží), klikneš na výsledek */
+    const norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+    const inp=h("input",{id:"frm-cid",type:"search","aria-label":"Klient",placeholder:"Hledat klienta…",autocomplete:"off"});
+    const list=h("div",{class:"fl-sug",role:"listbox",hidden:true});
+    const cur=()=>{const e=getClients().find(x=>x.id===S.cid);return e?e.name:""};
+    const fill=()=>{if(document.activeElement!==inp)inp.value=cur();if(S.cid&&!cur()){S.cid=""}};
+    const show=()=>{
+      const q=norm(inp.value).split(/\s+/).filter(Boolean);list.textContent="";
+      const all=getClients().slice().sort((x,y)=>String(x.name).localeCompare(String(y.name),"cs"));
+      const hit=all.filter(e=>{const n=norm(e.name);return q.every(w=>n.includes(w))}).slice(0,30);
+      const add=(label,id,muted)=>list.append(h("button",{type:"button",role:"option",class:"fl-opt"+(muted?" mut":""),text:label,onmousedown:ev=>ev.preventDefault(),onclick:()=>{S.cid=id;inp.value=id?label:"";list.hidden=true;inp.blur();pickClient(S.cid)}}));
+      add("— bez klienta (vyplním ručně) —","",true);
+      hit.forEach(e=>add(e.name,e.id));
+      if(!hit.length&&q.length)list.append(h("div",{class:"fl-none",text:"Nikdo takový"}));
+      list.hidden=false};
+    inp.addEventListener("focus",()=>{inp.select();show()});
+    inp.addEventListener("input",show);
+    inp.addEventListener("blur",()=>setTimeout(()=>{list.hidden=true;inp.value=cur()},150));
+    inp.addEventListener("keydown",ev=>{if(ev.key==="Enter"){const f=list.querySelector(".fl-opt:not(.mut)");if(f){ev.preventDefault();f.click()}}else if(ev.key==="Escape"){list.hidden=true;inp.blur()}});
     fill();refs.fillClients=fill;
-    sel.addEventListener("change",()=>{S.cid=sel.value;pickClient(S.cid)});
+    const sel={};
     const g=h("div",{class:"group"},
-      h("div",{class:"frow"},h("label",{for:"frm-cid",text:"Klient"}),sel),
+      h("div",{class:"frow",style:"position:relative"},h("label",{for:"frm-cid",text:"Klient"}),inp,list),
       frow("Jméno a příjmení","name",{ph:"i s titulem"}),
       frow("Adresa trvalého bydliště","addr",{area:true,ph:"Brno, Starý Lískovec, Krymská 379/15, 62500"}),
       frow("Datum narození","birth",{ph:"31. 1. 1990"}),
