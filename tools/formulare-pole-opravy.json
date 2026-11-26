@@ -1,0 +1,7 @@
+{
+ "allianz-pokyn-pro-vyplatu-odkupneho-odbytneho": {"label": {"Group1": "Pohlaví pojištěného", "Textové pole18": "Číslo dokladu", "Check Box2": "Daňové rezidentství: jen ČR", "Textové pole46": "Daňové rezidentství: jiné státy", "Group2": "Politicky exponovaná osoba", "Textové pole70": "Korespondenční adresa", "Check Box3": "Daňové rezidentství zástupce: jen ČR", "Textové pole24": "Daňové rezidentství zástupce: jiné státy", "Group4": "Zástupce je politicky exponovaná osoba", "Group6": "Kdo pojištěného zastupuje", "Group5": "Doklad totožnosti zástupce", "Textové pole31": "Číslo dokladu zástupce"},
+   "sec": {"Textové pole3": "Pojišťovací zprostředkovatel", "Textové pole4": "Pojišťovací zprostředkovatel", "Textové pole5": "Osoba provádějící identifikaci", "Textové pole6": "Osoba provádějící identifikaci", "Textové pole7": "Osoba provádějící identifikaci", "Textové pole8": "Osoba provádějící identifikaci", "Textové pole2": "Pojistná smlouva"}},
+ "nn-zadost-o-ukonceni-pojistne-smlouvy": {"label": {"chk_3": "Způsob výplaty odkupného / přeplatku", "chk_4": "Doklad totožnosti pojištěné osoby", "Průkaz totožnosti": "Doklad totožnosti"}},
+ "conseqps-vypoved-dps-odbytne": {"label": {"Group3_DPS_VYP": "Kdo žádost podepisuje"}},
+ "conseqps-vypoved-pp-odbytne": {"label": {"Group2_PP_TF": "Kdo žádost podepisuje"}}
+}

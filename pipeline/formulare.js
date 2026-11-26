@@ -4,6 +4,9 @@
        vyplnitelná pole, předvyplní se údaji klienta (pdf-lib + písmo s diakritikou, vše v prohlížeči, nic se nikam neposílá);
        u PDF bez polí se údaje dopíší do stránky za popisky (pozice „ov“ v index.json).
      • Volnou formou – dopis A4 (výpověď, výpověď v návaznosti, změna, posunutí počátku, odkup), tisk / PDF a kopie textu.
+   Vstupy vlevo jsou u oficiálního formuláře přesně podle jeho PDF (formulare/pole.json z ../tools/formulare-pole.py,
+   ruční opravy popisků v ../tools/formulare-pole-opravy.json): sekce, textová pole, zaškrtávátka a volby; fokus na vstup zvýrazní
+   pole v náhledu, klik do náhledu skočí na vstup. Údaje klienta (jméno, adresa, RČ…) jsou jen v bloku Klient.
    Samostatný modul: Formulare.mount(kontejner, {clients, toast, ls, birthOf, advisors})
    advisors() → {firm:{name,seat,ico}, list:[{id,short,name,ico,code,phone,email}]} – poradci do sekce obchodní zástupce /
    zprostředkovatel (v appce z šifrovaného bloku, protože obsahují osobní údaje); ve formuláři se vybírá, kdo smlouvu vede.
@@ -170,8 +173,37 @@ const PAPER_CSS=`
 .fl-who{font-size:10.5pt}
 `;
 
+/* ---------- vstupy podle formuláře (formulare/pole.json, generuje ../tools/formulare-pole.py) ----------
+   POLE[id formuláře] = {pg:[[w,h],…], s:[{s:"sekce", q:[{i,l,t,n,o?,v?,ck?,ml?,d?,r}]}]}
+   t: text | date | comb (políčka po znaku) | check (v = exportní hodnota) | choice (o = [[popisek, hodnota]]) | select */
+let POLE=null,poleP=null;
+function loadPole(){
+  if(!poleP){poleP=fetch(BASE+"formulare/pole.json",{cache:"no-cache"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(j=>{POLE=j||{};return POLE});poleP.catch(()=>{poleP=null})}
+  return poleP;
+}
+const schemaOf=form=>(form&&POLE&&POLE[form.id])||null;
+/* klíče, které se berou z bloku Klient (ve formuláři se znovu neukazují) */
+const CK_CLIENT=new Set(["surname","firstname","fullname","fullnameRev","title","rc","birth","rcbirth","street","streetcp","cp","city","psc","addr","country","phone","email"]);
+const CK_ACC=new Set(["account","accpre","bank"]);
+/* hodnoty, které se neukládají do zařízení (rodné číslo, čísla dokladů) */
+const NOSAVE=/rodn[eé]\s*[cč][ií]slo|[cč][ií]slo (pr[uů]kazu|dokladu|op\b|pasu)|^[cč][ií]slo$|r\.\s?[cč]\./i;
+const qKey=q=>q.n[0];
+/* nadpis / popisek VELKÝMI → „Věta jako věta“ (zkratky jako DPS, ČR, PP zůstanou) */
+function pretty(t){
+  t=String(t||"").replace(/^[A-H]\s+(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]{2})/,"").trim();
+  const L=t.replace(/[^A-Za-zÀ-ž]/g,"");if(!L)return t;
+  const up=[...L].filter(c=>c===c.toUpperCase()&&c!==c.toLowerCase()).length;
+  if(up/L.length<0.75)return t;
+  const out=t.toLowerCase().replace(/\S+/g,w=>{const o=t.substr(t.toLowerCase().indexOf(w),w.length);return /^(dps|pp|tf|čr|dip|nn|op|řp|ps|zfp|zfpi|wi|iban|bic|swift|psč|ičo|ič|dič|usa|eu|čsob|kb|cpp|čpp|uniqa|rč|sms)$/i.test(w.replace(/[^\wÀ-ž]/g,""))?o:w});
+  return out.charAt(0).toUpperCase()+out.slice(1);
+}
+/* popisek do levého panelu: velké první písmeno, bez přebytečné délky */
+function qlab(t){t=pretty(t);if(t.length>90)t=t.slice(0,88).replace(/\s+\S*$/,"")+"…";return t.charAt(0).toUpperCase()+t.slice(1)}
+function slab(t){t=pretty(String(t||"").replace(/[:\s]+[\d\s]+$/,""));if(!t||t==="Formulář")return "Údaje do formuláře";if(t.length>64)t=t.slice(0,62).replace(/\s+\S*$/,"")+"…";return t.charAt(0).toUpperCase()+t.slice(1)}
+
 /* ---------- údaje pro oficiální PDF ---------- */
 /* klíče formuláře bez dílčích přípon („cnum@3“ → cnum, „date@d“ → date; placedate = místo + datum) */
+const fillable=f=>!!(f&&(f.fill||schemaOf(f)));
 function fkeys(form){const k=new Set();Object.values(form.fill||{}).forEach(v=>{v=String(v).split("@")[0];if(v==="placedate"){k.add("place");k.add("date")}else k.add(v)});return k}
 /* výplata na účet: pojišťovny a PS jen když je odkupné / odbytné, investice vždy (výtěžek odkupu jde na účet) */
 const payOn=(form,g,S)=>(form.kind==="vyp"||form.kind==="navaz")&&(((g==="poj"||g==="ps")&&S.odk===true)||g==="inv");
@@ -191,11 +223,11 @@ function values(S,form,inst,adv){
     fullnameRev:T([n.last,n.first].filter(Boolean).join(" ")+(tit?", "+tit:"")),
     rc:T(S.rc),birth:dshort(S.birth),rcbirth:T(S.rc)||dshort(S.birth),
     street:a.street,streetcp:a.streetcp,cp:a.cp,city:a.city,psc:a.psc,addr:a.line,
-    country:"CZ",phone:T(S.phone),email:T(S.email),date:dshort(todayISO()),place:""
+    country:"CZ",phone:T(S.phone),email:T(S.email),date:dshort(S.fdate||todayISO()),place:T(S.place)
   };
   V.placedate=[V.place,V.date].filter(Boolean).join(", ");
   Object.assign(V,advVals(adv));
-  if(payOn(form,g,S)){
+  if(schemaOf(form)?!!T(S.ucet):payOn(form,g,S)){
     V.accpre=acc.pre;V.bank=acc.bank;
     V.account=acc.iban||((keys.has("accpre")?"":(acc.pre?acc.pre+"-":""))+acc.num+(keys.has("bank")||!acc.bank?"":"/"+acc.bank));
     V.vs=T(S.vs);V.ss=T(S.ss);
@@ -249,23 +281,62 @@ function fit(field,v,key){
   if(key==="psc"||key==="rc"||key==="cnum")return s.slice(0,max);
   return v.slice(0,max);
 }
+/* zaškrtávátko / volba: hodnota pole V a vzhled každého widgetu (pdf-lib check() umí jen první exportní hodnotu) */
+function setBtn(PDFLib,fld,on){
+  const {PDFName}=PDFLib,af=fld.acroField;
+  const val=on?PDFName.of(on):PDFName.of("Off");
+  af.dict.set(PDFName.of("V"),val);
+  for(const w of af.getWidgets()){
+    let st=PDFName.of("Off");
+    try{const ov=w.getOnValue();if(on&&ov&&(ov.decodeText?ov.decodeText():String(ov).slice(1))===on)st=ov}catch(e){}
+    try{w.setAppearanceState(st)}catch(e){}
+  }
+}
 async function fillPdf(form,S,inst,adv){
   const [{PDFLib,fontkit,font},bytes]=await Promise.all([pdfLib(),getFile(form.file)]);
   const doc=await PDFLib.PDFDocument.load(bytes.slice(0),{ignoreEncryption:true,updateMetadata:false});
   const done=[];
-  if(form.fill){
+  if(form.fill||schemaOf(form)){
     doc.registerFontkit(fontkit);
     const V=values(S,form,inst,adv);let emb=null,touched=[];
     const mark=key=>{const b=baseKey(key);(b==="placedate"?["place","date"]:[b]).forEach(x=>{if(!done.includes(x))done.push(x)})};
-    const acro=Object.keys(form.fill).some(n=>n.charAt(0)!=="@");
+    const acro=!!schemaOf(form)||Object.keys(form.fill||{}).some(n=>n.charAt(0)!=="@");
     const f=acro?doc.getForm():null;if(f)try{f.deleteXFA()}catch(e){}
-    for(const [name,key] of Object.entries(acro?form.fill:{})){
+    for(const [name,key] of Object.entries(acro?(form.fill||{}):{})){
       if(name.charAt(0)==="@")continue;
       const v=pick(V,key);if(!v)continue;
       let fld;try{fld=f.getTextField(name)}catch(e){continue}
       try{fld.setText(fit(fld,v,baseKey(key)));touched.push(fld);mark(key)}catch(e){continue}
       /* některá PDF (Kooperativa) pole schovávají, dokud skript ve formuláři nezaškrtne volbu – vyplněné pole ukázat */
       try{fld.acroField.getWidgets().forEach(w=>{if(w.hasFlag&&w.hasFlag(PDFLib.AnnotationFlags.Hidden))w.clearFlag(PDFLib.AnnotationFlags.Hidden)})}catch(e){}
+    }
+    /* položky ze schématu: text, datum, hřebínek, zaškrtávátka, volby, seznamy */
+    const sch=schemaOf(form);
+    if(sch&&f){
+      const fv=(S.fv&&S.fv[form.id])||{},mem=(S._mem&&S._mem[form.id])||{};
+      const unhide=fld=>{try{fld.acroField.getWidgets().forEach(w=>{if(w.hasFlag&&w.hasFlag(PDFLib.AnnotationFlags.Hidden))w.clearFlag(PDFLib.AnnotationFlags.Hidden)})}catch(e){}};
+      for(const sec of sch.s)for(const q of sec.q){
+        if(q.ck)continue;
+        const k=qKey(q);let v=k in mem?mem[k]:(k in fv?fv[k]:q.d);
+        if(v==null||v===""||v===false)continue;
+        try{
+          if(q.t==="text"||q.t==="date"){
+            const val=q.t==="date"?dshort(v):String(v);
+            for(const nm of q.n){let fld;try{fld=f.getTextField(nm)}catch(e){continue}
+              fld.setText(fit(fld,val,q.t==="date"?"date":""));touched.push(fld);unhide(fld)}
+          }else if(q.t==="comb"){
+            const c=String(v).replace(/[\s.\-\/]+/g,"");
+            q.n.forEach((nm,i)=>{let fld;try{fld=f.getTextField(nm)}catch(e){return}const ch=c.charAt(i);if(!ch)return;fld.setText(ch);touched.push(fld);unhide(fld)});
+          }else if(q.t==="check"||q.t==="choice"){
+            const on=q.t==="check"?(v===true?q.v:null):String(v);
+            for(const nm of q.n){let fld;try{fld=f.getField(nm)}catch(e){continue}setBtn(PDFLib,fld,on);unhide(fld)}
+          }else if(q.t==="select"){
+            for(const nm of q.n){let fld;try{fld=f.getDropdown(nm)}catch(e){try{fld=f.getOptionList(nm)}catch(x){continue}}
+              try{fld.select(String(v))}catch(e){try{fld.acroField.dict.set(PDFLib.PDFName.of("V"),PDFLib.PDFString.of(String(v)))}catch(x){}}touched.push(fld)}
+          }
+          done.push("q:"+k);
+        }catch(e){}
+      }
     }
     if(touched.length){
       try{emb=await doc.embedFont(font,{subset:true})}catch(e){}
@@ -275,7 +346,7 @@ async function fillPdf(form,S,inst,adv){
     if(Array.isArray(form.ov)&&form.ov.length){
       const pages=doc.getPages();
       for(const o of form.ov){
-        const key=form.fill[o.n];const v=key&&pick(V,key);const pg=pages[o.p];if(!v||!pg)continue;
+        const key=(form.fill||{})[o.n];const v=key&&pick(V,key);const pg=pages[o.p];if(!v||!pg)continue;
         if(!emb)try{emb=await doc.embedFont(font,{subset:true})}catch(e){break}
         let size=o.s||10;while(size>6&&emb.widthOfTextAtSize(v,size)>o.w)size-=.5;
         try{pg.drawText(v,{x:o.x,y:o.y,size,font:emb,color:PDFLib.rgb(.07,.07,.1)});mark(key)}catch(e){}
@@ -299,11 +370,12 @@ function mount(root,opts){
   const instList=()=>CAT.inst.concat(custom.map((c,i)=>({id:"x:"+c.n,n:c.n,short:c.n,group:c.g||"poj",addr:c.a||"",custom:true})));
 
   let S={mode:"off",cid:"",name:"",addr:"",birth:"",phone:"",email:"",rc:"",inst:"allianz",iaddr:FALLBACK_INST[0].addr,formId:"",ffilter:"all",
-    typ:"vyp",cnum:"",cnumNew:"",kdy:"",popis:"",role:"Pojistník",roleX:"",odk:false,adv:"",ucet:"",vs:"",ss:"",reg:true,date:todayISO(),fdate:todayISO(),place:""};
+    typ:"vyp",cnum:"",cnumNew:"",kdy:"",popis:"",role:"Pojistník",roleX:"",odk:false,adv:"",ucet:"",vs:"",ss:"",reg:true,date:todayISO(),fdate:todayISO(),place:"",fv:{}};
   try{
     let o=ls.get(LS_STATE);
     if(!o){const v1=ls.get(LS_OLD);if(v1&&typeof v1==="object"){o=Object.assign({},v1,{mode:"vol",cnumNew:v1.nova||""});const hit=FALLBACK_INST.find(i=>i.n===v1.inst);o.inst=hit?hit.id:(v1.inst?"x:"+v1.inst:"allianz");delete o.nova}}
     if(o&&typeof o==="object")S=Object.assign(S,o,{date:todayISO(),fdate:todayISO(),rc:""});
+    if(!S.fv||typeof S.fv!=="object")S.fv={};
   }catch(e){}
 
   /* ----- styl (jen tokeny design systému) ----- */
@@ -350,6 +422,21 @@ function mount(root,opts){
   .frm2 .pv-box .fit{transform-origin:top left}
   .frm2 .pv-box .fl-paper{box-shadow:0 1px 3px rgba(0,0,0,.12),0 8px 24px rgba(0,0,0,.08)}
   .frm2 .pv-pages{display:grid;gap:var(--sp-3);justify-items:center}
+  .frm2 .pv-pages .pg{position:relative;cursor:pointer;max-width:100%}
+  .frm2 .pv-pages .hl{position:absolute;border:2px solid var(--accent);background:rgba(232,96,10,.16);border-radius:4px;pointer-events:none;box-shadow:0 0 0 4px rgba(232,96,10,.18);transition:all .12s}
+  .frm2 .group .frow.chk>label{width:auto;flex:1;line-height:1.35;padding:6px 0}
+  .frm2 .group .frow.chk input.switch{margin-left:var(--sp-3);flex:0 0 auto}
+  .frm2 .group .frow.col>label{width:auto}
+  .frm2 .group .frow select{max-width:60%;margin-left:auto}
+  .frm2 .group .frow.col select{max-width:100%;width:100%;margin-left:0}
+  .frm2 .seg[role=radiogroup]>button[aria-checked=true]{background:var(--seg-on);box-shadow:0 1px 3px rgba(0,0,0,.14);font-weight:600}
+  .frm2 .seg[role=radiogroup]>button{white-space:normal;line-height:1.2;padding:4px var(--sp-2)}
+  .frm2 .opts{display:grid;gap:2px;width:100%}
+  .frm2 .opts>button{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;border:0;background:none;padding:7px 4px;border-radius:8px;font:inherit;font-size:var(--fs-m);color:var(--ink);line-height:1.35;cursor:pointer}
+  .frm2 .opts>button:hover{background:var(--fill)}
+  .frm2 .opts .dot{flex:0 0 18px;height:18px;border-radius:50%;border:1.5px solid var(--ink-3);margin-top:1px;display:grid;place-items:center}
+  .frm2 .opts>button[aria-checked=true] .dot{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px var(--canvas)}
+  .frm2 .opts>button[aria-checked=true] .ot{font-weight:600}
   .frm2 .pv-pages canvas{display:block;max-width:100%;height:auto;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 8px 24px rgba(0,0,0,.08)}
   .frm2 .pv-empty{display:grid;place-items:center;text-align:center;min-height:240px;color:var(--ink-2);font-size:var(--fs-m);padding:var(--sp-5);line-height:1.45}
   .frm2 .pv-meta{display:grid;gap:4px}
@@ -375,7 +462,7 @@ function mount(root,opts){
     if(!S.cid||!opts.saveClient)return;
     try{Promise.resolve(opts.saveClient(S.cid,{key,value:T(S[key])})).then(id=>{if(id&&id!==S.cid){S.cid=id;save();if(refs.fillClients)refs.fillClients()}}).catch(()=>{})}catch(e){}
   }
-  function save(){const keep=Object.assign({},S);delete keep.rc;delete keep.date;delete keep.fdate;try{ls.set(LS_STATE,keep)}catch(e){}}
+  function save(){const keep=Object.assign({},S);delete keep.rc;delete keep.date;delete keep.fdate;delete keep._mem;try{ls.set(LS_STATE,keep)}catch(e){}}
   /* řádek s popiskem vlevo a polem vpravo (iOS list); col = popisek nad polem */
   function frow(label,key,o){
     o=o||{};const id="frm-"+key+"-"+Math.random().toString(36).slice(2,7);
@@ -427,16 +514,27 @@ function mount(root,opts){
     inp.addEventListener("keydown",ev=>{if(ev.key==="Enter"){const f=list.querySelector(".fl-opt:not(.mut)");if(f){ev.preventDefault();f.click()}}else if(ev.key==="Escape"){list.hidden=true;inp.blur()}});
     fill();refs.fillClients=fill;
     const sel={};
+    const need=clientNeed();const on=k=>!need||need.has(k);
+    const rows={name:frow("Jméno a příjmení","name",{ph:"i s titulem"}),
+      addr:frow("Adresa trvalého bydliště","addr",{area:true,ph:"Brno, Starý Lískovec, Krymská 379/15, 62500"}),
+      birth:frow("Datum narození","birth",{ph:"31. 1. 1990"}),
+      rc:S.mode==="off"?frow("Rodné číslo","rc",{ph:"neukládá se",im:"numeric"}):null,
+      phone:S.mode==="off"?frow("Telefon","phone",{type:"tel"}):null,
+      email:S.mode==="off"?frow("E-mail","email",{type:"email"}):null};
+    refs.crow=rows;
     const g=h("div",{class:"group"},
       h("div",{class:"frow",style:"position:relative"},h("label",{for:"frm-cid",text:"Klient"}),inp,list),
-      frow("Jméno a příjmení","name",{ph:"i s titulem"}),
-      frow("Adresa trvalého bydliště","addr",{area:true,ph:"Brno, Starý Lískovec, Krymská 379/15, 62500"}),
-      frow("Datum narození","birth",{ph:"31. 1. 1990"}),
-      S.mode==="off"?frow("Rodné číslo","rc",{ph:"neukládá se",im:"numeric"}):null,
-      S.mode==="off"?frow("Telefon","phone",{type:"tel"}):null,
-      S.mode==="off"?frow("E-mail","email",{type:"email"}):null);
+      ...["name","addr","birth","rc","phone","email"].filter(on).map(k=>rows[k]));
     const mine=myContracts();
     return h("div",{class:"blk"},sechead("Klient"),g,mine);
+  }
+  /* které údaje klienta vybraný formulář opravdu chce (null = všechny) */
+  const CK_CORE={surname:"name",firstname:"name",fullname:"name",fullnameRev:"name",title:"name",street:"addr",streetcp:"addr",cp:"addr",city:"addr",psc:"addr",addr:"addr",birth:"birth",rcbirth:"rc",rc:"rc",phone:"phone",email:"email"};
+  function clientNeed(){
+    if(S.mode!=="off")return null;const f=curForm(),sch=schemaOf(f);if(!sch)return null;
+    const n=new Set(["name"]);
+    sch.s.forEach(x=>x.q.forEach(q=>{const c=q.ck&&CK_CORE[String(q.ck).split("@")[0]];if(c)n.add(c);if(q.ck==="rcbirth")n.add("birth")}));
+    return n;
   }
   function myContracts(){
     const e=getClients().find(x=>x.id===S.cid);if(!e)return null;
@@ -460,6 +558,7 @@ function mount(root,opts){
     const rec=e.rec||{},lead=e.lead||{};
     let birth=rec.birth||lead.birth||"";
     if(!birth&&opts.birthOf){try{birth=opts.birthOf(e)||""}catch(x){}}
+    S.fv={};S._mem={};
     S.name=e.name||"";S.addr=rec.address||lead.address||"";S.birth=dshort(birth);S.phone=e.phone||rec.phone||lead.phone||"";S.email=rec.email||lead.email||"";S.rc="";
     const miss=[!S.addr&&"adresa",!S.birth&&"datum narození"].filter(Boolean);
     if(miss.length)toast("V kartě klienta chybí: "+miss.join(", ")+" – doplň tady ručně");
@@ -537,10 +636,10 @@ function mount(root,opts){
     shown.forEach(f=>{
       const n=f.fill?fkeys(f).size:0;
       const sub=[KIND[f.kind]||"",f.pages?f.pages+" str.":"",f.file.endsWith(".docx")?"Word":""].filter(Boolean).join(" · ");
-      const tag=f.file.endsWith(".docx")?"Word":f.fill?"předvyplním":"k tisku";
+      const tag=f.file.endsWith(".docx")?"Word":fillable(f)?"vyplním":"k tisku";
       const r=h("button",{type:"button",class:"row row-btn"+(f.id===S.formId?" on":""),"aria-current":f.id===S.formId?"true":null,onclick:()=>{S.formId=f.id;save();renderAll();if(window.matchMedia&&matchMedia("(max-width:960px)").matches)requestAnimationFrame(()=>pv.scrollIntoView({behavior:"smooth",block:"start"}))}},
         h("span",{class:"main"},h("div",{class:"t",text:f.t}),h("div",{class:"s",text:sub})),
-        h("span",{class:"end"},h("span",{class:"chip--tag"+(f.fill?" chip chip--accent":" chip"),text:tag})),
+        h("span",{class:"end"},h("span",{class:"chip--tag"+(fillable(f)?" chip chip--accent":" chip"),text:tag})),
         h("svg",{class:"ico chev",viewBox:"0 0 24 24","aria-hidden":"true",html:'<path d="m9 6 6 6-6 6"/>'}));
       r.dataset.id=f.id;list.append(r);
     });
@@ -548,7 +647,113 @@ function mount(root,opts){
     if(I&&I.note)blk.append(h("p",{class:"hint",style:"margin:0 4px",text:I.note}));
     return blk;
   }
-  /* údaje, které se propíšou do vybraného PDF */
+  /* ===== Vstupy přesně podle vybraného formuláře ===== */
+  const qEls=new Map();   /* klíč položky → vstup (kvůli skoku z náhledu) */
+  function qVal(f,q){const k=qKey(q),m=(S._mem&&S._mem[f.id])||{},v=S.fv[f.id]||{};return k in m?m[k]:(k in v?v[k]:(q.d!=null?q.d:""))}
+  function qSet(f,q,val){
+    const k=qKey(q);
+    if(q.t!=="check"&&q.t!=="choice"&&NOSAVE.test(q.l)){S._mem=S._mem||{};(S._mem[f.id]=S._mem[f.id]||{})[k]=val}
+    else{const o=S.fv[f.id]=S.fv[f.id]||{};if(val===""||val==null)delete o[k];else o[k]=val}
+    changed();
+  }
+  function schemaBlocks(f,sch){
+    qEls.clear();
+    const out=[];let accDone=false,advDone=false;const AD=advData();
+    const uid=()=>"frq-"+Math.random().toString(36).slice(2,8);
+    const focusHL=(el,q)=>{el.addEventListener("focus",()=>hl(q));el.addEventListener("pointerenter",()=>hl(q,true))};
+    sch.s.forEach(sec=>{
+      const g=h("div",{class:"group"});
+      sec.q.forEach(q=>{
+        const ck=q.ck?String(q.ck).split("@")[0]:"";
+        if(ck&&CK_CLIENT.has(ck))return;
+        const lab=qlab(q.l);
+        if(ck==="cnum"||ck==="newcnum"){const lab2=/smlouv|č[ií]slo|sml\b/i.test(lab)&&lab.length<60?lab:(ck==="cnum"?"Číslo smlouvy":"Číslo nové smlouvy");const r=frow(lab2,ck==="cnum"?"cnum":"cnumNew",{ph:"XXXXXXXXXX"});focusHL(r.input,q);qEls.set(qKey(q),r.input);g.append(r);return}
+        if(CK_ACC.has(ck)){
+          if(accDone){qEls.set(qKey(q),qEls.get("__acc"));return}accDone=true;
+          const r=frow("Číslo účtu","ucet",{ph:"předčíslí-číslo/kód banky",on:()=>chk()});const st=h("div",{class:"pst"});
+          const chk=()=>{const c=ucetCheck(S.ucet);st.className="pst "+c.st;st.textContent=c.msg};chk();
+          focusHL(r.input,q);qEls.set(qKey(q),r.input);qEls.set("__acc",r.input);g.append(r,h("div",{class:"frow sub"},h("span",{class:"lab"}),st));return}
+        if(ck==="vs"||ck==="ss"){const r=frow(lab,ck,{im:"numeric",ph:"nepovinné"});focusHL(r.input,q);qEls.set(qKey(q),r.input);g.append(r);return}
+        if(ck==="place"){const r=frow(/m[ií]sto|^v\b/i.test(lab)?lab:"Místo podpisu","place",{ph:"Brno"});focusHL(r.input,q);qEls.set(qKey(q),r.input);g.append(r);return}
+        if(ck==="date"||ck==="placedate"){const r=frow(/dat|dne/i.test(lab)&&lab.length<40?lab:"Datum podpisu","fdate",{type:"date"});focusHL(r.input,q);qEls.set(qKey(q),r.input);g.append(r);return}
+        if(ck.startsWith("adv")){
+          if(!AD)return;if(advDone)return;advDone=true;
+          const cur=S.adv==="none"?"none":(AD.list.some(x=>x.id===S.adv)?S.adv:AD.list[0].id);
+          g.append(h("div",{class:"frow col"},h("label",{text:"Poradce (obchodní zástupce)"}),
+            segOf(AD.list.map(x=>[x.id,x.short||x.name]).concat([["none","Nevyplňovat"]]),cur,v=>{S.adv=v;save();renderAll()},{block:true,label:"Poradce"})));
+          return}
+        const id=uid();let row,inp;
+        if(q.t==="check"){
+          inp=h("input",{type:"checkbox",class:"switch",role:"switch",id});inp.checked=qVal(f,q)===true;
+          inp.addEventListener("change",()=>qSet(f,q,inp.checked?true:""));
+          row=h("div",{class:"frow chk"},h("label",{for:id,text:lab,title:q.l}),inp);
+        }else if(q.t==="choice"||q.t==="select"){
+          const cur=String(qVal(f,q)||"");
+          const short=q.t==="choice"&&q.o.length<=4&&q.o.every(o=>pretty(o[0]).length<=16);
+          if(short){
+            const sg=h("div",{class:"seg seg--block",role:"radiogroup","aria-label":lab});
+            q.o.forEach(([t,v])=>{const b=h("button",{type:"button",role:"radio","aria-checked":String(v===cur),text:qlab(t),title:t,onclick:()=>{
+              const nv=b.getAttribute("aria-checked")==="true"?"":v;[...sg.children].forEach(x=>x.setAttribute("aria-checked",String(x===b&&nv!=="")));qSet(f,q,nv)}});sg.append(b)});
+            inp=sg;row=h("div",{class:"frow col"},h("label",{text:lab}),sg);
+            sg.addEventListener("focusin",()=>hl(q));sg.addEventListener("pointerenter",()=>hl(q,true));
+            sg.tabIndex=-1;
+          }else if(q.t==="choice"){
+            const L=h("div",{class:"opts",role:"radiogroup","aria-label":lab});
+            q.o.forEach(([t,v])=>{const b=h("button",{type:"button",role:"radio","aria-checked":String(v===cur),title:t,onclick:()=>{
+              const nv=b.getAttribute("aria-checked")==="true"?"":v;[...L.children].forEach(x=>x.setAttribute("aria-checked",String(x===b&&nv!=="")));qSet(f,q,nv)}},
+              h("span",{class:"dot","aria-hidden":"true"}),h("span",{class:"ot",text:qlab(t)}));L.append(b)});
+            inp=L;row=h("div",{class:"frow col"},h("label",{text:lab}),L);
+            L.addEventListener("focusin",()=>hl(q));L.addEventListener("pointerenter",()=>hl(q,true));L.tabIndex=-1;
+          }else{
+            inp=h("select",{id});inp.append(h("option",{value:"",text:"—"}));
+            q.o.forEach(([t,v])=>inp.append(h("option",{value:v,text:qlab(t)})));
+            if(q.t==="select"&&cur&&!q.o.some(o=>o[1]===cur))inp.append(h("option",{value:cur,text:cur}));
+            inp.value=cur;inp.addEventListener("change",()=>qSet(f,q,inp.value));
+            row=h("div",{class:q.t==="choice"?"frow col":"frow"},h("label",{for:id,text:lab}),inp);
+          }
+        }else{
+          inp=h("input",{id,type:q.t==="date"?"date":"text",autocomplete:"off",maxlength:q.t==="comb"?String(q.n.length):(q.ml?String(q.ml):null),
+            placeholder:NOSAVE.test(q.l)?"neukládá se":"",inputmode:/(^|\s)(psč|telefon|mobil|ičo|symbol|číslo účtu|kód banky)/i.test(lab)?"numeric":null});
+          inp.value=qVal(f,q)||"";
+          inp.addEventListener("input",()=>qSet(f,q,inp.value));
+          row=h("div",{class:"frow"},h("label",{for:id,text:lab,title:q.l}),inp);
+        }
+        if(inp&&inp.tagName!=="DIV")focusHL(inp,q);
+        qEls.set(qKey(q),inp);g.append(row);
+      });
+      if(g.childElementCount)out.push(h("div",{class:"blk"},sechead(slab(sec.s)),g));
+    });
+    if(!out.length)out.push(h("div",{class:"blk"},sechead("Údaje do formuláře"),h("div",{class:"card note"},h("p",{text:"Formulář chce jen údaje klienta – jsou nahoře v bloku Klient."}))));
+    const has=Object.keys(S.fv[f.id]||{}).length||Object.keys((S._mem||{})[f.id]||{}).length;
+    if(has)out.push(h("div",{class:"chips",style:"padding:0 4px"},btn("Vymazat údaje tohoto formuláře","btn--ghost btn--s",()=>{delete S.fv[f.id];if(S._mem)delete S._mem[f.id];save();renderAll()})));
+    return out;
+  }
+  /* zvýraznění pole v náhledu (fokus / najetí na vstup vlevo) */
+  let hlQ=null;
+  function hl(q,soft){
+    hlQ=q;const P=refs.pageEls||[];
+    P.forEach(p=>p.el.querySelectorAll(".hl").forEach(x=>x.remove()));
+    if(!q)return;let first=null;
+    q.r.forEach(([pg,x,y,w,hh])=>{const p=P[pg];if(!p)return;
+      const d=h("div",{class:"hl"});d.style.cssText="left:"+(x*p.sc-3)+"px;top:"+(y*p.sc-3)+"px;width:"+(w*p.sc+6)+"px;height:"+(hh*p.sc+6)+"px";
+      p.el.append(d);if(!first)first=d});
+    if(first&&!soft){const box=document.getElementById("frm-pvbox");if(box){const br=box.getBoundingClientRect(),r=first.getBoundingClientRect();
+      if(r.top<br.top+20||r.bottom>br.bottom-20)box.scrollTo({top:box.scrollTop+(r.top-br.top)-br.height/3,behavior:"smooth"})}}
+  }
+  /* klik do náhledu → vstup vlevo */
+  function pvClick(pgIdx,px,py){
+    const f=curForm(),sch=schemaOf(f);if(!sch)return;
+    let best=null,bd=1e9;
+    sch.s.forEach(sec=>sec.q.forEach(q=>q.r.forEach(([pg,x,y,w,hh])=>{if(pg!==pgIdx)return;
+      const dx=px<x?x-px:px>x+w?px-x-w:0,dy=py<y?y-py:py>y+hh?py-y-hh:0,d=dx+dy;if(d<bd){bd=d;best=q}})));
+    if(!best||bd>6)return;
+    const ck=best.ck?String(best.ck).split("@")[0]:"";
+    let el=qEls.get(qKey(best));
+    if(!el&&ck&&CK_CORE[ck]&&refs.crow&&refs.crow[CK_CORE[ck]])el=refs.crow[CK_CORE[ck]].input;
+    hl(best,true);
+    if(el){el.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>{try{(el.tagName==="DIV"?el.querySelector("button"):el).focus({preventScroll:true})}catch(e){}},250)}
+  }
+  /* údaje, které se propíšou do vybraného PDF (formuláře bez schématu) */
   function dataBlock(){
     const f=curForm();if(!f||!f.fill)return null;
     const I=instOf(S,instList())||{};const keys=fkeys(f);
@@ -643,10 +848,10 @@ function mount(root,opts){
     }
     const isDoc=f.file.endsWith(".docx");
     const bar=h("div",{class:"pv-bar"});
-    if(f.fill){bar.append(btn("Stáhnout vyplněné PDF","btn--primary",()=>download(f)),btn("Otevřít","btn--secondary",()=>openPdf(f)))}
+    if(fillable(f)){bar.append(btn("Stáhnout vyplněné PDF","btn--primary",()=>download(f)),btn("Otevřít","btn--secondary",()=>openPdf(f)))}
     else bar.append(h("a",{class:"btn btn--primary",href:BASE+"formulare/"+f.file,target:"_blank",rel:"noopener",download:isDoc?"":null,text:isDoc?"Stáhnout Word":"Otevřít PDF"}));
     bar.append(h("span",{class:"sp"}));
-    if(f.fill)bar.append(h("a",{class:"btn btn--ghost btn--s",href:BASE+"formulare/"+f.file,target:"_blank",rel:"noopener",text:"Prázdný"}));
+    if(fillable(f))bar.append(h("a",{class:"btn btn--ghost btn--s",href:BASE+"formulare/"+f.file,target:"_blank",rel:"noopener",text:"Prázdný"}));
     bar.append(h("a",{class:"btn btn--ghost btn--s",href:f.web||f.src,target:"_blank",rel:"noopener",text:"Web instituce"}));
     const box=h("div",{class:"pv-box",id:"frm-pvbox"});
     const pages=h("div",{class:"pv-pages"});box.append(pages);
@@ -658,7 +863,10 @@ function mount(root,opts){
   }
   function metaInfo(f){
     const m=refs.meta;if(!m)return;m.textContent="";
-    if(f.fill){
+    if(schemaOf(f)){
+      if(pvState.err)m.append(h("p",{class:"hint",text:"Vyplnit se nepodařilo ("+pvState.err+") – otevři prázdný formulář."}));
+      else{const n=pvState.done.length;m.append(h("p",{class:"hint",text:n?"Vyplněno "+n+" "+(n===1?"údaj":n<5?"údaje":"údajů")+". Kliknutím do náhledu skočíš na pole vlevo.":"Vyplň údaje vlevo – propíšou se rovnou sem. Kliknutím do náhledu skočíš na pole."}))}
+    }else if(f.fill){
       const all=[...fkeys(f)];
       const done=pvState.done;
       if(pvState.err)m.append(h("p",{class:"hint",text:"Předvyplnit se nepodařilo ("+pvState.err+") – otevři prázdný formulář."}));
@@ -678,7 +886,7 @@ function mount(root,opts){
     const pages=refs.pages;if(!pages)return;
     if(!pages.childElementCount)pages.append(h("div",{class:"pv-empty",text:"Připravuji formulář…"}));
     let out;
-    try{out=f.fill?await fillPdf(f,S,instOf(S,instList()),advOf()):{bytes:new Uint8Array(await getFile(f.file)),done:[]}}
+    try{out=fillable(f)?await fillPdf(f,S,instOf(S,instList()),advOf()):{bytes:new Uint8Array(await getFile(f.file)),done:[]}}
     catch(e){
       if(ver!==pvState.ver)return;
       pvState.err=(e&&e.message)||"chyba";pvState.done=[];metaInfo(f);
@@ -700,9 +908,14 @@ function mount(root,opts){
       const p=await doc.getPage(i);const v0=p.getViewport({scale:1});const sc=W/v0.width;const vp=p.getViewport({scale:sc*dpr});
       const c=h("canvas",{width:Math.round(vp.width),height:Math.round(vp.height),"aria-label":"Strana "+i});c.style.width=Math.round(vp.width/dpr)+"px";
       await p.render({canvasContext:c.getContext("2d"),viewport:vp,annotationMode:lib.AnnotationMode?lib.AnnotationMode.ENABLE:1}).promise;
-      if(ver!==pvState.ver)return;frag.push(c);
+      if(ver!==pvState.ver)return;
+      const wrap=h("div",{class:"pg"},c),pi=i-1,cssW=vp.width/dpr;
+      wrap.addEventListener("click",ev=>{const r=c.getBoundingClientRect(),k=r.width/v0.width;pvClick(pi,(ev.clientX-r.left)/k,(ev.clientY-r.top)/k)});
+      frag.push({el:wrap,sc:cssW/v0.width,w:cssW});
     }
-    pages.textContent="";pages.append(...frag);
+    pages.textContent="";pages.append(...frag.map(x=>x.el));refs.pageEls=frag;
+    /* šířka stránky na úzkém displeji (canvas má max-width:100 %) → přepočet měřítka */
+    requestAnimationFrame(()=>{frag.forEach(x=>{const cw=x.el.firstChild.getBoundingClientRect().width;if(cw)x.sc=x.sc*cw/x.w});if(hlQ)hl(hlQ,true)});
     try{doc.destroy()}catch(e){}
   }
   function fname(f){return (f.t.replace(/[\\/:*?"<>|]+/g," ").slice(0,60)+(S.name?" – "+S.name:"")).trim()+".pdf"}
@@ -744,14 +957,16 @@ function mount(root,opts){
   function changed(light){
     save();
     if(S.mode==="vol"){if(paperEl){paperEl.innerHTML=letterHTML(S,instList());scale()}return}
-    const f=curForm();if(f&&f.fill&&refs.pages)regen(f);
+    const f=curForm();if(fillable(f)&&refs.pages)regen(f);
   }
   function renderAll(){
     [...modeSeg.children].forEach(b=>b.setAttribute("aria-selected",String(b.dataset.v===S.mode)));
     upd.textContent=S.mode==="off"&&CAT.updated?"Formuláře aktualizovány "+dshort(CAT.updated):"";
     col.textContent="";
     col.append(clientBlock(),instBlock());
-    if(S.mode==="off"){col.append(formBlock());const d=dataBlock();if(d)col.append(d)}
+    if(S.mode==="off"){col.append(formBlock());const f=curForm(),sch=schemaOf(f);
+      if(sch)col.append(...schemaBlocks(f,sch));else{const d=dataBlock();if(d)col.append(d)}
+      if(f&&!POLE&&!poleP)loadPole().then(()=>{if(curForm()===f)renderAll()}).catch(()=>{})}
     else col.append(...letterBlocks());
     col.querySelectorAll("textarea.autoh").forEach(t=>{const fit=()=>{t.style.height="auto";t.style.height=t.scrollHeight+"px"};t.addEventListener("input",fit);requestAnimationFrame(fit)});
     renderPreview();
@@ -760,11 +975,10 @@ function mount(root,opts){
 
   /* katalog formulářů */
   fetch(BASE+"formulare/index.json",{cache:"no-cache"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(j=>{
-    if(j&&Array.isArray(j.inst)&&Array.isArray(j.forms)){CAT=j;catState="ok"}else catState="error";
+    if(j&&Array.isArray(j.inst)&&Array.isArray(j.forms)){CAT=j;catState="ok";if(S.mode==="off")loadPole().then(()=>renderAll()).catch(()=>{})}else catState="error";
     if(!instOf(S,instList()))S.inst="allianz";
     renderAll();
   }).catch(()=>{catState="error";renderAll()});
-  if(!instOf(S,instList())&&S.inst!=="__new"&&!String(S.inst).startsWith("x:"))S.inst="allianz";
   renderAll();
 
   return {
