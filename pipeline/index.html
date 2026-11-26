@@ -2300,7 +2300,7 @@ function render(){
   if(view==="pipe"){queueMicrotask(runFlip);$("bigTitle").textContent=appName();$("sub").textContent=pper&&!q?pmLabel(pper)+" · archiv":leads.length?`${act} ${plural(act,"rozjednaný lead","rozjednané leady","rozjednaných leadů")} · ${pmLabel(null)}`:"Zatím prázdno. Přidej první lead tlačítkem +.";renderPipe(cur)}
   else if(view==="money"){$("bigTitle").textContent="Obrat";$("sub").textContent="Body, provize, pasivní příjem a tým";renderMoney(cq,cur)}
   else if(view==="cli"){$("bigTitle").textContent="Klienti";renderClients()}
-  else if(view==="cal"){$("bigTitle").textContent="Kalendář";$("sub").textContent="Schůzky z vybraných kalendářů · oranžově volné bloky po 90 min (8:30–19:00)";renderCalTab()}
+  else if(view==="cal"){$("bigTitle").textContent="Kalendář";$("sub").textContent="Schůzky z vybraných kalendářů · oranžově volné bloky po 90 min (10:00–19:00)";renderCalTab()}
   else if(view==="fp"){$("bigTitle").textContent="Finanční plán";$("sub").textContent="Živé finanční plány klientů";renderFpTab()}
   else if(view==="frm"){$("bigTitle").textContent="Formuláře";$("sub").textContent="Výpovědi, změny a převody smluv – oficiální formulář instituce předvyplněný údaji klienta, nebo dopis volnou formou";renderFrm()}
   else if(view==="uv"){$("bigTitle").textContent="Úvěry";$("sub").textContent="Hypotéky a úvěry klientů – dotazník, výběr banky, podklady a průběh až po čerpání";renderUv()}
@@ -3184,10 +3184,10 @@ function renderDzNotes(){
 }
 setInterval(()=>{try{renderDzNotes()}catch(e){}},1500);
 
-/* ---------- volné bloky pro schůzky: všední dny 8:30–19:00, 45 min + 15 min rezerva; jen tvoje schůzky (prefix) a osobní kalendář blokují ---------- */
+/* ---------- volné bloky pro schůzky: všední dny 10:00–19:00, 45 min + 15 min rezerva; jen tvoje schůzky (prefix) a osobní kalendář blokují ---------- */
 const OFFICE_PLACE="Brno, Trnitá 500/9";
-const DZS={from:510,to:1140,len:45,buf:15,block:90,grid:[510,600,690,780,870,960,1050],days:21,addr:()=>(settings.dzAddr||"Trnitá 500/9, 602 00 Brno")};
-/* pevná mřížka bloků po 90 min (každý týden stejné časy): 8:30, 10:00, 11:30, 13:00, 14:30, 16:00, 17:30.
+const DZS={from:600,to:1140,len:45,buf:15,block:90,grid:[600,690,780,870,960,1050],days:21,addr:()=>(settings.dzAddr||"Trnitá 500/9, 602 00 Brno")};
+/* pevná mřížka bloků po 90 min (každý týden stejné časy): 10:00, 11:30, 13:00, 14:30, 16:00, 17:30.
    Tvoje schůzka / osobní událost v okně bloku → blok je obsazený. Škola v okně → začátek se posune na 50 min po konci výuky
    (konec v IS hh:50 / reálně hh:40 → (hh+1):30), ale jen uvnitř okna; když se schůzka (45 min) do okna nevejde, blok ten den odpadá. */
 /* po škole: nejbližší celá půlhodina (hh:30) aspoň 40 min po konci výuky v IS (IS píše konec 9:50, výuka končí 9:40) → 10:30 */
