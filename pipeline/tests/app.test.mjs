@@ -91,6 +91,7 @@ export default {
     await page.evaluate(iso => openMsg({ name: "Jan Novák", phone: "777111222", email: "n@example.com", start: new Date(iso).toISOString(), online: false, place: "", meetId: null }, "potvrzeni"), d.iso);
     await page.waitForSelector("dialog[open] input[type=email]");
     assert(await page.evaluate(() => [...document.querySelectorAll("dialog[open] button")].some(b => b.textContent.includes("Potvrdit e-mailem"))), "tlačítko Potvrdit e-mailem");
+    assert(await page.evaluate(() => { const t = document.querySelector('dialog[open] textarea[aria-label="Text e-mailu"]'), u = document.querySelector('dialog[open] input[aria-label="Předmět e-mailu"]'); return !!t && !!u && t.value.includes("vidíme se") && !t.readOnly; }), "editovatelný text a předmět e-mailu");
     eq(errors, [], "bez chyb");
     await ctx.close();
   },

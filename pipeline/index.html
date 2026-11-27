@@ -5894,6 +5894,8 @@ function mailConf(online){const k=online?"online":"osobne",s=((settings&&setting
   return {subject:typeof s.subject==="string"?s.subject:MAIL_CONF_DEF[k].subject,text:typeof s.text==="string"&&s.text.trim()?s.text:MAIL_CONF_DEF[k].text}}
 function confMailOut(ctx){const M=mailConf(ctx.online),mc={...ctx,place:ctx.online?ctx.place:(ctx.place||OFFICE_PLACE)};
   return {subject:fillTpl(M.subject,mc),body:fillTpl(M.text,mc).split(MEET_PH).join("[doplň odkaz]")}}
+function confMailDraft(ctx){const M=mailConf(ctx.online),mc={...ctx,place:ctx.online?ctx.place:(ctx.place||OFFICE_PLACE)};
+  return {subject:fillTpl(M.subject,mc),body:fillTpl(M.text,mc)}}
 function isConfTpl(t){return !!t&&t.id!=="zitra"&&(t.id==="potvrzeni"||/potvrz/i.test(t.name||""))}
 /* stará online šablona slibovala odkaz „v den konzultace“ – teď se odkaz na Google Meet generuje hned a vkládá přes {meet} */
 const OLD_MEET_RE=/Na Vaši (?:e-)?mailovou adresu Vám v den konzultace zašlu\s+odkaz pro připojení\.?/;
@@ -6015,20 +6017,23 @@ function openMsg(ctx,tplId,onSent){
   const T=tpls(),cur=T.find(t=>t.id===tplId)||T[0];const ta=el("textarea",{"aria-label":"Text zprávy"});
   if(ctx.online&&ctx.meetId&&!ctx.meetLink&&meetCache[ctx.meetId])ctx.meetLink=meetCache[ctx.meetId];
   ta.value=fillTpl(cur.text,ctx);
+  /* potvrzení e-mailem: předmět i text jdou v okně upravit před odesláním */
+  const confMail=isConfTpl(cur);
+  const mailSubj=confMail?el("input",{type:"text",class:"field","aria-label":"Předmět e-mailu"}):null,mailTa=confMail?el("textarea",{"aria-label":"Text e-mailu",rows:"8"}):null;
+  if(confMail){const d=confMailDraft(ctx);mailSubj.value=d.subject;mailTa.value=d.body}
   /* online schůzka → vždy zajistit Google Meet (přidá se i do události v kalendáři) a doplnit odkaz do textu */
   let meetPending=false;
   if(ctx.online&&ctx.meetId&&!ctx.meetLink){
     if(!navigator.onLine||!GAuth.hasScope("calendar.events"))toast("Odkaz na Google Meet teď nejde vytvořit – chybí připojení nebo oprávnění ke kalendáři");
-    else{meetPending=true;ensureMeet(ctx.meetId).then(link=>{if(!link)throw new Error("bez odkazu");ctx.meetLink=link;if(ta.isConnected)ta.value=ta.value.split(MEET_PH).join(link);toast("Google Meet přidán do schůzky")})
-      .catch(()=>{toast("Odkaz na Google Meet se nepodařilo vytvořit");if(ta.isConnected)ta.value=ta.value.split(MEET_PH).join("[doplň odkaz]")}).finally(()=>{meetPending=false})}
+    else{meetPending=true;ensureMeet(ctx.meetId).then(link=>{if(!link)throw new Error("bez odkazu");ctx.meetLink=link;if(ta.isConnected)ta.value=ta.value.split(MEET_PH).join(link);if(mailTa&&mailTa.isConnected)mailTa.value=mailTa.value.split(MEET_PH).join(link);toast("Google Meet přidán do schůzky")})
+      .catch(()=>{toast("Odkaz na Google Meet se nepodařilo vytvořit");if(ta.isConnected)ta.value=ta.value.split(MEET_PH).join("[doplň odkaz]");if(mailTa&&mailTa.isConnected)mailTa.value=mailTa.value.split(MEET_PH).join("[doplň odkaz]")}).finally(()=>{meetPending=false})}
   }
   /* potvrzení schůzky jde e-mailem podle vlastní e-mailové šablony (osobně / online); ostatní zprávy e-mailem tak, jak jsou v okně */
-  const confMail=isConfTpl(cur);
   const mailInp=ctx.online||confMail?el("input",{type:"email",class:"field",placeholder:"e-mail klienta","aria-label":"E-mail klienta",autocomplete:"off",style:"flex:1;min-width:0"}):null;if(mailInp)mailInp.value=ctx.email||"";
   const sendMail=async()=>{const to=(mailInp?mailInp.value:ctx.email||"").trim();if(!/^\S+@\S+\.\S+$/.test(to)){toast("Zadej e-mail klienta");mailInp?.focus();return}
-    if(meetPending||(!confMail&&ta.value.includes(MEET_PH))){toast("Ještě se generuje odkaz na Google Meet – chvilku počkej");return}
+    if(meetPending||(confMail?mailTa.value:ta.value).includes(MEET_PH)){toast("Ještě se generuje odkaz na Google Meet – chvilku počkej");return}
     let subject,body;
-    if(confMail)({subject,body}=confMailOut(ctx));
+    if(confMail){subject=mailSubj.value.trim()||confMailDraft(ctx).subject;body=mailTa.value}
     else{subject=ctx.online&&cur.id!=="narozeniny"?"Potvrzení online konzultace":cur.name;body=ta.value}
     if(ctx.leadRef&&to!==(ctx.email||"")){try{await db.doc("leads/"+ctx.leadRef.id).update({email:to,updatedAt:new Date().toISOString()});ctx.email=to}catch(e){}}
     location.href="mailto:"+encodeURIComponent(to)+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);sent("e-mail")};
@@ -6038,8 +6043,9 @@ function openMsg(ctx,tplId,onSent){
     el("div",{class:"msgto"},(ctx.name||"")+(tel?" · "+tel:" · telefon chybí")+(ctx.start?" · schůzka "+fmtMeet(ctx.start):/\{(den|datum|cas|vcas)\}/.test(cur.text)?" · schůzka není v kalendáři – doplň [den] [datum] [čas] v textu":"")),
     (ctx.meets||[]).length>1?[el("div",{class:"msgto",style:"margin-top:2px"},"Kterou schůzku potvrdit:"),el("div",{class:"chips"},ctx.meets.map(m=>el("button",{type:"button",class:"chip","aria-pressed":String(m.id===ctx.meetId),onclick:()=>openMsg({...ctx,start:m.start,online:m.online,place:m.place,meetId:m.id,meetLink:null},dDiff(m.start.slice(0,10),todayStr())===1?"zitra":"potvrzeni",onSent)},fmtMeet(m.start)+(m.online?" · online":""))))]:null,
     el("div",{class:"chips"},T.map(t=>el("button",{type:"button",class:"chip","aria-pressed":String(t.id===cur.id),onclick:()=>openMsg(ctx,t.id,onSent)},t.name))),ta,
+    confMail?[el("div",{class:"msgto",style:"margin-top:2px"},"E-mail – předmět a text můžeš upravit:"),mailSubj,mailTa]:null,
     mailInp?el("div",{style:"display:flex;gap:8px;align-items:center"},mailInp,el("button",{type:"button",class:"btn btn--secondary",onclick:sendMail},ico("mail"),confMail?"Potvrdit e-mailem":"Poslat e-mailem")):null,
-    confMail?el("p",{class:"hint",style:"margin:-4px 0 0"},"E-mail se vyplní podle šablony „E-mail – potvrzení "+(ctx.online?"online":"osobně")+"“ z nastavení, ne podle textu výše."):null,
+    confMail?el("p",{class:"hint",style:"margin:-4px 0 0"},"Výchozí text e-mailu je z Nastavení („E-mail – potvrzení "+(ctx.online?"online":"osobně")+"“); tady ho upravíš jen pro tento e-mail."):null,
     el("div",{class:"tdbtns"},
       tel?el("button",{type:"button",onclick:async()=>{try{await navigator.clipboard.writeText(ta.value)}catch(e){}sent("SMS");location.href="sms:"+tel+"?&body="+encodeURIComponent(ta.value);toast("Otevírám Zprávy · text je i ve schránce")}},ico("msg"),"Otevřít ve Zprávách"):null,
       tel?el("button",{type:"button",class:"sec",onclick:()=>{window.open("https://wa.me/"+wa+"?text="+encodeURIComponent(ta.value),"_blank");sent("WhatsApp")}},"WhatsApp"):null,
